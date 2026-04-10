@@ -26,6 +26,7 @@ import type { RouteGraphId } from '../../lib/domain/pipeline/composition-address
 import type { RoleId } from '../../lib/domain/pipeline/projection-address';
 import type { CanonProvenance } from '../../lib/domain/pipeline/provenance';
 import { createElementId, createScreenId } from '../../lib/domain/kernel/identity';
+import { asFingerprint } from '../../lib/domain/kernel/hash';
 
 function makeProvenance(): CanonProvenance {
   return {
@@ -52,7 +53,7 @@ describe('Phase 0b: canon source phantom', () => {
       address: makeElementAddress(),
       content: { shape: 'minimal' },
       source: 'cold-derivation',
-      inputFingerprint: 'sha256:test',
+      inputFingerprint: asFingerprint('atom-input', 'sha256:test'),
       provenance: makeProvenance(),
     });
 
@@ -94,7 +95,7 @@ describe('Phase 0b: canon source phantom', () => {
       address: makeElementAddress(),
       content: { shape: 'minimal' },
       source: 'cold-derivation',
-      inputFingerprint: 'sha256:test',
+      inputFingerprint: asFingerprint('atom-input', 'sha256:test'),
       provenance: makeProvenance(),
     });
 
@@ -106,7 +107,7 @@ describe('Phase 0b: canon source phantom', () => {
       address: makeElementAddress(),
       content: { shape: 'minimal' },
       source: 'operator-override',
-      inputFingerprint: 'sha256:test',
+      inputFingerprint: asFingerprint('atom-input', 'sha256:test'),
       provenance: makeProvenance(),
     });
 
@@ -129,7 +130,7 @@ describe('Phase 0b: canon source phantom', () => {
       content: { app: 'test-app', baseUrl: '/test', variants: [] },
       atomReferences: [],
       source: 'agentic-override',
-      inputFingerprint: 'sha256:test',
+      inputFingerprint: asFingerprint('composition-input', 'sha256:test'),
       provenance: makeProvenance(),
     });
 
@@ -149,7 +150,7 @@ describe('Phase 0b: canon source phantom', () => {
       address: { subType: 'role-visibility', role: 'admin' as RoleId },
       bindings: [],
       source: 'deterministic-observation',
-      inputFingerprint: 'sha256:test',
+      inputFingerprint: asFingerprint('projection-input', 'sha256:test'),
       provenance: makeProvenance(),
     });
 
@@ -169,7 +170,7 @@ describe('Phase 0b: canon source phantom', () => {
       address: makeElementAddress(),
       content: { shape: 'minimal' },
       source: 'cold-derivation',
-      inputFingerprint: 'sha256:test',
+      inputFingerprint: asFingerprint('atom-input', 'sha256:test'),
       provenance: makeProvenance(),
     });
 

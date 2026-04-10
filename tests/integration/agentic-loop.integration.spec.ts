@@ -103,7 +103,6 @@ function createBundle(proposals: ProposalEntry[]): ProposalBundle {
       suite: 'demo/policy-search',
       proposals,
     },
-    proposals,
   });
 }
 

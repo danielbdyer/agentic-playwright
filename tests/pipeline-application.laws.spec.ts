@@ -31,6 +31,7 @@ import type { ArtifactEnvelope } from '../lib/application/catalog/types';
 import type { Atom } from '../lib/domain/pipeline/atom';
 import type { AtomClass } from '../lib/domain/pipeline/atom-address';
 import type { PhaseOutputSource } from '../lib/domain/pipeline/source';
+import { asFingerprint } from '../lib/domain/kernel/hash';
 import { brandString } from '../lib/domain/kernel/brand';
 
 // ─── Helpers ─────────────────────────────────────────────────────
@@ -41,7 +42,7 @@ function makeRouteAtom(routeId: string, source: 'agentic-override' | 'determinis
     address: { class: 'route', id: brandString<'RouteId'>(routeId) },
     content: { url: `/${routeId}.html` },
     source,
-    inputFingerprint: `sha256:${routeId}-${source}`,
+    inputFingerprint: asFingerprint('atom-input', `sha256:${routeId}-${source}`),
     provenance: { producedBy: 'test', producedAt: '2026-04-08T00:00:00.000Z' },
   });
 }

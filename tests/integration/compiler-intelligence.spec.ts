@@ -523,7 +523,6 @@ test('flywheel: proposal activation improves knowledge hit rate on recompile for
         suite: 'demo/policy-detail',
         proposals: [proposal],
       },
-      proposals: [proposal],
     });
 
     // Phase 3: activate the hint proposal — patches hints file with underwriter alias

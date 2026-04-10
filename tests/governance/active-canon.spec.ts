@@ -77,7 +77,6 @@ function proposalBundleWithDecision(decision: ProposalEntry['trustPolicy']['deci
       suite: 'demo/policy-search',
       proposals: [proposal],
     },
-    proposals: [proposal],
   });
 }
 

@@ -86,6 +86,7 @@ import {
 } from '../lib/domain/pipeline/lookup-chain';
 
 import { brandString } from '../lib/domain/kernel/brand';
+import { asFingerprint } from '../lib/domain/kernel/hash';
 
 // ─── Stage enumeration ───────────────────────────────────────────
 
@@ -262,7 +263,7 @@ test('atom() constructor preserves all fields', () => {
     address: addr,
     content: { something: 'observed' },
     source: 'agentic-override',
-    inputFingerprint: 'sha256:test',
+    inputFingerprint: asFingerprint('atom-input', 'sha256:test'),
     provenance: {
       producedBy: 'test',
       producedAt: '2026-04-08T00:00:00.000Z',
@@ -280,7 +281,7 @@ test('atom address consistency check holds for valid atoms', () => {
     address: { class: 'route', id: brandString<'RouteId'>('r1') },
     content: {},
     source: 'deterministic-observation',
-    inputFingerprint: 'sha256:test',
+    inputFingerprint: asFingerprint('atom-input', 'sha256:test'),
     provenance: { producedBy: 'test', producedAt: '2026-04-08T00:00:00.000Z' },
   });
   expect(isAtomAddressConsistent(a)).toBe(true);
@@ -292,7 +293,7 @@ test('isAtomOfClass returns true for matching class and false otherwise', () => 
     address: { class: 'screen', screen: brandString<'ScreenId'>('s1') },
     content: {},
     source: 'live-derivation',
-    inputFingerprint: 'sha256:test',
+    inputFingerprint: asFingerprint('atom-input', 'sha256:test'),
     provenance: { producedBy: 'test', producedAt: '2026-04-08T00:00:00.000Z' },
   });
   expect(isAtomOfClass(a, 'screen')).toBe(true);
@@ -329,7 +330,7 @@ test('composition envelope preserves atomReferences', () => {
       },
     ],
     source: 'agentic-override',
-    inputFingerprint: 'sha256:flow',
+    inputFingerprint: asFingerprint('composition-input', 'sha256:flow'),
     provenance: { producedBy: 'test', producedAt: '2026-04-08T00:00:00.000Z' },
   });
   expect(c.atomReferences).toHaveLength(1);
@@ -374,7 +375,7 @@ test('projection envelope carries bindings and address-class consistency', () =>
       },
     ],
     source: 'agentic-override',
-    inputFingerprint: 'sha256:proj',
+    inputFingerprint: asFingerprint('projection-input', 'sha256:proj'),
     provenance: { producedBy: 'test', producedAt: '2026-04-08T00:00:00.000Z' },
   });
   expect(p.bindings).toHaveLength(1);
@@ -394,7 +395,7 @@ test('findBinding returns the matching binding by atom address', () => {
       { address: elementAddr, applicability: 'interactive' },
     ],
     source: 'agentic-override',
-    inputFingerprint: 'sha256:proj',
+    inputFingerprint: asFingerprint('projection-input', 'sha256:proj'),
     provenance: { producedBy: 'test', producedAt: '2026-04-08T00:00:00.000Z' },
   });
   const found = findBinding(p, elementAddr);
