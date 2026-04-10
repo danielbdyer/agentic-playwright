@@ -92,14 +92,19 @@ export const pipelineStagingFSM: FSMDefinition<PipelineStageState, PipelineStage
   ordinal: stageOrdinal,
 };
 
-// ─── Predicates ───
+// ─── Type-guard predicates ──────────────────────────────────────
+//
+// These are type guards (not just boolean predicates) so they
+// narrow the WorkflowStage union to the specific literal. Call
+// sites that use these predicates get phantom-level narrowing
+// automatically — no explicit type assertion needed.
 
-export const isPreparation = (stage: WorkflowStage): boolean => stage === 'preparation';
-export const isResolution = (stage: WorkflowStage): boolean => stage === 'resolution';
-export const isExecution = (stage: WorkflowStage): boolean => stage === 'execution';
-export const isEvidence = (stage: WorkflowStage): boolean => stage === 'evidence';
-export const isProposal = (stage: WorkflowStage): boolean => stage === 'proposal';
-export const isProjection = (stage: WorkflowStage): boolean => stage === 'projection';
+export const isPreparation = (stage: WorkflowStage): stage is 'preparation' => stage === 'preparation';
+export const isResolution = (stage: WorkflowStage): stage is 'resolution' => stage === 'resolution';
+export const isExecution = (stage: WorkflowStage): stage is 'execution' => stage === 'execution';
+export const isEvidence = (stage: WorkflowStage): stage is 'evidence' => stage === 'evidence';
+export const isProposal = (stage: WorkflowStage): stage is 'proposal' => stage === 'proposal';
+export const isProjection = (stage: WorkflowStage): stage is 'projection' => stage === 'projection';
 
 /** Check if a stage has completed execution (evidence, proposal, or projection). */
 export const isPostExecution = (stage: WorkflowStage): boolean => {
