@@ -26,6 +26,7 @@ import type { MetricVisitor } from '../visitor';
 import type { Atom } from '../../../pipeline/atom';
 import type { AtomClass } from '../../../pipeline/atom-address';
 import type { PhaseOutputSource } from '../../../pipeline/source';
+import { fidelityVisitor, coverageVisitor } from './fidelity';
 
 // ─── Visitor input shape ────────────────────────────────────────
 
@@ -87,30 +88,27 @@ export const DISCOVERY_VISITORS: {
     K
   >;
 } = {
-  'discovery-route-fidelity': stubVisitor(
-    'discovery-route-fidelity',
+  'discovery-route-fidelity': fidelityVisitor(
+    'discovery-route-fidelity', 'route',
     'Cold-derived routes vs canonical route atoms',
   ),
-  'discovery-surface-fidelity': stubVisitor(
-    'discovery-surface-fidelity',
+  'discovery-surface-fidelity': fidelityVisitor(
+    'discovery-surface-fidelity', 'surface',
     'Cold-derived surfaces vs canonical surface atoms',
   ),
-  'discovery-element-fidelity': stubVisitor(
-    'discovery-element-fidelity',
+  'discovery-element-fidelity': fidelityVisitor(
+    'discovery-element-fidelity', 'element',
     'Cold-derived elements vs canonical element atoms',
   ),
-  'discovery-posture-fidelity': stubVisitor(
-    'discovery-posture-fidelity',
+  'discovery-posture-fidelity': fidelityVisitor(
+    'discovery-posture-fidelity', 'posture',
     'Cold-derived postures vs canonical posture atoms',
   ),
-  'discovery-selector-fidelity': stubVisitor(
-    'discovery-selector-fidelity',
+  'discovery-selector-fidelity': fidelityVisitor(
+    'discovery-selector-fidelity', 'selector',
     'Cold-derived selectors vs canonical selector atoms',
   ),
-  'discovery-coverage': stubVisitor(
-    'discovery-coverage',
-    'Address coverage fraction of cold-derivation',
-  ),
+  'discovery-coverage': coverageVisitor(),
   'intervention-graduation-rate': stubVisitor(
     'intervention-graduation-rate',
     'Rolling fraction of agentic overrides demoted to deterministic',
