@@ -1,4 +1,5 @@
 import type { DiagnosticSeverity, Governance, WorkflowEnvelopeIds } from '../governance/workflow-types';
+import type { ScreenId, ElementId } from '../kernel/identity';
 
 export type ParticipantKind =
   | 'agent'
@@ -207,6 +208,24 @@ export interface InterventionHandoff {
   readonly competingCandidates?: readonly InterventionCompetingCandidate[] | undefined;
   readonly tokenImpact?: InterventionTokenImpact | null | undefined;
   readonly chain?: InterventionHandoffChain | null | undefined;
+  /** The region of the application the intervention claims to
+   *  affect. Required for C6 measurement — the before/after
+   *  snapshot compares rung distribution, ambiguity, and suspension
+   *  within this region. Interventions without an attachment region
+   *  cannot be measured and their impact stays null.
+   *
+   *  @see docs/cold-start-convergence-plan.md § 4.C item 3 */
+  readonly attachmentRegion?: InterventionAttachmentRegion | null | undefined;
+}
+
+/** The scope an intervention claims to affect. Screens and elements
+ *  identify the surface area; runbook refs identify the workflow
+ *  scope. The C6 scheduler uses this to capture before/after
+ *  snapshots of the right region. */
+export interface InterventionAttachmentRegion {
+  readonly screens: readonly ScreenId[];
+  readonly elements: readonly (readonly [ScreenId, ElementId])[];
+  readonly runbookRefs: readonly string[];
 }
 
 export interface InterventionReceipt {
