@@ -2,11 +2,11 @@
 
 Tesseract is not a compiler-only test generator.
 
-It is an interface intelligence and agent workbench system that happens to emit Playwright.
+It is an interface intelligence and agent workbench system that happens to emit Playwright **today**. Test emission is the wedge. The product is the substrate.
 
-The authoritative architecture doctrine is now `docs/master-architecture.md`. This document stays intentionally shorter: it captures the product bet, the durable asset, and the operator-visible promise.
+The authoritative architecture doctrine is `docs/master-architecture.md`. The authoritative persistence doctrine is `docs/canon-and-derivation.md`. The wall-mounted scoreboard is `docs/alignment-targets.md`. The formal model is `docs/temporal-epistemic-kernel.md`. This document stays intentionally shorter: it captures the product bet, the durable asset, the deeper vision that the three doctrinal docs serve, and the operator-visible promise.
 
-## The product bet
+## The product bet (near-term wedge)
 
 If a manual test is written clearly enough for a QA to infer behavior from it, then Tesseract should be able to:
 
@@ -18,6 +18,63 @@ If a manual test is written clearly enough for a QA to infer behavior from it, t
 - learn from the run without silently mutating canon
 
 The source program is still the Azure DevOps manual test case. The emitted object code is still Playwright. The durable value sits between them: interface intelligence, intervention receipts, and governed improvement surfaces grounded in shared truth.
+
+## The deeper vision (what the wedge is for)
+
+Stand up the wedge and three longer-lived claims become reachable:
+
+### 1. The canonical artifact store is the product; tests are a byproduct
+
+Most test automation treats the application as a sequence of scripts to replay. Tesseract treats it as a **state machine whose semantics have to be learned and stored**. What accumulates over time is not a suite of tests; it is a **digital evidentiary interface model** of the application — a typed, provenance-rich, demotable belief structure answering "what IS this application, how is it DRIVEN, and who can see WHAT." The three-tier interface model (atoms / compositions / projections, `docs/canon-and-derivation.md` § 3.5) is the shape of that store. Tests are one projection over it. Review surfaces, impact analyses, cross-scenario graph queries, and provenance-tracked "why does the system believe X?" answers are others.
+
+The asset that compounds across runs is the canonical artifact store. A single test case is a transient witness. A thousand test cases observed over time populate a substrate that any future test case pulls from in constant time.
+
+### 2. Deterministic observation and agentic inference are braided, not averaged
+
+Most systems either force consensus between deterministic signals and agent inference (lossy average) or keep them as parallel worldviews (no reconciliation). Tesseract does neither. It holds both lanes side by side and reconciles through the lookup chain, the promotion/demotion gates, and the receipt lineage (`docs/canon-and-derivation.md` §§ 6, 7, 9).
+
+- Agentic overrides (slot 2) don't *overwrite* deterministic observations (slot 3); they *outrank* them until demoted.
+- Deterministic observations don't *silence* agent hypotheses; they become demotion candidates when discovery catches up.
+- Every atom carries its provenance — which lane contributed it, what evidence backed it, what gate passed it, what impact it had after acceptance.
+
+This is unusually honest epistemics. It lets two kinds of truth coexist without collapsing into one, and it makes the system's beliefs interrogable. For any atom the operator can ask "why do you think this?" and receive an evidence slice, a receipt chain, a gate evaluation, and an impact measurement. The braid is what separates interface intelligence from scripted automation.
+
+### 3. Agent contributions are measured, not trusted
+
+Most agent tools assume the agent is right or ask a human to adjudicate each contribution. Tesseract asks the *next loop iteration* to adjudicate. Every `InterventionReceipt` is the agent saying "I saw this evidence, I hypothesize this, here's my attachment region — measure me." The before/after impact scheduler snapshots the attachment region pre-activation and re-measures it one loop iteration later, populating `InterventionTokenImpact.rungImprovement` with real data. The C6 scoreboard metric rolls those populated impacts into "what fraction of accepted agentic augmentations actually reduced ambiguity, suspension, or rung-score in their attachment region?"
+
+An intervention that moved the needle earns its seat at the table. An intervention that did not is a demotion candidate. The adjudication is not a value judgment; it is a statistical fact rolled up through C6 against the scorecard floor (`docs/alignment-targets.md`).
+
+This is the honest version of "AI in the loop." The agent is a first-class participant whose work is **measurable, demotable, and therefore trustworthy**. Claude is the first citizen of this loop today.
+
+### 4. The system improves itself against its own loss function
+
+The 15-knob parameter space (`docs/recursive-self-improvement.md`) plus the dual L4 metric tree (`docs/canon-and-derivation.md` § 12) plus M5 and C6 as the scoreboard (`docs/alignment-targets.md`) is a training loop for the pipeline's own source code. The forward pass is a clean-slate cold-start synthetic run. The loss function is the scorecard's Pareto frontier over M5 / C6 / effectiveHitRate. The backward pass is a targeted code change at the top failure mode. The checkpoint is a git commit.
+
+This is not AGI; it is narrow, bounded, law-driven self-improvement inside a well-defined parameter space with a clean-slate invariant and a monotonic scorecard. But it is the real thing: when the scorecard goes up, the pipeline got better at a task the system can define precisely without ambient hand-waving. At the limit, you point an agent at this codebase with the scorecard as the objective function and it tunes its own source code against a convergence proof. The speedrun harness is the forward pass; the agent (Claude today) is the optimizer; the scorecard is the gradient.
+
+## What "feature complete" means for the synthetic loop
+
+The current phase is **synthetic feature completion**: close the gap between "the doctrine describes a substrate" and "the substrate actually holds its claims on the synthetic workload." Concretely:
+
+- Reference canon (slot 4) is wired and measurable, with warm-run hit receipts tagged by slot.
+- `.canonical-artifacts/` exists as a greenfield tree populated only by real gates.
+- M5 has graduated from `proxy` to `direct` — the trajectory primitive has ≥ 3 cohort-comparable history points and the slope is computed from real data.
+- C6 has graduated from `proxy` to `direct` — the impact scheduler populates `InterventionTokenImpact.rungImprovement` from real before/after comparisons, and the C6 visitor folds populated impacts into a scoreboard value above its 2026-Q2 floor (50%).
+- Promotion gates use Beta-posterior confidence intervals per atom class.
+- Every file under `.canonical-artifacts/agentic/` is backed by an `InterventionReceipt` reference (law-tested).
+- The discovery-fitness L4 tree is populated from real cold runs against the synthetic workload.
+- The synthetic scorecard passes every 2026-Q2 alignment-targets floor.
+
+Synthetic feature completion is the precondition for running against a real enterprise target. Trying to run against a production OutSystems application before the braid, the scoreboard, and the promotion gates are honest would measure noise and lock in false positives. The synthetic loop is the laboratory; the real target is the field.
+
+The step-by-step execution plan for synthetic feature completion is `docs/synthetic-feature-completion-plan.md`.
+
+## The long-arc form
+
+When synthetic feature completion lands, the next target is **transferable runtime-family atoms**. The atom envelope already carries `runtime-family` as a first-class primitive (`docs/canon-and-derivation.md` § 3.6). A runtime family is a typed signature bundle — DOM signals, class prefixes, script globals, ARIA landmark patterns, widget idiom names — that identifies a specific runtime substrate (OutSystems Reactive 11, React with a specific design system, a Servlet-based JSF stack). When the discovery engine can cheaply recognize a family, the canonical artifact store can say "I already know 80% of how this platform works; I only need to learn the customer-specific 20%." That is the mechanism behind the claim that the 50th customer costs less than the 1st.
+
+At the long arc: a mature canonical artifact store for a widely-deployed enterprise platform is itself a transferable asset. You hand it the customer's ADO backlog and a URL, the discovery engine fingerprints the runtime family, the lookup chain serves canonical artifacts from the pre-populated store, test generation runs at near-zero marginal cost against the platform's stable 80%, and agentic interventions earn C6 credit in the customer-specific 20%. The dogfood scaffolding is training wheels on the path to that product. Test emission remains a byproduct; the shared, reconciled interface model is the asset being acquired.
 
 ## What remains stable
 
@@ -69,8 +126,10 @@ At scale, the system should feel like a machine that:
 - exposes the bottleneck instead of hiding it
 - makes review a governance boundary, not a routine tax
 - stays readable enough that a QA can trust what was emitted
+- explains its own beliefs with evidence, receipts, and measured impact
+- demotes its own past decisions when they stop holding up
 
-That is how Tesseract can realistically grow toward thousands of scenarios without multiplying brittle test logic.
+That is how Tesseract can realistically grow toward thousands of scenarios without multiplying brittle test logic, and how its canonical artifact store grows toward becoming an asset in its own right.
 
 ## Readable emission still matters
 
