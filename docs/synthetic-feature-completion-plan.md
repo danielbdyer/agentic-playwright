@@ -645,17 +645,41 @@ this plan; both assume this plan has already landed.
 
 ## Plan status
 
-This document tracks five discrete commits. The status of each
-moves as they land on `main` or a feature branch.
+This document tracks five discrete commits. Commit 1 was split into
+1a (type extension) and 1b (loader + wiring + score report) to keep
+the type-level work reviewable independently from the runtime
+loader work. The status of each moves as they land on `main` or a
+feature branch.
 
-| # | Commit | Status |
-|---|---|---|
-| 1 | Source axis extension: `reference-canon` slot | `planned` |
-| 2 | C6 direct: impact scheduler closure | `planned` |
-| 3 | M5 direct: trajectory accumulation | `planned` |
-| 4 | Promotion gates with confidence intervals | `planned` |
-| 5 | Demotion sweep for reference canon | `planned` |
+| # | Commit | Status | Landed as |
+|---|---|---|---|
+| 1a | Source axis type extension: `reference-canon` variant | `landed` | `87c73ff` on `claude/review-recursive-improvement-docs-AU4xb` |
+| 1b | Reference-canon loader + catalog wiring + score report bucket | `in progress` | — |
+| 2 | C6 direct: impact scheduler closure | `planned` | — |
+| 3 | M5 direct: trajectory accumulation | `planned` | — |
+| 4 | Promotion gates with confidence intervals | `planned` | — |
+| 5 | Demotion sweep for reference canon | `planned` | — |
 
-Update this table as commits land. When all five are `landed` and
+Update this table as commits land. When 1a–5 are all `landed` and
 the scoreboard honesty criteria above pass on a synthetic run,
 mark the whole plan as `complete` and move on to Phase E.
+
+### Commit 1a summary (landed 2026-04-11)
+
+Extended `PhaseOutputSource` from 5 variants to 6, adding
+`'reference-canon'` as slot 4 between `'deterministic-observation'`
+and `'live-derivation'`. The compiler now enforces exhaustive
+handling of all six variants at every `foldPhaseOutputSource` call
+site. The lookup chain interface gained an optional
+`skipReferenceCanon?: boolean` flag orthogonal to `LookupMode`; the
+implementation threads it through the tier resolver, the qualified
+projection pass, and the slots-consulted accounting. New law tests
+assert the six-slot precedence, the four-category source partition,
+and the reference-canon slot position. 42 source-classifier tests
+pass; build remains green; the 4 pre-existing typecheck errors are
+unchanged (no new errors introduced).
+
+What 1a does NOT do: nothing yet produces entries tagged
+`'reference-canon'`. The type system is in place but the reference
+canon slot is empty at runtime. Commit 1b closes that gap by
+writing the loader.
