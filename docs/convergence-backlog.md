@@ -1,9 +1,68 @@
 # Convergence Execution Backlog
 
 > Status: Active but **subordinate** to
-> [`docs/cold-start-convergence-plan.md`](./cold-start-convergence-plan.md),
-> which is the doctrinal spine for substrate convergence work and
-> supersedes this document for sequencing decisions.
+> [`docs/cold-start-convergence-plan.md`](./cold-start-convergence-plan.md)
+> and [`docs/canon-and-derivation.md`](./canon-and-derivation.md),
+> which are the doctrinal spines for substrate convergence work and
+> supersede this document for sequencing decisions.
+
+## Doctrinal drift flags (2026-04-10)
+
+The canon-and-derivation doctrine was revised on 2026-04-10 to
+introduce the **reference canon** population (§ 3.2a) and the
+**six-slot lookup chain** with reference canon at slot 4. Several
+items below were written against the earlier "decompose hybrid
+compounds into `.canonical-artifacts/`" framing and must be read
+with that drift in mind:
+
+- **P2-* (route knowledge persistence)** items that write to
+  `dogfood/knowledge/routes/` are still valid, BUT the path is now
+  reference canon (slot 4), not a canonical artifact (slot 2/3).
+  Route proposals activated through the real trust-policy gate are
+  agentic overrides and should land under
+  `{suiteRoot}/.canonical-artifacts/agentic/atoms/routes/` once
+  that tree is wired in Phase A of the cold-start plan. Until
+  then, activated route proposals that edit `knowledge/routes/`
+  are papering over the reference-canon → agentic-override
+  transition.
+- **P3-* (proposal enrichment)** items that write to
+  `dogfood/knowledge/screens/*.hints.yaml` have the same drift:
+  the write target is reference canon, not canonical artifact.
+  `applyHintsPatch()` should eventually write to
+  `{suiteRoot}/.canonical-artifacts/agentic/atoms/elements/**`
+  backed by an `InterventionReceipt` reference; today it writes
+  into reference canon directly.
+- **P1-4 (demo harness expansion)** remains valid. Demo harness
+  is canonical source (§ 2.2 in canon-and-derivation), not
+  reference canon.
+- **P5-2 (confidence decay)** is orthogonal to the reframe.
+  Confidence decay applies uniformly to any slot's entries and
+  does not depend on which slot they live in.
+
+The appropriate mental model when reading the items below is:
+
+1. The **structural pipeline improvements** (role-affordance
+   derivation, dashboard event kinds, structural derivations) are
+   unchanged and still valid.
+2. The **write-target paths** need to be retargeted from
+   `dogfood/knowledge/**` (reference canon) to
+   `{suiteRoot}/.canonical-artifacts/agentic/**` (real agentic
+   overrides backed by receipts) once Phase A of the cold-start
+   plan wires the slot.
+3. The **measurement gates** at the bottom of this file (Expected
+   Hit Rate per phase) are still usable, but they should be read
+   as "the mix of canonical artifacts + reference canon that the
+   warm run resolved from," with the understanding that shifting
+   reference canon hits into real agentic overrides is itself a
+   C6 win independent of the hit rate.
+
+Individual items below are NOT rewritten in this pass; this drift
+section exists so a reader is warned before they start
+implementing from the old text. Items that need real rework will
+be folded into the cold-start convergence plan's Phase A–C work
+as they come up.
+
+---
 >
 > Read this document as **Surface 1/2 tactical inputs** (hyperparameter
 > tuning, algorithm improvements, structural derivations) that execute

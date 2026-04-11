@@ -12,7 +12,7 @@ Read these five documents together:
 - [docs/current-state.md](docs/current-state.md) for implementation truth
 - [docs/convergence-backlog.md](docs/convergence-backlog.md) for the detailed substrate ledger
 - [docs/envelope-axis-refactor-plan.md](docs/envelope-axis-refactor-plan.md) for the **structural prerequisite (Phase 0)** that lifts `stage`, `source`, `verdict`, and fingerprint addresses into phantom-typed envelope axes — a hard gate on the convergence plan's Phase A–C landing cleanly
-- [docs/archive/research/temporal-epistemic-specification-addendum.md](docs/archive/research/temporal-epistemic-specification-addendum.md) for the formal north star
+- [docs/temporal-epistemic-kernel.md](docs/temporal-epistemic-kernel.md) for the formal north star
 
 This file answers:
 

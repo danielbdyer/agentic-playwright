@@ -51,6 +51,7 @@ export const PhaseOutputSourceSchema = Schema.Literal(
   'operator-override',
   'agentic-override',
   'deterministic-observation',
+  'reference-canon',
   'live-derivation',
   'cold-derivation',
 );

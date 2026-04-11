@@ -16,7 +16,7 @@ framing from [`docs/canon-and-derivation.md`](./canon-and-derivation.md)
   discovery engine**'s payoff: is remembering worth more than
   forgetting across cohort trajectories? It is the quantitative
   form of K5 (marginal discovery decay) from
-  `docs/archive/research/temporal-epistemic-specification-addendum.md`.
+  `docs/temporal-epistemic-kernel.md`.
   A system that compounds has an M5 slope above 1.0 and rising; a
   system that merely accumulates artifacts without earning
   compounding leverage has flat or descending M5 regardless of how
@@ -52,8 +52,35 @@ itself, compounding.
 
 **Definition**: `RememberingBenefit(τ) / MemoryMaintenanceCost(τ)`,
 operationalized as the cohort-trajectory slope of `effectiveHitRate`
-over `MemoryMaturity(τ)` divided by the per-iteration scorecard
-maintenance overhead.
+over `MemoryMaturity(τ)` divided by the per-iteration
+`MemoryMaintenanceCost`.
+
+**Operational definitions (locked 2026-04-10).**
+
+- **`RememberingBenefit(τ)`**: the effective hit-rate the cohort
+  achieved at time τ, measured with the lookup chain walking all
+  six slots (warm default). "Remembering" here means "reference
+  canon and real canonical artifacts were available to the
+  resolver"; when both are denied via `--mode cold
+  --no-reference-canon --no-overrides`, what remains is the
+  baseline for "forgetting."
+- **`MemoryMaintenanceCost(τ)`**: wall-clock per iteration *plus*
+  the **agentic-override maintenance work** — a small positive
+  weight per override file that currently lives under
+  `.canonical-artifacts/agentic/`, reflecting the cost of
+  maintaining an override across drift cycles. Reference canon
+  entries do NOT count toward maintenance cost because they are
+  slated for demotion, not active maintenance. Pure
+  deterministic observations also do not count — they are
+  re-earned by the discovery engine every cold pass and carry no
+  maintenance tax.
+- **"Cohort-comparable" means same scenario IDs.** The trajectory
+  buffer compares hit-rate points only across iterations where
+  the underlying scenario set is the same. Reseeding the
+  reference cohort (20000-series) or changing the cohort
+  definition resets the trajectory buffer for affected scenarios.
+  The 10000-series golden scenarios are always comparable to
+  themselves across runs.
 
 | Window  | Floor | Direction      |
 |---------|-------|----------------|
@@ -62,10 +89,20 @@ maintenance overhead.
 | 2026-Q4 | 1.5   | monotonic up   |
 
 **Why it matters**: M5 is the question the entire substrate exists to
-answer — *is remembering worth more than forgetting?*  If M5 is flat or
-descending across a quarter, the architecture is not compounding even
-if it is sophisticated. Compounding is the test; everything else is
-the ground truth.
+answer — *is remembering worth more than forgetting?*  If M5 is flat
+or descending across a quarter, the architecture is not compounding
+even if it is sophisticated. Compounding is the test; everything else
+is the ground truth.
+
+**Design bias.** The operational definition favors a system that
+**runs as deterministically as possible and defers to the agent
+only when forced.** An agentic override earns its maintenance tax
+only if it carries its weight in measured impact (C6 below); a
+deterministic observation is "free" because the discovery engine
+can regenerate it from scratch on any cold pass. This bias is
+intentional: the long-term ROI depends on the canonical-artifact
+store being dominated by deterministic observations, with agentic
+overrides reserved for the genuinely unobservable.
 
 **Implementation dependency**: M5 is a *cohort-trajectory slope*,
 not a point-in-time value. It cannot be computed from a single
@@ -95,17 +132,56 @@ slope is computable from real history, not heuristics.
 suspension, or rung-score in their attachment region within N runs.
 Computed by the H2 token-impact tracker.
 
+**Operational definitions (locked 2026-04-10).**
+
+- **"Accepted augmentations"** means entries living under
+  `{suiteRoot}/.canonical-artifacts/agentic/` that carry a real
+  `InterventionReceipt` reference. Reference-canon entries
+  (§ 3.2a in `canon-and-derivation.md`) are EXCLUDED from C6's
+  denominator — they never flowed through an auto-approval gate,
+  so counting them would measure historical hand-authoring, not
+  the participatory-agency loop.
+- **"N runs" = 1 loop iteration.** One iteration of the full
+  improvement loop (harvest → scenario run → agentic intervention
+  → fitness scoring → demotion sweep) counts as N=1. The
+  before/after impact scheduler snapshots the attachment region's
+  rung distribution pre-activation and re-measures it after the
+  next full iteration. An override that moved the needle within
+  one iteration counts as a C6 numerator hit; an override that
+  required multiple iterations to show effect does not (it is
+  instead a candidate for demotion at the end of the window).
+- **"Attachment region"** is specified on the intervention
+  receipt's `handoff.attachmentRegion` field (already landed per
+  the recent Phase C item 3 commit). The impact scheduler reads
+  the region spec and knows which slice of the rung distribution
+  to snapshot.
+
 | Window  | Floor | Direction      |
 |---------|-------|----------------|
 | 2026-Q2 | 50%   | rising         |
 | 2026-Q3 | 60%   | monotonic up   |
 | 2026-Q4 | 75%   | monotonic up   |
 
-**Why it matters**: C6 is the participatory-agency claim. Without it,
-the agent layer is ornamental. *Did accepting this augmentation
-actually move the needle in the region it attached to?* If the answer
-is "no, less than half the time," accepted addenda are not earning
-their seat at the table.
+**Why it matters**: C6 is the participatory-agency claim. Without
+it, the agent layer is ornamental. *Did accepting this augmentation
+actually move the needle in the region it attached to within one
+loop iteration?* If the answer is "no, less than half the time,"
+accepted addenda are not earning their seat at the table.
+
+**Graduation criterion from `proxy` to `direct`.** C6 moves from
+`proxy` to `direct` when all of the following hold:
+1. The reference-canon slot is wired (canon-and-derivation § 6) so
+   that C6's denominator can distinguish real agentic overrides
+   from pre-gate reference canon.
+2. The before/after impact scheduler at
+   `lib/application/intervention/impact-scheduler.ts` populates
+   `InterventionTokenImpact.rungImprovement` from real next-
+   iteration comparisons.
+3. At least 10 accepted agentic overrides have been observed
+   through one full loop iteration each.
+
+Until all three hold, C6's theorem-group status is `proxy` per
+the per-theorem-group floors table below.
 
 ## Per-theorem-group floors
 

@@ -22,19 +22,47 @@ The three populations are:
    external systems like Azure DevOps, or by the application under test
    itself. Committed and treated as ground truth.
 
-2. **Canonical artifacts** — what the system has produced and is
-   committed to using as ground truth until a better artifact replaces
-   it. Two flavors with a defined relationship: **deterministic
-   observations** (produced by the discovery engine and promoted via a
-   quality gate) and **agentic overrides** (produced by an agent or
-   operator to bridge a gap the deterministic engine cannot bridge).
-   Both are committed and have doctrinal weight.
+2. **Canonical artifacts** — what the system has produced through a
+   real provenance chain (an intervention receipt that passed the
+   auto-approval gate, or a discovery run that passed a promotion
+   gate) and is committed to using as ground truth until demoted.
+   Two flavors: **deterministic observations** (produced by the
+   discovery engine and promoted via a quality gate) and **agentic
+   overrides** (produced by an agent forming a typed
+   `InterventionReceipt` from runtime evidence and passing the
+   auto-approval gate). Both are committed and both carry receipt
+   lineage. A file that was hand-authored pre-gate is NOT a
+   canonical artifact in this sense — see "reference canon" below.
 
 3. **Derived output** — what the system produces ephemerally during a
    run that has not been promoted to canonical artifact status. Run
    records, fitness reports, live caches, candidate phase outputs that
    might become canonical artifacts on the next promotion cycle.
    Gitignored, regenerable, disposable.
+
+Plus one **transitional** population that stands outside the trichotomy
+during the current migration window:
+
+- **Reference canon** — files the system reads as fallback ground
+  truth during warm-start runs, but which were authored
+  pre-promotion-gate (most of today's `dogfood/knowledge/`,
+  `dogfood/benchmarks/`, `dogfood/controls/`). They have no
+  intervention-receipt lineage and no discovery-gate provenance; they
+  are the "past high water mark of learning" and they live in the
+  lookup chain at their own dedicated slot (§ 6) below the two real
+  canonical-artifact flavors. Reference canon is the demotion queue:
+  each entry is a candidate for either (a) replacement by a fresh
+  agentic override backed by a real receipt, or (b) replacement by a
+  discovery-engine promotion, or (c) deletion once neither layer
+  needs it. When reference canon is empty, the transitional layer is
+  retired and the trichotomy stands alone.
+
+The load-bearing claim here is that **reference canon is not a
+canonical artifact**. It looks like one, it's used like one at runtime,
+but it did not earn the name because no gate ever evaluated it.
+Calling it a canonical artifact papers over the doctrinal debt the
+system is working off; marking it as a separate transitional
+population makes the debt legible and measurable.
 
 The doctrine that follows is load-bearing for every directory layout
 choice, every gitignore entry, every architecture-fitness lint, every
@@ -75,41 +103,58 @@ by this doctrine.
 
 ---
 
-## 1. The trichotomy
+## 1. The trichotomy (+ one transitional population)
 
 | Population | Authorship | Trusted as ground truth? | Committed? | Wiped by `tesseract reset`? |
 |---|---|---|---|---|
 | **Canonical sources** | Operator, external upstream, the SUT itself | Yes — they ARE truth | Always | Never (would destroy the project) |
-| **Canonical artifacts** | The system, then promoted via quality gate or operator/agent decree | Yes — until something better replaces them | Always | Only via deliberate `--demote` or `--reset-artifacts` |
+| **Canonical artifacts** | The system, via real promotion gate (discovery) or real intervention receipt (agent) | Yes — until demoted | Always | Only via deliberate `--demote` or `--reset-artifacts` |
+| **Reference canon** *(transitional)* | Pre-gate hand/agent authoring, checked into `dogfood/knowledge`, `dogfood/benchmarks`, `dogfood/controls` | Fallback only — consulted when no canonical artifact exists at the same address | Always (during transition) | Via deliberate demotion as real canon supplants it |
 | **Derived output** | The system, transient | No — they are candidates | Only when an operator deliberately checkpoints them | Yes, freely |
 
-The first two populations are committed. The third is gitignored. That
-is the rule and there are no exceptions.
+Canonical sources, canonical artifacts, and reference canon are all
+committed. Derived output is gitignored. Reference canon is the only
+committed population that the doctrine considers **second-class**:
+its existence is a measurable debt against the canon store, and the
+health of the migration is tracked by how fast it shrinks.
 
-The load-bearing distinction is between **canonical artifacts** and
-**derived output**. They are both produced by the system, but they have
-fundamentally different doctrinal status. A canonical artifact is what
-the pipeline READS at runtime; derived output is what the pipeline
-WRITES at runtime. The promotion mechanism (§7) is the bridge: derived
-output that passes a quality gate becomes a canonical artifact. The
-demotion mechanism is the inverse: a canonical artifact that has been
-supplanted by a better one (or that has become stale) is removed.
+The load-bearing distinctions are:
 
-A common mistake is to call canonical artifacts "high-water-mark caches"
-or "best-known snapshots." This is wrong. A canonical artifact is not a
-cache. It is committed code-of-record that the pipeline trusts. The fact
-that it can be replaced over time does not make it cache — it makes it
-versioned canon. Caches are gitignored; canonical artifacts are not.
+1. **Canonical artifact vs. reference canon.** Both look the same on
+   disk today — YAML files, committed, consulted at runtime. The
+   difference is provenance: a canonical artifact was written by an
+   intervention receipt passing the auto-approval gate, or by a
+   discovery run passing a promotion gate. Reference canon was
+   hand-typed or agent-typed at some earlier session with no such
+   receipt. The pipeline tags resolutions by which slot they hit so
+   the operator can see the split in any fitness report.
+
+2. **Canonical artifact vs. derived output.** They are both produced
+   by the system, but they have fundamentally different doctrinal
+   status. A canonical artifact is what the pipeline READS at runtime;
+   derived output is what the pipeline WRITES at runtime. The
+   promotion mechanism (§7) is the bridge: derived output that passes
+   a quality gate becomes a canonical artifact. Demotion (§7) is the
+   inverse.
+
+A common mistake is to call canonical artifacts "high-water-mark
+caches" or "best-known snapshots." This is wrong. A canonical artifact
+is not a cache. It is committed code-of-record that the pipeline
+trusts and carries receipt lineage. The fact that it can be replaced
+over time does not make it cache — it makes it versioned canon.
+Caches are gitignored; canonical artifacts are not.
 
 The other common mistake is to flatten canonical sources and canonical
-artifacts into a single "canon" category. They differ in authorship and
-in lifecycle. Canonical sources are AUTHORED by humans or arrive from
-external systems and the system never produces them. Canonical artifacts
-are PRODUCED by the system through a chain of derivations and
-promotions. Both are trusted, but they have different governance:
-canonical sources change only when a human edits them or an upstream
-sync arrives; canonical artifacts change when the system produces a
-better candidate and promotes it.
+artifacts into a single "canon" category. They differ in authorship
+and in lifecycle. Canonical sources are AUTHORED by humans or arrive
+from external systems and the system never produces them. Canonical
+artifacts are PRODUCED by the system through a chain of derivations,
+receipts, and promotions. Both are trusted; they have different
+governance. The third mistake — the one this revision of the
+doctrine exists to correct — is to treat reference canon as if it
+were a canonical artifact just because it happens to live at a
+canon-shaped path. It isn't. It's legacy seed data awaiting a real
+provenance chain or deletion.
 
 ---
 
@@ -212,13 +257,40 @@ no, it is a canonical source.
 
 ## 3. Canonical artifacts — what the system has earned the right to trust
 
-A canonical artifact is something the system produced that has been
-elevated to ground-truth status through a deliberate gate (a quality
-metric, a human review, an automated promotion rule). Once a canonical
-artifact exists, the pipeline READS from it at runtime and treats it as
-truth. Canonical artifacts are committed to git because they have
-doctrinal weight: they are not "convenience caches," they are the
-system's accumulated, trusted understanding of the SUT.
+A canonical artifact is something the system produced *through a real
+provenance chain* that has been elevated to ground-truth status
+through a deliberate gate. Once a canonical artifact exists, the
+pipeline READS from it at runtime and treats it as truth. Canonical
+artifacts are committed to git because they have doctrinal weight:
+they are not "convenience caches," they are the system's accumulated,
+trusted understanding of the SUT.
+
+"Real provenance chain" is the load-bearing phrase. There are exactly
+two admissible chains:
+
+- For **agentic overrides** (§ 3.2), the chain starts with runtime
+  evidence (`InterventionEvidenceSlice`), passes through a typed
+  `InterventionReceipt.handoff` carrying a `semanticCore`, and
+  terminates at an auto-approval gate evaluation. The receipt
+  lineage is committed alongside the artifact so later runs can ask
+  "which intervention produced this override, what evidence backed
+  it, and did accepting it actually move the attachment region's
+  metrics?"
+- For **deterministic observations** (§ 3.1), the chain starts with
+  canonical sources, passes through a discovery runner
+  (`DiscoveryRunOutput`), and terminates at a promotion gate
+  evaluation. The gate's `PromotionEvaluation` is committed
+  alongside the artifact so later runs can ask "what observation
+  promoted this, what confidence interval did it pass, and has a
+  later observation supplanted it?"
+
+A file that was hand-authored (by a human or by an LLM-driven agent
+session) with no such chain is **not** a canonical artifact — see
+§ 3.2a for that population. This is the correction the current
+revision of the doctrine exists to land: the dogfood YAMLs that look
+canonical on disk today were written before either chain existed,
+and treating them as canonical artifacts laundered training
+scaffolding into the trusted layer.
 
 There are two flavors of canonical artifact, with a defined hierarchy
 between them. Both flavors are committed; both are addressable by the
@@ -286,6 +358,76 @@ proposal** to a human when it detects that the override is no longer
 truthy. The demotion mechanism is the system's pressure valve for
 releasing canon back to derivable status as the discovery engine catches
 up. See §7 for the full promotion/demotion semantics.
+
+### 3.2a Reference canon (transitional)
+
+A **reference canon** entry is a committed file at a canon-shaped path
+that was authored before the promotion-gate and intervention-receipt
+infrastructure existed, or was authored after them but through a
+direct hand-edit that bypassed the gates. Today's
+`dogfood/knowledge/screens/*.elements.yaml`,
+`dogfood/knowledge/screens/*.hints.yaml`,
+`dogfood/knowledge/patterns/*.yaml`,
+`dogfood/knowledge/routes/*.routes.yaml`,
+`dogfood/knowledge/snapshots/**`,
+`dogfood/controls/**`, and `dogfood/benchmarks/**` are all reference
+canon. They were written over many prior sessions by agents or
+operators getting the dogfood pipeline unstuck. None of them carries
+a receipt; none of them passed a gate.
+
+Reference canon is consulted at runtime because the warm-start path
+needs *something* to return for addresses the two real canonical
+artifact flavors do not yet cover. But the consultation is clearly
+labeled: every lookup chain result includes the source slot
+(§ 6), and a warm run's scorecard can report what fraction of hits
+came from reference canon vs. real canon. That fraction is a direct
+measurement of the migration debt.
+
+Reference canon has three defined exits:
+
+1. **Supersession by an agentic override.** During a live run, the
+   agent observes evidence that the reference-canon entry is wrong
+   or sub-optimal, forms a typed `InterventionReceipt`, passes the
+   auto-approval gate, and writes an agentic override at the same
+   address. The override now outranks the reference canon in the
+   lookup chain; the reference canon entry is a demotion candidate.
+2. **Supersession by a deterministic observation.** During a cold
+   run (or a compare run), the discovery engine produces an output
+   that passes the promotion gate and becomes a deterministic
+   observation at the same address. The observation outranks
+   reference canon; the reference canon entry is a demotion
+   candidate.
+3. **Direct demotion when no longer needed.** If both of the above
+   happen, or if the reference canon entry refers to an atom the
+   system no longer needs, the operator (or an automatic sweep)
+   deletes it.
+
+When `{suiteRoot}` has zero reference canon entries, the
+transitional layer is retired. That is also the condition under
+which the `dogfood/` folder can be deleted in good conscience —
+see § 14 for the endgame.
+
+**Reference canon is not a subtype of canonical artifact.** The
+doctrine deliberately stops short of calling it one. The atom
+envelope's `source` field (§ 3.6) has a distinct
+`'reference-canon'` variant precisely so that promotion gates, C6
+measurements, and cold-start-fidelity comparisons can exclude
+reference-canon-sourced entries from their denominators. A C6 that
+counted reference canon as "accepted agentic augmentations" would
+measure the wrong thing; it would inflate the numerator with
+historical authoring decisions that never flowed through a receipt.
+
+**The dogfood YAMLs do not decompose into canonical artifacts via a
+migration script.** The prior doctrine prescribed a
+`scripts/decompose-canon.ts` one-shot migration that would split
+hybrid compounds into per-atom files under
+`.canonical-artifacts/`. That framing was wrong: it conflated "on
+disk in per-atom shape" with "earned through a gate." The current
+doctrine: the dogfood YAMLs stay exactly where they are, marked as
+reference canon, and the `.canonical-artifacts/` tree starts
+**greenfield** — populated only by real promotions through real
+gates. Migration happens *one atom at a time*, through the live
+loop, as agents and the discovery engine earn each address back.
 
 ### 3.3 The hierarchy between the two flavors
 
@@ -599,13 +741,25 @@ Atom<TClass> {
   identity: AtomIdentity<TClass>;  // typed tuple per class
   content: AtomContent<TClass>;    // the actual fact
   source: PhaseOutputSource;       // operator-override | agentic-override |
-                                   // deterministic-observation | live-derivation | cold-derivation
+                                   // deterministic-observation | reference-canon |
+                                   // live-derivation | cold-derivation
   inputFingerprint: string;        // hash of inputs that produced this atom
   producedAt: string;              // ISO timestamp
   producedBy: string;              // engine + version that wrote it
   qualityScore?: number;           // optional, for promotion gating
+  receiptRef?: InterventionReceiptRef;   // required when source = 'agentic-override'
+  promotionEvalRef?: PromotionEvalRef;   // required when source = 'deterministic-observation'
 }
 ```
+
+The `receiptRef` and `promotionEvalRef` fields are the structural
+enforcement of "real provenance chain" from § 3. An atom with
+`source = 'agentic-override'` that has no `receiptRef` is a bug;
+an atom with `source = 'deterministic-observation'` that has no
+`promotionEvalRef` is a bug. An atom with
+`source = 'reference-canon'` has neither — its provenance is "git
+history, pre-gate" — and that is *how the doctrine distinguishes
+it*.
 
 The `class` and `identity` together form the atom's address. The
 lookup chain reads atoms by address; the promotion/demotion
@@ -1080,8 +1234,9 @@ PhaseOutput<TStage> {
   stage: PipelineStage;        // which phase produced this
   name: string;                  // identifier within the stage (e.g., "demo" for routes)
   content: unknown;              // the actual derived artifact
-  source: PhaseOutputSource;     // operator-override | agent-override |
-                                 // deterministic-observation | live-derivation | cold-derivation
+  source: PhaseOutputSource;     // operator-override | agentic-override |
+                                 // deterministic-observation | reference-canon |
+                                 // live-derivation | cold-derivation
   inputFingerprint: string;      // hash of all inputs that produced this
   producedAt: string;            // ISO timestamp
   producedBy: string;            // pipeline version + sub-engine identifier
@@ -1102,17 +1257,27 @@ Each storage location corresponds to a slot in the lookup precedence
 
 | Storage location | Population | Slot |
 |---|---|---|
-| `{suiteRoot}/controls/<phase>/<name>` | Canonical source (operator answers about intent) | Operator override |
+| `{suiteRoot}/controls/<phase>/<name>` (pure operator intent only) | Canonical source (operator answers about intent) | Operator override |
 | `{suiteRoot}/.canonical-artifacts/agentic/<phase>/<name>` | Canonical artifact (agentic flavor) | Agentic override |
 | `{suiteRoot}/.canonical-artifacts/deterministic/<phase>/<name>` | Canonical artifact (deterministic flavor) | Deterministic observation |
+| `{suiteRoot}/knowledge/**`, `{suiteRoot}/benchmarks/**`, `{suiteRoot}/controls/**` (pre-gate content) | Reference canon (transitional) | Reference canon |
 | `.tesseract/cache/<phase>/<name>` | Derived output (live cache) | Live derivation |
 | (in-process) | Derived output (cold derivation) | Cold derivation |
 
-The `.canonical-artifacts/` directory is committed. Its two
+The `.canonical-artifacts/` directory is committed and **greenfield**:
+it is populated only by real promotions through real gates. Its two
 subdirectories (`agentic/` and `deterministic/`) make the doctrinal
 flavor visible at the path level: an operator looking at git can tell
-at a glance which artifacts are agent-authored vs which were promoted
-from deterministic derivations.
+at a glance which artifacts came from a receipt lineage vs. a
+discovery promotion.
+
+The reference-canon paths (today's `dogfood/knowledge/`,
+`dogfood/benchmarks/`, `dogfood/controls/`) are committed but are
+marked as transitional in § 11's classification table. They are
+consulted at runtime at a lower precedence than the two real
+canonical-artifact flavors; a fitness report shows what fraction of
+warm-run hits landed in reference canon, which is the measurable
+form of the migration debt.
 
 The `.tesseract/cache/` directory is gitignored. It is per-developer
 per-machine state, used as a fast path between runs.
@@ -1128,20 +1293,32 @@ on the next run.
 
 When the pipeline needs phase output X, it consults the lookup chain
 in order. The first slot that returns a valid output wins. The chain
-has five slots, organized by population:
+has six slots during the reference-canon transition; it collapses
+back to five once reference canon is empty.
 
 | Slot | Population | Source | Where it lives | Lifecycle |
 |---|---|---|---|---|
-| 1 | canonical source | Operator override | `{suiteRoot}/controls/<phase>/<name>` | Forever, until operator deletes |
-| 2 | canonical artifact | Agentic override | `{suiteRoot}/.canonical-artifacts/agentic/<phase>/<name>` | Until demoted via human review |
+| 1 | canonical source | Operator override | `{suiteRoot}/controls/<phase>/<name>` (pure-intent files only) | Forever, until operator deletes |
+| 2 | canonical artifact | Agentic override | `{suiteRoot}/.canonical-artifacts/agentic/<phase>/<name>` | Until demoted via operator review |
 | 3 | canonical artifact | Deterministic observation | `{suiteRoot}/.canonical-artifacts/deterministic/<phase>/<name>` | Until replaced by a better promotion |
-| 4 | derived output | Live derivation | `.tesseract/cache/<phase>/<name>` | Per-run, regenerated on demand |
-| 5 | derived output | Cold derivation | (in-process) | Per-invocation, never persisted |
+| **4** | **reference canon** *(transitional)* | **Reference canon** | **`{suiteRoot}/knowledge/**`, `{suiteRoot}/benchmarks/**`, `{suiteRoot}/controls/**` (pre-gate content)** | **Until superseded by slots 2–3 or deleted** |
+| 5 | derived output | Live derivation | `.tesseract/cache/<phase>/<name>` | Per-run, regenerated on demand |
+| 6 | derived output | Cold derivation | (in-process) | Per-invocation, never persisted |
 
-The doctrinal partition aligns with the slot numbering: slot 1 is a
-canonical SOURCE; slots 2-3 are canonical ARTIFACTS; slots 4-5 are
-DERIVED. The pipeline trusts slots 1-3 as ground truth at runtime;
-slots 4-5 are candidates for promotion.
+The doctrinal partition: slot 1 is a canonical SOURCE; slots 2–3 are
+canonical ARTIFACTS; slot 4 is the transitional REFERENCE CANON
+layer; slots 5–6 are DERIVED. The pipeline trusts slots 1–3 as
+ground truth at runtime, trusts slot 4 as a best-available fallback
+clearly labeled in every receipt, and treats slots 5–6 as promotion
+candidates.
+
+**Slot 4 is the measurable form of the migration debt.** Every time
+a warm run hits slot 4, that is one more address where the real
+canon store has not yet caught up. The `score` command's rung
+distribution reports slot-4 hits as their own bucket so the operator
+can see the fraction shrinking cycle-over-cycle. When slot 4's hit
+rate is zero for a full cohort pass, slot 4 is empty in practice
+and the underlying files can be deleted.
 
 ### 6.1 Why operator overrides outrank agentic overrides
 
@@ -1169,17 +1346,36 @@ background as a comparison target. When the deterministic observation
 matches the agentic override (or beats it on quality metrics), the
 system surfaces a demotion proposal to a human (§7).
 
-### 6.3 Why deterministic observations outrank live derivation
+### 6.3 Why deterministic observations outrank reference canon
 
-Slot 3 outranks slot 4 because deterministic observations have passed
-a quality gate and have been promoted to canonical artifact status.
-Live derivations are candidates that have not yet been evaluated for
-promotion. Trusting an unevaluated candidate over a promoted artifact
-would be a regression.
+Slot 3 outranks slot 4 because deterministic observations carry a
+real promotion-gate evaluation. They were produced by a discovery
+run whose quality was measured against a per-class confidence gate.
+Reference canon carries only git history as its provenance — no
+evaluation, no gate, no confidence interval. A deterministic
+observation that has passed the gate is, by construction, at least
+as trustworthy as a reference canon entry at the same address, and
+usually more so because the gate scored it.
 
-### 6.4 Why live derivation outranks cold derivation
+### 6.4 Why reference canon outranks derived output
 
-Slot 4 outranks slot 5 because the live cache is faster than running
+Slot 4 outranks slot 5 because reference canon is committed
+code-of-record that the operator has, at some point, looked at and
+not removed. It's not a gate-qualified artifact, but it's also not
+ephemeral. If the real canon flavors have nothing at an address and
+the pipeline must fall back, reference canon is a higher-fidelity
+answer than re-running discovery from scratch every warm run.
+
+This ranking is the *reason* reference canon exists as a slot at
+all, rather than being ignored at runtime. Without it, warm-start
+collapses into cold-start every time `.canonical-artifacts/` is
+sparse, and the convergence signal becomes meaningless noise. With
+it, warm-start works and the split between "hit real canon" vs.
+"hit reference canon" is a clean, honest measurement.
+
+### 6.4a Why live derivation outranks cold derivation
+
+Slot 5 outranks slot 6 because the live cache is faster than running
 the discovery engine. If the live cache is present and its
 `inputFingerprint` matches the current inputs, it is byte-equivalent
 to what cold derivation would produce, and there is no reason to
@@ -1187,26 +1383,40 @@ recompute.
 
 ### 6.5 Modes that change the precedence
 
-The default precedence (1 → 2 → 3 → 4 → 5) can be adjusted by mode
-flags:
+The default precedence (1 → 2 → 3 → 4 → 5 → 6) can be adjusted by
+mode flags:
 
 - **`--mode warm`** (default): walk the full chain in order.
-- **`--mode cold`**: skip slots 3 and 4. Run cold derivation while
-  still respecting operator overrides (slot 1) and agentic overrides
-  (slot 2). Used to challenge the discovery engine without throwing
-  away operator intent.
+- **`--mode cold`**: skip slots 3, 4, and 5. Run cold derivation
+  while still respecting operator overrides (slot 1) and agentic
+  overrides (slot 2). Used to challenge the discovery engine without
+  throwing away operator intent, and WITHOUT leaning on reference
+  canon (which would defeat the purpose of the cold challenge).
 - **`--mode compare`**: walk the chain to load slot 3 (deterministic
-  observation), then ALSO run cold derivation, then report the diff.
-  Does not promote anything. Used to measure how close the discovery
-  engine is to the current canonical artifact.
+  observation), then ALSO run cold derivation, then report the
+  diff. When slot 3 is empty for an address, the comparison target
+  becomes slot 4 (reference canon) so the cold engine can still be
+  measured against *something* during the transition. The compare
+  report tags each diff with which target slot it used.
+- **`--no-reference-canon`**: also skip slot 4. The strongest
+  measurement of "how much of the canon store is real" — any
+  address that has no real canon falls straight through to
+  derivation. A warm run under this flag with non-trivial hit rate
+  is the signal that the migration is actually finished for that
+  workload.
 - **`--no-overrides`**: also skip slots 1 and 2. Used in extreme
   cold-start runs that test whether the discovery engine alone is
-  sufficient. The combination `--mode cold --no-overrides` is the
-  strongest cold-start test.
+  sufficient. The combination `--mode cold --no-overrides
+  --no-reference-canon` is the strongest cold-start test. It
+  measures how close the discovery engine is to the real canonical
+  artifact store with ZERO safety nets: no operator intent, no
+  agentic overrides, no reference canon. A warm-equivalent pass
+  rate under that combination is the north-star signal for the
+  discovery engine.
 
 ### 6.6 Qualifier-aware lookup (Tier 3 projections fold in)
 
-The five-slot precedence chain is the answer to "give me artifact
+The six-slot precedence chain is the answer to "give me artifact
 X." But the interface model has a third tier (projections, §3.8)
 that filters and qualifies which atoms are visible under different
 contexts: which role is querying, which wizard state is active,
@@ -1234,12 +1444,12 @@ QualifierBag {
 
 The lookup with qualifiers proceeds in two passes:
 
-1. **Pass 1 — atom resolution.** Walk the five-slot chain to
+1. **Pass 1 — atom resolution.** Walk the six-slot chain to
    resolve the atom at `address`. This is unchanged from the
    non-qualified case.
 2. **Pass 2 — projection application.** For each qualifier in the
    bag, look up the corresponding projection (Tier 3) via its own
-   five-slot chain. Apply the projection to the resolved atom. The
+   six-slot chain. Apply the projection to the resolved atom. The
    atom may be returned annotated with applicability (visible /
    interactive / read-only / hidden / gated), or it may be filtered
    out entirely if the projection says the atom is hidden in this
@@ -1654,14 +1864,23 @@ the literal name.
 
 ### 10.2 Canonical paths under `{suiteRoot}/`
 
-These are committed and treated as canon. Note that the canonical
-artifact store is structured as the three-tier interface model
-(§3.5/3.6/3.7/3.8) — atoms keyed by SUT-primitive identity,
-compositions keyed by recipe identity, projections keyed by
-qualifier identity. Each tier has its own subdirectory and within
+These are committed. The canonical-artifact store
+(`.canonical-artifacts/`) is **greenfield**: it starts empty and is
+populated one atom at a time by real promotion gates (for
+deterministic observations) and real intervention receipts (for
+agentic overrides). The reference-canon paths (`knowledge/`,
+`benchmarks/`, `controls/`) are committed-but-transitional: they are
+the pre-gate high-water mark of learning and are consulted at
+runtime at a lower precedence than the two real canonical-artifact
+flavors (see § 6, slot 4).
+
+The `.canonical-artifacts/` tree is structured as the three-tier
+interface model (§3.5/3.6/3.7/3.8) — atoms keyed by SUT-primitive
+identity, compositions keyed by recipe identity, projections keyed
+by qualifier identity. Each tier has its own subdirectory and within
 each tier the agentic-vs-deterministic source flavor is encoded at
 the path level so operators can tell at a glance which artifacts
-were authored by agents vs promoted from the discovery engine.
+came from a receipt lineage vs. a discovery-engine promotion.
 
 ```
 {suiteRoot}/
@@ -1673,18 +1892,44 @@ were authored by agents vs promoted from the discovery engine.
     demo-harness/                     # canonical source: the SUT in dogfood mode
                                       # (absent in production — SUT is external)
 
-  controls/                           # canonical source: operator answers about intent
-                                      # (TRANSITIONAL — today many of these files are hybrid
-                                      # agentic-override compounds; they belong in
-                                      # .canonical-artifacts/atoms/ once decomposed)
-    resolution/                       # → atoms/resolution-overrides/ post-decomposition
-    runbooks/                         # → compositions/runbooks/ post-decomposition
-    datasets/                         # → atoms/posture-samples/ post-decomposition
-    variance/                         # → split: atoms/drifts/ + canonical sources
+  # ── Reference canon (slot 4, transitional) ─────────────────────
+  # These paths are the pre-gate high-water mark of learning.
+  # They are consulted at runtime but are NOT canonical artifacts.
+  # Every atom in here is a demotion candidate: it either gets
+  # superseded by a real agentic override (slot 2) backed by an
+  # intervention receipt, or by a real deterministic observation
+  # (slot 3) promoted through the discovery gate, or it gets
+  # deleted when no longer needed. When these directories are
+  # empty, slot 4 retires and the `dogfood/` folder itself can be
+  # deleted.
 
-  benchmarks/                         # canonical source: labeled measurement targets
-                                      # (TRANSITIONAL — today these are hybrid compound files
-                                      # mixing atoms/compositions/projections/intent)
+  knowledge/                          # reference canon: pre-gate
+    screens/                          #   - *.elements.yaml, *.hints.yaml, *.postures.yaml
+    surfaces/                         #   - *.surface.yaml
+    routes/                           #   - *.routes.yaml
+    patterns/                         #   - *.yaml (promoted cross-screen abstractions)
+    snapshots/                        #   - ARIA tree templates
+    components/                       #   - *.ts widget choreography (long-term: moves to lib/runtime/widgets/)
+
+  controls/                           # reference canon: pre-gate (MOSTLY)
+                                      # Pure-intent fragments (operator thresholds, variance
+                                      # selections) are canonical sources; the rest is
+                                      # reference canon awaiting demotion.
+    resolution/
+    runbooks/
+    datasets/
+    variance/
+
+  benchmarks/                         # reference canon: pre-gate
+                                      # Hybrid compound files mixing element facts, flow
+                                      # compositions, and operator intent. Stays here
+                                      # verbatim; not decomposed into .canonical-artifacts/.
+
+  # ── Canonical artifacts (slots 2–3, greenfield) ────────────────
+  # Only populated by real promotions. Every file here carries
+  # either a receipt reference (agentic/) or a promotion evaluation
+  # reference (deterministic/). No hand-copies, no migration
+  # scripts, no laundering reference canon into this tree.
 
   .canonical-artifacts/               # canonical artifacts (committed, doctrinal weight)
     atoms/                            # TIER 1: per-primitive facts
@@ -1819,68 +2064,104 @@ deleted when the test that depends on them is removed.
 ## 11. Classification table for the dogfood suite
 
 Authoritative classification for every path that currently exists
-under `dogfood/`. Each row maps a path to its trichotomy population
-AND its three-tier interface model classification (where applicable),
-and notes the migration action needed to bring the current state into
-doctrinal alignment.
+under `dogfood/`. Each row maps a path to its population (canonical
+source / canonical artifact / reference canon / derived output) and
+its exit path out of the current state.
 
-The "tier" column applies only to canonical artifacts (it identifies
-which of Tier 1 / Tier 2 / Tier 3 the artifact belongs to). For
-canonical sources and derived output, the tier column is `n/a`. For
-HYBRID compound files that span multiple tiers, the tier column lists
-all applicable tiers and the migration action describes the
-decomposition.
+**Key reframe (2026-04-10).** The previous revision of this table had
+a "DECOMPOSE" column that prescribed a one-shot migration script
+(`scripts/decompose-canon.ts`) converting hybrid compound YAMLs into
+per-atom files under `.canonical-artifacts/`. That framing was
+retired because it conflated two unrelated operations:
 
-| Path | Population | Tier(s) | Verdict | Migration |
-|---|---|---|---|---|
-| `dogfood/fixtures/ado/{10001,10002,10010,10011}.json` | canonical source | n/a | the operator's stand-in upstream | stays committed |
-| `dogfood/fixtures/ado/{2xxxx}.json` | derived | n/a | cohort generator output | gitignore in place |
-| `dogfood/fixtures/demo-harness/**` | canonical source | n/a | the SUT in dogfood mode | stays committed |
-| `dogfood/.ado-sync/snapshots/{10001,10002,10010,10011}.json` | derived (in dogfood) | n/a | cache of `fixtures/ado/` | gitignore in dogfood; in production this becomes canonical source |
-| `dogfood/.ado-sync/snapshots/{2xxxx}.json` | derived | n/a | cohort sync cache | gitignore |
-| `dogfood/.ado-sync/archive/{10001,10002,10010,10011}/N.json` | canonical source | n/a | revision history of the operator-authored simulator | stays committed |
-| `dogfood/.ado-sync/archive/{2xxxx}/N.json` | derived | n/a | synthetic cohort revision history | gitignore |
-| `dogfood/.ado-sync/manifest.json` | derived | n/a | auto-maintained sync metadata | gitignore |
-| `dogfood/benchmarks/*.benchmark.yaml` | canonical artifact (hybrid compound) | 1 + 2 + (operator intent fragments) | hybrid: 28 fieldCatalog rows are Tier 1 element atoms; 1 flow is a Tier 2 composition; 5 driftEvents are Tier 1 drift atoms; thresholds are operator-intent canonical sources; benchmarkRunbooks reference Tier 2 runbooks; expansionRules are Tier 2 compositions | DECOMPOSE (Phase 3+): split rows into per-tier targets; keep file as derived projection or delete |
-| `dogfood/controls/datasets/*.dataset.yaml` | canonical artifact (hybrid compound) | 1 (posture-samples) | per-(screen, element, posture) default values | DECOMPOSE: split into atoms/posture-samples/{screen}/{element}/{posture}.yaml |
-| `dogfood/controls/resolution/*.resolution.yaml` | canonical artifact (hybrid compound) | 1 (resolution-overrides) | per-(screen, intent-fingerprint) resolver decisions | DECOMPOSE: split into atoms/resolution-overrides/{screen}/{intent-fingerprint}.yaml |
-| `dogfood/controls/runbooks/*.runbook.yaml` | canonical artifact | 2 (runbooks) | execution recipe for a flow | move to .canonical-artifacts/compositions/{agentic|deterministic}/runbooks/ |
-| `dogfood/controls/variance/*.variance.yaml` | canonical artifact (hybrid compound) | 1 (drifts) + (operator intent fragments) | drift configs + scenario-selection intent | DECOMPOSE: drift atoms move to atoms/drifts/; selection intent stays as canonical source |
-| `dogfood/scenarios/demo/**` | derived | n/a | should be derivable from `.ado-sync/snapshots/{10001,10002,10010,10011}.json` via parse phase | gitignore (after parser migration) |
-| `dogfood/scenarios/reference/**` | derived | n/a | cohort generator output | gitignore |
-| `dogfood/knowledge/screens/*.elements.yaml` | canonical artifact | 1 (elements) | substrate of element atoms per screen | DECOMPOSE: split into per-element atom files at atoms/{agentic|deterministic}/elements/{screen}/{element}.yaml |
-| `dogfood/knowledge/screens/*.hints.yaml` | canonical artifact (hybrid compound) | 1 (elements) + 1 (resolution-overrides) | mix of element alias atoms and per-(intent, screen) resolution overrides | DECOMPOSE: split into atoms/elements/ and atoms/resolution-overrides/ |
-| `dogfood/knowledge/screens/*.postures.yaml` | canonical artifact | 1 (postures) | per-element posture atoms | DECOMPOSE: split into atoms/{agentic|deterministic}/postures/{screen}/{element}/{posture}.yaml |
-| `dogfood/knowledge/patterns/*.yaml` | canonical artifact | 1 (patterns) | promoted cross-screen abstractions | DECOMPOSE: each pattern doc → atoms/patterns/{pattern-id}.yaml |
-| `dogfood/knowledge/snapshots/**` | canonical artifact | 1 (snapshots) | ARIA tree templates | DECOMPOSE: each snapshot → atoms/snapshots/{snapshot-id}.yaml |
-| `dogfood/knowledge/routes/demo.routes.yaml` | canonical artifact (hybrid compound) | 1 (routes) + 2 (route-graphs) | per-route atoms PLUS the route graph composition that connects them | DECOMPOSE: per-route atoms to atoms/routes/; the connecting graph to compositions/route-graphs/demo.yaml |
-| `dogfood/knowledge/surfaces/*.surface.yaml` | canonical artifact (hybrid compound) | 1 (surfaces) + 2 (surface-compositions) | surface atoms PLUS surface composition descriptions | DECOMPOSE: per-surface atoms to atoms/surfaces/; multi-surface compositions to compositions/surface-compositions/ |
-| `dogfood/knowledge/components/*.ts` | canonical source (code) | n/a | TypeScript widget choreography code | long-term moves to `lib/runtime/widgets/`; near-term stays committed |
-| `dogfood/generated/**` | derived | n/a | playwright spec emission | gitignore |
-| `dogfood/posture.yaml` | (does not exist) | n/a | the `postureConfigPath` concept has been deleted | (already replaced by CLI flag) |
+1. **Putting atoms in the right on-disk shape.** That's a structural
+   concern solved by the typed address types at
+   `lib/domain/pipeline/{atom,composition,projection}-address.ts`.
+   Still a good idea.
+2. **Earning canonical-artifact status.** That requires a real
+   provenance chain (intervention receipt → auto-approval gate, or
+   discovery run → promotion gate). Copying pre-gate YAMLs into the
+   per-atom tree *does not* do that; it launders training
+   scaffolding into the canon store without the gate ever firing.
 
-The migration has TWO load-bearing decompositions waiting to land:
+The two operations were fused under "DECOMPOSE," which meant that
+running the migration script would populate `.canonical-artifacts/`
+with hundreds of files tagged as `agentic-override` or
+`deterministic-observation` that had never earned either tag. The C6
+scoreboard and the discovery-fitness metric would both silently
+ingest those false positives.
 
-**Phase 2 (atom decomposition)**: every row marked DECOMPOSE in the
-table above splits its compound contents into per-atom files at the
-correct tier path. The compound files themselves shrink to nothing and
-are deleted, OR they survive as derived projections that the catalog
-materializes for human inspection.
+The current doctrine: **dogfood YAMLs stay where they are, marked as
+reference canon (§ 3.2a), and `.canonical-artifacts/` starts
+greenfield.** Migration happens one atom at a time through the live
+loop — an agent observes evidence, forms a receipt, passes the gate,
+writes a real agentic override at the same address; or the discovery
+engine observes, passes the promotion gate, writes a real
+deterministic observation at the same address. The reference canon
+entry then becomes a demotion candidate and the operator (or an
+automatic sweep) removes it.
 
-**Phase 2.5 (composition extraction)**: the hybrid rows that span
-Tier 1 and Tier 2 (`benchmarks/`, `routes/`, `surfaces/`) need
-careful extraction of their composition components into the
-`compositions/` tier alongside their atom decomposition. The flow
-inside benchmark files becomes a Tier 2 flow composition; the route
-graph inside route files becomes a Tier 2 route graph; the
-multi-surface descriptions inside surface files become Tier 2 surface
-compositions.
+| Path | Population | Exit path |
+|---|---|---|
+| `dogfood/fixtures/ado/{10001,10002,10010,10011}.json` | canonical source | stays committed; operator's stand-in upstream |
+| `dogfood/fixtures/ado/{2xxxx}.json` | derived | gitignore in place; cohort generator output |
+| `dogfood/fixtures/demo-harness/**` | canonical source | stays committed; the SUT in dogfood mode |
+| `dogfood/.ado-sync/snapshots/{10001,10002,10010,10011}.json` | derived (in dogfood) | gitignore in dogfood; in production this becomes canonical source |
+| `dogfood/.ado-sync/snapshots/{2xxxx}.json` | derived | gitignore; cohort sync cache |
+| `dogfood/.ado-sync/archive/{10001,10002,10010,10011}/N.json` | canonical source | stays committed; simulator revision history |
+| `dogfood/.ado-sync/archive/{2xxxx}/N.json` | derived | gitignore; synthetic cohort revision history |
+| `dogfood/.ado-sync/manifest.json` | derived | gitignore; auto-maintained sync metadata |
+| `dogfood/benchmarks/*.benchmark.yaml` | reference canon | consulted at slot 4; demoted as agentic overrides + deterministic observations land at the same addresses |
+| `dogfood/controls/datasets/*.dataset.yaml` | reference canon | consulted at slot 4; per-(screen, element, posture) defaults awaiting a real receipt or promotion |
+| `dogfood/controls/resolution/*.resolution.yaml` | reference canon | consulted at slot 4; per-(screen, intent) decisions awaiting a real receipt |
+| `dogfood/controls/runbooks/*.runbook.yaml` | reference canon | consulted at slot 4; recipes awaiting promotion as Tier 2 compositions |
+| `dogfood/controls/variance/*.variance.yaml` | mixed | drift configs are reference canon (slot 4); the pure selection-intent fragments inside are canonical sources |
+| `dogfood/scenarios/demo/**` | derived (after parser migration) | gitignore after the parser migration lands; until then treat as reference corpus for unit-test pinning per `scenario-partition.md` |
+| `dogfood/scenarios/reference/**` | derived | gitignore; cohort generator output |
+| `dogfood/knowledge/screens/*.elements.yaml` | reference canon | consulted at slot 4; element atoms awaiting real receipts / promotions |
+| `dogfood/knowledge/screens/*.hints.yaml` | reference canon | consulted at slot 4; mix of alias and resolution-override content |
+| `dogfood/knowledge/screens/*.postures.yaml` | reference canon | consulted at slot 4; posture atoms awaiting real receipts / promotions |
+| `dogfood/knowledge/patterns/*.yaml` | reference canon | consulted at slot 4; cross-screen abstractions awaiting re-promotion |
+| `dogfood/knowledge/snapshots/**` | reference canon | consulted at slot 4; ARIA tree templates awaiting re-promotion |
+| `dogfood/knowledge/routes/demo.routes.yaml` | reference canon | consulted at slot 4; route atoms + graph composition awaiting re-promotion |
+| `dogfood/knowledge/surfaces/*.surface.yaml` | reference canon | consulted at slot 4; surface atoms + compositions awaiting re-promotion |
+| `dogfood/knowledge/components/*.ts` | canonical source (code) | long-term moves to `lib/runtime/widgets/`; near-term stays committed |
+| `dogfood/generated/**` | derived | gitignore; playwright spec emission |
+| `dogfood/posture.yaml` | (does not exist) | the `postureConfigPath` concept has been deleted |
+| `dogfood/.canonical-artifacts/` | canonical artifact (empty / greenfield) | **populated only by real promotions through real gates** — no migration script seeds this |
 
-The Tier 3 projection layer has NO existing files in dogfood today.
-It is built greenfield as the agent intervention engine learns to
-capture role visibility, wizard state, posture availability, and
-permission group bindings. The projection slot in the lookup chain
-exists from day one (Phase 0b) so consumers don't have to retrofit.
+The Tier 3 projection layer (role-visibility, wizard-state,
+process-state, feature-flag, etc.) has NO existing files in dogfood
+today, reference canon or otherwise. It is built greenfield as the
+agent intervention engine learns to capture role visibility,
+wizard-state visibility, posture availability, and permission-group
+bindings. The projection slot in the lookup chain exists from day
+one (Phase 0b) so consumers don't have to retrofit. Per the active
+cold-start convergence plan, Tier 3 authoring does not land until
+Phase F and the dogfood suite runs with zero-role projections until
+then.
+
+### 11.1 What happened to the decomposition work
+
+The `lib/application/canon/decompose-*.ts` pure functions (per-class
+decomposers: screen-elements, screen-hints, screen-postures,
+screen-surfaces, route-knowledge, patterns, snapshots) are **kept**.
+They are useful independent of the migration: the discovery engine
+may need them to turn fat observation surfaces into per-atom
+envelopes at runtime, and they serve as the reference implementation
+for how a hybrid shape maps to atom addresses. What they lose is
+their role as a one-shot migration target.
+
+The `scripts/decompose-canon.ts` one-shot migration script is
+**deprecated**. It will not be run. A deprecation header on the
+script points at this section. It may be deleted in a later commit
+once we confirm no CI or tooling invokes it.
+
+The `tests/canon-decomposition.laws.spec.ts` equivalence law test
+(the "migration tripwire") is either deleted or repurposed as a
+pure-function law test for the decomposer modules themselves
+(asserting they produce the shapes they claim), *not* as a
+migration equivalence assertion.
 
 ---
 
@@ -2050,27 +2331,57 @@ The doctrine is designed to support a north-star end state where:
 2. The pipeline points at a real Azure DevOps project (via real
    credentials and the real `tesseract sync` flow) and at a real
    web application (via a real fixture server or staging URL).
-3. The canonical sources are: pipeline code, doctrine, controls,
-   benchmarks, and the `.ado-sync/` persisted upstream record. No
-   simulator.
+3. The canonical sources are: pipeline code, doctrine, operator
+   intent (`controls/` pure-intent fragments), and the `.ado-sync/`
+   persisted upstream record. No simulator.
 4. The canonical artifacts are populated entirely by the discovery
    engine (deterministic observations) and a small set of agentic
-   overrides for genuinely novel intent.
-5. The operator's day-to-day experience is: edit pipeline code,
+   overrides for genuinely novel intent, each backed by an
+   intervention receipt that passed the auto-approval gate.
+5. **Reference canon is empty.** The transitional slot 4 retires.
+   The lookup chain collapses back to five slots.
+6. The operator's day-to-day experience is: edit pipeline code,
    run iterate against real ADO + real SUT, watch the canonical
    artifact store evolve as the system learns.
 
-The trichotomy survives this transition unchanged. The names of
-files, the locations of directories, and the verbs operators run
-all remain the same. What changes is the SOURCE of the canonical
-sources (real ADO instead of simulator) and the SIZE of the canonical
-artifact store (smaller, because real upstream means more discovery
-opportunities).
+The trichotomy survives this transition unchanged. What changes is:
+- The SOURCE of the canonical sources (real ADO instead of
+  simulator).
+- The SIZE and SHAPE of the canonical artifact store (populated
+  through gates, not hand-authoring).
+- The ABSENCE of the transitional reference-canon slot.
 
-The dogfood mode is the system's training environment. The trichotomy
-must hold in dogfood for it to hold in production. Every doctrinal
-correctness fix that lands during dogfood development is a free
-correctness fix for the production deployment.
+The dogfood mode is the system's training environment. The
+trichotomy must hold in dogfood for it to hold in production. Every
+doctrinal correctness fix that lands during dogfood development is
+a free correctness fix for the production deployment.
+
+### 14.0 Graduation condition for retiring `dogfood/`
+
+The `dogfood/` folder can be deleted in good conscience when all of
+the following hold:
+
+1. `{suiteRoot}/knowledge/`, `{suiteRoot}/benchmarks/`, and the
+   non-intent portions of `{suiteRoot}/controls/` are empty — every
+   reference canon entry has been either superseded by a real
+   agentic override, superseded by a real deterministic observation,
+   or demoted as no-longer-needed.
+2. A warm run with `--no-reference-canon` has ≥ 95% of the hit rate
+   of a default warm run. (This is the structural proof that the
+   system no longer depends on reference canon; the small gap
+   covers edge cases the demotion sweep hasn't yet reached.)
+3. The reference cohort corpus (`{suiteRoot}/scenarios/reference/`)
+   runs green under `--no-reference-canon` with discovery-fitness
+   and C6 above their current-window floors.
+4. The unit tests that pin against `dogfood/scenarios/demo/**`
+   (the 10000-series) have been migrated to their own fixture
+   location under `tests/fixtures/` or replaced by property-based
+   generators. See `docs/scenario-partition.md` for the
+   single-corpus direction.
+
+At that point, the directory is deleted, `CLAUDE.md`'s dogfood-
+specific sections are retired, and the system pivots to production
+operation.
 
 ### 14.1 The ROI shape
 
@@ -2157,8 +2468,18 @@ directly-measurable in the dual L4 metric tree from §12.
 - **Canonical artifact** — an output the pipeline has produced and
   trusts as ground truth at runtime. Two flavors: deterministic
   observations (promoted via quality gate) and agentic overrides
-  (authored by an agent or operator). Demotable when supplanted or
-  stale.
+  (produced via a typed `InterventionReceipt` that passed the
+  auto-approval gate). Demotable when supplanted or stale. A
+  pre-gate hand-authored YAML is NOT a canonical artifact — see
+  "reference canon."
+- **Reference canon** — the transitional population of committed
+  files that are consulted at runtime as fallback ground truth but
+  were authored before the gates existed. Today's
+  `dogfood/knowledge/`, `dogfood/benchmarks/`, and most of
+  `dogfood/controls/`. Lives in the lookup chain at slot 4, below
+  both canonical-artifact flavors. Demoted one atom at a time as
+  real agentic overrides and deterministic observations supplant
+  it. When empty, slot 4 retires.
 - **Derived output** — a candidate for promotion. Produced by a
   pipeline run, lives in `.tesseract/cache/` until promoted or wiped.
   Gitignored.
@@ -2198,6 +2519,19 @@ directly-measurable in the dual L4 metric tree from §12.
 ---
 
 ## 16. Existing seams in the codebase (Phase 0b implementation guide)
+
+> **Status update (2026-04-11).** Phase 0 of the envelope-axis
+> refactor has landed. Stage, Source, Fingerprint, and Verdict
+> are all phantom-typed per
+> [`docs/envelope-axis-refactor-plan.md`](./envelope-axis-refactor-plan.md).
+> The seams listed below existed before Phase 0; they are now
+> augmented with phantom type parameters (see `Atom<C, T, Src>`,
+> `Composition<S, T, Src>`, `WorkflowMetadata<Stage>`,
+> `Fingerprint<Tag>`, `GovernanceVerdict<T, I>`). The specific
+> executable sequence for closing Phases A–D on the synthetic
+> workload is
+> [`docs/synthetic-feature-completion-plan.md`](./synthetic-feature-completion-plan.md)
+> — five commits in dependency order.
 
 This section captures the existing pipeline-stage and catalog
 infrastructure that the Phase 0b implementation MUST plug into

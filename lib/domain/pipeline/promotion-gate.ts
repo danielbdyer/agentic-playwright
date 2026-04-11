@@ -49,10 +49,11 @@ export interface PromotionEvaluation {
 // ─── Source constraints for promotion ───────────────────────────
 //
 // Promotion candidates come from the discovery engine (cold or
-// live derivation). Existing canonical artifacts come from the
-// higher-precedence slots (operator-approved, agent-approved, or
-// deterministically-observed). These types make the source
-// constraint compile-checked at every gate call site.
+// live derivation). Existing artifacts that a candidate might
+// supplant come from the four higher-precedence slots:
+// operator-approved, agent-approved, deterministically-observed,
+// or reference canon. These types make the source constraint
+// compile-checked at every gate call site.
 
 /** Sources eligible for promotion candidacy: the discovery engine's
  *  own output. */
@@ -60,12 +61,23 @@ export type PromotionCandidateSource =
   | 'cold-derivation'
   | 'live-derivation';
 
-/** Sources that constitute existing canon: the artifacts that have
- *  already been promoted or hand-approved. */
+/** Sources that constitute "existing" content at a canon-shaped
+ *  address — what a promotion candidate might supplant.
+ *
+ *  NOTE: This type is named `CanonicalSource` for historical
+ *  reasons but now includes `'reference-canon'`, which is NOT a
+ *  canonical artifact in the doctrinal sense (see
+ *  canon-and-derivation § 3.2a). Reference canon is included
+ *  because the gate must handle the case where the "existing" at
+ *  an address is a pre-gate entry — in that case the gate's
+ *  verdict drives the supersession-by-real-canon path that the
+ *  demotion sweep (synthetic feature completion plan Commit 5)
+ *  uses to shrink the reference canon slot over time. */
 export type CanonicalSource =
   | 'operator-override'
   | 'agentic-override'
-  | 'deterministic-observation';
+  | 'deterministic-observation'
+  | 'reference-canon';
 
 // ─── Gate interface ──────────────────────────────────────────────
 

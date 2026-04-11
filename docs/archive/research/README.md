@@ -33,7 +33,11 @@ This research set is meant to make Backlog Item A1 implementable without overfit
 
 ## Additional Notes
 
-- [Temporal-epistemic specification addendum](./temporal-epistemic-specification-addendum.md) — stored research note on temporal, epistemic, and economic formalization for handoffs, suspension, drift, and compounding.
+- The temporal-epistemic specification addendum was **promoted out
+  of this archive on 2026-04-10** and now lives as active doctrine
+  at [`docs/temporal-epistemic-kernel.md`](../../temporal-epistemic-kernel.md).
+  It is load-bearing for the alignment-targets wall and the
+  cold-start convergence plan.
 
 ## Glossary
 

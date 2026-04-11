@@ -2,23 +2,49 @@
 
 This repository is an interface intelligence and agent workbench system built around a deterministic preparation pipeline, typed intervention receipts, and a governed recursive-improvement loop. Treat it that way.
 
-## Start here
+## North star in one sentence
 
-Read the doc that matches your task:
+**Make the deterministic discovery engine grok the application under test as fast as possible, and let the agentic intervention engine slide receipt-backed overrides in next to deterministic observations so that the pipeline reconciles both lanes into the best computed understanding of the SUT — then measure whether every accepted intervention actually moved the needle.**
+
+The scoreboard for "is it working?" is [`docs/alignment-targets.md`](docs/alignment-targets.md):
+- **M5** (Memory Worthiness Ratio) tracks the deterministic engine — is remembering worth more than forgetting across cohort trajectories?
+- **C6** (Intervention-Adjusted Economics) tracks the agentic engine — does accepting an override reduce ambiguity/suspension/rung-score in its attachment region within one loop iteration?
+
+Everything else in the codebase exists to serve M5 and C6 moving up.
+
+## New-session orientation (read in this order)
+
+If you've just opened the repo, read this exact sequence before touching any code:
+
+1. [`docs/current-state.md`](docs/current-state.md) — what's implemented vs. planned *right now*. Keeps you from re-implementing something that landed last week.
+2. [`VISION.md`](VISION.md) — the product bet, the four-axis envelope upper ontology, and what "synthetic feature completion" means. The one-stop "why does this exist?" doc.
+3. [`docs/canon-and-derivation.md`](docs/canon-and-derivation.md) §§ 1–3.2a, § 6, § 11 — the trichotomy (canonical sources / canonical artifacts / derived output), the **reference-canon transitional population**, the six-slot lookup chain, and the classification table for what's in `dogfood/` today. This is the doctrine skeleton.
+4. [`docs/alignment-targets.md`](docs/alignment-targets.md) — M5 and C6 definitions, including the operational definitions locked 2026-04-10 (M5 denominator = wall clock + agentic-override maintenance; C6 N = 1 loop iteration; cohort-comparable = same scenario IDs).
+5. [`docs/synthetic-feature-completion-plan.md`](docs/synthetic-feature-completion-plan.md) — the executable 5-commit sequence for driving the synthetic workload to feature completion: Source-axis extension + 4 scoreboard closures (C6 direct, M5 direct, promotion CIs, demotion sweep). This is what's next.
+6. [`docs/cold-start-convergence-plan.md`](docs/cold-start-convergence-plan.md) §§ 1–4 — the six-phase sequence (A: reference-canon slot + greenfield canon tree; B–D: now subsumed by the feature-completion plan; E: runtime-family recognition, deferred; F: Tier 3 projections, deferred).
+7. [`docs/temporal-epistemic-kernel.md`](docs/temporal-epistemic-kernel.md) — the formal K / L / S / V / D / R / A / C / M / H theorem groups. The alignment-targets floors map onto these directly.
+8. [`docs/envelope-axis-refactor-plan.md`](docs/envelope-axis-refactor-plan.md) — the four-axis envelope refactor. Phase 0 (Stage/Source/Fingerprint/Verdict phantom lifts) is **complete**. Read for context on the structural substrate the feature-completion plan rides on.
+
+**Load-bearing reframe (2026-04-10).** The prior doctrine prescribed a one-shot migration script (`scripts/decompose-canon.ts`) to move dogfood YAMLs into `.canonical-artifacts/`. That script is **deleted**. The dogfood YAMLs are reclassified as **reference canon** — consulted at lookup-chain slot 4, below real canonical artifacts, and demoted one atom at a time as real agentic overrides (backed by intervention receipts) and real deterministic observations (promoted through gates) supplant them. `{suiteRoot}/.canonical-artifacts/` is greenfield. See [`docs/canon-and-derivation.md`](docs/canon-and-derivation.md) § 3.2a and § 11.1 for the full reasoning.
+
+**The four-axis envelope (2026-04-11 framing).** Every artifact is a point in `Envelope<Stage, Source, Verdict><Payload: Fingerprint<Stage, Source>>` space. The pipeline is a typed path through that space. All four axes are phantom-typed in code (`lib/domain/governance/workflow-types.ts`, `lib/domain/pipeline/source.ts`, `lib/domain/kernel/hash.ts`, `lib/domain/handshake/epistemic-brand.ts`). The structural substrate is ready; what remains is the five scoreboard closures in `docs/synthetic-feature-completion-plan.md`. See [`VISION.md`](VISION.md) § "The four-axis envelope — the upper ontology" for the full framing.
+
+## Additional docs (read when the task calls for them)
 
 - operational overview: [README.md](README.md)
 - authoritative architecture doctrine: [docs/master-architecture.md](docs/master-architecture.md)
-- **canon / derivation persistence doctrine** (load-bearing for every directory and gitignore decision): [docs/canon-and-derivation.md](docs/canon-and-derivation.md)
 - **envelope-axis refactor plan** (Phase 0 — structural prerequisite to the convergence plan; lifts `stage`, `source`, `verdict`, and fingerprint addresses into phantom-typed envelope axes): [docs/envelope-axis-refactor-plan.md](docs/envelope-axis-refactor-plan.md)
-- **cold-start convergence plan** (active spine for substrate work; sequences atom decomposition, dual L4 metric tree, intervention impact, promotion scoring, runtime-family recognition, Tier 3 projections — **depends on Phase 0 above**): [docs/cold-start-convergence-plan.md](docs/cold-start-convergence-plan.md)
-- **wall-mounted scoreboard** (M5 Memory Worthiness Ratio + C6 Intervention-Adjusted Economics): [docs/alignment-targets.md](docs/alignment-targets.md)
 - product model and QA workflow: [VISION.md](VISION.md)
 - conceptual domain model — primitives and gravitational wells: [docs/domain-model.md](docs/domain-model.md)
 - domain ontology and invariants: [docs/domain-ontology.md](docs/domain-ontology.md)
 - domain class decomposition — every primitive mapped to its concrete domain types and the dependency topology hubs (consult before inventing parallel content shapes): [docs/domain-class-decomposition.md](docs/domain-class-decomposition.md)
 - authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
 - operator workflow and approvals: [docs/operator-handbook.md](docs/operator-handbook.md)
+- scenario corpus partition (10000-series legacy vs 20000-series survivor): [docs/scenario-partition.md](docs/scenario-partition.md)
 - planned work split by lane: [BACKLOG.md](BACKLOG.md)
+- convergence tactical backlog (subordinate to the cold-start plan AND the synthetic feature completion plan; read the doctrinal drift flags at the top): [docs/convergence-backlog.md](docs/convergence-backlog.md)
+- **synthetic feature completion plan** (the active 5-commit execution sequence): [docs/synthetic-feature-completion-plan.md](docs/synthetic-feature-completion-plan.md)
+- recursive self-improvement Level-1 loop (the 15-knob parameter space; subset of the doctrinal gradient): [docs/recursive-self-improvement.md](docs/recursive-self-improvement.md)
 - implementation coding notes: [docs/coding-notes.md](docs/coding-notes.md)
 - seams, invariants, and verification: [docs/seams-and-invariants.md](docs/seams-and-invariants.md)
 - code navigation (6-layer architecture): [lib/README.md](lib/README.md)
@@ -39,28 +65,41 @@ The six public lanes remain the operating vocabulary. The deeper architectural s
 
 ## Non-negotiable model
 
-- Active canonical artifacts are the source of truth.
+- Canonical sources (operator intent, the SUT, upstream ADO) and canonical artifacts (real gate-qualified promotions) are the source of truth.
+- Reference canon (the pre-gate YAMLs under `dogfood/knowledge/`, `dogfood/benchmarks/`, `dogfood/controls/`) is fallback only, consulted at lookup-chain slot 4, clearly labeled in every lookup receipt, and shrinking over time.
 - Derived artifacts are projections.
 - Deterministic compiler derivations are auto-approved.
+- Agentic overrides require a typed `InterventionReceipt` that passed the auto-approval gate. No receipt = no override.
 - Certification is a designation on canon, not an execution gate.
 - Generated specs are disposable object code.
 - Provenance is part of correctness.
 
-## Canonical vs derived
+## The lookup chain (six slots, transitional)
+
+| Slot | Source | Where | Consulted in |
+|---|---|---|---|
+| 1 | `operator-override` | `{suiteRoot}/controls/**` (pure-intent fragments only) | all modes |
+| 2 | `agentic-override` | `{suiteRoot}/.canonical-artifacts/agentic/**` (receipt-backed) | warm, compare |
+| 3 | `deterministic-observation` | `{suiteRoot}/.canonical-artifacts/deterministic/**` (gate-promoted) | warm, compare |
+| 4 | `reference-canon` *(transitional)* | `{suiteRoot}/knowledge/**`, `{suiteRoot}/benchmarks/**`, pre-gate `{suiteRoot}/controls/**` | warm (not `--no-reference-canon`) |
+| 5 | `live-derivation` | `.tesseract/cache/**` | warm, cold |
+| 6 | `cold-derivation` | in-process | cold, compare |
+
+When slot 4 is empty (every reference canon entry has been superseded by real canonical artifacts or demoted), the chain collapses back to five slots and the `dogfood/` folder can be retired. See [`docs/canon-and-derivation.md`](docs/canon-and-derivation.md) § 14.0 for the graduation condition.
+
+## Canonical vs reference vs derived (quick reference)
 
 Canonical inputs (suite-scoped, under `dogfood/` for training or repo root for production):
 
 Tier 1 — Problem statement (always loaded):
 
 - `.ado-sync/`
-- `benchmarks/`
-- `controls/`
-- `scenarios/`
+- `scenarios/` (the 20000-series reference cohort is the go-forward corpus; see [`docs/scenario-partition.md`](docs/scenario-partition.md))
 - `fixtures/`
 - `.tesseract/evidence/`
 - `.tesseract/policy/`
 
-Tier 2 — Learned knowledge (gated by knowledge posture):
+Tier 2 — Reference canon, pre-gate (gated by knowledge posture):
 
 - `knowledge/surfaces/`
 - `knowledge/screens/`
@@ -68,12 +107,26 @@ Tier 2 — Learned knowledge (gated by knowledge posture):
 - `knowledge/snapshots/`
 - `knowledge/components/`
 - `knowledge/routes/`
+- `benchmarks/`
+- `controls/` (non-intent portions)
+
+These files are still consulted at runtime but they live at slot 4 (reference canon) in the lookup chain and they shrink as real canonical artifacts supplant them.
+
+Tier 2' — Real canonical artifacts (greenfield, populated only by real gates):
+
+- `.canonical-artifacts/agentic/**` — agent overrides backed by `InterventionReceipt`
+- `.canonical-artifacts/deterministic/**` — discovery outputs promoted through gate evaluation
 
 Knowledge posture (`--posture` CLI flag):
 
 - `cold-start`: Tier 1 only — tests the system's ability to discover and learn from scratch.
-- `warm-start`: Tier 1 + Tier 2 — tests the pipeline given pre-existing knowledge. Default.
+- `warm-start`: Tier 1 + Tier 2 (reference canon) + Tier 2' (real canonical artifacts) — the default; consults all committed content.
 - `production`: Same as warm-start + all output version-controlled.
+
+Additional mode flags (`docs/canon-and-derivation.md` § 6.5):
+
+- `--no-reference-canon`: skip slot 4. The migration-debt measurement.
+- `--no-overrides`: skip slots 1 and 2. Extreme cold-start test.
 
 Derived outputs. Do not hand-edit unless the task is specifically about the generator:
 
