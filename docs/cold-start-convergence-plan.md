@@ -1,21 +1,29 @@
 # Cold-Start Convergence Plan
 
-> Status: Active — doctrinal spine for the substrate convergence work.
-> Supersedes `docs/convergence-backlog.md` and `docs/convergence-roadmap.md`
-> as the sequencing source of truth; those documents are now read as
-> Surface 1/2 tactical inputs that execute *within* this plan's phases.
-> When this document conflicts with them, this document wins.
+> Status: Active doctrine — six-phase substrate plan. Phases A–D
+> have a more specific executable sequence in
+> [`docs/synthetic-feature-completion-plan.md`](./synthetic-feature-completion-plan.md)
+> (5 commits: Source-axis extension + 4 scoreboard closures). When
+> that plan's commits land, Phases A–D of this document are
+> considered complete on the synthetic workload, and Phase E
+> (runtime-family recognition) becomes the next real target.
 >
-> **Prerequisite (Phase 0):** Before this plan's Phase A begins,
-> `docs/envelope-axis-refactor-plan.md` must land. That plan lifts
-> `stage`, `source`, `verdict`, and fingerprint addresses into
-> phantom-typed envelope axes so Phase A's decomposers, Phase B's L4
-> visitors, and Phase C's intervention braid all inherit a typed
-> scaffolding instead of string-typed conventions. Attempting Phase A
-> before Phase 0 stabilizes means the decomposers are born with the
-> bugs the refactor was designed to prevent. See the refactor plan's
-> § 2 "Relationship to existing plans" for the full sequencing
-> argument.
+> Phases E and F remain future work — they assume the synthetic
+> scoreboard is honest (Phases A–D complete) before running
+> against real enterprise applications.
+>
+> **Prerequisite (Phase 0) — COMPLETE.** `docs/envelope-axis-refactor-plan.md`
+> Phase 0 has landed. Stage, Source, Fingerprint, and Verdict are
+> all phantom-typed in code. Phases A–F of this plan inherit that
+> typed scaffolding. See `docs/envelope-axis-refactor-plan.md`
+> § 2.1 for the reordered sequence table.
+>
+> **Reframe (2026-04-10).** Phase A was rewritten from "atom
+> decomposition via one-shot migration script" to "reference canon
+> slot + greenfield `.canonical-artifacts/` tree." See
+> `docs/canon-and-derivation.md` §§ 3.2a, 11 and § 4.A of this
+> document for the corrected framing. The
+> `scripts/decompose-canon.ts` migration script has been deleted.
 
 ## TL;DR
 

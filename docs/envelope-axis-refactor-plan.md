@@ -58,17 +58,60 @@ contribution from the compiler's. The Fingerprint tags trace the
 agent's lineage through typed references. The Verdict gates every
 promotion through composable gate chains.
 
-The convergence plan's Phase A (atom decomposition) has landed on
-this scaffolding: 46 atoms and 4 compositions materialized from
-the dogfood corpus, loadable by the catalog, verified by 8
-equivalence laws. Phase B (discovery-fitness L4 tree) and Phase C
-(C6 intervention braid) are next.
+**Phase A status (updated 2026-04-11).** Earlier revisions of this
+doc claimed "Phase A (atom decomposition) has landed on this
+scaffolding: 46 atoms and 4 compositions materialized from the
+dogfood corpus." That statement was true of the in-memory
+**property-test surface** (the per-class decomposer functions at
+`lib/application/canon/decompose-*.ts` are implemented and tested)
+but misleading about the on-disk substrate: no
+`.canonical-artifacts/` directory was ever materialized under
+`dogfood/` or any other suite root. The test fixtures construct
+hybrid inputs in memory and verify the decomposers produce
+correct atoms as values; there is no persistence step.
+
+The **2026-04-10 reference-canon reframe** (commit `ee9d62b` on
+`claude/review-recursive-improvement-docs-AU4xb`) retired the
+migration framing entirely. The prior doctrine said Phase A would
+run a one-shot `scripts/decompose-canon.ts` script to split the
+dogfood hybrid YAMLs into per-atom files under
+`.canonical-artifacts/`. That framing conflated on-disk shape with
+real gate-backed provenance: copying pre-gate YAMLs into
+`.canonical-artifacts/` would stamp them as `'agentic-override'`
+or `'deterministic-observation'` without ever running a real
+intervention receipt or a real promotion gate, poisoning C6 and
+the discovery-fitness metrics with false positives.
+
+Under the reframe:
+
+- The dogfood YAMLs stay at their original locations
+  (`dogfood/knowledge/**`, `dogfood/benchmarks/**`, non-intent
+  `dogfood/controls/**`) and are reclassified as **reference canon**
+  — a transitional population at slot 4 of the lookup chain.
+- `.canonical-artifacts/` starts greenfield and is populated only
+  by real gates.
+- `scripts/decompose-canon.ts` is deleted (done in the reframe commit).
+- The per-class decomposer functions are **kept** as runtime
+  utilities: the discovery engine may still use them to turn fat
+  observation surfaces into per-atom envelopes at runtime. They
+  are no longer migration targets.
+
+**The new executable sequence for closing Phases A–D on the
+synthetic workload is
+[`docs/synthetic-feature-completion-plan.md`](./synthetic-feature-completion-plan.md).**
+It is five commits: one Source-axis extension (adding
+`reference-canon` to `PhaseOutputSource` in code, because the
+reframe updated doctrine but not `lib/domain/pipeline/source.ts`)
+followed by four scoreboard closures (C6 direct, M5 direct,
+promotion CIs, demotion sweep). Phase B and Phase C in the
+cold-start plan are now subsumed by commits 2 and 3 of that plan.
 
 Deferred indefinitely: the Lane axis (lanes do not exist in code
 today; typing them would require introducing separation first),
-the three-loop unification (two of the three "loops" are not loops),
-and the composition→projection promotion path (that is a write, not a
-refactor).
+the three-loop unification (Loop A/B/C belong lifted as a
+monadic/Kleisli composition, not as a flat registry — and only
+after the scoreboard is honest), and the composition→projection
+promotion path (that is a write, not a refactor).
 
 ## 1. Why this was done first — the cost curve (retrospective)
 

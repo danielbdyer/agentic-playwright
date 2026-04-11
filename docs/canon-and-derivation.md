@@ -2520,6 +2520,19 @@ directly-measurable in the dual L4 metric tree from §12.
 
 ## 16. Existing seams in the codebase (Phase 0b implementation guide)
 
+> **Status update (2026-04-11).** Phase 0 of the envelope-axis
+> refactor has landed. Stage, Source, Fingerprint, and Verdict
+> are all phantom-typed per
+> [`docs/envelope-axis-refactor-plan.md`](./envelope-axis-refactor-plan.md).
+> The seams listed below existed before Phase 0; they are now
+> augmented with phantom type parameters (see `Atom<C, T, Src>`,
+> `Composition<S, T, Src>`, `WorkflowMetadata<Stage>`,
+> `Fingerprint<Tag>`, `GovernanceVerdict<T, I>`). The specific
+> executable sequence for closing Phases A–D on the synthetic
+> workload is
+> [`docs/synthetic-feature-completion-plan.md`](./synthetic-feature-completion-plan.md)
+> — five commits in dependency order.
+
 This section captures the existing pipeline-stage and catalog
 infrastructure that the Phase 0b implementation MUST plug into
 rather than replace. It is here to prevent future sessions from
