@@ -532,7 +532,116 @@ Kind-specific extensions:
 
 The schema is expected to grow by field addition, not by structural revision. Structural revision is the category of change substrate §6's anti-scaffolding gate applies to most sharply.
 
-## 9) Cross-cutting disciplines
+## 9) Agent compliance surfaces
+
+The agent is a persona. It has goals, it uses the codebase's verbs to reach them, and it is judged by how often it reaches them correctly on the first try. This section names the agent-centric contracts the earlier sections imply: the lifecycle of a session, the division of labor between deterministic pipeline and agentic reasoning, the invariants the agent can rely on, and the structured fallthrough when determinism exhausts. The organizing principle is that the agent should spend its reasoning budget on genuinely ambiguous choices, not on rediscovering the codebase's contracts every session.
+
+### 9.1 The agent's lifecycle
+
+Six canonical flows, each a composition of handshakes from §7. Every flow names the primitive goal the agent is pursuing and the handshakes that compose it. The set is closed: an agent action that does not map to one of these flows is a fluency regression, not a novel capability.
+
+- **Onboard.** Goal: reach fluency. Handshakes: manifest introspect, fluency check (as a self-test). The agent reads the manifest once per session and is expected to be expert on every verb before acting on anything else.
+- **Author a test for a work item.** Goal: a QA-legible, executed, accepted test. At L0: intent fetch → intent parse → navigate → observe → interact (as needed) → test compose → test execute → review handoff. At L1+: facet query substitutes for observation wherever memory is sufficient, and test compose reads from the catalog instead of live state.
+- **Grow memory during authoring.** Goal: leave the catalog richer than you found it, without breaking provenance. Handshakes: facet mint when a new observation is worth keeping; facet enrich when an observation adds evidence to an existing facet; locator health track on every locator use (by rule, not by choice).
+- **Absorb operator input (L2).** Goal: lift non-DOM semantics into memory without guessing. Handshakes: dialog capture or document ingest → candidate review. Review is operator-side; the agent surfaces candidates, does not write.
+- **Respond to drift (L3).** Goal: recognize a world-vs-memory mismatch and escalate without silently patching. Handshakes: drift emit (the emitter classifies; the agent interprets classification and chooses a recovery within the allowed set).
+- **Propose refinement (L4).** Goal: name a memory revision that carries its evidence. Handshakes: revision propose (the agent synthesizes from accumulated drift, decay, and corroboration; does not write memory directly).
+
+Each flow is named so the agent can say at any moment which flow it is in and what the next handshake must be. Confusion about flow identity is itself an agent-fluency regression and is caught by the fluency-check handshake (§8.8).
+
+### 9.2 Determinism first, agent second
+
+Any task that admits a deterministic solution must be handled by the pipeline deterministically. Agentic reasoning is invoked only when determinism has exhausted — ambiguity across multiple valid choices, novelty outside a classifier's vocabulary, or a semantic decision a rule cannot make. This is structural, not aspirational: the agent's reasoning budget is finite, and the codebase earns agent fluency by not wasting that budget on problems that had exactly one correct answer.
+
+The division of labor, per handshake:
+
+| Handshake | Pipeline owns (deterministic) | Agent owns (reasoning) |
+|---|---|---|
+| Manifest introspect | File read, parse | — |
+| Verb declare | Build-time manifest emission | — |
+| Fluency check | Test execution, dispatch comparison | — |
+| Intent fetch | HTTP call, field extraction | — |
+| Intent parse | XML regex, entity decode, field split | Disambiguation of genuinely ambiguous action text |
+| Navigate | `page.goto`, idempotence check | Choosing among multiple viable routes |
+| Observe | Accessibility snapshot, state probes | — (pure read) |
+| Interact | Locator resolution when ladder returns a single match; action dispatch; failure classification | Choice among multi-match candidates; affordance selection when intent is ambiguous |
+| Test compose | AST emission; facet-to-selector resolution at runtime | Step-title phrasing in business vocabulary; assertion wording when expected-outcome text is ambiguous |
+| Test execute | Playwright runner, report generation, failure classification | — (runner output is consumed, not interpreted) |
+| Facet mint | Provenance threading, atomic write | Whether an observation warrants minting; vocabulary and aliasing choices |
+| Facet query | Structured-field match, deterministic ranking | Phrasing of the intent phrase submitted |
+| Facet enrich | Evidence-log append, summary recompute | — (additive by rule) |
+| Locator health track | Counter and timestamp update | — (bookkeeping) |
+| Drift emit | Classification when mismatch kind is clear; log append | Classification when ambiguous; choice of recovery (retry, re-observe, escalate) |
+| Dialog capture | Transcript storage; candidate queue | Which turns are domain-informative; candidate extraction |
+| Document ingest | Document storage, anchor preservation; parser output | Which spans are candidates; association with existing facets |
+| Candidate review | Queue, decision persistence | — (operator-side) |
+| Confidence age | Decay function application | — |
+| Corroborate | Positive-evidence append from run records | — |
+| Revision propose | Evidence aggregation into a proposal scaffold | Rationale synthesis; evidence selection |
+
+The table is itself an invariant. If a row's left column grows, the agent's work shrinks — that is always welcome. Moving capability from right to left (pipeline absorbs what was agentic) is the preferred direction of change. Moving left to right (agent takes back what was deterministic) requires a specific level's shipping claim to justify it.
+
+### 9.3 Input/output contracts the agent relies on
+
+Ten invariants the agent can assume without verification. Every handshake honors all ten; every technical path in §8 is shaped to preserve them. Violation of any is a regression at the same severity as a broken product test.
+
+1. **Stable verb signatures.** Once published, a verb's inputs, outputs, and error families never change. New capability means a new verb, or a composition of existing verbs. Build-time manifest emission (§8.8) enforces this; drift between code and manifest fails the build.
+2. **Provenance at mint.** Any memory write without a full provenance block is rejected. Provenance is minted at birth, threaded forward, never retrofitted. This is what lets later levels (drift detection at L3, refinement at L4) reason about what the system used to know and how it knew it.
+3. **Atomic writes.** File writes (facet YAML, evidence JSONL, drift log) use temp-then-rename so that a partial write leaves the previous state intact. An agent that reads mid-write never observes a torn file.
+4. **Append-only history.** Evidence logs, drift logs, proposal logs, and rejection logs never delete or rewrite entries. If soft-delete is ever introduced, it arrives as a new event type, not as a mutation of an existing one.
+5. **Named error families.** Failures classify into enumerable categories — `not-visible`, `not-enabled`, `timeout`, `assertion-like`, `navigation-timeout`, `navigation-failed`, `parse-error`, plus a small handful of others. Raw errors surface only when classification genuinely fails, and that surfacing is itself recorded as `unclassified` rather than thrown as an exception.
+6. **No silent escalation.** Confidence changes, drift events, proposals, rejections — all are written to a log before any downstream consumer sees them. Nothing changes state behind the agent's back.
+7. **Reversible agentic writes.** Agent writes to memory land as proposals (L2+) or as confidence adjustments reversible by corroboration (L3+). Irreversible mutation requires operator review at or above L2. Reversibility classes are enumerated in §9.5.
+8. **Source vocabulary preserved.** Intent terms survive from the work item to the test. Operator wording survives from chat to memory. No renaming or coercion on inbound paths; paraphrase is never a substitute for exact source text.
+9. **One source of truth per concern.** Verbs: the manifest. Facets: the catalog. History: the evidence log. Drift: the drift log. Proposals: the proposal log. An agent never has to ask "which copy is current" because there is only one copy per concern.
+10. **Cheap introspection.** Every session starts with manifest introspect. The cost is a single file read. There is no budget justification required for an agent to reach fluency at session start; fluency is the default, not an optimization.
+
+These ten are the substrate's §6 gate applied to the agent's experience: every one of them exists because its absence would force the agent to re-derive a contract on each session, and re-derivation is the category of work the gate rejects.
+
+### 9.4 Structured fallthrough
+
+When determinism exhausts, the pipeline does not throw. It composes a *decision handoff*: the agent receives what was tried, what failed, what choices are now open, and what reversal is available if the chosen option turns out wrong. The handoff is the agent's input; the agent's decision is the output; both are recorded as provenance.
+
+Representative decision handoff — a locator ladder that returned multiple matches:
+
+```json
+{
+  "handshake": "interact",
+  "affordance": "save",
+  "intentPhrase": "click Save on customer detail",
+  "ladderAttempts": [
+    { "rung": 0, "strategy": "getByRole",   "matches": 2 },
+    { "rung": 1, "strategy": "getByTestId", "matches": 0 },
+    { "rung": 2, "strategy": "getByText",   "matches": 2 }
+  ],
+  "choices": [
+    { "id": "match-0",      "description": "Save button near top of form" },
+    { "id": "match-1",      "description": "Save draft button near bottom of form" },
+    { "id": "observe-more", "description": "Take a fresh accessibility snapshot to disambiguate" },
+    { "id": "escalate",     "description": "Surface to operator review" }
+  ],
+  "reversalPolicy": "choice is recorded with evidence; a subsequent drift event will reduce confidence in the chosen strategy"
+}
+```
+
+Every fallthrough follows this shape regardless of handshake: *what was tried*, *what failed or became ambiguous*, *what choices are open*, *how the choice can be undone if wrong*. The agent never reasons from a stack trace; it reasons from a structured choice. The pipeline's job, when determinism exhausts, is to prepare the choice cleanly — not to punt the problem into raw exception text and hope the agent copes.
+
+The agent's decision is stored alongside the handoff it answered, so a later drift event, audit, or revision proposal can reconstruct not just what the agent did but what alternatives it had and which it chose against.
+
+### 9.5 Reversibility and review
+
+Agentic writes have a reversibility class. The class determines what operator involvement is required and what happens when a choice is later contradicted by evidence.
+
+- **Self-reversing** (all levels). Confidence adjustments, locator health updates, aliasing decisions made during authoring. Reversible by rule when contradicting evidence arrives; no operator review required. The invariant that underwrites this class is §9.3.4 (append-only history): every change leaves a trail, so "reversal" is always a new entry, never a rewrite.
+- **Proposal-gated** (L2+). Candidate facets from dialog or documents. The agent surfaces the proposal; memory is not written until operator approval. Rejection is preserved with rationale so the same proposal does not recur identically, and so future proposals can cite prior rejections as context.
+- **Review-gated** (L4). Revision proposals against existing facets. Same pattern as proposal-gated, with one addition: the proposal names the evidence it is synthesized from, so review is *comparative* (operator reads evidence plus proposed revision), not just *approval* (operator reads proposal alone).
+- **Hard-gated** (never auto). Deletions. The system has no deletion verb. Removal happens only via operator edit of the catalog file, subject to whatever review discipline the customer's governance attaches to such edits. The design principle: the agent can propose everything, write reversibly, and erase nothing.
+
+No agentic action is irreversible without operator review at or above L2. The operator's review surface is lightweight by default — a JSONL queue plus a CLI is sufficient for L2 shipping — but it is non-optional. This is the substrate's §3.2 handoff boundary applied to memory writes: the agent's durable impact on the catalog is always operator-visible, by construction, not by convention.
+
+Taken together, §9.1 through §9.5 describe the agent as the codebase sees it: a persona with six flows, a division of labor with the pipeline, ten invariants it can rely on, a structured fallthrough when determinism exhausts, and a bounded reversibility discipline for anything it writes. An agent that understands this section can use the codebase correctly on first contact. That is the ergonomic target.
+
+## 10) Cross-cutting disciplines
 
 Three disciplines are present at every level and are not features themselves. Every feature must also respect them.
 
@@ -540,7 +649,7 @@ Three disciplines are present at every level and are not features themselves. Ev
 - **Handoff boundary.** Tests are visible artifacts but are agent-authored and regeneration-susceptible. Durable QA work lands at the intent or memory layer, and regeneration preserves that partition. (Substrate §3.2.)
 - **Anti-scaffolding gate.** Every proposed feature passes "does this help the agent at scale, across many ADO items, for a real customer?" The three patterns that slip a positively-stated gate — unbounded migration scaffolding, dual-master mechanisms, contingent schema without a forcing scenario — are rejected by name. (Substrate §6.)
 
-## 10) Using the ontology to evaluate a proposed feature
+## 11) Using the ontology to evaluate a proposed feature
 
 Ask, in order:
 
@@ -551,7 +660,7 @@ Ask, in order:
 
 If all four questions have answers, the feature belongs. If any does not, the feature is not ready for the ontology — which is the same as saying it is not ready for the codebase.
 
-## 11) Deliberately not here
+## 12) Deliberately not here
 
 The following are intentionally absent and are expected to emerge from shipping, not from planning:
 
