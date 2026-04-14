@@ -90,7 +90,56 @@ Features added:
 
 Self-refinement here is bounded: it improves quality, not authority.
 
-## 7) Cross-cutting disciplines
+## 7) Handshake surfaces
+
+Features compose handshakes. A handshake is a specific contracted exchange between two primitives, or between a primitive and itself — who talks to whom, what flows, and what must be true about the exchange. This section names the handshake surfaces the level spine forces into existence: more specific than invariants, less specific than method signatures, and independent of any particular library. A handshake first appears at the level where the primitives it joins are both present; later levels enrich handshakes rather than introducing them.
+
+### 7.1 Agent ↔ Intent source
+
+- **Intent fetch.** Work item ID → structured work item carrying preconditions, actions, and expected outcomes in the source's own vocabulary. Source terms survive the fetch path; nothing is renamed or coerced into an internal schema on the way in.
+- **Intent parse.** Raw work item → ordered intent structure. Every extracted item retains source-text provenance so a reviewer can trace any interpreted step back to the exact phrasing it came from.
+
+### 7.2 Agent ↔ World
+
+- **Navigate.** Navigation instruction (URL, a named place, or a route derived from memory) → state-reached confirmation, or a classified failure. Idempotent where possible; destructive operations are flagged before execution, not discovered after.
+- **Observe.** Current position → timestamped structured snapshot — the accessibility tree plus any domain-level predicates the world exposes. Snapshots are the raw material for facet minting and the evidence substrate of every later claim about what the world looked like.
+- **Interact.** Affordance reference (by name or memory ID) plus a data payload → effect outcome. Failures are classified into recognizable families (not-visible, not-enabled, timeout, assertion-like) where possible, and surface raw only when classification genuinely fails.
+
+### 7.3 Agent ↔ Memory
+
+- **Facet mint.** Observation plus intent context plus originating instrument → a new facet entry with provenance threaded at creation (who observed, when, through what instrument, with what initial confidence). Provenance is minted at birth because it cannot be reconstructed later (substrate §2.5).
+- **Facet query.** Intent phrase plus scope → ranked facets with confidence and health. Queries by intent phrase are the primary access path; queries by selector or page are secondary, and not always supported.
+- **Facet enrich.** Existing facet plus new evidence → updated facet with evidence appended. Prior provenance is preserved; enrichment never overwrites history. Confidence and health move in response to evidence, but what the facet *was* remains retrievable.
+
+### 7.4 Agent ↔ Test instrument
+
+- **Test compose.** Parsed intent plus queried facets (at L1 and later) → a test file in the target framework's idiom. Step descriptions carry business vocabulary; no selectors appear in the test body; selectors resolve from facets at execution time.
+- **Test execute.** Test file → pass/fail plus structured evidence — which steps ran, what was observed at each, which facets were referenced. Evidence is sufficient to distinguish a product failure from a memory-drift failure; the L3 drift machinery depends on this distinction.
+
+### 7.5 Agent ↔ Vocabulary manifest
+
+- **Verb declare.** A new capability or instrument addition → a manifest entry with a stable name, signature, and error modes. In-place expansion of an existing verb's behavior is forbidden: new capability means a new verb, or composition of existing verbs.
+- **Manifest introspect.** Session start → the full current verb set. Introspection is cheap enough to run every session; the manifest is the agent's single source of truth for what it can do right now.
+- **Fluency check.** Canonical task scenario plus the agent's dispatch → a fluency score. Fluency regression is treated at the same severity as a broken product test (substrate §4).
+
+### 7.6 Memory ↔ World (via instruments)
+
+- **Locator health track.** A locator usage outcome during observation or execution → updated health record on the owning facet. Health is written at L1 even though it is only consumed at L3 — this is the canonical case where the substrate's "provenance cannot be retrofitted" rule binds.
+- **Drift emit.** A memory-authored step failing at runtime in a world-mismatch pattern → a drift event tagged with the offending facets, the nature of the mismatch, and the run that surfaced it. Drift is emitted as distinct from product failure; the emitter is the classifier.
+
+### 7.7 Operator instruments ↔ Memory
+
+- **Dialog capture.** An operator chat turn tagged as domain information → one or more candidate facets. The operator's exact wording is preserved as provenance; a paraphrased summary does not substitute for the source text.
+- **Document ingest.** An operator-shared document → candidate facets with anchors to specific regions of the source. Every candidate is traceable back to a named location in the document it came from.
+- **Candidate review.** Candidate facet plus an operator decision → either an approved facet entering memory (with the operator attached as additional provenance) or a rejected candidate (with rejection rationale preserved). Operator oversight is the L2 default before candidates gain authority.
+
+### 7.8 Memory ↔ itself (L4 processes)
+
+- **Confidence age.** Current memory state plus elapsed time → decayed confidence on facets that have not been corroborated recently. Aging is reversible by corroboration; it is not a garbage collector and never deletes.
+- **Corroborate.** A passing test run plus its referenced facets → increased confidence on those facets. Corroboration strength is proportional to how reliably the test has been passing; a flaky test does not corroborate.
+- **Revision propose.** Accumulated drift events plus decay plus corroboration → a revision proposal surfaced for operator review. The proposal names the evidence it is based on; if the operator rejects it, the rejection enters the proposal's history and conditions future proposals.
+
+## 8) Cross-cutting disciplines
 
 Three disciplines are present at every level and are not features themselves. Every feature must also respect them.
 
@@ -98,7 +147,7 @@ Three disciplines are present at every level and are not features themselves. Ev
 - **Handoff boundary.** Tests are visible artifacts but are agent-authored and regeneration-susceptible. Durable QA work lands at the intent or memory layer, and regeneration preserves that partition. (Substrate §3.2.)
 - **Anti-scaffolding gate.** Every proposed feature passes "does this help the agent at scale, across many ADO items, for a real customer?" The three patterns that slip a positively-stated gate — unbounded migration scaffolding, dual-master mechanisms, contingent schema without a forcing scenario — are rejected by name. (Substrate §6.)
 
-## 8) Using the ontology to evaluate a proposed feature
+## 9) Using the ontology to evaluate a proposed feature
 
 Ask, in order:
 
@@ -109,7 +158,7 @@ Ask, in order:
 
 If all four questions have answers, the feature belongs. If any does not, the feature is not ready for the ontology — which is the same as saying it is not ready for the codebase.
 
-## 9) Deliberately not here
+## 10) Deliberately not here
 
 The following are intentionally absent and are expected to emerge from shipping, not from planning:
 
