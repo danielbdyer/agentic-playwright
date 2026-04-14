@@ -139,80 +139,125 @@ Features compose handshakes. A handshake is a specific contracted exchange betwe
 - **Corroborate.** A passing test run plus its referenced facets → increased confidence on those facets. Corroboration strength is proportional to how reliably the test has been passing; a flaky test does not corroborate.
 - **Revision propose.** Accumulated drift events plus decay plus corroboration → a revision proposal surfaced for operator review. The proposal names the evidence it is based on; if the operator rejects it, the rejection enters the proposal's history and conditions future proposals.
 
-## 8) Technical paths
+## 8) Agent engagement
 
-This section takes each handshake from §7 down one level of technical depth — naming the specific libraries, APIs, and sequences of calls that fulfill it — and alongside each path names the first-principles agent contract the handshake honors, independent of library choice. The technical-path grain is between method-level implementation and §7's invariants. The contract grain is library-independent: *how the design of each handshake guarantees that an agent can perform it correctly on first contact, without re-deriving the rules each session.*
+The earlier sections describe what the system *is* — its primitives, its levels, its handshakes. The next section (§9) describes the deterministic technical paths those handshakes eventually converge to. This section sits between them: it models what the agent *does* inside the substrate, as its own process and implementation surface, independent of any library. Agent engagement is the primary mode of work at L0 and early L1 — the deterministic paths of §9 are the asymptotic target that engagement converges toward, not a starting assumption.
 
-L0 handshakes are fully fleshed out because shipping L0 forces the choices. L1 handshakes are fleshed out in shape, with specifics deferred to L1 shipping. L2–L4 are sketched at primary-path level only, with most specifics flagged as needing customer-delivery pressure before resolution. Each subsection follows the same shape: primary path, obligations at this depth, agent contract, deferred.
+### 8.1 The ROI curve
 
-### The agent as persona
+The first tests are expensive. The sixth is cheaper. The sixtieth is nearly free.
 
-The agent is the active element across every handshake. It has goals, uses the codebase's verbs to reach them, and is judged by how often it reaches them correctly on first try. The codebase's job is to make correct use easy, incorrect use hard, and to escalate to agentic reasoning only when determinism has exhausted. Six canonical flows compose every handshake:
+At L0, the agent has no memory. Every work item it authors is a fresh interpretation: ADO step text is ambiguous in practice (the deterministic XML parse gets you the sequence of steps, but the semantic structure of action and expected is rarely cleanly separable on first read), the SUT's affordances are unknown, the business vocabulary is not yet established. The agent must observe, interpret, and choose at almost every handshake — even ones §9 will describe as "deterministic." What §9 calls deterministic is deterministic *at ROI plateau*: the mechanical operations always are (HTTP calls, file writes, AST emission), but the *content selection* over those mechanics is agent work until enough tests have been authored for patterns to emerge.
 
-- **Onboard** — reach fluency via manifest introspect and fluency self-check (§8.8) before acting.
-- **Author a test** — L0: intent fetch → parse → navigate → observe → interact → compose → execute → review. At L1+, facet query substitutes for observation where memory is sufficient.
-- **Grow memory** — mint new facets, enrich existing, track locator health (by rule on every locator use, not by choice).
-- **Absorb operator input (L2)** — capture dialog, ingest documents, surface candidates; never write memory directly.
-- **Respond to drift (L3)** — classify mismatch, pick a recovery from the allowed set; never silently patch.
-- **Propose refinement (L4)** — synthesize evidence into a revision proposal; never write memory directly.
+ROI plateau arrives in three successive stages as memory builds:
 
-The set is closed: an agent action that does not map to one of these flows is a fluency regression, not a novel capability.
+- **Stage α** (first tests, L0). Every handshake is heavily agentic at the interpretive layer. The agent reads each ADO work item end-to-end, interprets ambiguous steps, observes the application, makes locator and phrasing choices that are bespoke. The only deterministic wins are the mechanical ones (file writes, test runner, XML tokenization). Memory after each test is richer by a few facets.
+- **Stage β** (after dozens of tests, L1). Enough vocabulary has accrued that facet query returns meaningful matches for many steps. Test compose increasingly draws from the catalog. Locator ladder health has enough data to pick a rung confidently. Agent engagement shrinks to the genuinely novel — new screens, new roles, new idioms.
+- **Stage γ** (hundreds of tests, L2+). Operator vocabulary alignment and document ingestion have supplied the semantic layer memory couldn't derive from the DOM alone. Deterministic paths are honored for most steps; agent engagement concentrates on irreducible choices — disambiguation, ambiguity recovery, proposal synthesis.
 
-### Determinism first, agent second
+The sequence is one-way: Stage β does not arrive by decree, it arrives by agent engagement at Stage α. The codebase's job is to make Stage α's agent work land clean provenance into memory so Stage β can consume it. Expensive first authoring is not a bug; it is the substrate's canonical early behavior.
 
-Any task that admits a deterministic solution is handled by the pipeline deterministically. Agentic reasoning is invoked only when determinism has exhausted — ambiguity, novelty, or a semantic choice no rule can make. This is structural: the agent's reasoning budget is finite, and the codebase earns agent fluency by not wasting that budget on problems with exactly one correct answer. Moving capability from "agent decides" to "pipeline decides" is always welcome; the reverse requires a specific level's shipping claim to justify it. Each subsection below names the split at its handshake.
+### 8.2 The authoring session as process
 
-### Ten invariants the agent relies on
+An authoring session is the unit of agent engagement. It bounds one or more work items being taken from intent to accepted test. The session's phases:
 
-Every handshake honors all ten; every technical path is shaped to preserve them. The agent assumes them without verification; violation of any is a regression at product-test severity. Subsections cite these by number.
+1. **Fluency intake.** Session start: the agent reads the vocabulary manifest. Verbs, nouns, error families, reversibility classes — known before any action.
+2. **Intent acquisition.** A work item is fetched (or several, if the session handles a batch). Source text and structure are preserved.
+3. **Memory consultation.** For each work item, the agent queries the catalog with the intent phrase. Returned facets are ranked by confidence and health. Unmatched or below-threshold steps fall to live exploration.
+4. **World exploration** (when memory is insufficient). The agent navigates, observes, interacts with the SUT to establish missing facts. Observations become candidate facets.
+5. **Authoring.** The agent composes the test, choosing step phrasing, assertion wording, and sequencing. Choices draw from memory where possible; where not, the agent chooses and records provenance.
+6. **Execution and evidence.** The test runs. The run record feeds back into locator health (always), drift events (if any), and the evidence that corroborates referenced facets.
+7. **Memory write.** New facets mint. Existing facets enrich. Reversibility is respected: everything agent-authored is either self-reversing or proposal-gated.
+8. **Session closeout.** The session produces a receipt: work items touched, facets minted or enriched, drift events, proposals surfaced for operator review.
 
-1. **Stable verb signatures.** Once published, a verb's inputs, outputs, and error families never change. New capability = new verb.
-2. **Provenance at mint.** Memory writes without a full provenance block are rejected; provenance is created at birth, threaded forward, never retrofitted.
-3. **Atomic writes.** File writes use temp-then-rename; an agent reading mid-write never observes a torn file.
-4. **Append-only history.** Evidence, drift, proposal, and rejection logs never delete or rewrite entries.
-5. **Named error families.** Failures classify into enumerable categories; raw errors surface only as `unclassified`, never as bare exceptions.
-6. **No silent escalation.** Confidence changes, drift events, proposals — all are logged before any downstream consumer sees them.
-7. **Reversible agentic writes.** Agent writes are self-reversing, proposal-gated, review-gated, or hard-gated; irreversible mutation requires operator review at or above L2.
-8. **Source vocabulary preserved.** Intent terms survive from work item to test; operator wording survives from chat to memory; no renaming on inbound paths.
-9. **One source of truth per concern.** Manifest for verbs; catalog for facets; evidence log for history; drift log; proposal log. No ambiguity about which copy is current.
-10. **Cheap introspection.** Every session starts with a single manifest file read; fluency is the default, not an optimization.
+Every phase is bounded. A session that stalls in phase 4 (unlimited exploration) or phase 5 (over-long authoring per item) is a session whose scope was too ambitious; the agent is expected to cut the scope, not expand the session.
 
-### Reversibility classes for agentic writes
+### 8.3 The agent's decision surface
 
-Subsections cite these by name.
+Across a session, the agent makes five classes of decision. The ROI curve shrinks class sizes as memory builds, but none of them disappear entirely.
 
-- **Self-reversing** (all levels). Confidence, health, aliases. Reversible by rule when contradicting evidence arrives; no operator review required.
-- **Proposal-gated** (L2+). Candidate facets from dialog or documents. Memory is not written until operator approval; rejections are preserved with rationale.
-- **Review-gated** (L4). Revision proposals on existing facets; the proposal cites its evidence so operator review is comparative (evidence + revision), not just approval (revision alone).
-- **Hard-gated** (always). Deletions. No deletion verb exists; removal is operator-edit only.
+- **Interpretive.** Reading ambiguous step text, operator dialog, or shared documents and producing a candidate interpretation. Early-stage agent work is dominated by this class. Output goes to memory (as candidate facets or aliases) so future sessions spend less time here.
+- **Navigational.** Choosing a route through the SUT when multiple options exist. Shrinks as route knowledge enters memory.
+- **Affordance.** Choosing the right element or action when a locator ladder or facet query returns multiple plausible matches. Shrinks as locator health data accumulates.
+- **Compositional.** Choosing step phrasing, ordering, and assertion text for QA legibility. Shrinks as vocabulary catalog and house-style templates emerge.
+- **Governance.** Classifying drift, synthesizing revision rationale, handling proposal conflicts. These never fully mechanize; they remain agentic even at Stage γ plateau.
 
-### Structured fallthrough
+Every decision produces a receipt: what was being chosen, what choices were presented, which was picked, and what reversal policy applies. Receipts are the raw material of the facet catalog's later deterministic rules.
 
-When determinism exhausts, the pipeline composes a decision handoff — what was tried, what failed, what choices are now open, what reversal is available if the choice is wrong — rather than throwing. Every fallthrough follows this shape regardless of handshake. Representative example for a locator ladder that returned multiple matches:
+### 8.4 The implementation surface for agent engagement
+
+The agent interacts with a narrow set of surfaces, each designed for the engagement mode above. None are library-specific; they are *the shape of agent engagement* regardless of what library implements them.
+
+- **Vocabulary manifest.** The session's ground truth for verbs. Read once at session start; not updated during the session. Stable signatures across sessions let the agent reach fluency in a single file read.
+- **Decision handoffs.** When deterministic machinery exhausts at a handshake, the pipeline composes a structured decision — *what was tried, what failed, what choices are now open, what reversal is available if the choice is wrong* — rather than throwing. The agent consumes the handoff, picks, and the pick is recorded alongside the handoff. Canonical shape:
 
 ```json
 {
-  "handshake": "interact",
-  "affordance": "save",
-  "intentPhrase": "click Save on customer detail",
-  "ladderAttempts": [
-    { "rung": 0, "strategy": "getByRole",   "matches": 2 },
-    { "rung": 1, "strategy": "getByTestId", "matches": 0 },
-    { "rung": 2, "strategy": "getByText",   "matches": 2 }
-  ],
-  "choices": [
-    { "id": "match-0",      "description": "Save button near top of form" },
-    { "id": "match-1",      "description": "Save draft button near bottom of form" },
-    { "id": "observe-more", "description": "Take a fresh accessibility snapshot" },
-    { "id": "escalate",     "description": "Surface to operator review" }
-  ],
-  "reversalPolicy": "choice recorded with evidence; subsequent drift event reduces confidence in the chosen strategy"
+  "handshake": "<handshake-name>",
+  "context": { "<relevant identifiers>" },
+  "attempts": [ { "<what was tried, what happened>" } ],
+  "choices": [ { "id": "<id>", "description": "<what picking this does>" } ],
+  "reversalPolicy": "<how the choice can be undone if wrong>"
 }
 ```
 
-The agent reasons from a prepared choice, never from a stack trace. The decision is stored alongside the handoff so later audits can reconstruct not just what the agent did but what alternatives it had.
+- **Receipt logs.** Every decision the agent makes writes to an append-only log. Receipts carry: handshake, decision context, choices presented, choice picked, reversal policy, timestamp. Receipts are the session's audit trail and the substrate of later pattern emergence.
+- **Candidate queues.** For L2+ operator-sourced material, candidates from the agent land in a review queue. The agent surfaces; the operator decides. The agent never writes directly to the durable vocabulary catalog from dialog or documents.
+- **Proposal logs.** For L4 refinement, proposals live in a proposal log with their cited evidence. The agent synthesizes; the operator reviews. Nothing writes memory from a proposal until the operator approves.
 
-### 8.1 Intent fetch (L0, Agent ↔ Intent source)
+### 8.5 Invariants the agent relies on
+
+Across every phase of engagement, the agent assumes these without verification. Each is a property of how the substrate is designed, not of any library choice.
+
+1. **Stable verb signatures.** Once published, a verb's inputs, outputs, and error families never change. New capability = new verb.
+2. **Provenance at mint.** Memory writes without a full provenance block are rejected; provenance is created at birth and threaded forward.
+3. **Append-only history.** Receipt logs, evidence logs, drift logs, proposal logs never delete or rewrite entries.
+4. **Named error families.** Failures classify into enumerable categories; raw errors surface only as `unclassified`, never as bare exceptions.
+5. **No silent escalation.** Confidence changes, drift events, proposals — all are logged before any downstream consumer sees them.
+6. **Reversible agentic writes.** Agent writes are self-reversing, proposal-gated, review-gated, or hard-gated; irreversible mutation requires operator review at or above L2.
+7. **Source vocabulary preserved.** Intent terms survive from work item to test; operator wording survives from chat to memory; no renaming on inbound paths.
+8. **One source of truth per concern.** Manifest for verbs; catalog for facets; evidence log for history; drift log; proposal log.
+9. **Cheap introspection.** Every session starts with a single manifest file read; fluency is the default, not an optimization.
+10. **Structured fallthrough.** When determinism exhausts, the agent receives a prepared choice, never a stack trace.
+
+Violation of any is a regression at product-test severity.
+
+### 8.6 Reversibility classes for agent writes
+
+The class determines operator involvement and what happens when a choice is contradicted by later evidence.
+
+- **Self-reversing** (all levels). Confidence, locator health, aliasing decisions. Reversible by rule when contradicting evidence arrives; no operator review required. The underwriter is invariant 3 (append-only): every change leaves a trail, so "reversal" is a new entry, never a rewrite.
+- **Proposal-gated** (L2+). Candidate facets from dialog or documents. The agent surfaces the proposal; memory is not written until operator approval. Rejections are preserved with rationale so the same proposal does not recur identically.
+- **Review-gated** (L4). Revision proposals against existing facets. The proposal cites the evidence it was synthesized from, so review is comparative (evidence + revision), not just approval (revision alone).
+- **Hard-gated** (always). Deletions. The system has no deletion verb; removal happens only via operator edit of the catalog file.
+
+No agentic action is irreversible without operator review at or above L2. The operator's review surface is lightweight by default (a JSONL queue plus a CLI suffices for L2 shipping) but is non-optional.
+
+### 8.7 How agent engagement becomes determinism
+
+The transition from agentic engagement to deterministic handling at each handshake happens through pattern emergence in memory. A worked example — locator resolution:
+
+1. **Stage α.** The agent performs observe → ladder resolution; the ladder returns multiple matches; the agent chooses via a decision handoff. The choice writes a receipt: "for affordance 'save' on customer-detail, pick rung 0 match 1 when `name` includes 'Save' and not 'Save draft'."
+2. **After several such receipts,** a pattern accrues in memory: the chosen rung for this affordance has high health; alternative rungs have persistent ambiguity markers. The pattern is stored with its receipts as evidence.
+3. **Stage β.** Subsequent observations of the same affordance resolve deterministically via the stored pattern. The decision handoff is not invoked. The agent is spared this choice.
+4. **Drift pathway.** If an observation at Stage β contradicts the pattern (the chosen rung no longer resolves), a drift event fires. The next session sees a decision handoff again for that affordance — but enriched with prior receipts and the drift evidence. The agent reconsiders with full context.
+
+This is the shape of every handshake's emergence curve. §9's deterministic technical paths describe the *target rules* the patterns converge toward. Agent engagement — this section — is what produces those rules, one receipt at a time.
+
+### 8.8 What this section does not prescribe
+
+- **How the agent classifies an interpretive decision.** That is a session-level concern for the agent's own prompt engineering, not the codebase's. The codebase offers the decision handoff; the agent decides how it reasons over the offered choices.
+- **How to batch work items per session.** Session sizing is a policy choice, deferred to shipping.
+- **When to promote a pattern to a deterministic rule.** Promotion is implicit in facet confidence and locator health crossing thresholds; thresholds are deferred to L3.
+- **How the agent recovers from a malformed receipt.** Receipts are written by the pipeline; the agent doesn't need a recovery policy for the codebase's own errors.
+
+## 9) Technical paths
+
+This section names the specific libraries, APIs, and sequences of calls that fulfill each handshake at ROI plateau (§8.1). These paths describe the asymptotic deterministic target — the mechanical operations that are always deterministic, plus the interpretive operations that become deterministic once memory has accrued enough patterns. Until plateau, agent engagement (§8) is the primary mode of work for the interpretive layer; §9 is what the patterns emerging from that engagement converge toward. The grain is between method-level implementation and §7's invariants, independent of agent-side concerns which live in §8.
+
+L0 handshakes are fully fleshed out because shipping L0 forces the choices. L1 handshakes are fleshed out in shape, with specifics deferred to L1 shipping. L2–L4 are sketched at primary-path level only. Each subsection follows the same shape: primary path, obligations at this depth, deferred.
+
+### 9.1 Intent fetch (L0, Agent ↔ Intent source)
 
 Primary path — Azure DevOps REST API v7.1 with PAT authentication:
 
@@ -223,7 +268,7 @@ Primary path — Azure DevOps REST API v7.1 with PAT authentication:
    - `System.Tags` → semicolon-delimited; split on `'; '`
    - `System.AreaPath`, `System.IterationPath` → preserved as-is for hierarchy
    - `Microsoft.VSTS.Common.Priority` → numeric
-   - `Microsoft.VSTS.TCM.Steps` → XML; parsed in §8.2
+   - `Microsoft.VSTS.TCM.Steps` → XML; parsed in §9.2
    - `Microsoft.VSTS.TCM.Parameters` → XML; parameter names
    - `Microsoft.VSTS.TCM.LocalDataSource` → XML; parameter data rows
 
@@ -233,20 +278,13 @@ Obligations at this depth:
 - The work item's `rev` field is carried forward so later drift detection can distinguish "work item changed upstream" from "world changed."
 - No renaming of ADO field values on the way in; downstream consumers read the source vocabulary as the source wrote it.
 
-Agent contract:
-
-- *Split:* deterministic entirely. No agentic reasoning during this handshake; the agent calls the verb and consumes the result.
-- *Invariants in force:* 1 (the verb is stable even if endpoint or auth evolve), 5 (errors classify into `auth`, `not-found`, `transient`, `unclassified`), 8 (field values pass through without renaming), 10 (fetch is cheap and available at any time).
-- *Fallthrough:* none. Classification failure surfaces as a named error, never as a stack trace.
-- *Reversibility:* not applicable — pure read.
-
 Deferred:
 
 - Adoption of the official Microsoft Azure DevOps MCP server (GA Oct 2025) defers to L1+, when a single intent-source verb set across MCP channels reduces authentication handling and query plumbing. L0 ships on direct REST.
 - Custom work-item types beyond `Test Case` (customer process-template extensions). Defer to L0 shipping with the real customer tenant.
 - Auth variants beyond PAT (Azure AD, Managed Identity); defer to deployment orchestration.
 
-### 8.2 Intent parse (L0, Agent ↔ Intent source)
+### 9.2 Intent parse (L0, Agent ↔ Intent source)
 
 Primary path — XML step extraction from `Microsoft.VSTS.TCM.Steps`:
 
@@ -257,18 +295,13 @@ Primary path — XML step extraction from `Microsoft.VSTS.TCM.Steps`:
 5. Parse parameters: `<param name="...">` from `Microsoft.VSTS.TCM.Parameters`.
 6. Parse data rows: `<Table1>` sections of `LocalDataSource` yield per-row key-value pairs for substitution.
 
+The tokenization path above is deterministic and always runs. The *semantic layer* — whether action text and expected-outcome text cleanly separate, whether preconditions are buried in prose, whether the step flow matches the work item's declared structure — is agentic at Stage α (§8.1). Real-world customer backlogs rarely hand the system test cases that parse semantically on first read; early work items will tokenize fine and still need the agent's interpretation, which lands as receipts and accrues into memory. By Stage β, common phrasings resolve without agent help; until then, this handshake produces *tokens* deterministically and *intent structure* agentically.
+
 Obligations at this depth:
 
 - Every extracted step retains source-text provenance — the work-item ID, revision, and positional step index — so any reviewer can trace an interpreted step back to the phrasing that produced it.
 - Missing `<parameterizedString>` siblings degrade gracefully: expected defaults to empty; no parse exception fires.
 - All parsed steps begin at an `intent-only` confidence marker; confidence upgrades only when the step is successfully grounded against the world at L1.
-
-Agent contract:
-
-- *Split:* deterministic for well-formed XML; agentic only when step text is fundamentally ambiguous (e.g., a single sentence conflating action and expected).
-- *Invariants in force:* 4 (parse output is a derived value, not mutable state), 5 (parse failures classify into `malformed-xml`, `missing-parameterized-string`, `unclassified`), 8 (step text is entity-decoded and whitespace-normalized but unchanged in vocabulary).
-- *Fallthrough:* on irreducible ambiguity the agent receives the raw text plus the extracted candidates and picks an interpretation; the choice is recorded with the step's provenance so a reviewer can trace it.
-- *Reversibility:* not applicable — pure transformation.
 
 Deferred:
 
@@ -276,7 +309,7 @@ Deferred:
 - Process-template markup variants; the regex path above is baseline, but empirical tuning at shipping may add edge cases.
 - Non-English step text and multi-language normalization; defer to the customer's corpus.
 
-### 8.3 Navigate (L0, Agent ↔ World)
+### 9.3 Navigate (L0, Agent ↔ World)
 
 Primary path — Playwright `page.goto`:
 
@@ -289,19 +322,12 @@ Obligations at this depth:
 - Timeout and network failures classify cleanly into `navigation-timeout` and `navigation-failed`; redirects within the chain are subsumed by Playwright and do not surface as separate events.
 - Destructive entry points (login redirects, state-mutating deep links) are not freshly authored at L0. Tests enter through read-safe URLs. If the customer's application forces a destructive entry, that surfaces as a world-contract issue and defers to operator setup of a pre-authorized session fixture.
 
-Agent contract:
-
-- *Split:* deterministic on a single-valued instruction; agentic when intent admits multiple routes (e.g., "go to the customer page" when several candidate paths exist).
-- *Invariants in force:* 5 (`navigation-timeout`, `navigation-failed`, `unclassified`), 6 (every navigation writes a step result before the next handshake runs).
-- *Fallthrough:* multi-route ambiguity returns a choice handoff listing the candidate routes with discriminating evidence (path segment, URL parameter, surrounding link text).
-- *Reversibility:* **not reversible.** Navigation changes world state. At L0 the agent is expected to choose navigation targets conservatively (read-only paths) and treat destructive navigation as a separate class requiring operator setup.
-
 Deferred:
 
 - Transient retry policy (bounded backoff for flaky networks) belongs at the resilience layer, not at the handshake.
 - Session lifecycle (auth refresh, cookie expiry) — handled by test fixtures or environment, not by Navigate itself.
 
-### 8.4 Observe (L0, Agent ↔ World)
+### 9.4 Observe (L0, Agent ↔ World)
 
 Primary path — two Playwright instruments composed:
 
@@ -329,20 +355,13 @@ Obligations at this depth:
 - The snapshot is raw material for facet minting. The Observe handshake does not filter, rename, or interpret; it returns what Playwright emitted after canonicalizing duplicate or presentational nodes.
 - Element probes during whole-screen observation run with a small fixed concurrency ceiling (e.g. 4) to avoid hammering the SUT.
 
-Agent contract:
-
-- *Split:* deterministic entirely. Observation is a pure read against the world.
-- *Invariants in force:* 6 (every observation is logged with an observation ID before it informs the next handshake), 10 (observation is cheap enough to repeat whenever memory confidence is insufficient).
-- *Fallthrough:* none at the observation handshake itself. Downstream handshakes (interact, test compose) consume the snapshot and carry their own fallthroughs.
-- *Reversibility:* not applicable — pure read.
-
 Deferred:
 
 - Pixel/screenshot-based observation; L0 uses accessibility tree and state probes only. If the app genuinely cannot be observed through ARIA, that is a world-contract fault and defers to operator intervention.
 - `page.evaluate(...)` JavaScript injection; L0 observes, does not rewrite.
 - OutSystems-specific observation patterns (which widgets emit semantic roles vs. require fallback; whether `data-testid` is standard) — defer to L0 shipping with a real OutSystems instance. Direct observation of the customer's application is required.
 
-### 8.5 Interact (L0, Agent ↔ World)
+### 9.5 Interact (L0, Agent ↔ World)
 
 Primary path — Playwright locator actions, keyed to the affordance's role:
 
@@ -353,30 +372,23 @@ Primary path — Playwright locator actions, keyed to the affordance's role:
 - Keyboard: `locator.press(key)` for Enter / Escape / Tab.
 - Hover-reveal affordances (tooltips, submenus): `locator.hover()`.
 
-Every interaction resolves the affordance to a locator using the same ladder as §8.4, then invokes the action on that locator. Pre-action state is validated — visibility and enabled-ness — before the action fires, so failures classify pre-attempt rather than after auto-wait timeouts.
+Every interaction resolves the affordance to a locator using the same ladder as §9.4, then invokes the action on that locator. Pre-action state is validated — visibility and enabled-ness — before the action fires, so failures classify pre-attempt rather than after auto-wait timeouts.
 
 Obligations at this depth:
 
 - Failures classify into recognizable families: `not-visible` (target not displayed), `not-enabled` (control disabled or readonly), `timeout` (action hung past the configured window), `assertion-like` (action succeeded but a follow-up state check failed — e.g., click landed but target did not become selected). Raw errors surface only when classification genuinely fails.
 - Playwright's auto-waiting subsumes most settle-time concerns; explicit waits are a composition concern, not an interaction-handshake concern.
 
-Agent contract:
-
-- *Split:* deterministic on a single-match ladder resolution; agentic on multi-match ambiguity, affordance ambiguity, or a recoverable pre-action state failure.
-- *Invariants in force:* 5 (`not-visible`, `not-enabled`, `timeout`, `assertion-like`, `unclassified`), 6 (each action writes a step result before the next handshake).
-- *Fallthrough:* multi-match returns the canonical choice handoff (see preface); the agent selects a match or requests another observation. An `unclassified` failure surfaces the raw error plus a list of next-step options (retry, escalate, skip).
-- *Reversibility:* **not reversible.** Actions on the world change the SUT, which is why pre-action state validation is aggressive: a wrong choice cannot be taken back. The agent is expected to prefer "observe-more" or "escalate" over guessing when the choice is unclear.
-
 Deferred:
 
 - Drag-and-drop, multi-touch gestures, pinch-zoom; defer to L2+ if observed demand surfaces.
 - File upload flows beyond the native input element; `locator.setInputFiles()` is in scope for that, but JS-driven upload widgets defer.
 
-### 8.6 Test compose (L0, Agent ↔ Test instrument)
+### 9.6 Test compose (L0, Agent ↔ Test instrument)
 
 Primary path — AST-backed emission against the `@playwright/test` runner:
 
-1. Build an intermediate representation from the parsed intent (§8.2) and — at L1+ — the queried facets (§8.10).
+1. Build an intermediate representation from the parsed intent (§9.2) and — at L1+ — the queried facets (§9.10).
 2. Use the TypeScript compiler API (the `typescript` factory, or `ts-morph` as an ergonomic wrapper) to construct the test file as an AST: imports, `test.describe`, `test`, per-step `test.step` blocks, `expect` assertions.
 3. Print the AST to a string, format it, write it to the generated-tests directory.
 
@@ -407,15 +419,8 @@ Obligations at this depth:
 
 - Step titles come from parsed intent, verbatim or minimally normalized; they are the business vocabulary the work item used.
 - `test.step(...)` blocks wrap every action so the Playwright HTML report surfaces legible step-level timing and failure context to QA.
-- Assertions come from the work item's expected-outcome text, translated into `expect` calls over the same locator ladder as §8.4.
+- Assertions come from the work item's expected-outcome text, translated into `expect` calls over the same locator ladder as §9.4.
 - No selectors in the test body at L1+: the body calls through a facet-keyed facade (`policySearch.enterPolicyNumber('ABC123')`) whose implementation resolves the locator from memory at runtime. At L0, before memory exists, selectors are permitted inline — but the L0 test's shape must be such that L1 memory insertion is a local rewrite, not a rewrite of the whole file.
-
-Agent contract:
-
-- *Split:* deterministic for AST structure, facet-to-selector resolution, and assertion binding; agentic for step-title phrasing, assertion wording when expected-outcome text is ambiguous, and step ordering when intent admits multiple valid orders.
-- *Invariants in force:* 3 (the test file is written atomically, so a partial regeneration never corrupts the prior file), 8 (work-item vocabulary survives into step titles).
-- *Fallthrough:* when a step's action or expected text is irreducibly ambiguous, the compose handshake emits a `test.step` block with the agent's chosen phrasing plus a comment citing the raw source text and the alternatives considered. A reviewer can then push the disambiguation upstream into the work item.
-- *Reversibility:* the test file is agent-regenerated. Durable human edits do not land here — they land in intent or memory per substrate §3.2, and regeneration preserves that partition.
 
 Deferred:
 
@@ -423,7 +428,7 @@ Deferred:
 - Parametric tests driven by the work item's data-source rows — defer to the first L0 work item whose shape demands it.
 - Fixture composition beyond `{ page }` (database seeding, API mocks) — defer; L0 runs against live application state.
 
-### 8.7 Test execute (L0, Agent ↔ Test instrument)
+### 9.7 Test execute (L0, Agent ↔ Test instrument)
 
 Primary path — the Playwright Test runner, invoked via CLI (`npx playwright test {file}`) or the programmatic API. The agent prefers CLI form because it produces the standard HTML report QA already knows, and parses the machine-readable run output (`--reporter=json`) alongside it.
 
@@ -449,20 +454,13 @@ Obligations at this depth:
 - Failures classify so L3 can later distinguish `product-fail` (bug in the SUT) from `test-malformed` (agent authored incorrectly) from `transient` (retry-worthy infrastructure hiccup). L0 records the classification but does not act on it.
 - The Playwright HTML report lands in a predictable location so QA can open it without help from the agent.
 
-Agent contract:
-
-- *Split:* deterministic entirely. The agent submits a test; the runner runs it; a structured record returns.
-- *Invariants in force:* 4 (the run record is appended to the run log, never rewritten), 5 (failures classify into `product-fail`, `test-malformed`, `transient`, `unclassified`).
-- *Fallthrough:* an `unclassified` run result surfaces the raw runner output plus the classification attempts, so the agent can pick a next step (rerun, escalate, file a bug).
-- *Reversibility:* the run record is a log entry (not mutable, superseded by later runs). World mutations caused during the run are **not reversible** — which is why §8.6 is conservative about destructive operations at L0.
-
 Deferred:
 
 - Drift event emission — L3 machinery.
 - Rerun / flakiness tracking — not an L0 concern; L0 executes once, logs outcome.
 - Screenshot or video capture policies; the accessibility snapshot in the run record substitutes for visual capture at L0.
 
-### 8.8 Verb declare, Manifest introspect, Fluency check (L0, Agent ↔ Vocabulary manifest)
+### 9.8 Verb declare, Manifest introspect, Fluency check (L0, Agent ↔ Vocabulary manifest)
 
 Primary path:
 
@@ -476,19 +474,12 @@ Obligations at this depth:
 - Fluency tests are committed and run on developer machines alongside product tests; they are not optional.
 - Removing a verb earns a deprecation entry with a removal version; deleting outright is forbidden.
 
-Agent contract:
-
-- *Split:* deterministic entirely across all three (declare, introspect, check). The manifest is a build artifact; the agent only reads it.
-- *Invariants in force:* 1 (the manifest is the single authority for what an agent can do; build-time emission keeps code and manifest synchronized), 9 (one source of truth for verbs), 10 (introspection is a single file read).
-- *Fallthrough:* none. Manifest drift or fluency regression is a build/test failure, not an agent decision point.
-- *Reversibility:* not applicable — the manifest is not agent-written.
-
 Deferred:
 
 - Exact verb signatures — the manifest learns them level by level (substrate §7).
 - Whether the manifest is TypeScript-typed via a generated declaration file or runtime-validated via a schema — defer to L0 shipping, where the agent's actual consumption pattern picks one.
 
-### 8.9 Facet mint (L1, Agent ↔ Memory)
+### 9.9 Facet mint (L1, Agent ↔ Memory)
 
 Primary path:
 
@@ -501,19 +492,12 @@ Obligations at this depth:
 - Provenance is threaded at mint and never retrofitted; a facet without the provenance block is invalid and surfaces as a memory-integrity fault.
 - Minting is atomic at the file level; a partial write on crash leaves the previous file intact.
 
-Agent contract:
-
-- *Split:* agentic for "should this observation be minted?" and for vocabulary/aliasing choices; deterministic for provenance threading, the atomic write, and the in-memory index update.
-- *Invariants in force:* 2 (the agent cannot mint a facet without declaring its origin — provenance is structurally required), 3 (atomic file write), 8 (operator or work-item terminology survives into `displayName`).
-- *Fallthrough:* none at mint itself; the agent has already decided to mint before this handshake fires. Rare failures (disk full, ID conflict) classify and surface for retry or escalation.
-- *Reversibility:* **self-reversing.** A facet's confidence can be driven to zero by later evidence, effectively retiring it without removing its record; deletion is hard-gated (operator edit only).
-
 Deferred:
 
 - Scaling past the low hundreds of facets per screen may force a move to SQLite or to a derived index over the YAML source of truth. Defer until L2–L3 throughput makes YAML scan latency visible.
 - Facet deletion or deprecation semantics — L1 is append-only; soft-delete flows defer to L4.
 
-### 8.10 Facet query (L1, Agent ↔ Memory)
+### 9.10 Facet query (L1, Agent ↔ Memory)
 
 Primary path — structured-field matching over the in-memory index:
 
@@ -527,20 +511,13 @@ Obligations at this depth:
 - Queries are deterministic: same catalog state plus same query string → same ranking.
 - The parsed-constraint representation is logged alongside the query result so an operator debugging a wrong match can see how the phrase was interpreted.
 
-Agent contract:
-
-- *Split:* deterministic for the match-and-rank operation; agentic for the phrasing of the intent phrase the agent submits.
-- *Invariants in force:* 9 (the catalog is the one source of truth queried), 10 (the in-memory index makes query cheap enough to use freely during authoring).
-- *Fallthrough:* a query with no above-threshold matches returns the below-threshold candidates plus the parsed-constraint representation, so the agent sees why matches were rejected and can choose to observe the world or rephrase.
-- *Reversibility:* not applicable — pure read.
-
 Deferred:
 
 - Semantic synonymy ("suspend" ↔ "pause") is handled by L2 operator vocabulary alignment (the vocabulary catalog grows), not by the query layer.
 - Vector-embedding fuzzy match — defer to the level where catalog scale and synonym frequency force it (L2 or L3).
 - LLM-backed query ("which facets match this intent?") — same.
 
-### 8.11 Facet enrich (L1, Agent ↔ Memory)
+### 9.11 Facet enrich (L1, Agent ↔ Memory)
 
 Primary path — append-only evidence log:
 
@@ -553,19 +530,12 @@ Obligations at this depth:
 - Enrichment is strictly additive; old evidence is always retrievable. Drift detection at L3 replays the log deterministically.
 - The cached summary (`{ successCount, failureCount, lastSuccessAt, lastFailureAt }`) is a derived artifact and can be dropped and rebuilt without information loss.
 
-Agent contract:
-
-- *Split:* deterministic entirely. Evidence append is rule-governed; the agent provides evidence, the pipeline records it.
-- *Invariants in force:* 2 (new evidence carries its own mini-provenance attached to the parent facet's mint-time provenance), 4 (append-only), 6 (summary invalidation is logged, not silent).
-- *Fallthrough:* none.
-- *Reversibility:* **self-reversing.** The derived summary shifts naturally with new evidence; nothing is deleted.
-
 Deferred:
 
 - Confidence formula (success-rate decay, Bayesian, win/loss ratio) — emerges at L3 under gating pressure.
 - Log compaction or truncation policy — defer to the level where log size becomes visible.
 
-### 8.12 Locator health track (L1, Memory ↔ World via instruments)
+### 9.12 Locator health track (L1, Memory ↔ World via instruments)
 
 Primary path — per-strategy summary on each facet:
 
@@ -582,26 +552,19 @@ locatorStrategies:
     health: { successCount: 0, failureCount: 7, lastSuccessAt: null, lastFailureAt: ... }
 ```
 
-Every time a strategy is tried during observation or execution, the corresponding health record is updated in place, using the same atomic-file pattern as §8.9.
+Every time a strategy is tried during observation or execution, the corresponding health record is updated in place, using the same atomic-file pattern as §9.9.
 
 Obligations at this depth:
 
 - Health is written at L1 even though L1 does not read it; L3 reads it. The substrate's "provenance cannot be retrofitted" rule binds here most concretely.
 - Health is a primary artifact, not a statistic. It is not regeneratable from run records alone, because ladder-position metadata is not preserved in the run record.
 
-Agent contract:
-
-- *Split:* deterministic entirely. Every locator use updates the corresponding strategy's health record by rule; the agent does not decide when to update.
-- *Invariants in force:* 2 (health records are part of the facet's provenance — they cannot be added retroactively because ladder-position metadata is only knowable during the attempt), 4 (updates are append-like: counters increment monotonically, timestamps move in one direction).
-- *Fallthrough:* none. Health tracking is bookkeeping.
-- *Reversibility:* **self-reversing** — a degrading strategy loses health via failure counts; a recovering strategy gains it via successes. Neither path deletes the record.
-
 Deferred:
 
 - Decay or freshness weighting — the summary is counts-plus-timestamps at L1; weighted-recency aggregation is L3.
 - Ring-buffer or fixed-window variants — defer if the summary proves insufficient at L3 gating.
 
-### 8.13 Drift emit (L3, Memory ↔ World via instruments)
+### 9.13 Drift emit (L3, Memory ↔ World via instruments)
 
 Primary path:
 
@@ -613,19 +576,12 @@ Obligations at this depth:
 - The emitter is the classifier. If classification cannot distinguish drift from product failure at emit time, the event is labeled `ambiguous` rather than guessed.
 - Drift events reference facets by stable ID so downstream surfaces (agent session, operator review) can follow the trail.
 
-Agent contract:
-
-- *Split:* deterministic classification when the mismatch kind is clear (e.g., `not-found` after a previously-successful strategy); agentic when classification is ambiguous, and for recovery choice (retry / re-observe / escalate) within the allowed set.
-- *Invariants in force:* 5 (mismatch kinds are enumerable; ambiguous cases surface as `ambiguous`, not as guesses), 6 (every drift event is logged before any confidence adjustment), 7 (drift reduces confidence but never silently patches the facet).
-- *Fallthrough:* the ambiguous classification path is itself a fallthrough — the agent receives raw mismatch evidence and candidate classifications, picks one, and the pick is recorded with provenance.
-- *Reversibility:* **self-reversing.** Drift-induced confidence reductions can be undone by corroboration from subsequent successful runs.
-
 Deferred:
 
 - Confidence threshold values (how much drift reduces confidence, per mismatch kind). Defer to L3 shipping.
 - Per-mismatch-kind recovery policies (auto-propose a facet revision? flag for review? ignore once?) — defer.
 
-### 8.14 Dialog capture, Document ingest, Candidate review (L2, Operator instruments ↔ Memory)
+### 9.14 Dialog capture, Document ingest, Candidate review (L2, Operator instruments ↔ Memory)
 
 Primary path — sketched:
 
@@ -639,20 +595,13 @@ Obligations at this depth:
 - Provenance from documents includes a stable anchor back to the document region.
 - Rejected candidates are not forgotten; their rationale conditions later proposals.
 
-Agent contract:
-
-- *Split:* agentic for candidate extraction (which dialog turns or document spans become candidates); deterministic for transcript storage, anchor preservation, and review-queue management.
-- *Invariants in force:* 2 (every candidate carries its source-text provenance from the moment of extraction), 7 (candidates are proposals, not memory — operator approval is required), 8 (operator wording or document region text is preserved verbatim).
-- *Fallthrough:* the agent's extraction work is itself a series of structured proposals — each candidate is a decision the operator will review. If extraction fails mechanically (malformed transcript, unreadable document), the handshake classifies and surfaces.
-- *Reversibility:* **proposal-gated.** Nothing from dialog or documents enters memory until operator approval; rejections are preserved with rationale.
-
 Deferred — most specifics:
 
 - Transcript format and chat-harness mechanics — depend on how operator interaction lands at L2 shipping.
 - Concrete document parser choices beyond the baselines above.
 - Review UI shape — defer entirely; a JSONL queue plus an operator CLI is acceptable at L2.
 
-### 8.15 Confidence age, Corroborate, Revision propose (L4, Memory ↔ itself)
+### 9.15 Confidence age, Corroborate, Revision propose (L4, Memory ↔ itself)
 
 Primary path — sketched:
 
@@ -662,13 +611,6 @@ Primary path — sketched:
 
 Obligations at this depth — inherited from §7.8: aging is reversible; corroboration strength is proportional to test reliability; proposals name their evidence.
 
-Agent contract:
-
-- *Split:* deterministic for age and corroborate (rule-governed); agentic for revision propose (evidence selection and rationale synthesis).
-- *Invariants in force:* 4 (proposals and rejections are appended to a proposal log), 6 (confidence changes from aging and corroboration are logged before consumption), 7 (a proposed revision never writes memory; it awaits review).
-- *Fallthrough:* a proposal that conflicts with prior rejected proposals surfaces with the rejection history so the agent can choose to suppress, restate, or defer.
-- *Reversibility:* confidence age and corroborate are **self-reversing** (by subsequent contradicting evidence). Revision propose is **review-gated** (operator approval gates any memory mutation).
-
 Deferred — most specifics:
 
 - Decay function shape (exponential, piecewise, evidence-weighted).
@@ -677,7 +619,7 @@ Deferred — most specifics:
 
 All of these resolve at L4 under customer-specific governance pressure.
 
-### 8.16 Facet schema sketch (shape, not fields)
+### 9.16 Facet schema sketch (shape, not fields)
 
 At L1–L2 scale, a facet carries this load-bearing shape. The exact field set remains deferred per substrate §7; this sketch names what shipping L0–L1 will force into existence. Fields are added, never removed.
 
@@ -691,10 +633,10 @@ Facet {
   role            : semantic role ("save", "navigate", "input")
   scope           : { screen, surface?, section? }
 
-  locatorStrategies : [ { kind, value, health } ]               // §8.12
+  locatorStrategies : [ { kind, value, health } ]               // §9.12
   confidence        : present at L1, consumed at L3
-  provenance        : { mintedAt, instrument, sessionId, runId? } // §8.9
-  evidence          : append-only log reference                   // §8.11
+  provenance        : { mintedAt, instrument, sessionId, runId? } // §9.9
+  evidence          : append-only log reference                   // §9.11
 }
 ```
 
@@ -706,7 +648,7 @@ Kind-specific extensions:
 
 The schema is expected to grow by field addition, not by structural revision. Structural revision is the category of change substrate §6's anti-scaffolding gate applies to most sharply.
 
-## 9) Cross-cutting disciplines
+## 10) Cross-cutting disciplines
 
 Three disciplines are present at every level and are not features themselves. Every feature must also respect them.
 
@@ -714,7 +656,7 @@ Three disciplines are present at every level and are not features themselves. Ev
 - **Handoff boundary.** Tests are visible artifacts but are agent-authored and regeneration-susceptible. Durable QA work lands at the intent or memory layer, and regeneration preserves that partition. (Substrate §3.2.)
 - **Anti-scaffolding gate.** Every proposed feature passes "does this help the agent at scale, across many ADO items, for a real customer?" The three patterns that slip a positively-stated gate — unbounded migration scaffolding, dual-master mechanisms, contingent schema without a forcing scenario — are rejected by name. (Substrate §6.)
 
-## 10) Using the ontology to evaluate a proposed feature
+## 11) Using the ontology to evaluate a proposed feature
 
 Ask, in order:
 
@@ -725,7 +667,7 @@ Ask, in order:
 
 If all four questions have answers, the feature belongs. If any does not, the feature is not ready for the ontology — which is the same as saying it is not ready for the codebase.
 
-## 11) Deliberately not here
+## 12) Deliberately not here
 
 The following are intentionally absent and are expected to emerge from shipping, not from planning:
 
