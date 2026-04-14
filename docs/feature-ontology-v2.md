@@ -139,7 +139,400 @@ Features compose handshakes. A handshake is a specific contracted exchange betwe
 - **Corroborate.** A passing test run plus its referenced facets → increased confidence on those facets. Corroboration strength is proportional to how reliably the test has been passing; a flaky test does not corroborate.
 - **Revision propose.** Accumulated drift events plus decay plus corroboration → a revision proposal surfaced for operator review. The proposal names the evidence it is based on; if the operator rejects it, the rejection enters the proposal's history and conditions future proposals.
 
-## 8) Cross-cutting disciplines
+## 8) Technical paths
+
+This section takes each handshake from §7 down one more level of technical depth — naming the specific libraries, APIs, and sequences of calls that fulfill it. The grain is between the method-level implementation and the invariant-stated obligations of §7. L0 handshakes are fully fleshed out because shipping L0 forces the choices into the open. L1 handshakes are fleshed out in shape, with some specifics deferred to the point where L1 ships. L2–L4 are described at primary-path level only, with most specifics flagged as needing customer-delivery pressure before resolution. Each subsection follows the same shape: primary path, obligations at this depth, deferred.
+
+### 8.1 Intent fetch (L0, Agent ↔ Intent source)
+
+Primary path — Azure DevOps REST API v7.1 with PAT authentication:
+
+1. Query work-item IDs in scope: `POST {org}/{project}/_apis/wit/wiql?api-version=7.1` with a WIQL filter on `[System.WorkItemType] = 'Test Case'` plus area/iteration/tag predicates if the customer scopes by them.
+2. Fetch an individual work item: `GET {org}/{project}/_apis/wit/workitems/{id}?$expand=fields&api-version=7.1`.
+3. Read load-bearing fields from the response's `fields` map, keyed by `referenceName`:
+   - `System.Title` → title
+   - `System.Tags` → semicolon-delimited; split on `'; '`
+   - `System.AreaPath`, `System.IterationPath` → preserved as-is for hierarchy
+   - `Microsoft.VSTS.Common.Priority` → numeric
+   - `Microsoft.VSTS.TCM.Steps` → XML; parsed in §8.2
+   - `Microsoft.VSTS.TCM.Parameters` → XML; parameter names
+   - `Microsoft.VSTS.TCM.LocalDataSource` → XML; parameter data rows
+
+Obligations at this depth:
+
+- Transient errors (network, timeout, 5xx) are classified and retried with bounded backoff; authentication errors and 404s are not retried and surface as distinct failure modes.
+- The work item's `rev` field is carried forward so later drift detection can distinguish "work item changed upstream" from "world changed."
+- No renaming of ADO field values on the way in; downstream consumers read the source vocabulary as the source wrote it.
+
+Deferred:
+
+- Adoption of the official Microsoft Azure DevOps MCP server (GA Oct 2025) defers to L1+, when a single intent-source verb set across MCP channels reduces authentication handling and query plumbing. L0 ships on direct REST.
+- Custom work-item types beyond `Test Case` (customer process-template extensions). Defer to L0 shipping with the real customer tenant.
+- Auth variants beyond PAT (Azure AD, Managed Identity); defer to deployment orchestration.
+
+### 8.2 Intent parse (L0, Agent ↔ Intent source)
+
+Primary path — XML step extraction from `Microsoft.VSTS.TCM.Steps`:
+
+1. Regex-match `<step>` boundaries: `/<step\b[^>]*>([\s\S]*?)<\/step>/gi` on the raw string.
+2. Within each step body, extract the two `<parameterizedString>` children: `/<parameterizedString\b[^>]*>([\s\S]*?)<\/parameterizedString>/gi`. The first match is the action text; the second is the expected-outcome text.
+3. Decode XML entities (`&lt;`, `&gt;`, `&quot;`, `&#39;`, `&amp;` → `<`, `>`, `"`, `'`, `&`) and unwrap `<![CDATA[...]]>`.
+4. Strip inline HTML tags, collapse whitespace, preserve readable emphasis.
+5. Parse parameters: `<param name="...">` from `Microsoft.VSTS.TCM.Parameters`.
+6. Parse data rows: `<Table1>` sections of `LocalDataSource` yield per-row key-value pairs for substitution.
+
+Obligations at this depth:
+
+- Every extracted step retains source-text provenance — the work-item ID, revision, and positional step index — so any reviewer can trace an interpreted step back to the phrasing that produced it.
+- Missing `<parameterizedString>` siblings degrade gracefully: expected defaults to empty; no parse exception fires.
+- All parsed steps begin at an `intent-only` confidence marker; confidence upgrades only when the step is successfully grounded against the world at L1.
+
+Deferred:
+
+- `Microsoft.VSTS.TCM.Preconditions` handling depends on the customer's process template. Defer.
+- Process-template markup variants; the regex path above is baseline, but empirical tuning at shipping may add edge cases.
+- Non-English step text and multi-language normalization; defer to the customer's corpus.
+
+### 8.3 Navigate (L0, Agent ↔ World)
+
+Primary path — Playwright `page.goto`:
+
+1. `await page.goto(url, { waitUntil: 'load' | 'domcontentloaded' | 'networkidle', timeout: 30_000 })`. Choice of `waitUntil` depends on how the SUT settles: OutSystems apps frequently settle on `'load'`; apps with heavy async enrichment favor `'networkidle'`. The default is recorded per-URL pattern at the instrument level and reused across sessions.
+2. Idempotence: before issuing `goto`, compare `page.url()` to the target; skip if already at destination to avoid re-loading state already observed.
+3. Return `{ reachedUrl, status, timingMs }` — enough evidence for the run record.
+
+Obligations at this depth:
+
+- Timeout and network failures classify cleanly into `navigation-timeout` and `navigation-failed`; redirects within the chain are subsumed by Playwright and do not surface as separate events.
+- Destructive entry points (login redirects, state-mutating deep links) are not freshly authored at L0. Tests enter through read-safe URLs. If the customer's application forces a destructive entry, that surfaces as a world-contract issue and defers to operator setup of a pre-authorized session fixture.
+
+Deferred:
+
+- Transient retry policy (bounded backoff for flaky networks) belongs at the resilience layer, not at the handshake.
+- Session lifecycle (auth refresh, cookie expiry) — handled by test fixtures or environment, not by Navigate itself.
+
+### 8.4 Observe (L0, Agent ↔ World)
+
+Primary path — two Playwright instruments composed:
+
+1. **Accessibility-tree snapshot.** Resolve the target region: a specific `Locator`, or `page.locator('body')` for whole-page observation. Convert to a handle with `locator.elementHandle()`. Call:
+
+   ```
+   page.accessibility.snapshot({ root: handle, interestingOnly: false })
+   ```
+
+   The returned tree is nested nodes of `{ role, name, value?, checked?, pressed?, disabled?, expanded?, selected?, children? }`. `interestingOnly: false` is deliberate at L0 — maximize the surface area the agent can learn from, even at the cost of verbosity; pruning is a later-level concern.
+
+2. **Locator ladder, in priority order.** Tried sequentially, first match wins; the ladder position at which the match occurred is recorded as degradation metadata:
+   - `page.getByRole(role, { name })` — preferred; honors accessibility contracts.
+   - `page.getByLabel(label)` — form-coupled, strong for inputs.
+   - `page.getByPlaceholder(placeholder)` — input-only.
+   - `page.getByText(text)` — last text-based; matches visible content.
+   - `page.getByTestId(id)` — strong anchor *if* the app emits `data-testid`; OutSystems-specific.
+   - `page.locator(cssSelector)` — last resort.
+
+3. **State probing** (non-ARIA observation that supplements the accessibility tree): `locator.count()`, `locator.isVisible()`, `locator.isEnabled()`, `locator.textContent()`, `locator.inputValue()`, `locator.getAttribute(name)`.
+
+Obligations at this depth:
+
+- Every observation is timestamped and tagged with an observation ID; this is the evidence substrate for every later claim about what the world looked like.
+- The snapshot is raw material for facet minting. The Observe handshake does not filter, rename, or interpret; it returns what Playwright emitted after canonicalizing duplicate or presentational nodes.
+- Element probes during whole-screen observation run with a small fixed concurrency ceiling (e.g. 4) to avoid hammering the SUT.
+
+Deferred:
+
+- Pixel/screenshot-based observation; L0 uses accessibility tree and state probes only. If the app genuinely cannot be observed through ARIA, that is a world-contract fault and defers to operator intervention.
+- `page.evaluate(...)` JavaScript injection; L0 observes, does not rewrite.
+- OutSystems-specific observation patterns (which widgets emit semantic roles vs. require fallback; whether `data-testid` is standard) — defer to L0 shipping with a real OutSystems instance. Direct observation of the customer's application is required.
+
+### 8.5 Interact (L0, Agent ↔ World)
+
+Primary path — Playwright locator actions, keyed to the affordance's role:
+
+- Buttons, links, menu items: `locator.click()`.
+- Text inputs, search boxes: `locator.fill(text)` (clears and types atomically).
+- Native `<select>` dropdowns: `locator.selectOption(value)`.
+- Checkboxes and radios: `locator.check()` / `locator.uncheck()`.
+- Keyboard: `locator.press(key)` for Enter / Escape / Tab.
+- Hover-reveal affordances (tooltips, submenus): `locator.hover()`.
+
+Every interaction resolves the affordance to a locator using the same ladder as §8.4, then invokes the action on that locator. Pre-action state is validated — visibility and enabled-ness — before the action fires, so failures classify pre-attempt rather than after auto-wait timeouts.
+
+Obligations at this depth:
+
+- Failures classify into recognizable families: `not-visible` (target not displayed), `not-enabled` (control disabled or readonly), `timeout` (action hung past the configured window), `assertion-like` (action succeeded but a follow-up state check failed — e.g., click landed but target did not become selected). Raw errors surface only when classification genuinely fails.
+- Playwright's auto-waiting subsumes most settle-time concerns; explicit waits are a composition concern, not an interaction-handshake concern.
+
+Deferred:
+
+- Drag-and-drop, multi-touch gestures, pinch-zoom; defer to L2+ if observed demand surfaces.
+- File upload flows beyond the native input element; `locator.setInputFiles()` is in scope for that, but JS-driven upload widgets defer.
+
+### 8.6 Test compose (L0, Agent ↔ Test instrument)
+
+Primary path — AST-backed emission against the `@playwright/test` runner:
+
+1. Build an intermediate representation from the parsed intent (§8.2) and — at L1+ — the queried facets (§8.10).
+2. Use the TypeScript compiler API (the `typescript` factory, or `ts-morph` as an ergonomic wrapper) to construct the test file as an AST: imports, `test.describe`, `test`, per-step `test.step` blocks, `expect` assertions.
+3. Print the AST to a string, format it, write it to the generated-tests directory.
+
+Emitted file shape (representative):
+
+```ts
+import { test, expect } from '@playwright/test';
+
+test.describe('10001 — Search for policy by number', () => {
+  test('authored by agent', async ({ page }) => {
+    await test.step('Navigate to policy search screen', async () => {
+      await page.goto('/policies');
+    });
+
+    await test.step('Enter policy number', async () => {
+      await page.getByRole('textbox', { name: /policy number/i }).fill('ABC123');
+    });
+
+    await test.step('Click Search', async () => {
+      await page.getByRole('button', { name: /search/i }).click();
+      await expect(page.getByRole('heading', { name: /policy details/i })).toBeVisible();
+    });
+  });
+});
+```
+
+Obligations at this depth:
+
+- Step titles come from parsed intent, verbatim or minimally normalized; they are the business vocabulary the work item used.
+- `test.step(...)` blocks wrap every action so the Playwright HTML report surfaces legible step-level timing and failure context to QA.
+- Assertions come from the work item's expected-outcome text, translated into `expect` calls over the same locator ladder as §8.4.
+- No selectors in the test body at L1+: the body calls through a facet-keyed facade (`policySearch.enterPolicyNumber('ABC123')`) whose implementation resolves the locator from memory at runtime. At L0, before memory exists, selectors are permitted inline — but the L0 test's shape must be such that L1 memory insertion is a local rewrite, not a rewrite of the whole file.
+
+Deferred:
+
+- LLM-rendered step description refinement (the "make it read even better" pass) — defer to L2, where operator vocabulary alignment gives the model something to refine against.
+- Parametric tests driven by the work item's data-source rows — defer to the first L0 work item whose shape demands it.
+- Fixture composition beyond `{ page }` (database seeding, API mocks) — defer; L0 runs against live application state.
+
+### 8.7 Test execute (L0, Agent ↔ Test instrument)
+
+Primary path — the Playwright Test runner, invoked via CLI (`npx playwright test {file}`) or the programmatic API. The agent prefers CLI form because it produces the standard HTML report QA already knows, and parses the machine-readable run output (`--reporter=json`) alongside it.
+
+Returned to the agent per run:
+
+```json
+{
+  "adoId": "10001",
+  "runId": "<uuid>",
+  "completedAt": "2026-04-14T...",
+  "pass": true,
+  "steps": [
+    { "index": 0, "title": "Navigate to policy search screen", "outcome": "pass", "observedAt": "..." },
+    { "index": 1, "title": "Enter policy number",              "outcome": "pass", "observedAt": "..." }
+  ],
+  "classification": "product-pass"
+}
+```
+
+Obligations at this depth:
+
+- Step-level evidence is sufficient for an operator to debug and for L1 facet minting to draw from. Each step's observation capture is the same snapshot/state-probe material Observe would have produced.
+- Failures classify so L3 can later distinguish `product-fail` (bug in the SUT) from `test-malformed` (agent authored incorrectly) from `transient` (retry-worthy infrastructure hiccup). L0 records the classification but does not act on it.
+- The Playwright HTML report lands in a predictable location so QA can open it without help from the agent.
+
+Deferred:
+
+- Drift event emission — L3 machinery.
+- Rerun / flakiness tracking — not an L0 concern; L0 executes once, logs outcome.
+- Screenshot or video capture policies; the accessibility snapshot in the run record substitutes for visual capture at L0.
+
+### 8.8 Verb declare, Manifest introspect, Fluency check (L0, Agent ↔ Vocabulary manifest)
+
+Primary path:
+
+- **Verb declare.** A verb is declared in a single JSON (or JSONC) manifest file. Each entry carries `{ name, category, inputs, outputs, errorFamilies, sinceVersion }`. New capability means a new entry; amending an existing entry's `inputs` or `outputs` is forbidden — the verb is frozen once published. The manifest is the source of truth and is generated from the code, not hand-edited: a build step emits it, and divergence between code and manifest fails the build.
+- **Manifest introspect.** On session start, the agent reads the manifest file — a single `fs.readFile`. The file is small enough (tens of verbs) that reading it on every session is trivial. The parsed structure is the agent's verb table for the session.
+- **Fluency check.** A fixture of canonical agent tasks (one per verb, plus a handful of multi-verb scenarios) runs against a fresh agent session. Each task asserts the agent picked the correct verb(s). A dispatch mismatch is a failing test at the same severity as a broken product test.
+
+Obligations at this depth:
+
+- The manifest is always in sync with code by build-time generation, never by discipline.
+- Fluency tests are committed and run on developer machines alongside product tests; they are not optional.
+- Removing a verb earns a deprecation entry with a removal version; deleting outright is forbidden.
+
+Deferred:
+
+- Exact verb signatures — the manifest learns them level by level (substrate §7).
+- Whether the manifest is TypeScript-typed via a generated declaration file or runtime-validated via a schema — defer to L0 shipping, where the agent's actual consumption pattern picks one.
+
+### 8.9 Facet mint (L1, Agent ↔ Memory)
+
+Primary path:
+
+- Facets are stored as per-screen YAML files under a single catalog directory, one file per screen. Each file's root is a map from element ID to facet record. YAML is chosen for git-friendly diffs during early iteration and for human inspection when an operator wants to audit memory directly.
+- On startup, the agent loads every YAML file into an in-memory index — a `Map<screenId, Map<elementId, Facet>>`. Subsequent minting appends to the index and writes the affected file back atomically (write to temp, rename).
+- At mint time, the facet record captures `provenance = { mintedAt, instrument, agentSessionId, runId }` as a fixed block; this block is immutable for the life of the facet.
+
+Obligations at this depth:
+
+- Provenance is threaded at mint and never retrofitted; a facet without the provenance block is invalid and surfaces as a memory-integrity fault.
+- Minting is atomic at the file level; a partial write on crash leaves the previous file intact.
+
+Deferred:
+
+- Scaling past the low hundreds of facets per screen may force a move to SQLite or to a derived index over the YAML source of truth. Defer until L2–L3 throughput makes YAML scan latency visible.
+- Facet deletion or deprecation semantics — L1 is append-only; soft-delete flows defer to L4.
+
+### 8.10 Facet query (L1, Agent ↔ Memory)
+
+Primary path — structured-field matching over the in-memory index:
+
+1. The agent parses the intent phrase ("the save affordance on the customer-detail screen for a service agent") into structured constraints: `{ kind: 'affordance', role: 'save', screen: 'customer-detail', roleVisibility: 'service-agent' }`.
+2. The index is filtered against those constraints — exact match on `screen` and `kind`, prefix/substring match on `role` and `displayName`, membership match on `roleVisibility`.
+3. Matches are ranked by `confidence` (higher first), with `health` as a tiebreaker.
+4. Below-threshold matches are still returned but flagged; L3 gating later decides whether to trust them.
+
+Obligations at this depth:
+
+- Queries are deterministic: same catalog state plus same query string → same ranking.
+- The parsed-constraint representation is logged alongside the query result so an operator debugging a wrong match can see how the phrase was interpreted.
+
+Deferred:
+
+- Semantic synonymy ("suspend" ↔ "pause") is handled by L2 operator vocabulary alignment (the vocabulary catalog grows), not by the query layer.
+- Vector-embedding fuzzy match — defer to the level where catalog scale and synonym frequency force it (L2 or L3).
+- LLM-backed query ("which facets match this intent?") — same.
+
+### 8.11 Facet enrich (L1, Agent ↔ Memory)
+
+Primary path — append-only evidence log:
+
+- Alongside each facet record, a sibling JSONL file `<facetId>.evidence.jsonl` records every evidence event: `{ timestamp, outcome, instrument, runId, context }`.
+- Confidence is not stored directly on the facet; it is recomputed from the evidence log on read, with a cached summary for hot paths. The summary is invalidated when new evidence arrives.
+- The original facet record is never overwritten; only the evidence log grows.
+
+Obligations at this depth:
+
+- Enrichment is strictly additive; old evidence is always retrievable. Drift detection at L3 replays the log deterministically.
+- The cached summary (`{ successCount, failureCount, lastSuccessAt, lastFailureAt }`) is a derived artifact and can be dropped and rebuilt without information loss.
+
+Deferred:
+
+- Confidence formula (success-rate decay, Bayesian, win/loss ratio) — emerges at L3 under gating pressure.
+- Log compaction or truncation policy — defer to the level where log size becomes visible.
+
+### 8.12 Locator health track (L1, Memory ↔ World via instruments)
+
+Primary path — per-strategy summary on each facet:
+
+```yaml
+locatorStrategies:
+  - kind: role-name
+    value: { role: button, name: Save }
+    health: { successCount: 14, failureCount: 0, lastSuccessAt: ..., lastFailureAt: null }
+  - kind: test-id
+    value: save-policy
+    health: { successCount: 2, failureCount: 3, lastSuccessAt: ..., lastFailureAt: ... }
+  - kind: css
+    value: '.btn-primary[data-role=save]'
+    health: { successCount: 0, failureCount: 7, lastSuccessAt: null, lastFailureAt: ... }
+```
+
+Every time a strategy is tried during observation or execution, the corresponding health record is updated in place, using the same atomic-file pattern as §8.9.
+
+Obligations at this depth:
+
+- Health is written at L1 even though L1 does not read it; L3 reads it. The substrate's "provenance cannot be retrofitted" rule binds here most concretely.
+- Health is a primary artifact, not a statistic. It is not regeneratable from run records alone, because ladder-position metadata is not preserved in the run record.
+
+Deferred:
+
+- Decay or freshness weighting — the summary is counts-plus-timestamps at L1; weighted-recency aggregation is L3.
+- Ring-buffer or fixed-window variants — defer if the summary proves insufficient at L3 gating.
+
+### 8.13 Drift emit (L3, Memory ↔ World via instruments)
+
+Primary path:
+
+- When a memory-authored step fails at runtime in a way that indicates the world differs from memory — for example, a facet's top health-ranked locator strategy fails where it previously succeeded — a drift event is written to a `drift-events.jsonl` file: `{ runId, facetId, strategyKind, mismatchKind: 'not-found' | 'role-changed' | 'name-changed' | 'state-mismatch', evidence, observedAt }`.
+- Drift events are distinct from product failures; the emitter classifies at emit time.
+
+Obligations at this depth:
+
+- The emitter is the classifier. If classification cannot distinguish drift from product failure at emit time, the event is labeled `ambiguous` rather than guessed.
+- Drift events reference facets by stable ID so downstream surfaces (agent session, operator review) can follow the trail.
+
+Deferred:
+
+- Confidence threshold values (how much drift reduces confidence, per mismatch kind). Defer to L3 shipping.
+- Per-mismatch-kind recovery policies (auto-propose a facet revision? flag for review? ignore once?) — defer.
+
+### 8.14 Dialog capture, Document ingest, Candidate review (L2, Operator instruments ↔ Memory)
+
+Primary path — sketched:
+
+- **Dialog capture** reads from a chat transcript (Slack export, a chat-harness log, inline MCP messages — whatever shape operator channels take at L2 shipping) and uses a small LLM call to identify domain-informative turns and extract candidate facets. The operator's exact wording is preserved verbatim as provenance; paraphrased summaries do not substitute.
+- **Document ingest** reads an operator-shared document (Markdown via `unified`/`remark`, PDF via `pdfjs`, Confluence export, etc.) and extracts candidate facets with anchors to specific document regions (byte offset or header path).
+- **Candidate review** surfaces each candidate in a review queue. An operator decision (approve / edit / reject) writes the candidate to memory (approved, with operator attached as additional provenance) or to a rejection log (rejected with rationale preserved).
+
+Obligations at this depth:
+
+- Provenance from dialog includes exact wording and the timestamp of the turn.
+- Provenance from documents includes a stable anchor back to the document region.
+- Rejected candidates are not forgotten; their rationale conditions later proposals.
+
+Deferred — most specifics:
+
+- Transcript format and chat-harness mechanics — depend on how operator interaction lands at L2 shipping.
+- Concrete document parser choices beyond the baselines above.
+- Review UI shape — defer entirely; a JSONL queue plus an operator CLI is acceptable at L2.
+
+### 8.15 Confidence age, Corroborate, Revision propose (L4, Memory ↔ itself)
+
+Primary path — sketched:
+
+- **Confidence age** runs as a maintenance pass (idempotent, deterministic) over the evidence logs, applying a decay function to uncorroborated facets.
+- **Corroborate** runs as a post-execution hook: a passing test run writes a positive evidence entry to every referenced facet's log.
+- **Revision propose** aggregates drift events, decay, and corroboration into a proposal JSONL and surfaces it for operator review.
+
+Obligations at this depth — inherited from §7.8: aging is reversible; corroboration strength is proportional to test reliability; proposals name their evidence.
+
+Deferred — most specifics:
+
+- Decay function shape (exponential, piecewise, evidence-weighted).
+- Corroboration weighting (flat, time-weighted, test-reliability-weighted).
+- Proposal batching and frequency.
+
+All of these resolve at L4 under customer-specific governance pressure.
+
+### 8.16 Facet schema sketch (shape, not fields)
+
+At L1–L2 scale, a facet carries this load-bearing shape. The exact field set remains deferred per substrate §7; this sketch names what shipping L0–L1 will force into existence. Fields are added, never removed.
+
+```
+Facet {
+  id              : stable ID, "<screen>:<elementOrConcept>"
+  kind            : "element" | "state" | "vocabulary" | "route"
+  displayName     : business-layer name ("Save", not "btn-save-1")
+  aliases         : operator-observed synonyms, each with its own provenance
+
+  role            : semantic role ("save", "navigate", "input")
+  scope           : { screen, surface?, section? }
+
+  locatorStrategies : [ { kind, value, health } ]               // §8.12
+  confidence        : present at L1, consumed at L3
+  provenance        : { mintedAt, instrument, sessionId, runId? } // §8.9
+  evidence          : append-only log reference                   // §8.11
+}
+```
+
+Kind-specific extensions:
+
+- **Element / affordance** adds `affordance` (the action the element grants — click, fill, select) and `effectState` (the post-condition state name, if the action has one).
+- **State** adds `predicates` (the conditions that define the state) and `roleVisibility` (which operator roles can observe it).
+- **Vocabulary** adds `surfaceTerm` (what the operator or document called it) and `internalTerm` (the aligned vocabulary the agent uses in test output).
+
+The schema is expected to grow by field addition, not by structural revision. Structural revision is the category of change substrate §6's anti-scaffolding gate applies to most sharply.
+
+## 9) Cross-cutting disciplines
 
 Three disciplines are present at every level and are not features themselves. Every feature must also respect them.
 
@@ -147,7 +540,7 @@ Three disciplines are present at every level and are not features themselves. Ev
 - **Handoff boundary.** Tests are visible artifacts but are agent-authored and regeneration-susceptible. Durable QA work lands at the intent or memory layer, and regeneration preserves that partition. (Substrate §3.2.)
 - **Anti-scaffolding gate.** Every proposed feature passes "does this help the agent at scale, across many ADO items, for a real customer?" The three patterns that slip a positively-stated gate — unbounded migration scaffolding, dual-master mechanisms, contingent schema without a forcing scenario — are rejected by name. (Substrate §6.)
 
-## 9) Using the ontology to evaluate a proposed feature
+## 10) Using the ontology to evaluate a proposed feature
 
 Ask, in order:
 
@@ -158,7 +551,7 @@ Ask, in order:
 
 If all four questions have answers, the feature belongs. If any does not, the feature is not ready for the ontology — which is the same as saying it is not ready for the codebase.
 
-## 10) Deliberately not here
+## 11) Deliberately not here
 
 The following are intentionally absent and are expected to emerge from shipping, not from planning:
 
