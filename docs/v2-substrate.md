@@ -30,7 +30,7 @@ The tools the agent calls. Each instrument is independently enableable. Adding o
 
 ### 2.5 Memory — the facet catalog
 
-The compounding asset. Not a page object model: not organized by pages, not rooted in selectors, not hand-authored. A catalog of semantic facets — roles, states, affordances, outcomes, and the business vocabulary that binds them. Each facet entry is self-describing (confidence, last-seen, provenance, sources), queryable by intent phrase ("the save affordance on the customer-detail screen for a service agent"), and DOM-optional (a selector is one attribute of a facet, not the organizing key). Memory is the only primitive whose value grows monotonically over time if the system works, and the only primitive whose quality is the direct object of the self-refinement loop.
+The compounding asset. Not a page object model: not organized by pages, not rooted in selectors, not hand-authored. A catalog of semantic facets — roles, states, affordances, outcomes, and the business vocabulary that binds them. Each facet entry is self-describing (confidence, last-seen, provenance, sources) and queryable by intent phrase ("the save affordance on the customer-detail screen for a service agent"). At L0 and L1 the binding to the world runs through locators, and locators carry tracked health; DOM-lessness (§5, L3) is a confidence-gated policy that activates when memory is rich enough to author without re-observation, not a property of the memory primitive itself. Provenance is minting-threaded: it is created where a facet is born, travels with it forward, and cannot be added retroactively without losing correctness — the system decides at the moment of minting what any later drift check will be able to see. Memory is the only primitive whose value grows monotonically over time if the system works, and the only primitive whose quality is the direct object of the self-refinement loop.
 
 ## 3) Artifacts
 
@@ -42,7 +42,9 @@ Machine-first structured records. The agent reads and writes them as it authors.
 
 ### 3.2 Test cases
 
-Human-first artifacts. A professional QA reading a generated test should recognize it as professional work: business-vocabulary step descriptions, readable assertions, sensible sequencing, no leaked selectors in the body. QA teams must be able to extend these tests — add steps, change assertions, duplicate and adapt — without coordinating with the agent. Tests reference facets by the same names a QA analyst would use, and they run. Legibility is judged at least as strictly as passing; an illegible green test is a failure of the system.
+Human-first artifacts. A professional QA reading a generated test should recognize it as professional work: business-vocabulary step descriptions, readable assertions, sensible sequencing, no leaked selectors in the body. Tests reference facets by the same names a QA analyst would use, and they run. Legibility is judged at least as strictly as passing; an illegible green test is a failure of the system.
+
+Extensibility has a handoff boundary the system must honor. Tests are the *visible* artifact — the surface QA reads, critiques, and trusts — but they are also agent-authored and may be regenerated when memory or intent changes. Durable extensions therefore do not land in the test file; they land in the intent or memory layer, where they survive regeneration. The system makes this split explicit to QA, and regeneration preserves the partition — a QA-authored intent or memory entry is never silently discarded on the agent's next pass. A test that invites edits at the wrong layer is a credibility trap; QA teams do not long tolerate tools that silently discard their work, so the system must not ship one.
 
 ### 3.3 Run records
 
@@ -124,7 +126,11 @@ If no, it is cost, and cost needs an explicit justification tied to a specific l
 
 What the gate does not reject: anything a measured fluency or throughput regression would catch. If a proposal is speculative, the discipline is to defer it to the level whose claim it would help ship, not to build it now against hypothetical scale.
 
-What the gate does reject: parallel abstractions, dual-master designs (serving agent ergonomics and operator introspection through the same mechanism), and "future flexibility" disconnected from a specific shipping claim.
+What the gate does reject: parallel abstractions, dual-master designs (serving agent ergonomics and operator introspection through the same mechanism), and "future flexibility" disconnected from a specific shipping claim. Three patterns in particular slip past a gate stated only positively and deserve naming:
+
+- **Unbounded migration scaffolding.** Tooling that retires an old layer or bridges a transition is acceptable only with an explicit exit condition any developer can check locally, kept current over time. Migration scaffolding without a checked exit silts indefinitely.
+- **Dual-master mechanisms without a narrow contract.** A surface serving both the agent and operator introspection needs a narrow, read-only contract at the boundary; shared mutable orchestration through a single surface blurs ownership and forces every change to negotiate two constituencies.
+- **Contingent schema without a forcing scenario.** Optional fields, variant layers, and branching abstractions require either a real scenario forcing the fork now, or a named level whose shipping claim depends on the fork existing. "It might be useful if we ever need it" is the exact shape the gate exists to reject.
 
 Determinism, typing, and architectural hygiene remain valuable tools in v2. They are not the organizing principle. The organizing principle is agent ergonomics in service of shipping tests a real customer QA team uses.
 
