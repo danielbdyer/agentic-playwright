@@ -386,53 +386,61 @@ Deferred:
 
 ### 9.6 Test compose (L0, Agent ↔ Test instrument)
 
-Primary path — AST-backed emission against the `@playwright/test` runner:
+Primary path — AST-backed emission against the `@playwright/test` runner, composed with the facet-keyed facade (§9.18):
 
-1. Build an intermediate representation from the parsed intent (§9.2) and — at L1+ — the queried facets (§9.10).
-2. Use the TypeScript compiler API (the `typescript` factory, or `ts-morph` as an ergonomic wrapper) to construct the test file as an AST: imports, `test.describe`, `test`, per-step `test.step` blocks, `expect` assertions.
-3. Print the AST to a string, format it, write it to the generated-tests directory.
+1. Build an intermediate representation from the parsed intent (§9.2) and the queried (or freshly minted, at L0) facets (§9.10, §9.9).
+2. Regenerate any affected screen facade module(s) from the facet catalog (§9.18) so selectors resolve from the single source of truth.
+3. Use the TypeScript compiler API (the `typescript` factory, or `ts-morph` as an ergonomic wrapper) to construct the test file as an AST: imports of the generated facade, `test.describe`, `test` with data-parameter opt-in, per-step `test.step` blocks, assertions expressed through facade references.
+4. Print the AST to a string, format it, write it to the generated-tests directory.
 
-Emitted file shape (representative):
+Emitted file shape (representative — no inline selectors, data from fixtures):
 
 ```ts
 import { test, expect } from '@playwright/test';
+import { policySearchScreen } from './generated/screens/policy-search.screen';
 
 test.describe('10001 — Search for policy by number', () => {
-  test('authored by agent', async ({ page }) => {
+  test('authored by agent', async ({ page, data }) => {
+    const screen = policySearchScreen(page);
+
     await test.step('Navigate to policy search screen', async () => {
-      await page.goto('/policies');
+      await screen.navigate();
     });
 
     await test.step('Enter policy number', async () => {
-      await page.getByRole('textbox', { name: /policy number/i }).fill('ABC123');
+      await screen.enterPolicyNumber(data.policyNumber);
     });
 
-    await test.step('Click Search', async () => {
-      await page.getByRole('button', { name: /search/i }).click();
-      await expect(page.getByRole('heading', { name: /policy details/i })).toBeVisible();
+    await test.step('Search and verify', async () => {
+      await screen.search();
+      await expect(screen.policyDetailsHeader).toBeVisible();
     });
   });
 });
 ```
 
+The test imports a generated screen facade (`policySearchScreen`, produced per §9.18 from the facet catalog) and consumes named data from fixtures (§9.19). No selectors appear in the body; all element addressing routes through facade methods whose locator strategies resolve from the facet catalog at runtime.
+
 Obligations at this depth:
 
 - Step titles come from parsed intent, verbatim or minimally normalized; they are the business vocabulary the work item used.
 - `test.step(...)` blocks wrap every action so the Playwright HTML report surfaces legible step-level timing and failure context to QA.
-- Assertions come from the work item's expected-outcome text, translated into `expect` calls over the same locator ladder as §9.4.
-- No selectors in the test body at L1+: the body calls through a facet-keyed facade (`policySearch.enterPolicyNumber('ABC123')`) whose implementation resolves the locator from memory at runtime. At L0, before memory exists, selectors are permitted inline — but the L0 test's shape must be such that L1 memory insertion is a local rewrite, not a rewrite of the whole file.
+- Assertions come from the work item's expected-outcome text, expressed through facade references, not raw locators.
+- **No inline selectors, at any level.** Even at L0, where the facet catalog is being populated as the agent authors, the facade is the addressing layer. Facets are minted on the fly during composition (§9.9) so the facade can reference them. This is what makes a single locator change fix N tests without touching test source (§9.18).
+- **No inline test data.** Data values flow through `data.<named>` and are resolved at runtime from the work item's data-source rows or from named fixtures (§9.19).
+- The generated test file is written atomically; partial regeneration never corrupts the prior file.
 
 Deferred:
 
-- LLM-rendered step description refinement (the "make it read even better" pass) — defer to L2, where operator vocabulary alignment gives the model something to refine against.
-- Parametric tests driven by the work item's data-source rows — defer to the first L0 work item whose shape demands it.
-- Fixture composition beyond `{ page }` (database seeding, API mocks) — defer; L0 runs against live application state.
+- LLM-rendered step-description refinement (the "make it read even better" pass) — defer to L2, where operator vocabulary alignment gives the model something to refine against.
+
+(Parametric expansion and fixture composition are detailed in §9.19. Selector and test-data indirection is detailed in §9.18.)
 
 ### 9.7 Test execute (L0, Agent ↔ Test instrument)
 
 Primary path — the Playwright Test runner, invoked via CLI (`npx playwright test {file}`) or the programmatic API. The agent prefers CLI form because it produces the standard HTML report QA already knows, and parses the machine-readable run output (`--reporter=json`) alongside it.
 
-Returned to the agent per run:
+Returned to the agent per individual run (used directly at L0, fetched on demand at L2+):
 
 ```json
 {
@@ -448,17 +456,46 @@ Returned to the agent per run:
 }
 ```
 
+At L2+, where batches of tens to thousands of tests run together, per-run records scale out of what the agent can consume directly. The runner emits a **tactical batch summary** by default, with per-run records available on demand (§9.20):
+
+```json
+{
+  "batchId": "<uuid>",
+  "totalTests": 482,
+  "passCount": 461,
+  "failCount": 21,
+  "classifications": {
+    "product-fail": 7,
+    "test-malformed": 2,
+    "transient": 9,
+    "unclassified": 3
+  },
+  "topFailingFacets": [
+    { "facetId": "customer-detail:save", "count": 4 },
+    { "facetId": "policy-search:results-grid", "count": 3 }
+  ],
+  "nextSteps": [
+    { "id": "triage-product-fails", "count": 7, "verb": "propose-bug-candidates" },
+    { "id": "rerun-transients", "count": 9, "verb": "rerun-with-backoff" },
+    { "id": "reobserve-unclassified", "count": 3, "verb": "refresh-facet-evidence" }
+  ]
+}
+```
+
+The agent consumes the summary and picks a next step. The `nextSteps` entries name verbs from the manifest (§9.8); the agent does not synthesize new actions, only chooses among the closed set presented. Raw per-run evidence for any specific `runId` is fetched on demand.
+
 Obligations at this depth:
 
-- Step-level evidence is sufficient for an operator to debug and for L1 facet minting to draw from. Each step's observation capture is the same snapshot/state-probe material Observe would have produced.
-- Failures classify so L3 can later distinguish `product-fail` (bug in the SUT) from `test-malformed` (agent authored incorrectly) from `transient` (retry-worthy infrastructure hiccup). L0 records the classification but does not act on it.
-- The Playwright HTML report lands in a predictable location so QA can open it without help from the agent.
+- Step-level evidence is sufficient for an operator to debug and for L1 facet minting to draw from; it remains structurally available but is not the default emission at L2+.
+- Failures classify so L3 can later distinguish `product-fail`, `test-malformed`, `transient`, and `unclassified`. At L2+, the summary aggregates classifications so the agent sees the shape of a batch before inspecting any run.
+- `nextSteps` are verbs, not free-form prose. The runner chooses from a fixed set (triage, rerun, re-observe, escalate, propose). Summary synthesis (which to list, what order) may evolve, but the set of namable actions does not drift silently.
+- The Playwright HTML report lands in a predictable location so QA can open it without agent mediation.
 
 Deferred:
 
-- Drift event emission — L3 machinery.
-- Rerun / flakiness tracking — not an L0 concern; L0 executes once, logs outcome.
 - Screenshot or video capture policies; the accessibility snapshot in the run record substitutes for visual capture at L0.
+
+(Drift event emission is §9.13. Rerun and flakiness classification at scale is part of §9.20.)
 
 ### 9.8 Verb declare, Manifest introspect, Fluency check (L0, Agent ↔ Vocabulary manifest)
 
@@ -647,6 +684,132 @@ Kind-specific extensions:
 - **Vocabulary** adds `surfaceTerm` (what the operator or document called it) and `internalTerm` (the aligned vocabulary the agent uses in test output).
 
 The schema is expected to grow by field addition, not by structural revision. Structural revision is the category of change substrate §6's anti-scaffolding gate applies to most sharply.
+
+### 9.17 Affordance extension authoring (L0, Agent ↔ World + Agent ↔ Memory)
+
+The core affordance set of §9.5 (click, fill, selectOption, check, press, hover) covers native HTML elements. Real applications include composite widgets whose interaction is a choreography of multiple primitive actions across multiple DOM elements — multi-selects with tag chips, autocompletes with async suggestion lists, date pickers, rich-text editors, tree grids. When the agent encounters one of these during authoring, it needs a path to extend the codebase with a new affordance pattern so the pattern is reusable in future sessions.
+
+Primary path — affordance authoring on Stage α encounter:
+
+1. **Encounter.** During authoring, the agent reaches an element whose facet has no matching primitive action: the ladder resolves an element but the step's action (e.g., "select three tags") does not decompose to `click`, `fill`, or `selectOption` in a single call.
+2. **Propose.** The agent composes an affordance proposal: `{ name, surfaceShape, observeSignature, actionChoreography, effectState }`. The `actionChoreography` is a named sequence of primitive actions against primitive locators (for a multi-select-with-chips: `click(trigger) → fill(search, query) → click(option matching query) → assert chip(query) present`). The `observeSignature` is the shape the agent recognizes in the accessibility tree when this affordance is present in the future.
+3. **Record.** The proposal lands in the affordance proposal queue with full provenance: which session, which work item, which screen, which elements were observed, and a link back to the originating receipts (§8.4).
+4. **Review.** An operator reviews the proposal. On approval, the affordance becomes a codified pattern: an entry in a structured affordance catalog that the runtime interpreter can dispatch against.
+5. **Reuse.** Subsequent sessions encountering the same surface shape resolve the affordance by name. A facet declares `affordance: multi-select-with-chips`; the runtime looks up the choreography and executes.
+
+Obligations at this depth:
+
+- The affordance pattern is versioned. Once codified and relied on by N tests, its choreography cannot change in place (invariant 1 of §8.5 applies — the published pattern is a verb by another name). Revisions go through the same review-gated pathway as facet revisions (§8.6).
+- The `observeSignature` is load-bearing: it is how future sessions recognize the pattern without re-encountering it as novel. Vague signatures produce false matches; the codification review tightens them.
+- An affordance proposal is **proposal-gated** until approved; nothing writes to the durable affordance catalog without operator review.
+- The choreography is always expressed in terms of primitive actions (§9.5) and locator strategies (§9.4). It does not introduce new primitives.
+- This is how the agent grows the code itself, inside the §3.2 handoff boundary: durable extensions land in catalog entries that regeneration respects, never in hand-edited runtime code.
+
+Deferred:
+
+- Signature-matching semantics (exact, pattern, structural) for recognizing a codified affordance in a novel context. Defer to the first L1+ session that tries to reuse a pattern in an unexpected shape.
+- Choreography parameterization (e.g., a "select N options" pattern that varies by N, or an "autocomplete with async suggestions" with variable wait thresholds). Defer until a second customer pattern makes the fork forcing.
+
+### 9.18 Selector and test-data indirection (L0, Agent ↔ Test instrument + Agent ↔ Memory)
+
+The test file never contains a hardcoded selector or a hardcoded data value, at any level. Selectors and test data flow through the facet catalog and the data binding layer so that one catalog update fixes N tests without touching test source. This is the structural guarantee that scales the corpus from ten to ten thousand tests without a migration.
+
+Primary path — selector indirection:
+
+1. **Facet as the sole selector source.** Every locator used in a test body resolves through a facet ID. The test references `policySearchScreen.policyNumberInput`, not `getByRole('textbox', { name: /policy number/i })`. The facet declares the locator strategies; the runtime resolves at execution via the ladder of §9.4.
+2. **Generated facade per screen.** The test-compose handshake (§9.6) emits a generated facade module per screen (e.g., `policy-search.screen.ts`) whose methods are the screen's affordances. Methods take typed arguments (when parametric) and invoke the runtime locator resolver against the facet catalog. Facade methods are regenerated from the catalog on every authoring pass; the module is marked generated and excluded from hand edits.
+3. **Hot-path update.** When a facet's top-health locator strategy changes — drift promotion, operator-authored override, L3 threshold crossing — the next regeneration of the affected facade propagates the new strategy. No test source changes. The facade method signature is stable; only the internal resolution shifts.
+4. **One change fixes fifty tests.** A `Save` button that becomes `Save policy` at the SUT requires one catalog edit (or one agent-minted facet update). The regeneration refreshes one facade. Fifty tests continue to run green without source edits.
+
+Primary path — test-data indirection:
+
+1. **Named bindings only.** Test data flows through named parameters, never inline literals. ADO's `Microsoft.VSTS.TCM.LocalDataSource` rows map to typed data tables attached to the test's parametric iteration; named fixtures (§9.19) supply shared setup values.
+2. **Runtime resolution.** A test step reads `data.policyNumber`, not `'ABC123'`. The data binding is resolved from the work item's data source or from the named fixture registry at test invocation.
+3. **Shared fixture registry.** Cross-cutting data (admin credentials, baseline customer IDs, known-good dates) live in a registered fixture. One source, many consumers; a registry change propagates without source edits.
+
+Obligations at this depth:
+
+- No test body contains a string literal representing a selector, a role, a data value, or an assertion text derived from SUT state. All such values go through the facade or the data registry.
+- The generated facade is regenerable at any time. Regeneration is cheap enough to run whenever the catalog changes.
+- Durable human edits to selectors or test data land at the facet catalog or the fixture registry, per substrate §3.2. The generated facade and the test files are disposable.
+- Invariant 8 of §8.5 (one source of truth per concern) binds: the facet catalog is the sole selector source; the fixture/data-source registry is the sole test-data source.
+
+Deferred:
+
+- The exact language of the facade (class, object of hooks, module of functions) — defer to the first L0 shipping pass where the customer's test-framework conventions force a choice.
+- Data-binding evaluation semantics (lazy vs. eager; per-test vs. per-step) — defer; the constraint is that resolution happens at invocation, not at emission.
+
+### 9.19 Parametric expansion and fixture composition (L0+, Agent ↔ Test instrument)
+
+A work item that carries multiple data rows (ADO's `Microsoft.VSTS.TCM.LocalDataSource`) expands into multiple test executions, one per row, driven by the data-indirection layer of §9.18. Shared setup and teardown are handled via named fixtures.
+
+Primary path — parametric expansion:
+
+1. Data-source rows are read in §9.1 and attached to the parsed intent structure in §9.2.
+2. Test compose (§9.6) emits a parameterized test: the test function accepts `{ page, data, ... fixtures }` and is wrapped in an iteration over the rows, one `test(name, ...)` call per row.
+3. Each iteration binds its row's values into facade calls via the data-indirection layer of §9.18.
+4. Run records (§9.7) distinguish parametric instances by their row index or a row-identifying key; the batch summary aggregates across iterations.
+
+Primary path — fixture composition:
+
+1. Fixtures live in a named registry (one module per fixture). Each fixture declares: setup, teardown, dependencies on other fixtures, and its lifecycle scope (per-test, per-file, per-worker).
+2. A test opts in to fixtures by name, not by import path: the test-compose handshake wires fixtures based on the work item's declared dependencies and the screen facade's declared requirements.
+3. The test body consumes `{ page, admin, baselineCustomer, ... }` as a typed context. Adding a new fixture never breaks tests that didn't opt in.
+4. When a fixture's underlying value changes — credentials rotated, baseline customer ID updated, known-good date rolled forward — tests consuming it adjust at the next run; no source edit is required if the fixture is resolved dynamically.
+
+Obligations at this depth:
+
+- Parametric expansion preserves source-text provenance per iteration; each iteration's test title includes the row index or a row-identifying key from the data source.
+- Fixtures are named, not positional.
+- Fixture values land in the same one-source-of-truth regime as selectors (§9.18): one change updates every test consuming the fixture.
+- Lifecycle scope is declared at the fixture level (per-test, per-file, per-worker), not left to the test author to remember.
+
+Deferred:
+
+- Per-iteration skip or focus policies (some rows are WIP, some are production-ready). Defer until the first parametric suite lands.
+- Cross-fixture dependency resolution (fixture A's setup depends on fixture B's output). Defer to the first case that demands it.
+- Fixture state isolation at shard boundaries (§9.20). Defer to the first sharded run.
+
+### 9.20 Scale behavior at thousands of tests (L2+, cross-cutting)
+
+The system must remain usable — for the agent, the operator, and the runner — when the test corpus grows to hundreds or thousands of work items. Scale pressure surfaces in three places: the agent's view of run records, the operator's view of drift and proposals, and the runtime's throughput. Each is managed by the same principle: summary-and-next-step before raw data, paginated-and-filtered instead of full-corpus.
+
+Primary path — token-conservative agent emissions:
+
+1. The test runner's batch summary (§9.7) is the default emission at L2+, not per-run records. The summary is bounded in size regardless of batch size: fixed fields (counts, classification histogram) plus capped top-N lists.
+2. `nextSteps` (§9.7) are closed-set verbs from the manifest (§9.8). The agent picks; it does not synthesize new actions. This keeps the decision surface small even when the batch is large.
+3. Raw per-run evidence is available on demand: the agent (or operator) requests a specific `runId`. Deep inspection is opt-in and paginated within the run.
+
+Primary path — paginated and filtered queries:
+
+1. Runs, drift events, proposals, receipts, and evidence entries are queried through paginated handshakes: `{ filter, cursor, limit }`. No query returns an unbounded corpus.
+2. Filters key on facet IDs, levels, classifications, time windows, operator or run attribution. Composition is additive (filters AND by default).
+3. Summaries are themselves queryable — "top 10 facets by failure rate this week" is a single read, not a reduction the agent performs inside its context window.
+
+Primary path — rerun and flakiness classification at scale:
+
+1. Tests classified as `transient` are eligible for automatic rerun within bounded attempts (configurable at the batch level, not per test). A test that passes on rerun is promoted from `transient` to `product-pass` in the batch summary with a `flake-rate` annotation.
+2. Persistent flakiness — a test that oscillates pass/fail across many runs — surfaces as its own `nextStep` verb (`quarantine-flaky-test`) so the operator can triage without the agent re-deciding each time.
+3. Flake rates accumulate against the referenced facets, contributing to locator health (§9.12) and to drift signals (§9.13) when the flake is traceable to a single facet.
+
+Primary path — runtime throughput:
+
+1. Playwright workers parallelize across shards at L2+; shard count is a batch-level config, not an agent concern.
+2. Fixture state that would be shared across parametric rows uses per-worker isolation to avoid cross-test interference.
+3. Generated artifacts (test files, facade modules, run records) partition by date and batch so the filesystem does not grow into a single unwieldy directory.
+
+Obligations at this depth:
+
+- Every emission the agent consumes at L2+ is token-conservative by default: summary before detail, next steps before raw data, closed-set verbs before free-form decisions.
+- The runtime's output volume scales sub-linearly with corpus size thanks to partitioning and summary-first emissions.
+- Operator review surfaces paginate identically; nothing the operator consumes grows unbounded either.
+- Rerun and flakiness handling never silently hide failures: a rerun-passed test appears in the summary with its flake-rate, not as a clean pass.
+
+Deferred:
+
+- Concrete pagination limits, shard counts, rerun attempt caps. Defer to L2 shipping when corpus sizes force the choices; defaults at L1 are conservative single-shard.
+- Summary synthesis beyond static classification histograms (ranking, anomaly detection, LLM-assisted triage). The closed set of actionable verbs is fixed; the prioritization algorithm can evolve under L2+ pressure.
+- Cross-batch trend views (week-over-week flake rate, facet-failure rate over time). Defer to L3+ where the data accumulates meaningfully.
 
 ## 10) Cross-cutting disciplines
 
