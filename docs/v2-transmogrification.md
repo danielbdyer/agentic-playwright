@@ -1302,7 +1302,355 @@ const authorTest = (sourceRef: SourceRef, hypothesis?: Hypothesis) =>
 
 Count the braiding. The saga touches every highway: Verb (implicit at session start), Intent (fetch + parse), Memory (query), World (observe + mint when memory misses), Memory again (corroborate or drift-emit), Truth (compose + execute + receipt). Eleven `yield*`s; two `Effect.all`s for parallelism; four `catchTag`s for typed recovery; one `withSpan` for observability. The saga is small because each verb is a port, each port is typed, each composition is associative, each error is discriminated. The braiding is *readable* because the sequence of `yield*`s literally walks the highway map.
 
-**Why the braiding doesn't break under change.** If a new source lands on the intent highway, `Layer.succeed(IntentFetch, newImpl)` is the only change; `authorTest`'s consumers are untouched. If a new metric verb joins the truth highway, it appears in the manifest and in `MetricCompute` without rewriting `authorTest`. If a new error tag is introduced to any handshake, the inferred error channel of `authorTest` gains it as a residual until a `catchTag` routes it — a compile error the build catches. Additions are additive; subtractions are deprecations with paths; changes are compile-checkable. The map holds because Effect's composition is both *compositional* (parts combine without knowing about each other) and *total* (every error has a typed path).
+**The saga gallery — every other braided path v2 runs.**
+
+The authoring saga is the flagship. v2 runs a small closed set of other sagas, each a distinct braided path through the highways. Some fire per-session; some per-work-item as sub-sagas of `authorTest`; some on a schedule; some in response to events; some at operator-review time. The gallery below is closed — any work v2 does falls into one of these sagas plus the flagship above. Each is named, its trigger is stated, its highways are annotated, its Effect shape is shown, its error channel is closed.
+
+**Saga 1 — `onboardSession`.** Fires once at session start. Reads the manifest; validates fluency; opens the session receipt. Short saga, Verb highway primary.
+
+```ts
+const onboardSession = (sessionId: SessionId) =>
+  Effect.gen(function* () {
+    // ─── Verb highway: read manifest (single fs read, per §8.5 invariant 10) ─
+    const raw = yield* Effect.sync(() => fs.readFileSync("manifest.json", "utf8"));
+    const manifest = yield* Schema.decode(VerbManifestSchema)(raw);
+
+    // ─── Verb highway: bind verb table to session scope ──────────
+    const verbTable = yield* VerbTable.fromManifest(manifest);
+
+    // ─── Fluency self-check: compose canonical tasks; all must pass ─
+    const report = yield* FluencyHarness.run({ verbTable });
+    if (report.failures.length > 0) {
+      return yield* Effect.fail(new FluencyRegressionError({ report }));
+    }
+
+    // ─── Open the session receipt; its lifetime scopes the fiber tree ─
+    return yield* SessionReceipt.open({ sessionId, verbTable, startedAt: yield* Clock.now });
+  }).pipe(
+    Effect.catchTag("ManifestMissingError",     () => failBuild),
+    Effect.catchTag("ManifestSchemaError",      () => failBuild),
+    Effect.catchTag("FluencyRegressionError",   () => failSession),
+    Effect.withSpan("onboardSession")
+  );
+```
+
+The saga is deliberately tight: four `yield*`s, three `catchTag`s, one invariant enforced (the single-file-read of §8.5 invariant 10). Every other saga in v2 assumes this has completed successfully — no other saga re-reads the manifest during a session.
+
+**Saga 2 — `growMemoryForStep`.** Sub-saga composed inside `authorTest` whenever a step's facet-query returns nothing above threshold. Named separately because the feature ontology's §8.1 lists "grow memory during authoring" as a canonical flow. World highway outbound; Memory highway mint.
+
+```ts
+const growMemoryForStep = (step: ParsedStep) =>
+  Effect.gen(function* () {
+    // ─── World highway: resolve target via locator ladder ────────
+    const target = yield* LocatorLadder.resolve(step.targetRef);
+
+    // ─── World highway: observe ARIA + state probes in parallel ──
+    const snapshot = yield* Effect.all({
+      aria:  AriaSnapshot.capture({ root: target.handle, interestingOnly: false }),
+      state: StateProbes.readAll(target),
+    });
+
+    // ─── Memory highway: mint with provenance (invariant 2) ──────
+    const facet = yield* FacetMint.create({
+      observation: snapshot,
+      intentPhrase: step.intentPhrase,
+      provenance: {
+        mintedAt:       yield* Clock.now,
+        instrument:     "playwright",
+        agentSessionId: yield* Session.currentId,
+        runId:          yield* Session.currentRunId,
+      },
+    });
+
+    // ─── Memory highway: initialize per-strategy locator health ──
+    yield* LocatorHealthTrack.initialize({
+      facetId:    facet.id,
+      strategies: target.strategies,
+      rung:       target.rung,
+    });
+
+    return facet;
+  }).pipe(
+    Effect.catchTag("LocatorLadderExhaustedError", () => handoffToAgent),
+    Effect.catchTag("AriaSnapshotFailedError",     () => retryWithSingleFallback),
+    Effect.withSpan("growMemoryForStep", { attributes: { intentPhrase: step.intentPhrase } })
+  );
+```
+
+Note the mint provenance block is assembled inline — there is no retroactive mint path anywhere in v2. The saga's shape enforces invariant 2 by construction: a facet cannot be created without its four provenance fields present.
+
+**Saga 3 — `absorbOperatorInput`.** Fires when the operator provides a dialog transcript or a document. Intent highway (extraction) + Memory highway (candidate queue). Runs standalone per operator action, not per work item.
+
+```ts
+const absorbOperatorInput = (input: OperatorInput) =>
+  Effect.gen(function* () {
+    // ─── Intent highway: extract candidates by input kind ─────────
+    const candidates = yield* Match.value(input.kind).pipe(
+      Match.when("dialog",   () => DialogCapture.extract(input)),
+      Match.when("document", () => DocumentIngest.extract(input)),
+      Match.exhaustive,
+    );
+
+    // ─── Memory highway: enqueue each candidate with full provenance ─
+    yield* Effect.all(
+      candidates.map((candidate) =>
+        CandidateReview.enqueue({
+          candidate,
+          provenance: {
+            operatorId:  input.operatorId,
+            sourceType:  input.kind,
+            sourceText:  candidate.sourceText,      // preserved verbatim per invariant 8
+            anchorRef:   candidate.anchorRef,        // doc-region pointer, if applicable
+            capturedAt:  yield* Clock.now,
+          },
+        })
+      ),
+      { concurrency: "unbounded" }
+    );
+
+    return { queued: candidates.length };
+  }).pipe(
+    Effect.catchTag("DialogMalformedError",     () => logAndSkip),
+    Effect.catchTag("DocumentUnreadableError",  () => surfaceErrorToOperator),
+    Effect.withSpan("absorbOperatorInput", { attributes: { kind: input.kind } })
+  );
+```
+
+Candidates are proposal-gated, not memory-written. The saga enqueues; the operator review saga (§10.5 Saga 6) disposes. Invariant 8 (source vocabulary preserved) binds at the extraction boundary: `candidate.sourceText` is verbatim operator wording.
+
+**Saga 4 — `respondToDrift`.** Fires when a memory-authored step fails at runtime in a mismatch pattern. Memory highway (classify + log) + Truth highway (may surface to handoff). Composed inside `authorTest`'s post-execution branch when `runRecord.pass === false` and the failure looks like drift rather than product failure.
+
+```ts
+const respondToDrift = (runRecord: RunRecord, failedStep: StepResult) =>
+  Effect.gen(function* () {
+    // ─── Memory highway: classify the mismatch deterministically ──
+    const classification = yield* DriftEmit.classify({
+      facetId:       failedStep.facetId,
+      observedState: failedStep.observedState,
+      expectedState: failedStep.expectedState,
+    });
+
+    // ─── Memory highway: append drift event (append-only, invariant 3) ─
+    const driftEvent = yield* DriftLog.append({
+      runId:        runRecord.runId,
+      facetId:      failedStep.facetId,
+      strategyKind: failedStep.strategyKind,
+      mismatchKind: classification.kind,
+      evidence:     classification.evidence,
+      observedAt:   yield* Clock.now,
+    });
+
+    // ─── Memory highway: reduce confidence via negative evidence ──
+    yield* EvidenceLog.appendNegative({
+      facetId: failedStep.facetId,
+      runId:   runRecord.runId,
+      reason:  classification.kind,
+    });
+
+    // ─── If ambiguous, hand off to agent via structured decision ──
+    if (classification.kind === "ambiguous") {
+      const handoff = yield* InterventionHandoff.prepare({
+        blockageType:        "drift-ambiguous",
+        attemptedStrategies: [failedStep.strategyKind],
+        evidenceSlice:       classification.evidence,
+        competingCandidates: classification.candidates,
+        reversalPolicy:      "rereview-on-next-evaluation",
+      });
+      return yield* Effect.fail(new AgenticDecisionRequired({ handoff }));
+    }
+
+    return driftEvent;
+  }).pipe(
+    Effect.catchTag("AgenticDecisionRequired", (err) => surfaceHandoffToAgent(err.handoff)),
+    Effect.withSpan("respondToDrift")
+  );
+```
+
+The saga never silently patches memory. Invariant 6 (no silent escalation) is visible here: every state change — the drift event, the negative evidence, the ambiguous handoff — is an append to a log the agent and operator can read. Confidence falls by rule, not by mutation.
+
+**Saga 5 — `proposeRefinements`.** The L4 saga. Runs on a periodic schedule; aggregates accumulated signals (drift events, decayed facets, corroboration) into revision proposals for operator review. Memory highway (read signals) + Truth highway (append proposals). Not tied to any single work item.
+
+```ts
+const proposeRefinements = (window: TimeWindow) =>
+  Effect.gen(function* () {
+    // ─── Memory highway: gather the three signal streams in parallel ─
+    const signals = yield* Effect.all({
+      driftEvents:   DriftLog.since(window.start),
+      decayedFacets: ConfidenceAge.decayedSince(window.start),
+      corroborated:  CorroborationLog.since(window.start),
+    });
+
+    // ─── Aggregate into candidate revisions; pure synthesis, no I/O ─
+    const revisions = yield* RevisionPropose.synthesize(signals);
+
+    // ─── Filter against prior rejections so we don't resurface them ─
+    const priorRejections = yield* ProposalLog.rejectionsFor(revisions.map((r) => r.facetId));
+    const novel = revisions.filter((r) => !priorRejections.matches(r));
+
+    // ─── Truth highway: append each proposal with its cited evidence ─
+    yield* Effect.all(
+      novel.map((revision) =>
+        ProposalLog.append({
+          kind:           "revision",
+          facetId:        revision.facetId,
+          proposedChange: revision.proposedChange,
+          citedEvidence:  revision.citedEvidence,
+          rationale:      revision.rationale,
+          conditionedOn:  priorRejections.relevantTo(revision.facetId),
+        })
+      ),
+      { concurrency: "unbounded" }
+    );
+
+    return { proposed: novel.length, suppressedByPriorRejection: revisions.length - novel.length };
+  }).pipe(
+    Effect.catchTag("SignalStreamGapError", (err) => logAndContinueWithPartial(err)),
+    Effect.withSpan("proposeRefinements", { attributes: { window: String(window) } })
+  );
+```
+
+The saga is what the feature ontology calls "self-refinement" operationalized: signals are pure reads; synthesis is pure computation; proposals are append-only with rejection history conditioning. Nothing autonomous; everything proposal-gated.
+
+**Saga 6 — `applyApprovedProposal`.** Fires when an operator review closes a proposal with `approved`. Short saga that routes by proposal kind to the right adapter. Closes the review loop; the next evaluation or authoring run picks up the effect of the approval.
+
+```ts
+const applyApprovedProposal = (approval: ApprovedProposal) =>
+  Effect.gen(function* () {
+    // ─── Memory or Truth highway, depending on proposal kind ──
+    yield* Match.value(approval.kind).pipe(
+      Match.tag("revision",   ({ facetId, proposedChange }) =>
+        FacetStore.applyRevision(facetId, proposedChange)),
+      Match.tag("candidate",  ({ candidate }) =>
+        FacetStore.addFromCandidate(candidate)),
+      Match.tag("hypothesis", ({ hypothesisId }) =>
+        HypothesisRegistry.markLanded(hypothesisId)),  // code change lands externally
+      Match.exhaustive,
+    );
+
+    // ─── Proposal log: mark applied (append-only state transition) ─
+    yield* ProposalLog.markApplied(approval.id, { appliedAt: yield* Clock.now });
+
+    return approval.id;
+  }).pipe(
+    Effect.catchTag("RevisionConflictError",   () => escalateToOperator),
+    Effect.catchTag("FacetStoreCorruptError",  () => failFast),
+    Effect.withSpan("applyApprovedProposal", { attributes: { kind: approval.kind } })
+  );
+```
+
+`Match.tag` with `Match.exhaustive` makes the three proposal kinds a compile-checkable total function. Adding a fourth kind of proposal later fails the build until this saga handles it — the GoF visitor pattern enforced at the type system.
+
+**Saga 7 — `evaluateTestbed`.** The measurement saga. Runs a full evaluation against a committed testbed version: fan out authoring across testbed work items, compute metrics in parallel, append evaluation summary. Composes `authorTest` against the testbed source; crosses all five highways via that composition.
+
+```ts
+const evaluateTestbed = (version: TestbedVersion) =>
+  Effect.gen(function* () {
+    // ─── Intent highway: enumerate work items at this testbed version ─
+    const refs = yield* TestbedAdapter.listRefs(version);
+
+    // ─── Fan-out: each ref runs authorTest in parallel, bounded ──
+    const runRecords = yield* Effect.all(
+      refs.map((ref) => authorTest(ref)),
+      { concurrency: 4, batching: false } // bounded to avoid SUT overload
+    );
+
+    // ─── Truth highway: metric derivations in parallel ────────
+    const metrics = yield* Effect.all({
+      acceptanceRate:       MetricCompute.testAcceptanceRate(runRecords),
+      authoringTimeP50:     MetricCompute.authoringTimeP50(runRecords),
+      memoryHitRate:        MetricCompute.memoryHitRate(runRecords),
+      corroborationRate:    MetricCompute.memoryCorroborationRate(runRecords),
+      driftEventRate:       MetricCompute.driftEventRate(runRecords),
+      domLessAuthoringShare: MetricCompute.domLessAuthoringShare(runRecords),
+    });
+
+    // ─── Truth highway: append evaluation summary (append-only) ──
+    return yield* EvaluationLog.append({
+      testbedVersion: version,
+      codeVersion:    yield* CodeVersion.current,
+      completedAt:    yield* Clock.now,
+      runRecordIds:   runRecords.map((r) => r.runId),
+      metrics,
+    });
+  }).pipe(
+    Effect.catchTag("TestbedNotFoundError",    () => failFast),
+    Effect.catchTag("TestbedMalformedError",   () => escalateToOperator),
+    // individual authorTest failures do not fail the saga; they surface as
+    // failed runRecords in the set and affect metric values directly
+    Effect.withSpan("evaluateTestbed", { attributes: { version: String(version) } })
+  );
+```
+
+Notice what the saga does *not* do: there is no special evaluation-runner code. The authoring path is the same. The testbed adapter provides work items indistinguishable from real ADO items; `authorTest` runs identically. The only distinction is the `source` field — polymorphism doing the work so measurement and production share a code path.
+
+**Saga 8 — `verifyHypothesis`.** Fires after a hypothesis-carrying code change lands. Runs the next evaluation at the hypothesis' declared testbed version; computes the delta against the prior summary; appends the verification receipt. The closing joint of the trust-but-verify loop.
+
+```ts
+const verifyHypothesis = (hypothesis: Hypothesis) =>
+  Effect.gen(function* () {
+    // ─── Run the evaluation at the hypothesis' testbed version ──
+    const evaluation = yield* evaluateTestbed(hypothesis.testbedVersion);
+
+    // ─── Truth highway: compare to the immediately prior summary ─
+    const prior = yield* EvaluationLog.priorSummary(hypothesis.testbedVersion);
+    const actualDelta = yield* MetricCompute.delta(
+      hypothesis.metric,
+      { from: prior, to: evaluation }
+    );
+
+    // ─── Truth highway: append verification receipt (append-only) ──
+    const receipt = yield* ReceiptLog.append({
+      hypothesisId:   hypothesis.id,
+      predictedDelta: hypothesis.predictedDelta,
+      actualDelta,
+      confirmed:      directionMatches(hypothesis.predictedDelta, actualDelta),
+      computedAt:     yield* Clock.now,
+    });
+
+    // ─── If contradicted, the agent's next read will surface it ──
+    // No automated rollback: invariant 7 (reversibility) gates reversal
+    // through proposal-gated review, not through verification outcome.
+
+    return receipt;
+  }).pipe(
+    Effect.catchTag("MetricComputeError",      () => logAndSurfaceToOperator),
+    Effect.catchTag("PriorSummaryMissingError", () => failFast),
+    Effect.withSpan("verifyHypothesis", { attributes: { hypothesisId: hypothesis.id } })
+  );
+```
+
+Contradiction does not roll back the code change. It appends a `confirmed: false` receipt. The next agent session reads the receipt log; if the batting average is slipping, the agent proposes a reversal through the proposal-gated pathway. Reversibility is a property of the log history, not of automated rollback.
+
+**Saga 9 — `maintenanceCycle`.** The L4 daemon. Scheduled on a cadence (e.g., once per hour). Runs confidence-aging, batch corroboration for recent passing runs, and a refinement proposal synthesis over the last window. Memory highway self-loop; entirely internal.
+
+```ts
+const maintenanceCycle = Effect.gen(function* () {
+  // ─── Memory highway: age confidence over uncorroborated evidence ─
+  yield* ConfidenceAge.run();
+
+  // ─── Memory highway: corroborate facets from recent passing runs ─
+  const recent = yield* RunRecordLog.passingRunsSince({ hours: 1 });
+  yield* Effect.all(
+    recent.map((run) => Corroborate.fromRun(run)),
+    { concurrency: "unbounded" }
+  );
+
+  // ─── Memory + Truth: synthesize revision proposals for the window ─
+  yield* proposeRefinements({ start: yield* Clock.hoursAgo(1) });
+}).pipe(
+  Effect.schedule(Schedule.fixed("1 hour")),
+  Effect.forkDaemon,
+  Effect.withSpan("maintenanceCycle")
+);
+```
+
+Three sub-operations composed in sequence; the whole forked as a daemon scoped to the session's lifetime. The `Schedule.fixed("1 hour")` is declarative — the scheduler handles timing, not the application code. Shutting down the session shuts down the daemon deterministically via fiber-tree cleanup.
+
+---
+
+**Why the braiding doesn't break under change.** If a new source lands on the intent highway, `Layer.succeed(IntentFetch, newImpl)` is the only change; `authorTest`'s consumers are untouched. If a new metric verb joins the truth highway, it appears in the manifest and in `MetricCompute` without rewriting `authorTest`. If a new proposal kind joins `applyApprovedProposal`, the `Match.exhaustive` call site becomes a compile error until the new case is handled — the visitor pattern enforced by the type system. If a new error tag is introduced to any handshake, the inferred error channel of every saga that composes that handshake gains the tag as a residual until a `catchTag` routes it. Additions are additive; subtractions are deprecations with paths; changes are compile-checkable. The map holds because Effect's composition is both *compositional* (parts combine without knowing about each other) and *total* (every error has a typed path, every proposal kind has an exhaustive match, every saga has a scoped fiber).
+
+**The saga set is closed.** The nine sagas above — `onboardSession`, `authorTest` (the flagship), `growMemoryForStep`, `absorbOperatorInput`, `respondToDrift`, `proposeRefinements`, `applyApprovedProposal`, `evaluateTestbed`, `verifyHypothesis`, `maintenanceCycle` — are the whole of v2's runtime behavior. Every action v2 takes, at any phase of its life, composes these sagas or sub-sagas thereof. Adding a new capability means adding to the set with the same structural discipline; changing a capability means evolving a saga under the proposal-gated hypothesis loop. The closed set is the claim: v2 does nothing that does not fall into one of these braided paths.
 
 ### 10.6 The interchanges
 
