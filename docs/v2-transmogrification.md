@@ -1855,3 +1855,384 @@ Three uses.
 
 The cathedral of §9 holds because every stone carries weight the others need. The highway map of §10 is the routing that makes the cathedral a place you can move through — not just admire, but *use*. Together they are the whole: the structural commitment and the navigational poster. v2 is both at once, which is why the plan is executable and the execution has somewhere to go.
 
+## 11. The runtime composition — how v2 actually runs
+
+§10 showed what v2 *is* when it's running. This section shows how v2 *starts running*: how every port gets wired once, how sagas get dispatched at invocation time, how the fiber tree scopes the run, how shutdown collects its children, and how observability makes the whole thing visible. This is the single `main` that makes everything compose. If §9 was the cathedral and §10 was the map, §11 is the ignition.
+
+Six subsections:
+- **§11.1** the Layer cake — every port wired once.
+- **§11.2** the entry point — `main` as saga dispatcher.
+- **§11.3** invocation modes — what the CLI accepts.
+- **§11.4** the fiber tree — session scope, daemons, shutdown.
+- **§11.5** observability — every saga is its own span.
+- **§11.6** the shape of an actual run — one CLI invocation traced.
+
+And a short closing stanza.
+
+### 11.1 The Layer cake — every port, wired once
+
+Every service v2 uses is a `Context.Tag`; every tag needs a `Layer` to implement it at runtime. The composition layer — a single file under `lib-v2/composition/app-layer.ts` — wires them all, once, into an `AppLayer` the entry point provides to every saga. This is the hexagonal architecture's composition root made concrete; the clean architecture's "main" module; the Effect application's service provision point. One name, one location, one commit.
+
+```ts
+import { Layer } from "effect";
+
+// Infrastructure baseline — provided once, required by many
+const FsLive      = NodeFileSystem.layer;
+const ClockLive   = Clock.layer;
+const LoggerLive  = Logger.layer;
+const TracerLive  = OpenTelemetryTracer.layer;
+
+// ─── Intent highway adapters ────────────────────────────────────
+const AdoSourceLive       = AdoSource.live;
+const TestbedAdapterLive  = TestbedAdapter.live;
+
+// ─── World highway adapters ─────────────────────────────────────
+const PlaywrightPageLive  = PlaywrightPage.live;   // Effect.Resource-backed
+
+// ─── Memory highway adapters ────────────────────────────────────
+const FacetStoreLive      = FacetStore.yamlLive;   // YAML + in-memory index
+const EvidenceLogLive     = EvidenceLog.jsonlLive; // per-facet JSONL
+const DriftLogLive        = DriftLog.jsonlLive;
+const ProposalLogLive     = ProposalLog.jsonlLive;
+const ReceiptLogLive      = ReceiptLog.jsonlLive;
+const RunRecordLogLive    = RunRecordLog.jsonlLive;
+
+// ─── Verb highway ───────────────────────────────────────────────
+const ManifestRegistryLive = ManifestRegistry.fromJson("manifest.json");
+
+// ─── Reasoning highway — provider chosen at startup ─────────────
+// One of these wins; the choice is configuration, not code.
+const ReasoningLive = Config.string("REASONING_PROVIDER").pipe(
+  Config.withDefault("anthropic"),
+  Effect.map((provider) =>
+    Match.value(provider).pipe(
+      Match.when("anthropic", () => AnthropicReasoning.live),
+      Match.when("openai",    () => OpenAIReasoning.live),
+      Match.when("mcp",       () => McpReasoning.live),
+      Match.when("copilot",   () => CopilotReasoning.live),
+      Match.when("local",     () => LocalReasoning.live),
+      Match.when("test",      () => TestReasoning.live),
+      Match.orElse((unknown) => Effect.die(new UnknownProviderError({ unknown }))),
+    )
+  ),
+  Layer.unwrapEffect,
+);
+
+// ─── Composition: one AppLayer, built once ──────────────────────
+export const AppLayer = Layer.mergeAll(
+  // infrastructure baseline first; every other layer depends on these
+  FsLive, ClockLive, LoggerLive, TracerLive,
+  // intent
+  AdoSourceLive, TestbedAdapterLive,
+  // world
+  PlaywrightPageLive,
+  // memory
+  FacetStoreLive, EvidenceLogLive, DriftLogLive,
+  ProposalLogLive, ReceiptLogLive, RunRecordLogLive,
+  // verb
+  ManifestRegistryLive,
+  // reasoning
+  ReasoningLive,
+).pipe(
+  Layer.provideMerge(NodeContext.layer),
+);
+```
+
+Five properties make the Layer cake what it is:
+
+1. **Every port has exactly one Live Layer in `AppLayer`.** No port is provided twice; no port is missing. The compiler enforces this: a saga that requires a tag the `AppLayer` doesn't provide is a type error at the `Effect.provide(AppLayer)` site.
+
+2. **Provider choice for Reasoning is configuration, not code.** `REASONING_PROVIDER=anthropic npm run ...` picks Anthropic; `REASONING_PROVIDER=mcp` picks MCP. The sagas don't change. The manifest doesn't change. Only the Layer resolution changes. This is what provider abstraction *means* operationally.
+
+3. **Testing uses a different Layer.** `TestLayer` in `lib-v2/testing/test-layer.ts` swaps in `TestReasoning.live` (deterministic fixture-based responses), `TestFacetStore.live` (in-memory), `TestPlaywrightPage.live` (recorded-response), and so on. Integration tests provide `TestLayer` instead of `AppLayer` and run the same sagas against it. One code path, two layers, two audiences — the production/test boundary is a single import swap.
+
+4. **Layer composition is associative and acyclic.** `Layer.mergeAll` combines independent layers; `Layer.provideMerge` stacks dependent ones (e.g., `NodeContext.layer` provides the file system and clock that `FacetStoreLive` depends on). Effect's Layer type system catches cycles; the compiler refuses to build a cyclic cake.
+
+5. **The `AppLayer` is a value, not a procedure.** It can be inspected, combined with other layers (for deployments that add observability or alternate transports), or partially applied. The composition root is itself a composable object — clean architecture's dependency rule made into a manipulable value.
+
+Provider swap scenarios this supports out of the box:
+- **Production against a real customer tenant** — `REASONING_PROVIDER=anthropic` (or `openai`), plus production ADO credentials, plus real Playwright browser.
+- **Operator-in-the-loop over MCP** — `REASONING_PROVIDER=mcp`, the LLM running in Claude Desktop (or similar), v2 exposing its verbs as MCP tools while also calling `Reasoning.*` through the MCP channel.
+- **Offline/air-gapped** — `REASONING_PROVIDER=local`, local model via Ollama; no network calls leave the environment.
+- **CI integration tests** — `REASONING_PROVIDER=test`, deterministic fixtures replayed; no real LLM call; runs in 30 seconds.
+- **Development with a cheaper model** — `REASONING_PROVIDER=openai` with a cheaper model for iteration, `anthropic` for production quality.
+
+One configuration flag. Zero code changes. Every saga, every handshake, every metric, every receipt is provider-agnostic from the inside.
+
+### 11.2 The entry point — `main` as saga dispatcher
+
+Every v2 invocation — authoring one work item, evaluating a testbed version, verifying a hypothesis, absorbing an operator document, running a maintenance cycle — starts at one function. `main` parses the CLI, opens a session, dispatches to the right saga, and closes the session with a receipt. It is the only place where sagas become running fibers, and it is the only place where the `AppLayer` is provided.
+
+```ts
+import { Effect, NodeRuntime, Match } from "effect";
+
+// The runtime request — what the CLI parses into
+type RuntimeRequest =
+  | { kind: "author";    sourceRef: SourceRef;    hypothesis?: Hypothesis }
+  | { kind: "evaluate";  version: TestbedVersion }
+  | { kind: "verify";    hypothesis: Hypothesis }
+  | { kind: "absorb";    input: OperatorInput }
+  | { kind: "approve";   approval: ApprovedProposal }
+  | { kind: "maintain" };
+
+// The single entry point — composes onboarding + dispatch + closeout
+const main = (request: RuntimeRequest) =>
+  Effect.gen(function* () {
+    // ─── Onboard — read manifest, validate fluency, open session ─
+    const session = yield* onboardSession(SessionId.generate());
+
+    // ─── Fork maintenance cycle as a daemon for the session's life ─
+    const maintenanceFiber = yield* maintenanceCycle;
+
+    // ─── Dispatch to the requested saga by kind ───────────────
+    const result = yield* Match.value(request).pipe(
+      Match.tag("author",   ({ sourceRef, hypothesis }) => authorTest(sourceRef, hypothesis)),
+      Match.tag("evaluate", ({ version })               => evaluateTestbed(version)),
+      Match.tag("verify",   ({ hypothesis })            => verifyHypothesis(hypothesis)),
+      Match.tag("absorb",   ({ input })                 => absorbOperatorInput(input)),
+      Match.tag("approve",  ({ approval })              => applyApprovedProposal(approval)),
+      Match.tag("maintain", ()                          => Effect.succeed({ daemonAlive: true })),
+      Match.exhaustive,
+    );
+
+    // ─── Close the session receipt; this appends a closeout record ─
+    yield* SessionReceipt.close(session, result);
+
+    return result;
+  }).pipe(
+    // ─── Provide every port, once, here at the composition root ───
+    Effect.provide(AppLayer),
+    // ─── Session scope — fiber tree cleaned up on exit ──────────
+    Effect.scoped,
+    // ─── Any unhandled error surfaces to the log with full cause ──
+    Effect.tapErrorCause((cause) =>
+      Effect.logError("v2 session failed", { cause: Cause.pretty(cause) })
+    ),
+    // ─── Top-level span wraps the whole run ──────────────────────
+    Effect.withSpan("v2.main", { attributes: { kind: request.kind } }),
+  );
+
+// ─── Hand the composed program to the Node runtime ──────────────
+NodeRuntime.runMain(main(parseCli(process.argv)));
+```
+
+Four properties make `main` more than a dispatcher:
+
+1. **Every port is provided exactly once, at the top.** `Effect.provide(AppLayer)` wraps the whole generator. Nothing inside `main` (or inside any saga `main` dispatches to) can accidentally provide a different Layer; the composition root is the only authority.
+
+2. **Session scoping is explicit.** `Effect.scoped` binds the lifetime of every resource (including `PlaywrightPage`, the maintenance fiber, every open log file descriptor) to the session. When `main` returns — whether by success, typed error, or unrecoverable defect — every child fiber is interrupted and every resource is released. No leaked browsers, no orphaned daemons, no half-written logs.
+
+3. **The dispatch is exhaustive.** `Match.exhaustive` forces every `RuntimeRequest` kind to have a case. Adding a seventh invocation mode (say, `benchmark`) without adding its dispatch case is a compile error. The CLI surface and the saga surface stay in sync by type-system law.
+
+4. **Errors surface with full cause trace.** `tapErrorCause` with `Cause.pretty` ensures every unhandled defect includes the full fiber history — where the error originated, what span it was under, what parent fiber invoked it. Production debugging has a trail regardless of where the failure happened.
+
+One last property, subtle but load-bearing: `NodeRuntime.runMain` is the *only* place in v2 that runs an Effect. Every saga, every handshake, every utility returns an `Effect<A, E, R>` value that does nothing until the runtime evaluates it. This means every non-entry-point code path is inspectable, composable, and substitutable without side effects occurring. The production code and the test code both produce Effect values; the difference is which runtime reads them. v2's side-effect surface area is exactly one function call wide.
+
+### 11.3 Invocation modes — what the CLI accepts
+
+Six CLI verbs, each parsing into one `RuntimeRequest`, each dispatching to one saga (or, in the `maintain` case, sitting alive to host the daemon). The whole CLI is declared once in `lib-v2/cli/parse.ts`; the parser is a pure function over `process.argv`; every combination that passes the parser has a corresponding saga and cannot slip through.
+
+```ts
+// The CLI surface — six verbs, one parser, one RuntimeRequest output
+export const parseCli = (argv: string[]): RuntimeRequest =>
+  Command.parse(argv, {
+    author: Command.make({
+      source: Options.text("source").pipe(Options.withDescription("ado:<id> | testbed:v<N>:<id>")),
+      hypothesis: Options.fileJson("hypothesis", HypothesisSchema).pipe(Options.optional),
+    }, ({ source, hypothesis }) => ({
+      kind: "author" as const,
+      sourceRef: SourceRef.parse(source),
+      hypothesis: Option.getOrUndefined(hypothesis),
+    })),
+
+    evaluate: Command.make({
+      version: Options.text("testbed").pipe(Options.withDefault("current")),
+    }, ({ version }) => ({
+      kind: "evaluate" as const,
+      version: TestbedVersion.parse(version),
+    })),
+
+    verify: Command.make({
+      hypothesis: Options.fileJson("hypothesis", HypothesisSchema),
+    }, ({ hypothesis }) => ({
+      kind: "verify" as const,
+      hypothesis,
+    })),
+
+    absorb: Command.make({
+      input: Options.fileJson("input", OperatorInputSchema),
+    }, ({ input }) => ({
+      kind: "absorb" as const,
+      input,
+    })),
+
+    approve: Command.make({
+      approval: Options.fileJson("approval", ApprovedProposalSchema),
+    }, ({ approval }) => ({
+      kind: "approve" as const,
+      approval,
+    })),
+
+    maintain: Command.make({}, () => ({ kind: "maintain" as const })),
+  });
+```
+
+Six verbs, mapped to real commands:
+
+| CLI | What it does | Saga | Typical cadence |
+|---|---|---|---|
+| `v2 author --source=ado:12345` | Author one test from one ADO work item against the real customer | `authorTest` | on demand (per QA backlog item) |
+| `v2 author --source=ado:12345 --hypothesis=hyp-17.json` | Same but carrying a pre-declared hypothesis to verify | `authorTest` + `verifyHypothesis` | when the agent is testing a proposed change |
+| `v2 evaluate --testbed=v3` | Run the full testbed at version v3; produce metrics | `evaluateTestbed` | nightly; before cut-over; after any code change |
+| `v2 verify --hypothesis=hyp-17.json` | Run evaluation at the hypothesis' version; append receipt | `verifyHypothesis` | after a hypothesis-carrying change lands in code |
+| `v2 absorb --input=dialog-0142.json` | Extract candidates from an operator dialog or document | `absorbOperatorInput` | when the operator provides input |
+| `v2 approve --approval=prop-89.json` | Apply an operator's approved proposal (revision / candidate / hypothesis) | `applyApprovedProposal` | after operator review closes a proposal |
+| `v2 maintain` | Run the maintenance daemon (age + corroborate + refine) | `maintenanceCycle` (forked daemon) | scheduled hourly via cron or systemd |
+
+Two observations about this surface:
+
+**The CLI is the manifest for humans.** The verb set is narrow — six — because everything v2 does falls into one of the nine sagas, and most sagas are reached through one of these verbs. A new verb means either a new saga or a new dispatch composition; both require deliberate addition, not incidental growth.
+
+**Every CLI verb is a pure dispatch.** The CLI parses; `main` dispatches; sagas compose. There is no CLI-side orchestration logic — no "if flag A then run saga X first then Y." If a workflow needs both authoring and evaluation, it's two invocations, not one verb with branches. Complexity in the CLI means the saga gallery is missing something, and the fix is a new saga, not a CLI flag.
+
+**Why MCP is not its own verb.** When v2 runs with `REASONING_PROVIDER=mcp`, the MCP server aspect of the adapter exposes v2's verbs as MCP tools the LLM can call. An LLM driving v2 via MCP sees the same six verbs the CLI user sees — the MCP adapter simply routes the tool call through `main`. No parallel code path; no second dispatcher. The MCP-exposed surface and the human-exposed surface are the same surface.
+
+### 11.4 The fiber tree — session scope, daemons, shutdown
+
+Every v2 invocation is one top-level fiber. That fiber spawns children; those children spawn children. The tree is a structured hierarchy Effect maintains for free — nothing in v2's code explicitly manages concurrency; the runtime manages it from the shape of `Effect.gen`, `Effect.all`, and `Effect.forkDaemon` calls.
+
+```
+v2.main (top-level fiber)
+├── onboardSession
+│   └── FluencyHarness.run
+│       └── canonical task fixtures × N  (Effect.all parallel)
+├── maintenanceCycle  (forkDaemon — daemon child, scoped)
+│   ├── ConfidenceAge.run                 (scheduled hourly)
+│   ├── Corroborate.fromRun × N           (Effect.all unbounded)
+│   └── proposeRefinements
+│       └── Reasoning.synthesizeRevision
+└── <dispatched saga>  (authorTest | evaluateTestbed | …)
+    ├── IntentFetch.fetch
+    │   └── AdoSource.live (or TestbedAdapter.live)
+    ├── For each step:
+    │   ├── FacetQuery.resolve
+    │   └── growMemoryForStep (if memory misses)
+    │       ├── LocatorLadder.resolve
+    │       ├── AriaSnapshot.capture        ┐
+    │       ├── StateProbes.readAll         │ Effect.all
+    │       └── FacetMint.create            ┘
+    ├── Reasoning.phraseStep × steps  (Effect.all, concurrency: 4)
+    ├── TestCompose.emit
+    ├── TestExecute.run
+    │   └── Playwright runner (subprocess, managed resource)
+    ├── Corroborate.append × facets   (Effect.all unbounded)
+    │     or DriftEmit.classify → respondToDrift
+    │         └── Reasoning.classifyDrift (if rules ambiguous)
+    └── ReceiptLog.append (if hypothesis carried)
+```
+
+Four disciplines govern the tree:
+
+**1. Session scope is the root.** `Effect.scoped` in `main` creates a `Scope` that every child inherits. When `main` returns — normally, by failure, by interruption — the scope is closed; every `Resource` and every `Fiber` registered under it is released in reverse-acquisition order. The PlaywrightPage is closed, file descriptors are released, the maintenance daemon is interrupted, log flushes complete. No code in v2 writes explicit cleanup; the scope does it.
+
+**2. Daemons vs. scoped fibers.** `maintenanceCycle` uses `Effect.forkDaemon` — it's a daemon child of the session. Daemons are collected at scope close just like scoped fibers, but they don't block the session's completion: the session's return value is ready as soon as the dispatched saga returns, and the daemon is gracefully interrupted on scope exit. Scoped fibers (like the per-step parallel branches inside `Effect.all`) block on completion by default; daemons don't. The distinction is declared at the `fork` call, visible in the code, and compile-checkable via Effect's fiber types.
+
+**3. Resource acquisition and release.** `PlaywrightPage.live` is built on `Effect.acquireRelease`: the acquire phase launches a browser and a page; the release phase closes them. The page is available to any effect that requires `PlaywrightPage.Tag`. Every saga that touches the world gets the same page (scoped to the session); the session's exit releases it. Equivalent patterns apply to long-lived file handles, HTTP connection pools, and the MCP transport if `REASONING_PROVIDER=mcp` is in use. Resources are *composed into the AppLayer*, not acquired ad hoc inside sagas.
+
+**4. Interruption is structured.** If the user hits Ctrl-C, if a process signal arrives, if an unhandled defect occurs at the top level, every fiber in the tree receives a structured interruption signal and unwinds through its scope. Effect's interruption model means an interrupted fiber can still run cleanup (via `Effect.addFinalizer`) before it dies; log flushes complete, browser sessions close cleanly, atomic temp-renames either finish or are aborted with the temp file left to be garbage-collected by the next session.
+
+Two concrete consequences of this structure worth calling out:
+
+**No zombie browsers.** v1 historically leaked Playwright browsers when a test run crashed mid-evaluation. v2 cannot — the browser is a scoped resource; its release is a finalizer bound to the scope; the scope exits whether the run succeeded, failed, or was interrupted. Verification is a single test: send SIGTERM during an evaluate run; check `ps` for orphaned Chromium processes; assert zero.
+
+**No interleaved log writes.** Atomic temp-rename on every append means a killed session either completes its write or leaves an abandoned temp file. Appends from parallel fibers serialize at the OS-level rename; Effect's `Ref`-based in-memory summaries reconcile on next session start. The append-only logs remain consistent regardless of how ungracefully a session exits.
+
+### 11.5 Observability — every saga is its own span
+
+Every saga in §10.5 closes its `pipe` with `Effect.withSpan("saga-name", { attributes })`. This isn't decoration; it's the substrate for v2's observability. The `TracerLive` Layer in `AppLayer` collects spans into an OpenTelemetry-compatible exporter; the trace tree mirrors the fiber tree exactly. When the team or the agent debugs a session, they read the trace and see the saga gallery executed in real time.
+
+```ts
+// Already shown in many saga code blocks above; the pattern recurs:
+const someSaga = (input: SomeInput) =>
+  Effect.gen(function* () {
+    /* … saga body … */
+  }).pipe(
+    Effect.catchTag(/* … */),
+    Effect.withSpan("someSaga", {
+      attributes: {
+        relevant: input.field,
+        kind:     input.kind,
+      },
+    }),
+  );
+```
+
+Three properties that fall out of consistent span discipline:
+
+**1. The trace is the saga gallery executed.** Open the trace viewer; the top-level span is `v2.main` with `kind: <invocation>`. Its children are `onboardSession`, the dispatched saga, and `maintenanceCycle` (daemon). Each saga's children are its `yield*` operations as nested spans. A reader following the trace literally walks the highway map in time-order.
+
+**2. Reasoning calls are spans too.** Each `Reasoning.*` operation produces its own span (declared inside the adapter's implementation). The trace shows which reasoning call took how long, against which provider, with what input shape. When `metric-authoring-time-p50` regresses, the trace tells the team whether the regression came from Reasoning latency, World latency, or Memory contention — without instrumenting anything further.
+
+**3. Errors carry their span chain.** When `Effect.tapErrorCause` logs a failure in `main`, the cause includes the span path that led to it. A `LocatorLadderExhaustedError` thrown deep in `growMemoryForStep` is logged with the span chain `v2.main → authorTest → growMemoryForStep → LocatorLadder.resolve`. Production debugging starts with the trace; the trace points at the line; the line points at the error. The operator and the agent both consult the same observability surface.
+
+Two complementary surfaces over the same span data:
+
+- **Real-time:** the OpenTelemetry exporter ships spans live to a collector (Tempo, Jaeger, Honeycomb — choice is configuration, not code). During customer authoring, an operator can watch sessions complete in seconds.
+- **Persistent:** every span's attributes plus its parent reference are also written to the run-record log. `metric-authoring-time-p50` is a fold over those run-record entries (specifically, the duration attribute on the `authorTest` spans). Metrics and traces share one source of truth; what the dashboard shows in real time is exactly what the metric verb computes after the fact.
+
+The spans have one more job: they are the receipt of *what happened* that the agent reads when proposing the next change. The agent doesn't need a separate "what happened" log; the spans already describe every yield* that ran, every failure that was caught, every duration that was measured. The agent's "read the receipt log" step in §10.4 is, mechanically, "read the spans plus the verification receipts." The observability surface and the agent's epistemic surface are the same surface.
+
+### 11.6 The shape of an actual run — one CLI invocation traced
+
+Concretely: a developer runs `v2 author --source=ado:12345 --hypothesis=hyp-17.json` from the command line. Walk through what happens, end to end.
+
+**`t = 0ms` — process spawn.** Node starts. Imports resolve. `parseCli(process.argv)` returns `{ kind: "author", sourceRef: { source: "ado", id: "12345" }, hypothesis: <hyp-17 contents> }`. `NodeRuntime.runMain(main(request))` is the last line in the entry-point file; it begins evaluating the Effect.
+
+**`t = 1ms` — `v2.main` span opens.** The top-level span starts with `kind: "author"` attribute. `Effect.provide(AppLayer)` evaluates: every Layer's `acquire` runs in dependency order. The `REASONING_PROVIDER=anthropic` environment variable resolves; `AnthropicReasoning.live` is selected; an HTTP client is initialized. `PlaywrightPage.live` launches a Chromium subprocess. `FacetStore.yamlLive` reads existing per-screen YAML files into the in-memory index. `ManifestRegistry` parses `manifest.json` from disk.
+
+**`t = ~800ms` — `onboardSession` runs.** `fs.readFileSync("manifest.json")`; `Schema.decode(VerbManifestSchema)` validates the shape; `VerbTable.fromManifest` produces the typed verb table. `FluencyHarness.run` fires N canonical-task fixtures in parallel via `Effect.all`; each one asserts the agent dispatches the right verb on a known input. All pass. `SessionReceipt.open` appends a session-start record. The `onboardSession` span closes; the session reference is bound for downstream use.
+
+**`t = ~810ms` — `maintenanceCycle` forks as daemon.** `Effect.forkDaemon` registers the maintenance fiber as a child of the session scope. It schedules its first iteration for one hour out and returns immediately. The daemon is alive but idle.
+
+**`t = ~810ms` — dispatch.** `Match.value(request).pipe(Match.tag("author", …))` resolves; `authorTest(sourceRef, hypothesis)` becomes the next effect. The `authorTest` span opens with `sourceRef: "ado:12345"` attribute.
+
+**`t = ~810ms` — Intent highway.** `IntentFetch.fetch({ source: "ado", id: "12345" })` yields. Inside, `AdoSource.live` makes the HTTP call to `https://dev.azure.com/.../wit/workitems/12345`. The work item returns 280ms later. `IntentParse.apply` runs the XML regex; the parsed-intent structure emerges with three steps.
+
+**`t = ~1100ms` — Memory highway, per step.** For each of the three steps in parallel (concurrency 1 since steps are sequential within a work item, but each step's substeps parallelize), `FacetQuery.resolve` runs against the in-memory index. Step 1 finds a high-confidence facet. Step 2 finds a medium-confidence facet. Step 3 finds nothing — `growMemoryForStep` fires.
+
+**`t = ~1200ms` — World highway, for step 3 only.** `LocatorLadder.resolve` walks role → label → placeholder → text → test-id → css; matches at rung 0 (role-name). `AriaSnapshot.capture` and `StateProbes.readAll` run in parallel via `Effect.all`. `FacetMint.create` writes a new facet to YAML with provenance threaded inline; `LocatorHealthTrack.initialize` initializes per-strategy health.
+
+**`t = ~1500ms` — Reasoning highway, step phrasing.** `Reasoning.phraseStep` runs once per step in parallel (concurrency: 4). Each call produces a QA-legible step title from the intent text and the resolved facet. The Anthropic API returns three titles in ~600ms total (parallel); the trace shows three nested `Reasoning.phraseStep` spans, each ~600ms wide.
+
+**`t = ~2100ms` — Truth highway, compose and execute.** `TestCompose.emit` produces the Playwright test file (AST-backed via ts-morph) referencing the three facets via the generated screen facade. `TestExecute.run` invokes the Playwright runner as a subprocess; the test runs against the customer's staging OutSystems instance. Three step assertions; all pass; `runRecord` returns with `pass: true`.
+
+**`t = ~14000ms` — back on the Memory highway.** All three referenced facets receive positive evidence via `Corroborate.append` in parallel.
+
+**`t = ~14100ms` — back on the Truth highway, hypothesis verification.** Because the run carried `hypothesis = hyp-17`, the saga computes the actual delta: `MetricCompute.delta(hyp-17.metric, { from: priorSummary, to: thisRun })` derives the change in metric-test-acceptance-rate. The hypothesis predicted `+0.05`; actual is `+0.08`. `confirmed: true`. `ReceiptLog.append` records the verification receipt with the predicted/actual pair.
+
+**`t = ~14150ms` — `authorTest` span closes.** Returns the run record up the call chain.
+
+**`t = ~14150ms` — `SessionReceipt.close` runs.** The session-end record is appended with the result reference. The `v2.main` span closes.
+
+**`t = ~14160ms` — `Effect.scoped` releases.** The maintenance daemon fiber is interrupted (it was idle, no in-flight work). The PlaywrightPage scope releases — Chromium subprocess closes. The Reasoning HTTP client closes its keep-alive connection. The FacetStore in-memory index is dropped. All file handles flush and close.
+
+**`t = ~14200ms` — process exits cleanly.** Exit code 0. The CLI prints the run record's URL to stdout.
+
+The end-to-end shape: 14.2 seconds to author, execute, corroborate, and verify-hypothesis one work item — and every span of those 14.2 seconds is in the trace, every facet write is durable, every receipt is append-only, every Layer was provided exactly once. Nothing leaks. Nothing forgets.
+
+A reader watching the trace in real time sees v2's behavior as a literal walk through the highway map: Verb (manifest read in onboard) → Intent (ADO fetch + parse) → Memory (query, mint for the missed step) → World (resolve, observe, interact) → Reasoning (phrase steps) → Truth (compose, execute, run record) → Memory again (corroborate) → Truth again (hypothesis verification, receipt). Six highways crossed in 14 seconds. One sustained execution of the trust-but-verify loop.
+
+### 11.7 The closing stanza
+
+Eleven sections. Begun with §1's one-page shape; closing here with the runtime that makes everything in those sections actually run.
+
+The destination, restated for the last time: **v2 is a small agent-facing surface** — a vocabulary manifest, a facet catalog, QA-accepted tests — backed by a measurement substrate that lets the agent improve v2 with the team's review. **The architecture that holds it** is a cathedral of interlocking patterns: DDD bounded contexts, hexagonal ports, clean-architecture dependency direction, FP purity in the domain, Effect for composition, phantom types for compile-time invariants, append-only logs for time, GoF visitor for exhaustive analysis. **The map that lets you move through it** is six highways meeting at five interchanges; every parallel work stream from §3 is a town on a highway; every saga is a braided Effect program walking through specific towns; every saga is reachable from one of six CLI verbs through one `main` providing one `AppLayer`.
+
+**The sequence that gets there** is ten phases, four inflection points, five forcing functions, one cut-over commit fired on a sustained three-metric floor. The plan is not a wish list. It is a route, with explicit gates and explicit reversals.
+
+**The discipline that holds across all of it** is trust, but verify. Every code change carries a hypothesis; every hypothesis verifies against the next evaluation; every receipt appends. Small bets, reviewed, measured, receipted. The batting average is itself a derivation the agent reads. v2 is the system; the system measures itself; the measurement is the system measuring itself with its own primitives.
+
+When `NodeRuntime.runMain(main(parseCli(process.argv)))` runs, all of this — the cathedral, the highways, the towns, the sagas, the runtime composition, the trust-but-verify loop, the agent's inner voice as a port choosing among five providers — is one Effect value being evaluated. One value. One process. One session at a time.
+
+The plan is the route. The architecture is what you build along it. The runtime is what makes the architecture run. The destination is where the customer's QA team accepts the tests. **Execute.**
+
