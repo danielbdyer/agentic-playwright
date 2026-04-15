@@ -12,9 +12,26 @@ A final section — **v1-specific subsystems** — enumerates major subsystems v
 
 Findings synthesized from eight parallel agent audits completed 2026-04-15.
 
+## Verdicts
+
+Every block carries a one-word verdict that classifies the relationship between v1's implementation and v2's description. The verdict is neutral — it does not rank one as better than the other.
+
+- **Aligned** — the capability is present in both in substantively the same form. v1's implementation and v2's description agree on both shape and substance.
+- **Shape-different** — the capability is present in both, but the envelope, distribution, or expression differs. No capability gap; the reader can treat the two as equivalent for decision-making about v2 design.
+- **Partial in v1** — v1 implements some of what v2 describes. The missing bits are enumerated in the block's Delta.
+- **Absent in v1** — v2 describes a capability; v1 has no analogous implementation. The Delta lists what would need to exist.
+- **v1-only** — v1 has a capability v2's ontology does not describe. This is not necessarily a gap; one of three sub-tags clarifies intent:
+  - *(migration scaffolding)* — exists to get from v1's current state to v2's end state; retires once the transition completes.
+  - *(operational scaffolding)* — dogfood, CLI, or measurement machinery that serves v1's development workflow; orthogonal to v2's product surface.
+  - *(innovation)* — a finer-grained distinction or mechanism v2 could inherit under shipping pressure. Worth weighing when v2 design decisions come up.
+
+The Summary at the end gives verdict counts and a verdict-indexed directory back into the blocks.
+
 ## §8 Agent engagement
 
 ### §8.1 The ROI curve
+
+**Verdict:** Shape-different.
 
 **v2:** Three-stage cost shape (α/β/γ); early authoring is expensive; deterministic wins emerge as memory accrues; Stage β arrives through pattern emergence from Stage α receipts.
 
@@ -27,6 +44,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 
 ### §8.2 The authoring session as process
 
+**Verdict:** Partial in v1.
+
 **v2:** Eight bounded phases — fluency intake, intent acquisition, memory consultation, world exploration, authoring, execution + evidence, memory write, closeout receipt.
 
 **v1:** `AgentSession` (`lib/domain/handshake/session.ts`) tracks participants, interventions, and event types (`orientation`, `artifact-inspection`, `discovery-request`, `observation-recorded`, `spec-fragment-proposed`, `proposal-approved`, `proposal-rejected`, `rerun-requested`, `execution-reviewed`). Event taxonomy exists without phase-order enforcement.
@@ -38,6 +57,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 
 ### §8.3 The agent's decision surface
 
+**Verdict:** Partial in v1.
+
 **v2:** Five decision classes (interpretive, navigational, affordance, compositional, governance). Every decision writes a receipt with choices presented, pick, and reversal policy.
 
 **v1:** `InterventionHandoff` (`lib/domain/handshake/intervention.ts`) captures `unresolvedIntent`, `attemptedStrategies`, `evidenceSlice`, a `blockageType` taxonomy (`target-ambiguity`, `locator-degradation`, `route-uncertainty`, `policy-block`, `recovery-gap`, `execution-review`, `knowledge-gap`, `self-improvement`), `requiredCapabilities`, `requiredAuthorities`, `blastRadius`, `epistemicStatus`, `semanticCore`, `nextMoves`, `competingCandidates`.
@@ -48,6 +69,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 - No explicit reversal-policy field at the decision level.
 
 ### §8.4 The implementation surface
+
+**Verdict:** Partial in v1.
 
 **v2:** Four artifacts — vocabulary manifest, decision handoffs, receipt logs, candidate queues / proposal logs.
 
@@ -63,6 +86,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 - Receipts and proposals are implicit rather than explicit append-only JSONL.
 
 ### §8.5 Ten invariants
+
+**Verdict:** Partial in v1 — 4 Aligned, 3 Partial, 3 Absent. Per-invariant breakdown below.
 
 **v1 status per invariant:**
 
@@ -83,6 +108,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 
 ### §8.6 Reversibility classes
 
+**Verdict:** Shape-different.
+
 **v2:** Self-reversing, proposal-gated, review-gated, hard-gated (no deletion verb).
 
 **v1:** `InterventionBlastRadius` enum (`local | review-bound | global | irreversible`) maps loosely: `local`≈self-reversing, `review-bound`≈proposal/review-gated, `irreversible`≈hard-gated with operator review.
@@ -92,6 +119,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 - v1 has no explicit "no deletion verb" prohibition; `irreversible` is allowed under operator review rather than disallowed.
 
 ### §8.7 How engagement becomes determinism
+
+**Verdict:** Absent in v1.
 
 **v2:** Receipt accumulation → pattern accrual → Stage β deterministic resolution → drift pathway enriches future handoffs with prior receipts.
 
@@ -103,6 +132,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 
 ### §9.1 Intent fetch
 
+**Verdict:** Aligned.
+
 **v2:** ADO REST v7.1 + PAT; WIQL query + workitems fetch; load-bearing field extraction; revision carried for drift reconciliation.
 
 **v1:** `lib/infrastructure/ado/live-ado-source.ts` implements the exact REST path and field extraction. Transient error classification (`AdoTransientError`) distinguishes retry-worthy failures from auth / 404. Revision is carried in the snapshot.
@@ -111,6 +142,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 
 ### §9.2 Intent parse
 
+**Verdict:** Aligned.
+
 **v2:** XML regex extraction over `Microsoft.VSTS.TCM.Steps`; entity decode; per-step provenance; `intent-only` confidence at start; semantic ambiguity acknowledged at Stage α.
 
 **v1:** `lib/infrastructure/ado/live-ado-source.ts` functions `extractStepBodies`, `parseSteps`, `extractParameterizedStrings`, `decodeXmlText`, `parseParameters`, `parseDataRows` implement the exact regex path. Snapshot shape `{ index, action, expected }` per step with lineage to ADO ID + revision.
@@ -118,6 +151,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 **Delta:** Essentially present. Confidence marker is managed in a separate layer (`lib/domain/intent/types.ts`) rather than on the parse output envelope.
 
 ### §9.3 Navigate
+
+**Verdict:** Partial in v1.
 
 **v2:** `page.goto(url, { waitUntil, timeout })`; idempotence check via `page.url()`; discrete return envelope `{ reachedUrl, status, timingMs }`.
 
@@ -128,6 +163,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 - Missing: discrete `{ reachedUrl, status, timingMs }` envelope; outcome is embedded in the execution result rather than returned as its own envelope.
 
 ### §9.4 Observe
+
+**Verdict:** Partial in v1.
 
 **v2:** Accessibility snapshot (`interestingOnly: false`); locator ladder in priority order (role → label → placeholder → text → test-id → css); state probes; observation timestamp + ID.
 
@@ -140,6 +177,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 
 ### §9.5 Interact
 
+**Verdict:** Partial in v1.
+
 **v2:** Role-keyed primitive actions (`click`, `fill`, `selectOption`, `check`, `press`, `hover`); pre-action state validation; four named failure families (`not-visible`, `not-enabled`, `timeout`, `assertion-like`).
 
 **v1:** `ROLE_AFFORDANCES` table (`lib/domain/widgets/role-affordances.ts`) maps ARIA roles to Playwright methods. `interact()` in `lib/runtime/widgets/interact.ts` validates visible / enabled / editable before action.
@@ -149,6 +188,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 - Missing: explicit four-family error classification; in particular, no `assertion-like` family on the action handshake envelope.
 
 ### §9.6 Test compose
+
+**Verdict:** Shape-different.
 
 **v2:** AST-backed emission via `@playwright/test`; generated screen facade per screen; no inline selectors or data in test body; durable edits land in intent or memory.
 
@@ -160,6 +201,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 
 ### §9.7 Test execute
 
+**Verdict:** Partial in v1.
+
 **v2:** Playwright CLI / programmatic API; per-run record at L0; L2+ tactical batch summary with classifications and closed-set `nextSteps` verbs.
 
 **v1:** `lib/composition/scenario-context.ts` drives execution; `lib/application/commitment/build-run-record.ts` constructs `RunRecord` with step-level evidence and timestamps. `StepExecutionReceipt` (interpretation + execution) per step.
@@ -169,6 +212,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 - Missing at L2+: tactical batch summary and closed-set `nextSteps` verb list. (Deferred in v2 to L2+; not an L0 gap.)
 
 ### §9.8 Verb declare / Manifest introspect / Fluency check
+
+**Verdict:** Absent in v1.
 
 **v2:** Build-generated JSON manifest listing stable verb signatures; session-start read; fluency tests run at product-test severity.
 
@@ -180,6 +225,8 @@ Findings synthesized from eight parallel agent audits completed 2026-04-15.
 **Delta:** All three surfaces are absent. CLAUDE.md names the concept; code does not implement it. This is the single most material agent-facing gap in the audit.
 
 ### §9.9 Facet mint
+
+**Verdict:** Shape-different.
 
 **v2:** Per-screen YAML + in-memory index; provenance minted atomically (`mintedAt`, `instrument`, `agentSessionId`, `runId`); immutable for the life of the facet; append-only at L1.
 
@@ -197,6 +244,8 @@ The `acquired` block (`CanonicalKnowledgeMetadata` in `lib/domain/knowledge/type
 
 ### §9.10 Facet query
 
+**Verdict:** Shape-different.
+
 **v2:** In-memory index queried by parsed intent phrase (kind / role / screen / roleVisibility); matches ranked by confidence, health as tiebreaker; parsed-constraint representation logged for debugging.
 
 **v1:** Resolution runs through the six-slot lookup chain (`lib/domain/pipeline/lookup-chain.ts`; doctrine in `docs/canon-and-derivation.md` §6): `operator-override` → `agentic-override` → `deterministic-observation` → `reference-canon` → `live-derivation` → `cold-derivation`. Address-based, not intent-phrase-based; no intra-result ranking within a single slot.
@@ -207,6 +256,8 @@ The `acquired` block (`CanonicalKnowledgeMetadata` in `lib/domain/knowledge/type
 - v1 has no parsed-constraint logging at query time.
 
 ### §9.11 Facet enrich
+
+**Verdict:** Shape-different.
 
 **v2:** Append-only evidence log per facet (`<facetId>.evidence.jsonl`); confidence derived from log on read; cached summary invalidated on new evidence.
 
@@ -219,6 +270,8 @@ The `acquired` block (`CanonicalKnowledgeMetadata` in `lib/domain/knowledge/type
 
 ### §9.12 Locator health track
 
+**Verdict:** Shape-different.
+
 **v2:** Per-strategy health co-located on the facet (`locatorStrategies: [{ kind, value, health: { successCount, failureCount, lastSuccessAt, lastFailureAt } }]`).
 
 **v1:** Health is a separate index — `SelectorHealthIndex` (`lib/application/drift/selector-health.ts`) computed from `StepExecutionReceipt` observations. Carries `successRate`, `flakiness`, `trend` (improving / stable / degrading). Keyed by strings like `"test-id:rung0"` rather than by `{ kind, value }` tuple on the facet.
@@ -229,6 +282,8 @@ The `acquired` block (`CanonicalKnowledgeMetadata` in `lib/domain/knowledge/type
 - v1 is regeneratable from execution records; v2 requires health as a primary artifact because ladder-position metadata is not preserved in run records.
 
 ### §9.13 Drift emit
+
+**Verdict:** Shape-different.
 
 **v2:** Drift emitted as an observational event — `{ runId, facetId, strategyKind, mismatchKind, evidence, observedAt }` — appended to `drift-events.jsonl`; emitter classifies at emit time (`ambiguous` fallback when unclear).
 
@@ -241,6 +296,8 @@ The `acquired` block (`CanonicalKnowledgeMetadata` in `lib/domain/knowledge/type
 
 ### §9.14 Dialog capture, Document ingest, Candidate review
 
+**Verdict:** Absent in v1.
+
 **v2:** LLM-assisted extraction of domain-informative turns from chat transcripts; parser-backed extraction from operator-shared documents with region anchors; candidate review queue with approve / edit / reject and preserved rejection rationale.
 
 **v1:** `InterventionReceipt` (`lib/domain/handshake/intervention.ts`) is a broad catch-all covering orientation, artifact-inspection, discovery-request, observation-recorded, spec-fragment-proposed, proposal-approved / rejected, rerun-requested, execution-reviewed, operator-action, self-improvement-action. MCP server (`lib/infrastructure/mcp/dashboard-mcp-server.ts`) exposes `writeHint` / `writeLocatorAlias` tools but no dialog-capture or document-ingest pipeline.
@@ -252,6 +309,8 @@ The `acquired` block (`CanonicalKnowledgeMetadata` in `lib/domain/knowledge/type
 
 ### §9.15 Confidence age, Corroborate, Revision propose
 
+**Verdict:** Absent in v1.
+
 **v2:** Maintenance pass for decay over uncorroborated evidence logs; post-execution hook writes positive evidence to referenced facets; revision proposal aggregates drift + decay + corroboration into a reviewable JSONL.
 
 **v1:** `lib/application/improvement/fitness.ts` computes pipeline fitness (hit rate, precision, recovery success). `lib/application/learning/learning-health.ts` computes bottleneck rankings. `lib/application/improvement/improvement.ts` builds `ImprovementRun` with objective vectors. No confidence-decay pass, no corroboration hook, no revision-proposal aggregation.
@@ -259,6 +318,8 @@ The `acquired` block (`CanonicalKnowledgeMetadata` in `lib/domain/knowledge/type
 **Delta:** All three L4 processes absent. The fitness / improvement loop and the memory / corroboration loop are not integrated in v1 as v2 describes.
 
 ### §9.16 Facet schema sketch
+
+**Verdict:** Shape-different.
 
 **v2:** Unified facet record (`id`, `kind`, `displayName`, `aliases`, `role`, `scope`, `locatorStrategies + health`, `confidence`, `provenance`, `evidence-log reference`) with kind-specific extensions for element, state, vocabulary, route.
 
@@ -272,6 +333,8 @@ The `acquired` block (`CanonicalKnowledgeMetadata` in `lib/domain/knowledge/type
 
 ### §9.17 Affordance extension authoring
 
+**Verdict:** Absent in v1.
+
 **v2:** Agent proposes a composite affordance (`name`, `surfaceShape`, `observeSignature`, `actionChoreography`, `effectState`); lands in a proposal queue; operator approves; pattern becomes a reusable codified verb.
 
 **v1:** `InteractionCapability` enum (`lib/domain/knowledge/affordance.ts`: `clickable | typeable | selectable | toggleable | scrollable | draggable | focusable | expandable | dismissable`) and `ElementAffordance` record (selector, role, tagName, capabilities, constraints). No extension-authoring flow. Affordances are hardcoded or inferred from the DOM; not proposable through the governance layer.
@@ -279,6 +342,8 @@ The `acquired` block (`CanonicalKnowledgeMetadata` in `lib/domain/knowledge/type
 **Delta:** v1 has affordance *taxonomy* but not affordance *extension authoring*. The machinery to codify novel composite patterns (multi-select with chips, autocomplete with async suggestions) does not exist.
 
 ### §9.18 Selector and test-data indirection
+
+**Verdict:** Aligned.
 
 **v2:** Facet catalog is the sole selector source; fixture registry is the sole test-data source; generated facade per screen; one catalog update fixes N tests without touching test source.
 
@@ -288,6 +353,8 @@ The `acquired` block (`CanonicalKnowledgeMetadata` in `lib/domain/knowledge/type
 
 ### §9.19 Parametric expansion and fixture composition
 
+**Verdict:** Aligned.
+
 **v2:** Work-item data-source rows expand into parametric iterations; named fixture registry with declared lifecycle scope (per-test, per-file, per-worker); dynamic resolution at invocation.
 
 **v1:** Work-item data rows parsed in `lib/domain/intent/types.ts` and fed into spec composition. Tests emitted with `test(name, async ({ page, ...fixtures }) => { ... })` receiving `data` bindings. Per-row provenance preserved. Fixtures declared as `readonly string[]` names, resolved at test invocation.
@@ -295,6 +362,8 @@ The `acquired` block (`CanonicalKnowledgeMetadata` in `lib/domain/knowledge/type
 **Delta:** Essentially present. Per-iteration skip / focus policies and cross-fixture dependency resolution are deferred in both v1 and v2.
 
 ### §9.20 Scale behavior at thousands of tests
+
+**Verdict:** Partial in v1.
 
 **v2:** Token-conservative batch summary by default; `nextSteps` as closed-set verbs from manifest; paginated + filtered queries; rerun and flakiness classification with `flake-rate` annotations; runtime partitioning by shard, date, batch.
 
@@ -320,6 +389,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Six-slot lookup chain
 
+**Verdict:** v1-only *(migration scaffolding)*.
+
 **Module references:** `lib/domain/pipeline/lookup-chain.ts` (interface + mode predicates); `docs/canon-and-derivation.md` §6 (doctrine); `LookupMode = 'warm' | 'cold' | 'compare' | 'no-overrides'`.
 
 **What it does:** Six-slot precedence resolver — for a request "give me phase output X" — that walks slots 1→6 and returns the resolved artifact along with which slot satisfied the request: (1) operator-override, (2) agentic-override, (3) deterministic-observation, (4) reference-canon (transitional), (5) live-derivation, (6) cold-derivation. Slots 1–3 are canonical ground truth; slot 4 is pre-gate fallback; slots 5–6 are promotion candidates. Mode flags skip different slot ranges to test discovery-engine fidelity or measure migration debt.
@@ -330,6 +401,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Reference-canon transitional slot and demotion clock
 
+**Verdict:** v1-only *(migration scaffolding)*.
+
 **Module references:** `docs/canon-and-derivation.md` §3.2a (reference-canon definition + exit paths), §6.4 (why slot 4 outranks derived output), §11 (classification of current `dogfood/` content), §14.0–14.2 (graduation condition). `PhaseOutputSource` enum (`lib/domain/pipeline/source.ts:45–66`) distinguishes `'reference-canon'` so fitness reports can exclude pre-gate entries from denominators.
 
 **What it does:** Reference canon is committed YAML at canon-shaped paths authored before the promotion-gate and intervention-receipt infrastructure existed — hand-typed or agent-typed without a real provenance chain. During the migration window, reference canon is consulted at slot 4 as fallback when canonical artifacts are sparse. The demotion clock tracks three exits: (a) agentic override lands at the same address and outranks it, (b) deterministic observation is promoted at the same address and outranks it, or (c) the entry is deleted. When slot 4 is empty over a full cohort, the transitional layer is retired.
@@ -339,6 +412,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 **v2 analog:** **None — deliberately omitted.** v2 describes the end state after reference canon is empty; it does not prescribe the migration-window machinery of second-class pre-gate labeling or a demotion clock.
 
 #### Mode flags for lookup precedence toggling
+
+**Verdict:** v1-only *(operational scaffolding)*.
 
 **Module references:** `lib/application/cli/shared.ts:62, 378` (`--posture` flag); `docs/canon-and-derivation.md` §6.5; `LookupMode` union in `lib/domain/pipeline/lookup-chain.ts:64`.
 
@@ -352,6 +427,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Four-axis phantom-type envelope
 
+**Verdict:** Aligned — this *is* v2's envelope axis vocabulary in code (Phase 0 complete).
+
 **Module references:** `lib/domain/governance/workflow-types.ts:194–213` (`WorkflowMetadata<S>`, `WorkflowEnvelope<T, S>`); `lib/domain/kernel/hash.ts:128–227` (`Fingerprint<Tag>`); `lib/domain/pipeline/source.ts:44–169` (`PhaseOutputSource`, `foldPhaseOutputSource`, `SOURCE_PRECEDENCE`); `lib/domain/handshake/epistemic-brand.ts:24–91` (`EpistemicallyTyped<T, S>`, `foldEpistemicStatus`).
 
 **What it does:** Lifts the envelope axis vocabulary from runtime strings to compile-time phantom types. Every artifact in transit is pinned to a point in (`Stage` × `Source` × `Fingerprint-tag` × `Governance`) with compiler-enforced invariants. `WorkflowMetadata<S>` parameterizes artifacts by `WorkflowStage` literal (`'preparation' | 'resolution' | 'execution' | 'evidence' | 'proposal' | 'projection'`); `Fingerprint<Tag>` brands content-addressed IDs with closed-registry phantom tags (30+ tags); `PhaseOutputSource` carries the six-slot lookup-chain precedence with exhaustive `foldPhaseOutputSource`. Phase 0a–0d complete per `docs/envelope-axis-refactor-plan.md`; phases B–E deferred.
@@ -361,6 +438,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 **v2 analog:** **Essentially present — this *is* v2's envelope-axis vocabulary in code.** `docs/envelope-axis-refactor-plan.md` explicitly reverse-engineered from v2's framing. v2's "Envelope Axis Vocabulary" and the closed-registry discipline are architectural laws in both. Phases B–E remain in-flight on the v1→v2 convergence path.
 
 #### Concrete envelope type hierarchy with stage narrowing
+
+**Verdict:** Aligned.
 
 **Module references:** `lib/domain/evidence/types.ts:71–141` (`StepExecutionReceipt extends WorkflowMetadata<'execution'>`), `:209–258` (`RunRecord extends WorkflowMetadata<'execution'>`); `lib/domain/execution/types.ts:105–109` (`ProposalBundle extends WorkflowMetadata<'proposal'>`); `lib/domain/resolution/types.ts:174–191` (`ScenarioInterpretationSurface extends WorkflowMetadata<'preparation'>`), `:622–694` (`ResolutionReceipt` variants).
 
@@ -372,6 +451,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Envelope header field taxonomy
 
+**Verdict:** Aligned.
+
 **Module references:** `lib/domain/governance/workflow-types.ts:117–165` (`WorkflowEnvelopeIds`, `WorkflowEnvelopeFingerprints`, `WorkflowEnvelopeLineage`), `:194–202` (`WorkflowMetadata` fields).
 
 **What it does:** Standardizes the envelope header across all stage transitions: `kind`, `version`, `stage`, `scope`, `ids` (scenario/run/step/suite), `fingerprints` (six typed slots: artifact, content, knowledge, controls, surface, run), `lineage` (sources, parents, handshakes, experimentIds), `governance` (`'approved' | 'review-required' | 'blocked'`), `payload`.
@@ -382,6 +463,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### `Fingerprint<Tag>` as content-addressed identity
 
+**Verdict:** Aligned.
+
 **Module references:** `lib/domain/kernel/hash.ts:65–89` (`stableStringify` with deterministic key sorting and undefined-handling), `:91–93` (`sha256`), `:128–227` (`Fingerprint<Tag>` brand, closed `FingerprintTag` registry, `fingerprintFor`, `taggedFingerprintFor`), `:242–260` (`computeAdoContentHash`).
 
 **What it does:** Content-addressed identifiers computed as `sha256(stableStringify(value))`, branded with phantom `FingerprintTag` to prevent transposition. Closed registry lists 30+ tags across envelope-level (artifact, content, surface, knowledge, controls, run), tier-level (atom-input, composition-input, projection-input), domain-specific (ado-content, snapshot, rerun-plan, explanation), and graph (graph-node, graph-edge, interface-graph).
@@ -391,6 +474,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 **v2 analog:** **Essentially present.** v2's `Fingerprint<Tag>` axis and closed-registry discipline are specified identically.
 
 #### Epistemic branding — orthogonal to governance
+
+**Verdict:** v1-only *(innovation)*.
 
 **Module references:** `lib/domain/handshake/epistemic-brand.ts:24–91` (`EpistemicallyTyped<T, S>` discriminated union: `Observed`, `Interpreted`, `ReviewRequired`, `Approved`, `Blocked`, `Informational`; exhaustive `foldEpistemicStatus`); `:97–155` (`ObservedSource` / `InterpretedSource` enums; audited mint functions `mintObserved`, `mintInterpreted`, `mintInformational`).
 
@@ -404,6 +489,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Trust policy engine
 
+**Verdict:** v1-only *(operational scaffolding)*.
+
 **Module references:** `.tesseract/policy/trust-policy.yaml`; `lib/domain/governance/trust-policy.ts` (pure evaluation); `lib/application/governance/trust-policy.ts:L23–100` (filter + dispatch); `lib/application/knowledge/activate-proposals.ts:L46–70` (gate invocation).
 
 **What it does:** Declarative gate evaluating whether proposed artifacts may enter canonical storage. Three gates per artifact type: confidence threshold, required evidence count/kinds, forbidden auto-heal classes. Emits `allow | review | deny`. Per-artifact thresholds: element 0.95, posture 0.95, surface 0.95, snapshot 0.98, hint 0.90, pattern 0.95, route 0.95. Does not gate compiler-derived output or schema-valid runtime-acquired canon.
@@ -413,6 +500,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 **v2 analog:** v2 names reversibility classes (§8.6) and "operator review at or above L2" for proposal-gated / review-gated writes, but does not materialize per-artifact-type thresholds or evidence-count rules. v1's trust policy is a binding v2 defers to shipping-stage choices.
 
 #### Governance phantom brands
+
+**Verdict:** Aligned — materializes v2 invariant 10 (structured fallthrough) as a compile-time guarantee.
 
 **Module references:** `lib/domain/governance/workflow-types.ts:L8–54` (`Approved<T>`, `ReviewRequired<T>`, `Blocked<T>`; `foldGovernance`); `tests/architecture/governance-verdict.laws.spec.ts` (architecture law 8 — zero ad-hoc comparisons).
 
@@ -424,6 +513,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Confidence lattice — orthogonal to governance
 
+**Verdict:** v1-only *(innovation)*.
+
 **Module references:** `lib/domain/confidence/levels.ts`; `lib/domain/governance/workflow-types.ts:L6–7` (re-export).
 
 **What it does:** Six-level total order `unbound < intent-only < agent-proposed < agent-verified < compiler-derived < human` tracking *how a binding was produced*, independent of governance verdict. A step can be `approved` yet `intent-only` (awaiting verification), or `review-required` yet `agent-verified`.
@@ -434,6 +525,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Certification status — dual-tracked with activation
 
+**Verdict:** v1-only *(innovation)*.
+
 **Module references:** `lib/domain/governance/workflow-types.ts:L68` (`CertificationStatus = 'uncertified' | 'certified'`); `lib/domain/proposal/lifecycle.ts:L20–108` (`ProposalEntry` with separate `activation` and `certification` fields).
 
 **What it does:** Distinguishes whether a proposal has been *activated* (written to canon) from whether it has been *certified* (passed trust-policy `allow` or earned later via operator approval). A proposal activated via `review-required` path activates without certification. Downstream consumers can observe both axes independently.
@@ -443,6 +536,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 **v2 analog:** v2 does not formalize certification. Operator oversight is modeled as "non-optional at L2" without the activation-vs-certification split. v1 surfaces the split as an explicit axis.
 
 #### InterventionBlastRadius and InterventionAuthority
+
+**Verdict:** v1-only *(innovation)*.
 
 **Module references:** `lib/domain/handshake/intervention.ts:L69–76` (`InterventionBlastRadius = 'local' | 'review-bound' | 'global' | 'irreversible'`; `InterventionAuthority`); `:L195–219` (`InterventionHandoff.attachmentRegion`); `docs/cold-start-convergence-plan.md §4.C` (C6 measurement).
 
@@ -456,6 +551,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Theorem groups K/L/S/V/D/R/A/C/M/H
 
+**Verdict:** v1-only *(operational scaffolding)*.
+
 **Module references:** `docs/temporal-epistemic-kernel.md §2–§4`; `lib/domain/fitness/types.ts:97` (`LogicalTheoremGroup` enum), `:100–111` (`LogicalProofObligation` with `propertyRefs: readonly LogicalTheoremGroup[]`).
 
 **What it does:** Ten formal theorem families anchor the temporal-epistemic kernel — K (posture separability, canonical continuity, bounded successors, drift locality, marginal discovery decay, suspension legibility, synthetic augmentation governability); L (target observability, outcome legibility, unresolvedness legibility, neighborhood sufficiency); S (affordance recoverability, constraint family persistence); V (role/data/phase/policy factorability); D (transition learnability, constraint manifestation, route coherence, suspension localization); R (semantic drift recoverability, drift classification, deferred repairability); A (handoff sufficiency, synthetic governability, continuation integrity, cross-actor substitutability, deterministic leverage, deferred enhancement, augmentation alignment, intervention boundary); C (compounding economics, extraction ratio, handshake density); M (memory worthiness, intervention marginal value); H (meta-properties, outcome metrics). 19 named `LogicalProofObligation` entries map back to families via `propertyRefs`.
@@ -465,6 +562,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 **v2 analog:** v2 acknowledges the theorem families as narrative framing and ROI-curve shape (M5, C6 asymptotics) but deliberately omits concrete measurement per the anti-scaffolding gate. v1's baseline-status enum operationalizes what v2 leaves as doctrine.
 
 #### M5 (Memory Worthiness Ratio) and C6 (Intervention-Adjusted Economics)
+
+**Verdict:** v1-only *(innovation)* — operational definitions locked where v2 keeps them asymptotic.
 
 **Module references:** `docs/alignment-targets.md` (operational definitions locked 2026-04-10); `lib/domain/fitness/memory-maturity.ts` + `memory-worthiness-ratio.ts` (M5: `RememberingBenefit(τ) / MemoryMaintenanceCost(τ)`, wall-clock + agentic-override maintenance in denominator); `lib/domain/fitness/intervention-marginal-value.ts` (C6 numerator); `lib/domain/attention/pipeline-config.ts:27–33` (MemoryCapacityConfig in maintenance-cost denominator).
 
@@ -476,6 +575,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Scorecard — append-only Pareto frontier
 
+**Verdict:** v1-only *(operational scaffolding)*.
+
 **Module references:** `lib/application/improvement/scorecard.ts`; `.tesseract/benchmarks/scorecard.json` (append-only); `lib/application/measurement/score.ts` (`buildL4MetricTree`, `findLatestFitnessReport`); `lib/domain/fitness/types.ts` (`PipelineScorecard`, `ScorecardHistoryEntry`, `ScorecardHighWaterMark`).
 
 **What it does:** High-water-mark over pipeline fidelity, monotonically advancing from clean-slate runs. Each speedrun produces a `PipelineFitnessReport`; the scorecard compares it against prior via Pareto frontier (M5 slope, C6 acceptance rate, effectiveHitRate). Append-only history carries `pipelineVersion` (git SHA), timestamp, and metric vector — accepted *and* rejected runs are recorded.
@@ -485,6 +586,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 **v2 analog:** v2 sketches the Pareto shape (recursive-self-improvement.md §8.4) but leaves per-version linking and floor enforcement to v1's pattern.
 
 #### Fitness metrics and eight failure classes
+
+**Verdict:** v1-only *(operational scaffolding)* — different in kind from v2's execution-step error families.
 
 **Module references:** `lib/application/improvement/fitness.ts` (`classifyStepOutcome`, `emitFitnessReport`, `FAILURE_CLASSIFICATION_RULES`); `lib/domain/fitness/types.ts` (`PipelineFitnessMetrics`, `PipelineFitnessReport`); `lib/domain/fitness/compounding.ts` (`CompoundingTrajectory`); `lib/domain/fitness/fingerprint-stability.ts` (K0 byte-identity test).
 
@@ -498,6 +601,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### The 15-knob parameter space
 
+**Verdict:** v1-only *(operational scaffolding)*.
+
 **Module references:** `docs/recursive-self-improvement.md §2–§5` (parameter space, sensitivity analysis), `§6` (manual runbook), `§9` (autonomous evolution path); `lib/domain/attention/pipeline-config.ts` (`PipelineConfig` interface with 15 tunable parameters).
 
 **What it does:** Fifteen code constants across eight groups serve as the deterministic gradient of the self-improvement loop: BottleneckWeights (translation-threshold, repair-density, translation-rate, unresolved-rate, inverse-fragment-share), RankingWeights (scenario-impact, bottleneck-reduction, trust-policy, evidence), MemoryCapacityConfig (max-active-refs, staleness-ttl, max-recent-assertions, screen-confidence-floor, max-lineage-entries), DomScoringWeights (visibility, role-name, locator-quality, widget-compatibility), CandidateLimits (max-candidates, max-probes), ConfidenceScaling (compiler-derived, agent-verified, agent-proposed), IntentThresholds (element, screen), ProposalConfidenceValues (precedence-base, translation, dom, dom-shortlist), and `convergenceThreshold`. Each knob maps deterministically to one of the eight fitness failure classes.
@@ -507,6 +612,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 **v2 analog:** v2 names the training-loop analogy (§8.1 ROI curve) but does not enumerate the parameter space. Enumeration is scaffolding v2's anti-scaffolding gate rejects at L0; v2 expects parameters to emerge under L2+ shipping pressure.
 
 #### Speedrun verb surface
+
+**Verdict:** v1-only *(operational scaffolding)*.
 
 **Module references:** `scripts/speedrun.ts:1–50` (CLI dispatch); `lib/application/improvement/speedrun.ts` (`generatePhase`, `compilePhase`, `iteratePhase`, `fitnessPhase`, `reportPhase`); `lib/application/synthesis/cohort-generator.ts` (`generateCohortCorpus`); `lib/application/improvement/fitness.ts` (`emitFitnessReport`); `lib/application/measurement/score.ts` (`scoreCommand`, `captureBaseline`).
 
@@ -518,6 +625,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Convergence-proof harness
 
+**Verdict:** v1-only *(innovation)*.
+
 **Module references:** `lib/application/improvement/convergence-proof.ts` (`convergenceProofProgram`, `ConvergenceProofInput`, `ConvergenceProofResult`); `lib/domain/convergence/types.ts` (`ConvergenceVerdict`, `ConvergenceTrialResult`).
 
 **What it does:** Runs N independent trials from cold-start (each trial: `cleanSlateProgram → speedrunProgram` with unique seed → extract per-iteration metrics → `cleanSlate` again). Cross-trial aggregation builds a `ConvergenceVerdict` with statistical confidence (mean trajectory, variance, p-value estimate) answering: "does the recursive-improvement loop converge through its own proposal activation and knowledge accrual?" Hylomorphic unfold/fold — no intermediate list allocated.
@@ -528,6 +637,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Improvement run + ledger
 
+**Verdict:** v1-only *(operational scaffolding)*.
+
 **Module references:** `lib/application/improvement/improvement.ts` (`BuildImprovementRunInput`, `buildImprovementRun`); `lib/domain/improvement/types.ts` (`ImprovementRun`, `ImprovementLedger`, `ObjectiveVector`, `ImprovementLineageEntry`); `lib/domain/aggregates/improvement-run.ts` (`checkpointRun`, `createImprovementRun`); `.tesseract/benchmarks/improvement-ledger.json` (append-only).
 
 **What it does:** Durable record of every speedrun experiment — seed, baseline/delta config, fitnessReport, scorecard comparison, acceptance decision, metadata (startedAt, completedAt, tags, parentExperimentId). Objective vectors (`RungRate`, `BottleneckWeightCorrelations`, `ScoringEffectiveness`) capture multi-dimensional fitness. Lineage entries chain experiments into hypothesis sequences.
@@ -537,6 +648,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 **v2 analog:** v2 mentions an append-only improvement ledger but does not specify schema. v1 operationalizes the Pareto-frontier + lineage-chain discipline.
 
 #### Learning-health bottleneck ranking
+
+**Verdict:** v1-only *(operational scaffolding)*.
 
 **Module references:** `lib/application/learning/learning-health.ts` (`projectCorpusHealth`, `buildRuntimeCoverage`, `buildScreenCoverage`, `buildActionFamilyCoverage`); `lib/domain/learning/types.ts` (`CorpusHealthReport`, `RuntimeCoverageEntry`); `lib/application/improvement/hotspots.ts` (bottleneck heuristics).
 
@@ -550,6 +663,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Scenario corpus partition (10000 vs 20000 series)
 
+**Verdict:** v1-only *(migration scaffolding)*.
+
 **Module references:** `docs/scenario-partition.md`; `dogfood/scenarios/demo/` (10000-series legacy, test-pinned); `dogfood/scenarios/reference/` (20000-series generated reference cohorts via `lib/application/synthesis/cohort-generator.ts`).
 
 **What it does:** Partitions the scenario workload into two disjoint populations: hand-curated golden fixtures (10000-series) used by unit tests, and deterministically-generated reference cohorts (20000-series, 12 cohorts × 20 scenarios) that serve as the immutable measurement workload for the improvement loop. The partition prevents feedback loops where adding a cohort breaks unrelated unit tests.
@@ -559,6 +674,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 **v2 analog:** **None — deliberately omitted.** v2 assumes one corpus by definition and defers test-fixture isolation to shipping.
 
 #### Dogfood / production suite-root abstraction
+
+**Verdict:** v1-only *(operational scaffolding)*.
 
 **Module references:** CLAUDE.md § "Tracking rule: production vs dogfood"; `lib/application/paths/factory.ts` (`createProjectPaths(rootDir, suiteRoot)`); `.gitignore` governance of `dogfood/` and `lib/generated/`.
 
@@ -570,6 +687,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### `.tesseract/` ephemeral artifact directory
 
+**Verdict:** v1-only *(operational scaffolding)*.
+
 **Module references:** `lib/application/paths/factory.ts` (`EnginePaths` defining all subdirectories); CLAUDE.md § "Ephemeral Artifact Confusion?"; `docs/recursive-self-improvement.md` § "Ephemeral Artifact Management". Subdirectories: `.tesseract/bound/`, `benchmarks/`, `evidence/`, `graph/`, `inbox/`, `interface/`, `learning/`, `policy/`, `runs/`, `sessions/`, `tasks/`, `workbench/`.
 
 **What it does:** Runtime engine directory holding all transient artifacts produced during speedrun execution. Twelve subdirectories partition by concern: compiled task packets (bound), run records + fitness reports (benchmarks), step-level evidence (evidence), resolution graph (graph), operator-review queue (inbox), knowledge proposal state (learning), trust policy + approval receipts (policy), per-run logs (runs), agent session transcripts (sessions), resolution task packets (tasks), file-backed decision queue (workbench). Bulk-gitignored; only governance anchors (`trust-policy.yaml`, `scorecard.json`) persist.
@@ -579,6 +698,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 **v2 analog:** v2 subsumes evidence logs, confidence derivation, facet query, and health tracking (§9.9–§9.16) but does not distinguish ephemeral run-time staging from persistent canonical storage by directory. The `.tesseract/` discipline is v1-specific.
 
 #### MCP server tool surface (33 tools)
+
+**Verdict:** Shape-different — the tools exist; what's missing is the manifest enumerating them as stable verb signatures (per §9.8).
 
 **Module references:** `lib/infrastructure/mcp/dashboard-mcp-server.ts` (`McpServerPort` implementation with 33 tool handlers); `lib/domain/observation/dashboard.ts` (`dashboardMcpTools` constant with schema + category per tool); `lib/infrastructure/dashboard/file-decision-bridge.ts` (file-backed decision protocol for `--mcp-decisions` mode).
 
@@ -590,6 +711,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### CLI script surface
 
+**Verdict:** v1-only *(operational scaffolding)*.
+
 **Module references:** `scripts/speedrun.ts`, `scripts/convergence-proof.ts`, `scripts/mcp-call.ts`; `package.json` scripts (`context`, `workflow`, `paths`, `trace`, `impact`, `surface`, `graph`, `types`, `test`, `run`).
 
 **What it does:** Deterministic entry points composed through three layers: CLI args → application orchestration → Effect programs via `lib/composition/local-services.ts`. Ten package-scripts expose subsystems for diagnostics (`trace`, `impact`, `surface`, `graph`), orientation (`context`, `workflow`, `paths`), engine (`types`, `run`), and validation (`test`). Each is composable; users assemble sequences appropriate to their measurement task.
@@ -599,6 +722,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 **v2 analog:** v2 does not prescribe CLI verb shapes. CLI scaffolding is dogfood-specific; v2 defers to L2+.
 
 #### File-backed decision bridge
+
+**Verdict:** v1-only *(innovation)* — concrete transport for the decision-handoff shape v2 specifies abstractly.
 
 **Module references:** `lib/infrastructure/dashboard/file-decision-bridge.ts` (`writeDecisionFile`, `watchForDecision`); `.tesseract/workbench/decisions/`; `lib/infrastructure/mcp/dashboard-mcp-server.ts` (routes decide-category tools to `writeDecisionFile`).
 
@@ -610,6 +735,8 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Review surface contract
 
+**Verdict:** Shape-different — concrete proper-subset of v2's §8.4 handshake layer.
+
 **Module references:** CLAUDE.md § "Review surface contract"; `generated/{suite}/{ado_id}.{spec.ts|trace.json|review.md|proposals.json}`; `.tesseract/tasks/{ado_id}.resolution.json`; `.tesseract/graph/index.json`.
 
 **What it does:** Six-artifact contract that every meaningful workflow must preserve or improve. Generated spec files are disposable object code; trace + review are L0 evidence; proposals + resolution receipts are L1 governance inputs; the graph is the L2 knowledge projection. If a change cannot explain itself through these six artifacts, it is under-modeled.
@@ -620,61 +747,40 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 ## Summary
 
-### Capabilities in v2 absent or partial in v1
+### Verdict tally
 
-1. Vocabulary manifest + fluency checks (§9.8) — entirely absent.
-2. Pattern emergence from receipt accumulation (§8.7) — wired aspirationally, not operationally.
-3. Authoring session phases (§8.2) — event taxonomy without phase enforcement.
-4. Explicit decision classes (§8.3) — v1's blockage taxonomy covers different territory.
-5. Unified agent engagement surface (§8.4) — surfaces exist but scattered.
-6. Stable verb signatures (§8.5 invariant 1) — no registry.
-7. Cheap introspection (§8.5 invariant 10) — no manifest; catalog load required.
-8. Per-run classification field on run-record envelope (§9.7).
-9. L2+ batch summary + closed-set `nextSteps` (§9.7, §9.20) — deferred in both.
-10. Unified facet record with stable ID + evidence-log reference (§9.9, §9.16).
-11. Intent-phrase query layer (§9.10) — replaced by six-slot chain.
-12. Per-facet evidence log with derived confidence (§9.11).
-13. Health co-located on facet (§9.12) — separate index in v1.
-14. Drift as emitted observational event (§9.13) — drift is a mutation verb in v1.
-15. Dialog / document ingest + rejection log (§9.14).
-16. Confidence decay, corroboration hook, revision-proposal aggregation (§9.15).
-17. Affordance extension authoring (§9.17) — taxonomy present, extension flow absent.
-18. Uniformly token-bounded emissions (§9.20) — partial.
+| Verdict | Count | Share |
+|---|---:|---:|
+| Aligned | 9 | 16% |
+| Shape-different | 11 | 20% |
+| Partial in v1 | 9 | 16% |
+| Absent in v1 | 5 | 9% |
+| v1-only | 22 | 39% |
+| &nbsp;&nbsp;— migration scaffolding | 3 | |
+| &nbsp;&nbsp;— operational scaffolding | 12 | |
+| &nbsp;&nbsp;— innovation | 7 | |
+| **Total blocks** | **56** | **100%** |
 
-### Subsystems in v1 not described by v2
+### Directory by verdict
 
-Enumerated in full in the "v1-specific subsystems" section above; summarized here by theme.
+**Aligned (9):** §9.1 Intent fetch · §9.2 Intent parse · §9.18 Selector and test-data indirection · §9.19 Parametric expansion and fixture composition · V1.2 Four-axis phantom-type envelope · V1.2 Concrete envelope type hierarchy · V1.2 Envelope header field taxonomy · V1.2 `Fingerprint<Tag>` · V1.3 Governance phantom brands.
 
-- **V1.1 Canon and lookup-chain architecture** — six-slot lookup chain, reference-canon transitional slot + demotion clock, mode flags for precedence toggling. v2 replaces address-based slot precedence with a single facet index; the transitional machinery is v1-specific.
-- **V1.2 Envelope-axis substrate (phantom types)** — four-axis phantom envelope, concrete envelope type hierarchy with stage narrowing, envelope header taxonomy, `Fingerprint<Tag>` content-addressing, epistemic branding orthogonal to governance. Envelope-axis vocabulary is essentially v2's spec in code (Phase 0 complete); epistemic branding is a v1-specific innovation.
-- **V1.3 Governance and trust architecture** — trust policy engine with per-artifact thresholds, governance phantom brands + `foldGovernance`, confidence lattice (6 levels, orthogonal to governance), certification dual-tracked with activation, `InterventionBlastRadius` + `InterventionAuthority`. v2 names three-state governance but does not bind thresholds, certification, or scope-of-effect axes.
-- **V1.4 Theorem families and the alignment scoreboard** — theorem groups K/L/S/V/D/R/A/C/M/H with 19 proof obligations, M5/C6 operationalized with locked floors, append-only Pareto scorecard, eight-class fitness failure taxonomy. v2 keeps these as narrative framing (§8.1 ROI curve); v1 binds them as gating measurements.
-- **V1.5 Recursive improvement loop** — 15-knob parameter space, speedrun verb surface, convergence-proof harness, append-only improvement ledger, learning-health bottleneck ranking. v2 names the training-loop analogy but does not enumerate the parameter space or the verb surface.
-- **V1.6 Operational surfaces** — scenario corpus partition, dogfood/production suite-root abstraction, `.tesseract/` ephemeral directory, 33-tool MCP surface, CLI scripts, file-backed decision bridge, review surface contract. v2 assumes one corpus, defers production deployment, and generalizes the review contract as the handshake layer.
+**Shape-different (11):** §8.1 ROI curve · §8.6 Reversibility classes · §9.6 Test compose · §9.9 Facet mint · §9.10 Facet query · §9.11 Facet enrich · §9.12 Locator health track · §9.13 Drift emit · §9.16 Facet schema sketch · V1.6 MCP server tool surface · V1.6 Review surface contract.
 
-### Shape differences without capability gap
+**Partial in v1 (9):** §8.2 Authoring session phases · §8.3 Decision surface · §8.4 Implementation surface · §8.5 Ten invariants · §9.3 Navigate · §9.4 Observe · §9.5 Interact · §9.7 Test execute · §9.20 Scale behavior.
 
-1. Envelope distribution: v1 spreads concerns across domain / application / runtime boundaries; v2 unifies under handshake surfaces.
-2. Provenance: v1 implicit in lineage backreference; v2 explicit and forward-threaded from mint.
-3. Confidence: v1 materialized on the facet; v2 derived from evidence log.
-4. Health: v1 separate index; v2 co-located on locator strategies.
-5. Drift: v1 mutation verb; v2 observational event.
-6. Facade: v1 runtime-instantiated via screen registry; v2 pre-generated module — substance identical.
-7. Error families: v1 four families on execution receipt (`none / precondition-failure / locator-degradation-failure / environment-runtime-failure`); v2 overlaps but adds `assertion-like` and `unclassified`.
+**Absent in v1 (5):** §8.7 Engagement → determinism · §9.8 Verb declare / Manifest / Fluency · §9.14 Dialog / Document / Candidate review · §9.15 Confidence age / Corroborate / Revision propose · §9.17 Affordance extension authoring.
 
-### Strongest alignments (v1 already honors)
+**v1-only — migration scaffolding (3):** V1.1 Six-slot lookup chain · V1.1 Reference-canon transitional slot · V1.6 Scenario corpus partition.
 
-- §9.1 Intent fetch
-- §9.2 Intent parse
-- §9.18 Selector and test-data indirection
-- §9.19 Parametric expansion and fixture composition
-- §9.6 Test compose (envelope shape differs; substance identical)
-- §8.5 invariants 2 (provenance), 3 (append-only history), 7 (source vocabulary preserved), 10 (structured fallthrough)
+**v1-only — operational scaffolding (12):** V1.1 Mode flags · V1.3 Trust policy engine · V1.4 Theorem groups K/L/S/V/D/R/A/C/M/H · V1.4 Scorecard · V1.4 Fitness metrics and eight failure classes · V1.5 The 15-knob parameter space · V1.5 Speedrun verb surface · V1.5 Improvement run + ledger · V1.5 Learning-health bottleneck ranking · V1.6 Dogfood / production suite-root abstraction · V1.6 `.tesseract/` ephemeral artifact directory · V1.6 CLI script surface.
+
+**v1-only — innovation (7):** V1.2 Epistemic branding · V1.3 Confidence lattice · V1.3 Certification status dual-tracked with activation · V1.3 InterventionBlastRadius and InterventionAuthority · V1.4 M5 / C6 operational definitions · V1.5 Convergence-proof harness · V1.6 File-backed decision bridge.
 
 ### Shape of the overall delta
 
-The L0 data-flow chain (§9.1–§9.7) is essentially present in v1, with envelope-shape differences rather than capability gaps. The memory layer (§9.9–§9.16) has substantial v1 machinery but differs in shape on the axes where v2 makes structural claims — unified schema, derived confidence, emitted drift, facet-level evidence logs. The agent-ergonomics layer (§8 and §9.8) is the most material gap: the codebase doctrinally acknowledges this layer but has not assembled it (no manifest, no fluency checks, no phase enforcement, receipts not wired to pattern emergence). Selector and test-data indirection (§9.18) and parametric expansion (§9.19) are strengths the v2 ontology carries forward without modification.
+The L0 data-flow chain (§9.1–§9.7) is essentially present in v1 with envelope-shape differences rather than capability gaps. The memory layer (§9.9–§9.16) has substantial machinery in v1 but differs in shape where v2 makes structural claims — unified schema, derived confidence, emitted drift, facet-level evidence logs. The agent-ergonomics layer (§8 + §9.8 + §9.17) concentrates the Absent-in-v1 verdicts: doctrinally acknowledged, not yet assembled.
 
-The v1-specific subsystems (V1.1–V1.6) cluster into two categories. The **envelope-axis substrate** (V1.2) is the in-code materialization of v2's own spec — Phase 0 is complete and Phases B–E are the v1→v2 convergence path. The other five clusters (canon + lookup chain, governance + trust, theorem families + scoreboard, recursive-improvement loop, operational surfaces) are *scaffolding for reaching v2 from v1*, not capabilities v2 needs in its long-term state. Canon and reference-canon machinery exists to manage the transition; theorem baselines and M5/C6 floors exist to measure whether the transition pays off; the speedrun loop and scorecard exist to make the transition's fitness signal explicit; the MCP tool surface and CLI scripts exist so operators can run the transition. Once reference canon is empty and the canon store is greenfield-populated through real gates, the six-slot chain collapses, the demotion clock retires, and the system operates under v2's simpler facet-catalog model — at which point most of V1.1, V1.4, V1.5, V1.6 become historical rather than load-bearing.
+The v1-only blocks split three ways by intent. **Migration scaffolding** (3 blocks) retires once reference canon is empty. **Operational scaffolding** (12 blocks) is dogfood workflow — measurement, CLI, `.tesseract/` staging — orthogonal to v2's product surface. **Innovation** (7 blocks) names finer-grained distinctions (epistemic branding vs governance, scope-of-effect vs reversibility, confidence lattice vs narrative M5/C6, operational alignment floors, convergence-proof statistical harness, file-backed decision transport) that v2 could inherit under shipping pressure.
 
-v2's anti-scaffolding gate is the decision rule that guarded the ontology against inheriting these clusters by default. The audit surfaces which ones are already honored (V1.2 — envelope axis), which were deliberately left out (V1.5 — recursive improvement loop beyond narrative), and which v1 needs only for the v1→v2 migration (V1.1 — canon/lookup-chain transition).
+The single most consequential pattern: v1's envelope-axis substrate (V1.2) is v2's own specification materialized in code — four of the nine Aligned verdicts sit in this cluster. `docs/envelope-axis-refactor-plan.md` Phase 0 is complete; Phases B–E are the v1→v2 convergence path. Elsewhere, v1 is further from v2 where v2's claims are most structural (unified facet record, per-facet evidence log, drift as emitted event), and closest to v2 where v2's claims are procedural (intent fetch, test compose, parametric expansion).
