@@ -2901,7 +2901,850 @@ Lanes B1 through B7 are concurrent. A seven-engineer (or seven-agent) team colla
 - Deliverable: read-only consumer of run-record, receipt, drift, and proposal logs via manifest verbs; writes nothing to the substrate.
 - Handoff: independent of all other lanes because it writes nothing; a dashboard that cannot be rebuilt from the logs is the dashboard's fault, not the substrate's.
 
-### 12.6 Handoff contracts
+#### 12.5.7 Lane internals — the micro-cathedral inside each lane
+
+Every lane is a micro-cathedral. It has its own primary highway, its own internal towns, its own interchanges where traffic changes direction, and a specific set of outbound connections to the six main highways of the full cathedral. This subsection draws that internal map for each major lane. It is what gives the backlog its texture: a lane is not a task, it is a small structured thing that produces structured things.
+
+Every lane-internal map follows the same shape:
+
+- **Primary highway.** Which of the six main highways (§10.1) this lane principally builds.
+- **Secondary highways.** Other highways this lane's work touches as a by-product.
+- **Internal towns.** The sub-modules inside the lane's own bounded area. These are smaller than the §10.4 town catalog; they are the internal structure of a single lane's deliverable.
+- **Internal interchanges.** Where inside the lane one flow hands off to another — error classifications, receipt emissions, fingerprint generation, envelope construction.
+- **Manifest exposures.** Which verbs this lane publishes into the vocabulary manifest. These are the lane's public API; everything else is lane-internal and free to refactor.
+- **Saga connections.** Which sagas (§10.5) will consume this lane's verbs once the lane ships, and at what step of each saga.
+- **Failure topology.** The named error families the lane emits, in order of how common they are in practice. A lane without a failure topology is under-designed.
+
+Read a lane-internal map in any order. The order below is one recommended scan: primary highway first (context), internal towns (structure), manifest exposures (API), saga connections (integration), failure topology (what goes wrong). Internal interchanges are the connective tissue you return to when you want to know *how* data flows from one internal town to another.
+
+##### Lane A1 — Envelope substrate port
+
+**Primary highway:** none — this lane is substrate bedrock (§10.3), under every highway.
+
+**Secondary highways:** all six. Every envelope, every fingerprint, every governance verdict this lane defines is consumed by every downstream lane.
+
+**Internal towns:**
+
+```
+A1 micro-cathedral
+├── envelope/
+│   ├── WorkflowMetadata<Stage>     — base envelope with stage literal
+│   ├── WorkflowEnvelope<T, Stage>  — payload-typed wrapper
+│   └── envelope-builders            — constructors per stage
+├── kernel/
+│   ├── stableStringify              — canonical JSON for hashing
+│   ├── sha256                       — content-address primitive
+│   └── Fingerprint<Tag>             — phantom-tagged hash
+├── pipeline/
+│   ├── PhaseOutputSource            — source discriminant (no reference-canon)
+│   └── foldPhaseOutputSource        — exhaustive source fold
+├── handshake/
+│   ├── EpistemicallyTyped<T, S>     — observation confidence brand
+│   └── foldEpistemicStatus          — exhaustive epistemic fold
+└── governance/
+    ├── Approved<T> / ReviewRequired<T> / Blocked<T>  — phantom brands
+    └── foldGovernance                                 — exhaustive verdict fold
+```
+
+**Internal interchanges:** `stableStringify` → `sha256` → `Fingerprint<Tag>` is the canonical hash pipeline; envelope builders read the current stage literal and attach the matching fingerprint tag so downstream code can only consume envelopes whose tag matches their expectation.
+
+**Manifest exposures:** none at this lane. Manifest emission is A3's concern; A1 builds the types A3 will emit against.
+
+**Saga connections:** every saga yields envelopes typed by this lane. No saga imports these modules directly — they are imported by the adapter lanes that build handshakes.
+
+**Failure topology:** none at runtime — A1 is pure types and pure functions. Failures are compile errors: misused phantom tag, missing verdict variant, envelope with wrong stage literal for its call site. Architecture law 8 (running test) catches ad-hoc governance string comparisons that slip past the types.
+
+##### Lane A2 — Reasoning port declaration
+
+**Primary highway:** Reasoning (§10.1).
+
+**Secondary highways:** Verb (manifest entries).
+
+**Internal towns:**
+
+```
+A2 micro-cathedral
+├── ports/
+│   └── reasoning.ts              — Context.Tag + operation signatures
+├── reasoning-receipts/
+│   ├── ReasoningReceipt<Op>      — typed per operation
+│   └── reasoning-receipt-log     — append-only store contract
+├── errors/
+│   ├── RateLimited / ContextExceeded / MalformedResponse /
+│   │   Unavailable / Unclassified   — tagged error union
+│   └── foldReasoningError         — exhaustive error fold
+└── prompts/
+    └── prompt-fingerprint         — stableStringify + sha256 over prompt shape
+```
+
+**Internal interchanges:** every Reasoning operation runs through prompt-fingerprint → adapter call → receipt-write → return. The receipt write precedes the return; the saga never sees a choice that isn't already logged.
+
+**Manifest exposures:** `reason-select`, `reason-interpret`, `reason-synthesize`. Signatures frozen at publication; error families enumerated in the manifest.
+
+**Saga connections:** authorTest yields Reasoning at candidate disambiguation (step phrasing, locator choice). absorbOperatorInput yields at dialog interpretation. proposeRefinements yields at synthesis. respondToDrift yields at classification when rules are inconclusive. proposeHypothesis yields at proposal synthesis. Essentially every non-trivial saga connects to this port at least once.
+
+**Failure topology:** `rate-limited` (most common, bounded retry at adapter level → context-handoff at saga level if persistent), `context-exceeded` (less common, triggers handoff immediately), `malformed-response` (rare, one retry with reminder, then error), `unavailable` (rare, circuit-breaker at adapter), `unclassified` (rarest, always surfaces to the saga).
+
+##### Lane A3 — Manifest generator build step
+
+**Primary highway:** Verb (§10.1).
+
+**Secondary highways:** none — the manifest is the Verb highway. Every lane's outbound API lands here.
+
+**Internal towns:**
+
+```
+A3 micro-cathedral
+├── manifest-schema/
+│   ├── VerbEntry                  — name, category, inputs, outputs, errors, version
+│   └── Manifest                   — ordered set of VerbEntry
+├── emitter/
+│   ├── collect-declared-verbs     — scans code for @verb annotations or Context.Tag calls
+│   ├── emit-manifest              — writes manifest.json
+│   └── drift-check                — compares against committed manifest
+├── fluency-fixture/
+│   ├── canonical-tasks            — one per declared verb at Phase 1+
+│   └── dispatch-harness           — asserts agent routes task → correct verb
+└── build-integration/
+    └── prebuild-hook              — runs emit + drift-check before tsc
+```
+
+**Internal interchanges:** code changes → collect-declared-verbs → emit-manifest → drift-check. If drift is detected and the change is non-additive, build fails before tsc runs.
+
+**Manifest exposures:** none — this lane *produces* the manifest; it does not itself publish verbs.
+
+**Saga connections:** session-start (onboardSession) reads the manifest once; every session has verb fluency before any other yield.
+
+**Failure topology:** `manifest-drift-non-additive` fails the build. `fluency-fixture-failure` fails CI. Neither classifies into runtime error families — both are build-time gates.
+
+##### Lane A4 — Facet schema + YAML store
+
+**Primary highway:** Memory (§10.1).
+
+**Secondary highways:** Verb (query/mint/enrich verbs land in the manifest).
+
+**Internal towns:**
+
+```
+A4 micro-cathedral
+├── facet-schema/
+│   ├── FacetRecord                — id, kind, displayName, aliases, role, scope, …
+│   ├── LocatorStrategies          — per-strategy health embedded in facet
+│   ├── Provenance                 — mintedAt, instrument, agentSessionId, runId
+│   └── kind-extensions            — element / state / vocabulary / route
+├── storage/
+│   ├── per-screen-yaml            — one file per screen; human-readable
+│   ├── atomic-temp-rename         — write via temp + rename for crash safety
+│   └── in-memory-index            — loaded once, rebuilt on change
+├── id-discipline/
+│   ├── stable-id                  — `<screen>:<element-or-concept>`
+│   └── id-migration               — renames emit a redirect record
+└── query-engine/
+    ├── by-intent-phrase           — primary access path
+    └── by-id                      — secondary access path
+```
+
+**Internal interchanges:** a facet-mint yields a FacetRecord → storage writes atomically → in-memory-index updates → query-engine sees it on the next read. Evidence (E1) connects here but is its own lane.
+
+**Manifest exposures:** `facet-mint`, `facet-query`, `facet-enrich`, `facet-by-id` (rarely used; primary path is by-intent-phrase).
+
+**Saga connections:** growMemoryForStep writes through `facet-mint`. authorTest reads through `facet-query` before every step. applyApprovedProposal updates through `facet-enrich`. applyHandoffDecision may enrich or mint depending on the decision class.
+
+**Failure topology:** `facet-not-found` on query (common, triggers growMemoryForStep sub-saga). `facet-conflict` on mint when an id collision is detected (rare, handoff). `storage-io-error` (rare, retry then surface).
+
+##### Lane B1 — ADO intent-fetch + intent-parse
+
+**Primary highway:** Intent (§10.1).
+
+**Secondary highways:** Verb (manifest entries), Truth (source-provenance seeds run records).
+
+**Internal towns:**
+
+```
+B1 micro-cathedral
+├── rest-client/
+│   ├── ado-rest-http               — PAT auth, retry with backoff, 5xx handling
+│   ├── wiql-query-builder          — [System.WorkItemType] = 'Test Case' + filters
+│   └── work-item-expand            — GET work item with $expand=fields
+├── xml-parser/
+│   ├── step-tokenizer              — regex <step> boundaries
+│   ├── parameterized-string        — extract action + expected
+│   ├── entity-decoder              — &lt; &gt; &quot; &#39; &amp; + CDATA
+│   ├── param-extractor             — <param name="..."> from Parameters field
+│   └── data-row-extractor          — <Table1> rows from LocalDataSource
+├── intent-envelope/
+│   ├── WorkItemEnvelope            — carries fields + rev + source-text provenance
+│   └── ParsedIntentEnvelope        — ordered actions + expected + parameters
+└── source-dispatch/
+    └── source-field                — `source: 'ado:<org>/<project>/<id>'`
+```
+
+**Internal interchanges:** HTTP 5xx → bounded retry → `transient-fetch-error` or success. XML parse failure with structure intact → degraded parse keeping source text as provenance. XML missing `<parameterizedString>` → expected defaults to empty; no exception fires. The `rev` field is threaded forward so drift detection downstream can distinguish "work item changed upstream" from "world changed."
+
+**Manifest exposures:** `intent-fetch`, `intent-parse`. Polymorphic over `source` — the same verbs serve testbed (Lane D1).
+
+**Saga connections:** authorTest begins with intent-fetch → intent-parse. evaluateTestbed uses the same verbs against `source: testbed:v<N>`.
+
+**Failure topology:** `auth-invalid` (surfaces immediately, no retry), `transient-fetch-error` (retried with backoff, then surfaces), `not-found` (surfaces, 404), `parse-degraded` (returns partial intent with provenance, not an error), `unclassified` (rare).
+
+##### Lane B2 — Playwright navigate
+
+**Primary highway:** World (§10.1, outbound).
+
+**Secondary highways:** Verb, Truth (navigation outcomes append to run records).
+
+**Internal towns:**
+
+```
+B2 micro-cathedral
+├── browser-lifecycle/
+│   ├── context-pool                — one context per session, reused per step
+│   └── page-registry               — active pages by scenario id
+├── navigation-strategy/
+│   ├── waitUntil-selector          — 'load' | 'domcontentloaded' | 'networkidle'
+│   ├── url-normalizer              — strips trailing slashes, fragments, query order
+│   └── idempotence-check           — if page.url() === target: skip navigate
+├── outcome-envelope/
+│   └── NavigateEnvelope            — { reachedUrl, status, timingMs, classification }
+└── failure-classifier/
+    └── to-error-family             — timeout / blocked-redirect / dns-error / unclassified
+```
+
+**Internal interchanges:** target → url-normalizer → idempotence-check → (navigate or skip) → outcome envelope. Every navigate emits a navigation-receipt before returning.
+
+**Manifest exposures:** `navigate`. Signature accepts a named place or URL.
+
+**Saga connections:** authorTest yields navigate at session-startup and at cross-screen transitions. evaluateTestbed follows the same pattern.
+
+**Failure topology:** `timeout` (common on slow SUTs, classified and retried once), `blocked-redirect` (auth/consent walls; surfaces a handoff), `dns-error` (config issue, surfaces), `page-crashed` (rare, restart context), `unclassified`.
+
+##### Lane B3 — Playwright observe
+
+**Primary highway:** World (§10.1, inbound).
+
+**Secondary highways:** Memory (observations feed facet-mint), Verb.
+
+**Internal towns:**
+
+```
+B3 micro-cathedral
+├── aria-snapshot/
+│   ├── accessibility-tree          — Playwright's accessibility snapshot API
+│   ├── dom-predicate-probe         — domain-level state probes the SUT exposes
+│   └── snapshot-envelope           — timestamped + sourceFingerprint
+├── ladder-resolver/
+│   ├── rung-0-role                 — role + accessible name
+│   ├── rung-1-label                — labelled-by, aria-label
+│   ├── rung-2-placeholder          — placeholder-based match
+│   ├── rung-3-text                 — visible text match
+│   ├── rung-4-test-id              — data-testid fallback
+│   ├── rung-5-css                  — last-resort CSS selector
+│   └── ladder-health-feed          — per-rung usage outcomes → E2
+├── observation-receipt/
+│   └── append-to-receipt-log       — who observed, when, through what instrument
+└── mint-candidate-stream/
+    └── candidates-for-facet-mint   — streamed to caller; caller decides whether to mint
+```
+
+**Internal interchanges:** browser page → aria-snapshot → ladder-resolver (per affordance) → observation-receipt → snapshot returned. Ladder-resolver emits ladder-health-feed events consumed by Lane E2 at Phase 6.
+
+**Manifest exposures:** `observe`. Returns `Effect<TimestampedSnapshot, ObserveError, PlaywrightAria>`.
+
+**Saga connections:** authorTest yields observe on every screen the agent encounters at L0; at L3 with sufficient memory confidence, observe is skipped (DOM-less authoring policy, Lane E6). growMemoryForStep yields observe when memory lacks a facet.
+
+**Failure topology:** `not-found` (ladder exhausted, common at L0, triggers handoff), `timeout` (SUT slow to render), `page-crashed` (rare), `degraded` (partial snapshot, proceed with caveat in envelope), `unclassified`.
+
+##### Lane B4 — Playwright interact
+
+**Primary highway:** World (§10.1, outbound).
+
+**Secondary highways:** Verb, Memory (interaction outcomes feed locator-health, Lane E2).
+
+**Internal towns:**
+
+```
+B4 micro-cathedral
+├── affordance-resolver/
+│   ├── facet-ref-to-locator        — resolves facet.locatorStrategies at execution time
+│   └── preflight-check             — visibility + enabled state before action
+├── action-dispatch/
+│   ├── click / fill / select / hover / …   — Playwright primitives per affordance kind
+│   └── payload-validator           — checks data payload matches affordance's accepted shape
+├── outcome-envelope/
+│   └── InteractEnvelope            — { affordanceRef, payload, outcome, timingMs }
+└── failure-classifier/
+    └── four-family-mapper          — not-visible / not-enabled / timeout / assertion-like
+```
+
+**Internal interchanges:** affordance-ref → facet-ref-to-locator → preflight-check → (action-dispatch or failure). Every interaction emits an interact-receipt. Outcome feeds ladder-health (one step removed, through Lane E2).
+
+**Manifest exposures:** `interact`. Takes a facet reference plus a data payload.
+
+**Saga connections:** authorTest yields interact for every action step. evaluateTestbed same. absorbOperatorInput does not use interact directly but may trigger it indirectly through proposal review.
+
+**Failure topology:** `not-visible` (common, surfaces to handoff), `not-enabled` (common, surfaces to handoff), `timeout` (SUT slow to respond), `assertion-like` (action succeeded but expected outcome not reached — classified as a distinct family because the recovery policy differs), `unclassified`.
+
+##### Lane B5 — Test compose (AST-backed emitter)
+
+**Primary highway:** World (§10.1) and Memory (consumes facets), but the lane's deliverable is a Test instrument artifact, so some frame this as the "Test" sub-highway inside Verb.
+
+**Secondary highways:** Verb (the `test-compose` verb lands in the manifest).
+
+**Internal towns:**
+
+```
+B5 micro-cathedral
+├── intent-walker/
+│   ├── action-sequencer            — orders actions from parsed intent
+│   └── expected-binding            — maps expected outcomes to assertions
+├── facet-facade-generator/
+│   ├── per-screen-facade           — one TypeScript module per screen
+│   ├── facet-ref-emitter           — emits by facet id, never inline selector
+│   └── regeneration-on-change      — catalog change → regenerate affected facades
+├── ast-emitter/
+│   ├── ts-morph-or-equivalent      — AST-level emission, not string splicing
+│   ├── test-file-structure         — imports, describe, test, steps
+│   └── readable-assertions         — business-vocabulary wording
+└── output-writer/
+    └── atomic-write                — temp + rename into generated/<suite>/<ado_id>.spec.ts
+```
+
+**Internal interchanges:** parsed intent + facet query results → intent-walker → facet-facade-generator → ast-emitter → output-writer. Catalog updates trigger facade regeneration; regeneration never discards operator-edited intent layers (handoff boundary, substrate §3.2).
+
+**Manifest exposures:** `test-compose`. Input: parsed intent + facet set. Output: test file path + compose receipt.
+
+**Saga connections:** authorTest yields test-compose after memory consultation and (if needed) world exploration. Regeneration on catalog change is triggered by applyApprovedProposal sagas.
+
+**Failure topology:** `facet-missing-for-step` (intent references something not in the catalog — common at L0, triggers mint-on-the-fly or handoff), `sequencing-ambiguous` (order of actions unclear from intent — handoff), `unclassified`.
+
+##### Lane B6 — Test execute (Playwright runner adapter)
+
+**Primary highway:** Truth (§10.1) — run records are Truth-highway traffic.
+
+**Secondary highways:** World (execution uses world), Verb.
+
+**Internal towns:**
+
+```
+B6 micro-cathedral
+├── runner-invocation/
+│   ├── cli-spawn                   — `npx playwright test --reporter=json`
+│   ├── config-resolution           — project, retries, timeout from policy
+│   └── output-capture              — stdout + stderr + json report
+├── run-record-builder/
+│   ├── per-step-evidence           — which facet was touched at each step
+│   ├── classification              — pass / fail-product / fail-drift / fail-infra
+│   └── RunRecordEnvelope           — append-only log entry shape
+├── referenced-facet-tracker/
+│   └── facets-touched-this-run     — feeds Memory corroboration (Lane E1)
+└── failure-differentiator/
+    ├── product-failure             — assertion failed on application logic
+    ├── drift-failure               — locator no longer resolves (Lane E5 consumes)
+    └── infra-failure               — browser/runner/network
+```
+
+**Internal interchanges:** test file path + config → runner-invocation → output-capture → run-record-builder → append to run-record log → referenced-facet-tracker feeds Memory corroboration. Drift-classified failures feed Lane E5.
+
+**Manifest exposures:** `test-execute`. Input: test file path + execution config. Output: run record reference + execute receipt.
+
+**Saga connections:** authorTest yields test-execute after test-compose. evaluateTestbed yields test-execute for each testbed work item. verifyHypothesis reads run records post-execution.
+
+**Failure topology:** `fail-product` (assertion on app logic — this is valuable signal, not an error), `fail-drift` (locator failed, classified as drift not assertion — feeds E5), `fail-infra` (browser/runner/network — transient, retried), `unclassified`.
+
+##### Lane B7 — Reasoning adapter (one provider)
+
+**Primary highway:** Reasoning (§10.1) — this lane lights up the port A2 declared.
+
+**Secondary highways:** Verb (receipt-log read verbs for dashboard), Truth (reasoning-receipts feed measurement).
+
+**Internal towns:**
+
+```
+B7 micro-cathedral
+├── provider-client/
+│   ├── http-or-sdk-client          — Anthropic messages.create, OpenAI chat.completions
+│   ├── auth                        — API key from environment (never in code)
+│   └── request-shape               — model-specific prompt structure
+├── operation-handlers/
+│   ├── select-handler              — constrains response to choice IDs from handoff
+│   ├── interpret-handler           — schema-guided output
+│   └── synthesize-handler          — proposal-shaped output
+├── response-validator/
+│   ├── schema-check                — adapter boundary rejects malformed responses
+│   ├── constrained-retry           — one retry with explicit reminder on malformed
+│   └── error-family-classifier     — provider errors → named families
+└── receipt-emitter/
+    ├── prompt-fingerprint          — hash of prompt shape, not verbatim text
+    ├── token-accounting            — tokens-in + tokens-out for cost metric
+    └── append-to-reasoning-receipts
+```
+
+**Internal interchanges:** saga yields `Reasoning.select` → operation-handler formats prompt → provider-client calls API → response-validator checks → receipt-emitter appends → choice returned to saga. Receipt is durable before the saga sees the choice.
+
+**Manifest exposures:** none new — this lane implements the verbs A2 declared. The lane's public API is the `Reasoning.Tag` layer binding.
+
+**Saga connections:** every saga that yields `Reasoning.*` at any step binds against this adapter through `Layer.succeed(Reasoning.Tag, AnthropicAdapter)` or similar at composition.
+
+**Failure topology:** `rate-limited` (common, bounded backoff at adapter, handoff if persistent), `context-exceeded` (triggers handoff immediately — saga decides whether to summarize or chunk), `malformed-response` (one retry with reminder, then fail), `unavailable` (provider down — handoff), `unclassified`.
+
+##### Lane D1 — Testbed adapter (testbed:v0)
+
+**Primary highway:** Intent (§10.1) — same highway as ADO, different source.
+
+**Secondary highways:** Truth (testbed-sourced run records seed measurement derivations).
+
+**Internal towns:**
+
+```
+D1 micro-cathedral
+├── testbed-layout/
+│   ├── testbed-root                — `testbed/v<N>/`
+│   ├── version-manifest            — v<N>/manifest.yaml declaring the increment
+│   └── work-item-files             — v<N>/<id>.yaml per synthetic work item
+├── yaml-loader/
+│   ├── parse-work-item             — same shape as ADO parsed-intent envelope
+│   ├── expected-outcomes           — testbed-specific: what the run should produce
+│   └── source-field                — 'testbed:v<N>:<id>'
+├── polymorphism-adapter/
+│   └── ports-the-same-intent-source-contract  — indistinguishable from ADO downstream
+└── expected-outcome-registry/
+    └── per-work-item-expectation   — used by metric verbs to compute acceptance
+```
+
+**Internal interchanges:** `intent-fetch --source=testbed:v<N>:<id>` → yaml-loader → polymorphism-adapter → same envelope shape ADO emits. Downstream handshakes do not distinguish. Expected-outcome-registry is read by metric verbs (D2), not by sagas.
+
+**Manifest exposures:** none new — this lane lights up the existing `intent-fetch` and `intent-parse` verbs for a new source. The source polymorphism is the whole point.
+
+**Saga connections:** evaluateTestbed binds to the testbed source exclusively. authorTest can also target the testbed for ad-hoc runs. compareEvaluations consumes across testbed versions.
+
+**Failure topology:** `yaml-parse-error` (committed testbed file malformed — build-time catchable ideally, runtime fall-through otherwise), `version-not-found` (testbed version doesn't exist — surfaces), `unclassified`.
+
+##### Lane D2 — First two metric verbs
+
+**Primary highway:** Truth (§10.1) — metrics are the Truth highway's derivations.
+
+**Secondary highways:** Verb (metric verbs land in the manifest with frozen signatures).
+
+**Internal towns:**
+
+```
+D2 micro-cathedral
+├── metric-framework/
+│   ├── MetricVerb<Inputs, Output>  — typed metric declaration shape
+│   ├── metric-compute-record       — append when a metric is computed
+│   └── windowing                   — by time, by testbed version, by cohort
+├── metric-test-acceptance-rate/
+│   ├── filter-to-reviewed-runs     — runs the QA accepted into the suite
+│   ├── aggregate-pass-fraction     — accepted / (accepted + rejected + pending)
+│   └── derivation-lineage          — names the run subset it was derived from
+├── metric-authoring-time-p50/
+│   ├── per-run-wall-clock          — from intent-fetch to test-compose completion
+│   ├── p50-aggregate               — median across filtered runs
+│   └── breakdown-by-source         — testbed vs ADO comparable separately
+└── metric-hypothesis-confirmation-rate/
+    └── (declared; lights up after D3)
+```
+
+**Internal interchanges:** metric invocation → windowing filter → aggregate → metric-compute-record append → return derived value + derivation-lineage. Computation is pure given the run log; the compute record is the only side effect.
+
+**Manifest exposures:** `metric-test-acceptance-rate`, `metric-authoring-time-p50`, `metric-hypothesis-confirmation-rate` (declared here, used once D3 lands). Signatures frozen.
+
+**Saga connections:** evaluateTestbed yields metric verbs at close of batch. dashboardSnapshot consumes them read-only. verifyHypothesis computes actualDelta against a named metric.
+
+**Failure topology:** `empty-window` (no runs in the filter window — surfaces as a derivation with `empty: true`, not as an error), `metric-config-invalid` (build-time catchable), `unclassified`.
+
+##### Lane D3 — Hypothesis-receipt discriminator
+
+**Primary highway:** Truth (§10.1) — the trust-but-verify loop runs on this lane.
+
+**Secondary highways:** Memory (proposals live in the same proposal log revisions use).
+
+**Internal towns:**
+
+```
+D3 micro-cathedral
+├── proposal-discriminator/
+│   ├── kind-field                  — 'revision' | 'candidate' | 'hypothesis'
+│   └── hypothesis-shape            — { proposedChange, predictedDelta, rationale }
+├── predicted-delta-schema/
+│   ├── metric-name                 — references a declared metric verb
+│   ├── direction                   — 'increase' | 'decrease' | 'maintain'
+│   └── magnitude                   — number | 'qualitative'
+├── verification-receipt-log/
+│   ├── append-only                 — invariant 3
+│   ├── hypothesisId-link           — links back to the proposal
+│   └── actualDelta + confirmed     — computed post-next-evaluation
+└── batting-average-derivation/
+    └── metric-hypothesis-confirmation-rate  — lights up the declared D2 metric
+```
+
+**Internal interchanges:** hypothesis proposal → proposal log (same log as revisions) → operator review → accepted proposals land code → next evaluation produces run records → actualDelta computed → verification-receipt appended → batting-average derivation reads the log.
+
+**Manifest exposures:** no new verbs — this lane discriminates on an existing proposal log and lights up the D2-declared `metric-hypothesis-confirmation-rate`.
+
+**Saga connections:** proposeHypothesis produces hypothesis-kind proposals. applyApprovedProposal distinguishes `kind: hypothesis` from `kind: revision` on landing (hypothesis lands as code; revision lands as memory). verifyHypothesis is the sub-saga that computes actualDelta and appends the verification receipt.
+
+**Failure topology:** `hypothesis-metric-not-declared` (build-time catchable — the referenced metric must be a declared verb), `verification-not-yet-possible` (evaluation hasn't run yet; hypothesis stays pending — not an error), `unclassified`.
+
+##### Lane E1 — Per-facet evidence log
+
+**Primary highway:** Memory (§10.1).
+
+**Secondary highways:** Truth (confidence derivations are metric-adjacent).
+
+**Internal towns:**
+
+```
+E1 micro-cathedral
+├── evidence-log/
+│   ├── per-facet-jsonl             — one append-only file per facet
+│   ├── atomic-append               — temp + rename; no in-place updates
+│   └── evidence-event-schema       — { observedAt, instrument, outcome, runId }
+├── confidence-derivation/
+│   ├── on-read-fold                — accumulate evidence → confidence scalar
+│   ├── aging-kernel                — half-life or decay (specifics deferred)
+│   └── corroboration-weight        — passing runs reinforce; flaky runs don't
+├── summary-cache/
+│   ├── memoize-per-facet           — cache keyed by (facetId, evidence-count)
+│   └── invalidate-on-append        — new evidence invalidates cached summary
+└── evidence-query/
+    └── history-by-facet            — returns ordered evidence for a facet id
+```
+
+**Internal interchanges:** any saga that touches a facet (observe → mint, interact → corroborate, drift → decay) appends to the per-facet log via atomic-append. Summary cache invalidates; next read re-derives confidence via on-read-fold.
+
+**Manifest exposures:** `facet-evidence-append`, `facet-confidence`, `facet-evidence-history`. Confidence derivation is a pure function of the log.
+
+**Saga connections:** growMemoryForStep appends via mint. authorTest reads confidence at facet-query time. maintenanceCycle triggers aging. respondToDrift appends drift evidence with decay weight.
+
+**Failure topology:** `evidence-log-io-error` (rare, retry + surface), `confidence-derivation-panic` (should be impossible — pure function, but unclassified surfaces if it ever fires), `unclassified`.
+
+##### Lane E2 — Locator-health co-location
+
+**Primary highway:** Memory (§10.1).
+
+**Secondary highways:** World (locator choice affects observe/interact).
+
+**Internal towns:**
+
+```
+E2 micro-cathedral
+├── health-schema/
+│   ├── per-strategy-health         — embedded in FacetRecord.locatorStrategies
+│   └── usage-counter + success-rate — simple aggregates, pure derivation
+├── outcome-intake/
+│   ├── observe-feed                — ladder-resolver (B3) emits per-rung outcomes
+│   └── interact-feed               — interact outcomes update locator that matched
+├── ladder-reorderer/
+│   └── evidence-backed-choice      — rank locator strategies by observed health
+└── drift-signal/
+    └── strategy-failed-threshold   — repeated failure triggers drift emit (E5)
+```
+
+**Internal interchanges:** observe/interact → outcome-intake → per-strategy-health updated in place (via append-only evidence pattern, not field mutation — a new evidence event supersedes old in derivation). Ladder-reorderer consults health on next use.
+
+**Manifest exposures:** `locator-health-track` (append-only update), `locator-rank` (derivation).
+
+**Saga connections:** authorTest implicitly benefits via facet-query returning health-ranked locators. respondToDrift consumes strategy-failed-threshold signals.
+
+**Failure topology:** no new families — piggybacks on B3/B4 error families with added `health-threshold-breached` signal (not an error, a drift trigger).
+
+##### Lane E3 — Dialog capture
+
+**Primary highway:** Intent (§10.1) — operator dialog is an intent variant — with outbound into Memory (§10.1).
+
+**Secondary highways:** Verb, Reasoning (interpretation of operator wording).
+
+**Internal towns:**
+
+```
+E3 micro-cathedral
+├── dialog-channel/
+│   ├── turn-envelope               — { speaker, timestamp, rawText, session }
+│   ├── tag-as-domain-info          — operator annotates or agent classifies
+│   └── source-text-preservation    — invariant 7, verbatim text as provenance
+├── interpretation-handler/
+│   ├── reason-interpret-call       — yields to Reasoning.Tag
+│   ├── candidate-extractor         — structured candidates from operator text
+│   └── schema-guided-output        — candidates conform to facet kind schemas
+├── candidate-review-queue/
+│   ├── jsonl-queue                 — append-only queue
+│   ├── per-candidate-record        — operator wording + extracted candidate + rationale
+│   └── review-state-machine        — pending → approved | rejected | needs-edit
+└── decision-intake/
+    ├── approve-handler             — lands candidate as facet (via A4 mint)
+    ├── reject-handler              — preserves rejection with rationale
+    └── edit-handler                — operator edits candidate then approves
+```
+
+**Internal interchanges:** dialog turn → tag-as-domain-info → reason-interpret → candidate-extractor → candidate-review-queue. Operator decision → decision-intake → (facet-mint if approved, rejection-with-rationale appended if rejected). Source wording is preserved throughout.
+
+**Manifest exposures:** `dialog-capture`, `candidate-propose`, `candidate-review-decide`.
+
+**Saga connections:** absorbOperatorInput is the primary saga; dialog capture is its first step. applyApprovedProposal handles the approval side.
+
+**Failure topology:** `interpretation-ambiguous` (multiple candidate extractions from the same turn — surfaces as several candidates, not an error), `reasoning-unavailable` (Reasoning port down — surfaces), `queue-io-error`, `unclassified`.
+
+##### Lane E4 — Document ingest
+
+**Primary highway:** Intent (§10.1) — documents are an intent-adjacent source — into Memory.
+
+**Secondary highways:** Verb, Reasoning.
+
+**Internal towns:**
+
+```
+E4 micro-cathedral
+├── document-adapter/
+│   ├── format-detector             — markdown first; PDF/Confluence deferred
+│   ├── region-chunker              — splits document into addressable regions
+│   └── region-anchor-schema        — { path, startOffset, endOffset, headings }
+├── candidate-extraction/
+│   ├── reason-interpret-per-region — schema-guided extraction with region context
+│   └── candidate-with-anchor       — every candidate carries its source region
+├── deduplication/
+│   └── anchor-based-dedup          — repeat ingests don't double-count
+└── review-queue-integration/
+    └── same-queue-as-E3            — dialog and document candidates share the queue
+```
+
+**Internal interchanges:** document upload → format-detector → region-chunker → per-region reason-interpret → candidate-with-anchor → review queue. Deduplication runs before enqueue.
+
+**Manifest exposures:** `document-ingest`, `document-regions`.
+
+**Saga connections:** absorbOperatorInput handles document path as well as dialog path. The review queue is shared with E3.
+
+**Failure topology:** `format-unsupported` (non-markdown in Phase 7 — surfaces, deferred to later formats), `region-extraction-degraded` (partial extraction with source preserved), `reasoning-unavailable`, `unclassified`.
+
+##### Lane E5 — Drift emit
+
+**Primary highway:** Memory (§10.1) — but the event stream is a distinct log (drift-events.jsonl).
+
+**Secondary highways:** Truth (drift events feed measurement), World (drift is observed during execution).
+
+**Internal towns:**
+
+```
+E5 micro-cathedral
+├── drift-classifier/
+│   ├── product-vs-drift-split      — distinguishes assertion failures from locator failures
+│   ├── mismatch-kind               — stale-locator / changed-role / moved-element / …
+│   └── offending-facet-linker      — names the facets involved in the drift
+├── drift-event-log/
+│   ├── append-only-jsonl           — drift-events.jsonl
+│   └── event-schema                — { facetIds, kind, runId, observedAt, evidence }
+├── confidence-reducer/
+│   └── per-facet-decay-application — drift triggers weighted decay via E1
+└── surfacing-handler/
+    ├── to-agent                    — next authoring pass sees a handoff for the facet
+    └── to-operator                 — drift shows in proposal-review if operator-configured
+```
+
+**Internal interchanges:** test-execute outcome (B6) classified as drift → drift-classifier → drift-event-log append → confidence-reducer fires through E1 → agent's next session sees the reduced confidence and a decision handoff.
+
+**Manifest exposures:** `drift-emit`, `drift-query`.
+
+**Saga connections:** respondToDrift consumes drift events. maintenanceCycle aggregates drift across facets for revision synthesis. authorTest receives drift through facet-query results (reduced confidence, annotated drift evidence).
+
+**Failure topology:** `classification-ambiguous` (is it product or drift? — surfaces with both candidates), `facet-link-missing` (drift observed but no facet link can be established — rare, surfaces), `unclassified`.
+
+##### Lane E6 — DOM-less authoring policy
+
+**Primary highway:** Memory (§10.1) — a policy, not an instrument.
+
+**Secondary highways:** World (policy decides whether to observe), Truth (authoring throughput is measured under this policy).
+
+**Internal towns:**
+
+```
+E6 micro-cathedral
+├── policy-evaluator/
+│   ├── surface-confidence-query    — aggregate confidence across a surface's facets
+│   ├── threshold-gate              — above threshold → skip observe; below → observe
+│   └── per-session-policy-cache    — decision is stable within a session
+├── authoring-path-router/
+│   ├── with-observation            — standard L0–L2 path
+│   └── dom-less                    — skip observe, compose from memory only
+├── drift-consequence-handler/
+│   └── drift-demotes-surface       — one drift event drops the surface below threshold
+└── throughput-hook/
+    └── metric-dom-less-fraction    — declared metric verb (D2 family)
+```
+
+**Internal interchanges:** authorTest at screen-entry → policy-evaluator → authoring-path-router → (observe or skip). Drift events fed back from E5 demote the surface; next session reverts to the observation path.
+
+**Manifest exposures:** `surface-confidence`, `dom-less-policy-decide`.
+
+**Saga connections:** authorTest yields the policy decision before yielding observe. evaluateTestbed benefits proportionally; DOM-less throughput is measurable on testbed.
+
+**Failure topology:** `policy-config-invalid` (threshold misconfigured — build-time catchable), `surface-undefined` (facet query returns nothing for the surface — triggers observation path as fallback, not an error), `unclassified`.
+
+##### Lane E7 — Aging / corroboration / revision-propose
+
+**Primary highway:** Memory (§10.1) — self-refinement is Memory ↔ itself.
+
+**Secondary highways:** Truth (refinement is validated by next evaluation via D3 hypothesis-receipt).
+
+**Internal towns:**
+
+```
+E7 micro-cathedral
+├── aging-scheduler/
+│   ├── periodic-tick               — daemon fiber ticks on schedule
+│   ├── half-life-kernel            — per-facet confidence decay over elapsed time
+│   └── aging-receipt               — appended to evidence log as a decay event
+├── corroboration-hook/
+│   ├── passing-run-intake          — test-execute pass → corroborate referenced facets
+│   └── strength-weighting          — corroboration strength ∝ pass reliability
+├── revision-synthesizer/
+│   ├── drift-aggregator            — groups drift events by facet + kind
+│   ├── pattern-detector            — looks for repeated drift patterns
+│   ├── reason-synthesize-call      — yields to Reasoning for proposal text
+│   └── proposal-envelope           — { kind: 'revision', target, rationale, evidence }
+└── review-gated-application/
+    └── approved-proposal-applier   — lands the revision (via applyApprovedProposal)
+```
+
+**Internal interchanges:** aging-scheduler ticks → for each facet: aging-receipt appended → confidence re-derives lower on next read. Passing run → corroboration-hook → evidence log appended with corroboration event. Drift accumulation → revision-synthesizer → proposal into the proposal log.
+
+**Manifest exposures:** `facet-age`, `facet-corroborate`, `revision-propose`.
+
+**Saga connections:** maintenanceCycle is the daemon saga. proposeRefinements is the scheduled synthesis step. applyApprovedProposal handles the operator-approved landing path.
+
+**Failure topology:** `aging-scheduler-stopped` (daemon died — circuit breaker restarts), `reasoning-unavailable` (synthesis blocked — proposal deferred to next tick), `unclassified`.
+
+##### Lane F1 — Testbed growth
+
+**Primary highway:** Intent (§10.1) — each testbed version is an intent-source snapshot.
+
+**Secondary highways:** Truth (testbed growth enables cohort-comparable measurement).
+
+**Internal towns:**
+
+```
+F1 micro-cathedral
+├── version-manifest/
+│   ├── versions.yaml               — ordered list of testbed versions with increments
+│   └── increment-narrative         — one paragraph per version naming what it adds
+├── authored-content/
+│   └── testbed/v<N>/*.yaml          — synthetic work items committed per version
+├── expected-outcome-registry/
+│   └── per-version-expected         — what each work item should produce
+└── cohort-id-discipline/
+    ├── stable-ids-across-versions  — same work-item id means same scenario
+    └── version-diff-semantics      — v<N+1> is v<N> + one named increment
+```
+
+**Internal interchanges:** author new testbed work items → write version manifest entry → commit. Cohort-id discipline ensures measurement can compare the same scenario across versions.
+
+**Manifest exposures:** none — content lane, not verb lane.
+
+**Saga connections:** evaluateTestbed targets a specific version. compareEvaluations diffs across versions.
+
+**Failure topology:** `version-id-collision` (build-time catchable via a commit-hook that validates versions.yaml), `expected-outcome-drift` (a committed expected outcome contradicts earlier commits — build-time catchable), `unclassified`.
+
+##### Lane F2 — Metric catalog growth
+
+**Primary highway:** Truth (§10.1) — new metrics extend what Truth measures.
+
+**Secondary highways:** Verb (every metric is a manifest verb).
+
+**Internal towns:**
+
+```
+F2 micro-cathedral
+├── metric-proposal-shape/
+│   └── { name, signature, derivation, rationale, predicted-utility }
+├── declaration-first-pipeline/
+│   ├── declare-in-manifest         — signature frozen, derivation can stub
+│   ├── implement-derivation        — pure function over run records
+│   └── verify-against-testbed      — run metric over known-outcome data
+├── deprecation-handler/
+│   ├── since-version               — marks metric deprecated with replacement pointer
+│   └── retire-never-delete         — invariant-aware retirement
+└── metric-interaction-catalog/
+    └── cross-metric-correlation    — documentation, not executable
+```
+
+**Internal interchanges:** new metric need → metric-proposal-shape → manifest declaration → implementation → testbed verification → activation. Retirement follows the deprecation-handler path, never a delete.
+
+**Manifest exposures:** varies — this lane adds metric verbs by the ones each phase needs.
+
+**Saga connections:** evaluateTestbed and dashboardSnapshot consume all declared metrics.
+
+**Failure topology:** `metric-signature-drift` (build-fail via A3 drift check), `derivation-impurity` (catchable by a law: metric derivations must be pure functions of the run log), `unclassified`.
+
+##### Lane F3 — Operator-review UI
+
+**Primary highway:** Memory (§10.1) and Intent (operator decisions are intent-adjacent).
+
+**Secondary highways:** Verb.
+
+**Internal towns:**
+
+```
+F3 micro-cathedral
+├── queue-surface/
+│   ├── jsonl-queue                 — one item per pending review
+│   └── cli-list / cli-show         — operator inspects pending items
+├── decision-writer/
+│   ├── approve-cli                 — writes a decision record via file-backed bridge
+│   ├── reject-cli                  — same path, distinct verdict
+│   └── edit-cli                    — opens the item for operator edit, then approves
+├── decision-intake/
+│   ├── watch-bridge                — picks up decisions the CLI wrote
+│   └── resume-paused-fiber         — saga waiting on decision resumes
+└── extension-points/
+    └── richer-surfaces-defer       — TUI/web UI lands later only under pressure
+```
+
+**Internal interchanges:** proposal lands in queue → operator runs `review list / review show / review approve|reject|edit` → decision-writer emits decision record → decision-intake wakes the saga fiber.
+
+**Manifest exposures:** `review-list`, `review-show`, `review-decide`.
+
+**Saga connections:** every proposal-gated saga (applyApprovedProposal, recordProposalRejection, applyHandoffDecision) waits on a decision from this lane.
+
+**Failure topology:** `queue-io-error`, `decision-timeout` (operator absent; saga times out with structured handoff, not silent abandonment), `unclassified`.
+
+##### Lane F4 — Dashboard plug-in
+
+**Primary highway:** Truth (§10.1) — the dashboard is the Truth highway's external consumer.
+
+**Secondary highways:** none — dashboards write nothing.
+
+**Internal towns:**
+
+```
+F4 micro-cathedral
+├── log-reader/
+│   ├── run-record-reader
+│   ├── receipt-log-reader
+│   ├── drift-log-reader
+│   ├── proposal-log-reader
+│   └── reasoning-receipt-reader    (from B7)
+├── manifest-driven-derivations/
+│   └── dashboard-calls-metric-verbs  — reads via declared verbs only
+├── snapshot-envelope/
+│   └── DashboardSnapshot            — { window, metrics, highlights, proposals }
+├── projection-surfaces/
+│   ├── cli-text                    — human-readable snapshot
+│   ├── json-export                 — machine-readable for external tools
+│   └── subscribe-stream            — optional, push snapshots to a dashboard
+└── read-only-discipline/
+    └── architecture-law            — fails tests if the lane writes any log
+```
+
+**Internal interchanges:** dashboardSnapshot saga yields metric verbs → log-reader fills detail → snapshot-envelope returned. No writes; no mutations. A dashboard rebuild from logs alone must produce the same snapshot given the same log state.
+
+**Manifest exposures:** `dashboard-snapshot`. Read-only by signature.
+
+**Saga connections:** dashboardSnapshot saga consumes the lane. External tools (team TUI, web dashboard, alerting system) subscribe to or pull from the lane's surfaces.
+
+**Failure topology:** `log-read-io-error` (retry + surface), `manifest-verb-unavailable` (dashboard references a retired metric — surfaces gracefully), `unclassified`.
+
+---
+
+Every lane above shares the same micro-cathedral discipline: a primary highway, internal towns, explicit interchanges, manifest exposures, saga connections, and a failure topology. A lane without this structure cannot be parallelized; a lane with it is a pickable unit of work whose interface is compile-enforced and whose failure modes are enumerable. This is what lets a future agent — or a team of agents working concurrently — ship v2 without coordination overhead. The backlog is structured, the structure is descriptive not prescriptive, and every lane extends the same shape.
 
 Every lane's handoff contract is the shape downstream lanes can assume. The shape is always the same form: **"when this lane is complete, these invariants hold across the codebase."** Not "this file exists" — that's necessary but not sufficient.
 
