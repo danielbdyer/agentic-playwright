@@ -575,7 +575,7 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Scorecard — append-only Pareto frontier
 
-**Verdict:** v1-only *(operational scaffolding)*.
+**Verdict:** Shape-different — v2's §9.22 metric-compute records + receipt log collectively form an append-only history of metric values keyed by code version, structurally similar to v1's Pareto scorecard though without the specific M5/C6/effectiveHitRate frontier.
 
 **Module references:** `lib/application/improvement/scorecard.ts`; `.tesseract/benchmarks/scorecard.json` (append-only); `lib/application/measurement/score.ts` (`buildL4MetricTree`, `findLatestFitnessReport`); `lib/domain/fitness/types.ts` (`PipelineScorecard`, `ScorecardHistoryEntry`, `ScorecardHighWaterMark`).
 
@@ -625,7 +625,7 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Convergence-proof harness
 
-**Verdict:** v1-only *(innovation)*.
+**Verdict:** Shape-different — v2 adapts the statistical shape into metric-verb vocabulary at Step 8 (`v2-direction.md`) rather than carrying v1's harness in as a separate tool.
 
 **Module references:** `lib/application/improvement/convergence-proof.ts` (`convergenceProofProgram`, `ConvergenceProofInput`, `ConvergenceProofResult`); `lib/domain/convergence/types.ts` (`ConvergenceVerdict`, `ConvergenceTrialResult`).
 
@@ -637,7 +637,7 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Improvement run + ledger
 
-**Verdict:** v1-only *(operational scaffolding)*.
+**Verdict:** Shape-different — v2's append-only run-record log plus hypothesis receipt log (§9.23) carries the ledger concept without the `ObjectiveVector` / `ImprovementLineageEntry` specifics.
 
 **Module references:** `lib/application/improvement/improvement.ts` (`BuildImprovementRunInput`, `buildImprovementRun`); `lib/domain/improvement/types.ts` (`ImprovementRun`, `ImprovementLedger`, `ObjectiveVector`, `ImprovementLineageEntry`); `lib/domain/aggregates/improvement-run.ts` (`checkpointRun`, `createImprovementRun`); `.tesseract/benchmarks/improvement-ledger.json` (append-only).
 
@@ -663,7 +663,7 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 #### Scenario corpus partition (10000 vs 20000 series)
 
-**Verdict:** v1-only *(migration scaffolding)*.
+**Verdict:** Shape-different — v2 has its own synthetic testbed under `testbed/v<N>/` (§9.21), designed from first principles rather than porting the 10000/20000 scenarios. The specific scenarios do not migrate; the concept of a committed synthetic corpus does.
 
 **Module references:** `docs/scenario-partition.md`; `dogfood/scenarios/demo/` (10000-series legacy, test-pinned); `dogfood/scenarios/reference/` (20000-series generated reference cohorts via `lib/application/synthesis/cohort-generator.ts`).
 
@@ -752,35 +752,39 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 | Verdict | Count | Share |
 |---|---:|---:|
 | Aligned | 9 | 16% |
-| Shape-different | 11 | 20% |
+| Shape-different | 15 | 27% |
 | Partial in v1 | 9 | 16% |
 | Absent in v1 | 5 | 9% |
-| v1-only | 22 | 39% |
-| &nbsp;&nbsp;— migration scaffolding | 3 | |
-| &nbsp;&nbsp;— operational scaffolding | 12 | |
-| &nbsp;&nbsp;— innovation | 7 | |
+| v1-only | 18 | 32% |
+| &nbsp;&nbsp;— migration scaffolding | 2 | |
+| &nbsp;&nbsp;— operational scaffolding | 10 | |
+| &nbsp;&nbsp;— innovation | 6 | |
 | **Total blocks** | **56** | **100%** |
+
+Four blocks shifted from v1-only to Shape-different after the measurement stance was added to `v2-direction.md §5`, `v2-substrate.md §7`, and `feature-ontology-v2.md §7.9 / §9.21–§9.23`. The shifts: V1.4 Scorecard, V1.5 Convergence-proof harness, V1.5 Improvement run + ledger, V1.6 Scenario corpus partition. Each now has a structurally similar v2 analog, even though the v1 specifics do not port.
 
 ### Directory by verdict
 
 **Aligned (9):** §9.1 Intent fetch · §9.2 Intent parse · §9.18 Selector and test-data indirection · §9.19 Parametric expansion and fixture composition · V1.2 Four-axis phantom-type envelope · V1.2 Concrete envelope type hierarchy · V1.2 Envelope header field taxonomy · V1.2 `Fingerprint<Tag>` · V1.3 Governance phantom brands.
 
-**Shape-different (11):** §8.1 ROI curve · §8.6 Reversibility classes · §9.6 Test compose · §9.9 Facet mint · §9.10 Facet query · §9.11 Facet enrich · §9.12 Locator health track · §9.13 Drift emit · §9.16 Facet schema sketch · V1.6 MCP server tool surface · V1.6 Review surface contract.
+**Shape-different (15):** §8.1 ROI curve · §8.6 Reversibility classes · §9.6 Test compose · §9.9 Facet mint · §9.10 Facet query · §9.11 Facet enrich · §9.12 Locator health track · §9.13 Drift emit · §9.16 Facet schema sketch · V1.4 Scorecard · V1.5 Convergence-proof harness · V1.5 Improvement run + ledger · V1.6 MCP server tool surface · V1.6 Review surface contract · V1.6 Scenario corpus partition.
 
 **Partial in v1 (9):** §8.2 Authoring session phases · §8.3 Decision surface · §8.4 Implementation surface · §8.5 Ten invariants · §9.3 Navigate · §9.4 Observe · §9.5 Interact · §9.7 Test execute · §9.20 Scale behavior.
 
 **Absent in v1 (5):** §8.7 Engagement → determinism · §9.8 Verb declare / Manifest / Fluency · §9.14 Dialog / Document / Candidate review · §9.15 Confidence age / Corroborate / Revision propose · §9.17 Affordance extension authoring.
 
-**v1-only — migration scaffolding (3):** V1.1 Six-slot lookup chain · V1.1 Reference-canon transitional slot · V1.6 Scenario corpus partition.
+**v1-only — migration scaffolding (2):** V1.1 Six-slot lookup chain · V1.1 Reference-canon transitional slot.
 
-**v1-only — operational scaffolding (12):** V1.1 Mode flags · V1.3 Trust policy engine · V1.4 Theorem groups K/L/S/V/D/R/A/C/M/H · V1.4 Scorecard · V1.4 Fitness metrics and eight failure classes · V1.5 The 15-knob parameter space · V1.5 Speedrun verb surface · V1.5 Improvement run + ledger · V1.5 Learning-health bottleneck ranking · V1.6 Dogfood / production suite-root abstraction · V1.6 `.tesseract/` ephemeral artifact directory · V1.6 CLI script surface.
+**v1-only — operational scaffolding (10):** V1.1 Mode flags · V1.3 Trust policy engine · V1.4 Theorem groups K/L/S/V/D/R/A/C/M/H · V1.4 Fitness metrics and eight failure classes · V1.5 The 15-knob parameter space · V1.5 Speedrun verb surface · V1.5 Learning-health bottleneck ranking · V1.6 Dogfood / production suite-root abstraction · V1.6 `.tesseract/` ephemeral artifact directory · V1.6 CLI script surface.
 
-**v1-only — innovation (7):** V1.2 Epistemic branding · V1.3 Confidence lattice · V1.3 Certification status dual-tracked with activation · V1.3 InterventionBlastRadius and InterventionAuthority · V1.4 M5 / C6 operational definitions · V1.5 Convergence-proof harness · V1.6 File-backed decision bridge.
+**v1-only — innovation (6):** V1.2 Epistemic branding · V1.3 Confidence lattice · V1.3 Certification status dual-tracked with activation · V1.3 InterventionBlastRadius and InterventionAuthority · V1.4 M5 / C6 operational definitions · V1.6 File-backed decision bridge.
 
 ### Shape of the overall delta
 
 The L0 data-flow chain (§9.1–§9.7) is essentially present in v1 with envelope-shape differences rather than capability gaps. The memory layer (§9.9–§9.16) has substantial machinery in v1 but differs in shape where v2 makes structural claims — unified schema, derived confidence, emitted drift, facet-level evidence logs. The agent-ergonomics layer (§8 + §9.8 + §9.17) concentrates the Absent-in-v1 verdicts: doctrinally acknowledged, not yet assembled.
 
-The v1-only blocks split three ways by intent. **Migration scaffolding** (3 blocks) retires once reference canon is empty. **Operational scaffolding** (12 blocks) is dogfood workflow — measurement, CLI, `.tesseract/` staging — orthogonal to v2's product surface. **Innovation** (7 blocks) names finer-grained distinctions (epistemic branding vs governance, scope-of-effect vs reversibility, confidence lattice vs narrative M5/C6, operational alignment floors, convergence-proof statistical harness, file-backed decision transport) that v2 could inherit under shipping pressure.
+The v1-only blocks split three ways by intent. **Migration scaffolding** (2 blocks) retires once reference canon is empty. **Operational scaffolding** (10 blocks) is dogfood workflow — CLI, `.tesseract/` staging, 15-knob tuning, speedrun verbs — orthogonal to v2's product surface. **Innovation** (6 blocks) names finer-grained distinctions (epistemic branding vs governance, scope-of-effect vs reversibility, confidence lattice vs narrative M5/C6, operational alignment floors, file-backed decision transport) that v2 could inherit under shipping pressure.
 
-The single most consequential pattern: v1's envelope-axis substrate (V1.2) is v2's own specification materialized in code — four of the nine Aligned verdicts sit in this cluster. `docs/envelope-axis-refactor-plan.md` Phase 0 is complete; Phases B–E are the v1→v2 convergence path. Elsewhere, v1 is further from v2 where v2's claims are most structural (unified facet record, per-facet evidence log, drift as emitted event), and closest to v2 where v2's claims are procedural (intent fetch, test compose, parametric expansion).
+Two consequential patterns. First: v1's envelope-axis substrate (V1.2) is v2's own specification materialized in code — four of the nine Aligned verdicts sit in this cluster. `docs/envelope-axis-refactor-plan.md` Phase 0 is complete; Phases B–E are the v1→v2 convergence path. Second: once v2's measurement stance landed (`v2-direction.md §5`, `v2-substrate.md §7`, `feature-ontology-v2.md §7.9 and §9.21–§9.23`), four v1 blocks that had been tagged v1-only shifted to Shape-different — the measurement apparatus (scorecard, convergence-proof harness, improvement run + ledger, scenario corpus partition) now has a structurally similar v2 analog via the testbed + metric-verbs + hypothesis-receipts pattern, even though the v1 specifics do not port. The measurement concerns are first-class in both, expressed differently.
+
+Elsewhere, v1 is further from v2 where v2's claims are most structural (unified facet record, per-facet evidence log, drift as emitted event), and closest to v2 where v2's claims are procedural (intent fetch, test compose, parametric expansion, and — after the stance landed — measurement composed from existing primitives).
