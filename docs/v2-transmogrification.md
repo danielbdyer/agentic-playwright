@@ -799,9 +799,9 @@ What v2 ships, as product, is three surfaces: a manifest, a catalog, tests. What
 
 ## 10. The highway map — how everything connects
 
-§9 named the stones. This section draws the highways. Five major arteries move information through v2; they meet at five interchanges; the whole flows as one loop over append-only time. This is the map you put on the wall — the macro view that tells you where any piece of the system sits and how anything you do ripples through the rest.
+§9 named the stones. This section draws the highways. Six major arteries move information through v2; they meet at five interchanges; the whole flows as one loop over append-only time. This is the map you put on the wall — the macro view that tells you where any piece of the system sits and how anything you do ripples through the rest.
 
-### 10.1 The five highways
+### 10.1 The six highways
 
 **Intent highway.** From an intent source to the agent's workbench. Sources are polymorphic — Azure DevOps work items, synthetic testbed work items, operator dialog turns, operator-shared documents. They all arrive at the agent through `intent-fetch` and `intent-parse`, shaped identically, tagged with `source`. The highway runs one-way: inbound.
 
@@ -810,6 +810,8 @@ What v2 ships, as product, is three surfaces: a manifest, a catalog, tests. What
 **Memory highway.** Between the agent and the facet catalog plus the evidence log. Outbound are queries (by intent phrase) and writes (mints, enrichments, health updates). Inbound are ranked facets, derived confidence, drift classifications. The highway carries no raw data — just facet identifiers, structured records, and derivations.
 
 **Verb highway.** From the vocabulary manifest to every call site in the codebase. A single file, read once per session by the agent, declares every verb with a frozen signature. No code writes to this highway at runtime; it is published at build time and consumed at session start. It is the shortest and most-used highway in the system.
+
+**Reasoning highway.** From every decision point in v2 to the LLM service that answers it. This is the agent's inner voice — the cognition behind every "agent chooses," every "agent interprets," every "agent synthesizes" referenced throughout the sagas. Like the Verb highway, it runs many-to-one: every saga that needs disambiguation, candidate extraction, step phrasing, drift classification (when rule-based classification is inconclusive), or hypothesis synthesis calls into this port; a single Reasoning adapter serves them all. The specific provider — direct Anthropic or OpenAI API, MCP-brokered, VSCode Copilot, or a local model — is a `Layer.succeed` choice at runtime composition (§11), not a saga concern. Every saga site that yields from `Reasoning.Tag` is abstraction-safe over the provider; swapping providers is a configuration change, not a saga rewrite.
 
 **Truth highway.** The measurement loop. Run records feed metric derivations; metric derivations plus drift events plus evidence accumulation feed proposals; proposals feed operator review; approved changes land in code or memory; the next evaluation produces new run records; verification receipts append; the agent reads the receipt log to propose the next change. This highway is circular — it closes back on itself, and the cycle is how v2 learns.
 
@@ -833,53 +835,54 @@ What v2 ships, as product, is three surfaces: a manifest, a catalog, tests. What
  │  Testbed   ──│           ║   decision         ║           │  + SUT       │
  │  Dialog    ──│           ║   handoffs,        ║           │              │
  │  Document  ──│           ║   receipts)        ║           │              │
- └──────────────┘           ╚═══════╤════════════╝           └──────────────┘
-                                    │
-                              query │ mint
-                              read  │ enrich
-                                    ▼
-                        ╔═══════════════════════════╗
-                        ║         MEMORY            ║
-                        ║                           ║
-                        ║   facet catalog           ║
-                        ║   evidence log            ║  ◀── append-only
-                        ║   drift log               ║      (invariant 3)
-                        ║   proposal log            ║
-                        ║   receipt log             ║
-                        ║   run-record log          ║
-                        ╚═══════════╤═══════════════╝
-                                    │
-                                    │  metric verbs
-                                    │  (manifest-declared
-                                    │   derivations)
-                                    ▼
-                        ┌───────────────────────────┐
-                        │   EVALUATION OUTPUTS      │
-                        │                           │
-                        │   batch summary           │
-                        │   metric values           │
-                        │   batting average         │
-                        └───────────┬───────────────┘
-                                    │
-                          proposals │ (kind: revision |
-                                    │   hypothesis | candidate)
-                                    ▼
-                        ┌───────────────────────────┐
-                        │     OPERATOR REVIEW       │
-                        │                           │
-                        │     accept / reject       │
-                        │     (proposal-gated       │
-                        │      reversibility)       │
-                        └───────────┬───────────────┘
-                                    │
-                                    │ approved changes land:
-                                    │   • memory revisions → catalog/evidence
-                                    │   • code hypotheses  → next build
-                                    │   • candidate facets → catalog
-                                    │
-                                    └──▶ next authoring run generates new
-                                         run records; verification receipts
-                                         append; agent reads; loop closes
+ └──────────────┘           ╚══╤══════════╤══════╝           └──────────────┘
+                               │          │
+                    decisions  │          │  query / mint / enrich
+                               │          │
+                         ▲     │          │
+                         │choices         ▼
+                         │rationale   ╔═══════════════════════════╗
+                ┌────────┴─────────┐  ║         MEMORY            ║
+                │   REASONING      │  ║                           ║
+                │   (LLM service)  │  ║   facet catalog           ║
+                │                  │  ║   evidence log            ║  ◀── append-only
+                │  • Anthropic API │  ║   drift log               ║      (invariant 3)
+                │  • OpenAI API    │  ║   proposal log            ║
+                │  • MCP broker    │  ║   receipt log             ║
+                │  • VSCode        │  ║   run-record log          ║
+                │    Copilot       │  ╚═══════════╤═══════════════╝
+                │  • Local model   │              │
+                └──────────────────┘              │  metric verbs
+                                                  │  (manifest-declared
+                                                  │   derivations)
+                                                  ▼
+                                      ┌───────────────────────────┐
+                                      │   EVALUATION OUTPUTS      │
+                                      │                           │
+                                      │   batch summary           │
+                                      │   metric values           │
+                                      │   batting average         │
+                                      └───────────┬───────────────┘
+                                                  │
+                                        proposals │ (kind: revision |
+                                                  │   hypothesis | candidate)
+                                                  ▼
+                                      ┌───────────────────────────┐
+                                      │     OPERATOR REVIEW       │
+                                      │                           │
+                                      │     accept / reject       │
+                                      │     (proposal-gated       │
+                                      │      reversibility)       │
+                                      └───────────┬───────────────┘
+                                                  │
+                                                  │ approved changes land:
+                                                  │   • memory revisions → catalog/evidence
+                                                  │   • code hypotheses  → next build
+                                                  │   • candidate facets → catalog
+                                                  │
+                                                  └──▶ next authoring run generates new
+                                                       run records; verification receipts
+                                                       append; agent reads; loop closes
 ```
 
 Legend:
@@ -1132,6 +1135,70 @@ Cyclical. Starts with the emitted test; flows through execution, run records, me
 
 *Composition.* The truth highway is the longest saga. One evaluation run is `Effect.gen` composing testbed fetch → authoring → execution → run-record append → metric computation in sequence; independent metric derivations are parallelized via `Effect.all`. The proposal lifecycle is a state machine expressed as `Stream` transforms — `pending → approved → landed → verified` or `pending → rejected`. Operator review is a suspended `Fiber` that resumes on the decision bridge's atomic-rename signal. The closure — agent reads receipt, proposes next — is a long-running `Fiber.daemon` scoped to the session's lifecycle.
 
+#### 10.4.6 Reasoning highway towns
+
+The agent's inner voice. Every saga contains decision points — interpret this ambiguous step, extract candidates from this transcript, phrase this step title in QA vocabulary, classify this drift event, synthesize this revision proposal. In every case, the agent is calling an LLM. The Reasoning highway is where those calls happen, abstracted behind a single port so the provider can change without touching the sagas.
+
+**Service tag (the port):**
+
+| Town | Path | Role | Phase |
+|---|---|---|---|
+| `Reasoning` tag | `lib-v2/domain/reasoning/reasoning.ts` | `Context.Tag` declaring the cognition operations: `interpret`, `extract`, `phrase`, `classify`, `synthesize` — each a typed `Effect` with a named input shape, a named output shape, and a typed error channel | 1 |
+
+**Provider adapters (Layer implementations — the agent's inner voice, made by different vocal cords):**
+
+| Town | Path | Role | Phase |
+|---|---|---|---|
+| Anthropic Adapter | `lib-v2/infrastructure/reasoning/anthropic-live.ts` | Direct Anthropic API calls; structured output via tool-use / JSON schema | 1 |
+| OpenAI Adapter | `lib-v2/infrastructure/reasoning/openai-live.ts` | Direct OpenAI API calls; structured output via function calling | 1 |
+| MCP Adapter | `lib-v2/infrastructure/reasoning/mcp-live.ts` | Brokered via Model Context Protocol; v2 acts as MCP client; LLM runs in a separate process | 1 |
+| Copilot Adapter | `lib-v2/infrastructure/reasoning/copilot-live.ts` | VSCode Copilot integration via editor extension protocol | later |
+| Local Adapter | `lib-v2/infrastructure/reasoning/local-live.ts` | Local model via Ollama, llama.cpp, or similar | later |
+| Test Adapter | `lib-v2/testing/reasoning/test-live.ts` | Deterministic responses for integration tests; replays fixtures | 1 |
+
+**Operation towns (what the Reasoning port actually does):**
+
+| Operation | Called from (saga or sub-saga) | Input → Output |
+|---|---|---|
+| `Reasoning.interpret` | intent-parse (Stage α disambiguation) | raw step text → structured `{ action, expected, preconditions }` with provenance back-link |
+| `Reasoning.extractFromDialog` | `absorbOperatorInput` — dialog path | operator transcript → `CandidateFacet[]` with verbatim wording preserved |
+| `Reasoning.extractFromDocument` | `absorbOperatorInput` — document path | operator document + anchor hints → `CandidateFacet[]` with region anchors |
+| `Reasoning.phraseStep` | test-compose | `{ intent, facet }` → business-vocabulary step title |
+| `Reasoning.classifyDrift` | `respondToDrift` — ambiguous branch | mismatch evidence → classification kind + confidence |
+| `Reasoning.synthesizeRevision` | `proposeRefinements` | `{ driftEvents, decayedFacets, corroborated }` → candidate revision list |
+| `Reasoning.proposeHypothesis` | agent self-directed (post-evaluation) | `{ receiptLogSummary, evaluationDelta }` → hypothesis with predicted delta |
+| `Reasoning.resolveHandoff` | any saga that surfaces an `InterventionHandoff` | handoff shape → chosen option + rationale |
+
+```
+        ┌──────────────────────────────┐
+        │  every saga decision point   │
+        │  (interpret, extract,        │
+        │   phrase, classify,          │
+        │   synthesize, propose,       │
+        │   resolve handoff)           │
+        └────────────┬─────────────────┘
+                     │ typed request
+                     ▼
+        ┌──────────────────────────────┐
+        │       Reasoning.Tag          │
+        │       (the port)             │
+        └────────────┬─────────────────┘
+                     │
+                     │  provider chosen by Layer
+                     │  at runtime composition (§11)
+                     │
+          ┌──────────┼──────────┬──────────┬──────────┐
+          ▼          ▼          ▼          ▼          ▼
+      Anthropic   OpenAI       MCP      Copilot     Local
+        Live       Live        Live      Live       Live
+```
+
+*Composition.* `Reasoning` is a `Context.Tag` whose methods return `Effect<Output, ReasoningError, Reasoning>`. Each method is typed at the domain edge — the saga cannot see *how* the LLM is reached, only what shape it expects back. Provider selection happens once at `AppLayer` composition time (§11.1): `Layer.succeed(Reasoning, AnthropicLive)` or `Layer.succeed(Reasoning, McpLive)` or the test adapter for integration testing. Structured output is enforced by `Schema.decode` on the adapter side — the LLM's JSON response becomes a typed domain value before it reaches the saga, or the operation fails with `ReasoningShapeError`. Retries for transient provider failures compose via `Effect.retry(Schedule.exponential("200 millis") /* ... */)` inside the adapter, invisible to sagas.
+
+*Why Reasoning is a highway, not just a service.* It's many-to-one like Verb — every decision site consults it. It has named *operations*, not just opaque invocations — each operation has a named input, output, and error shape, making reasoning calls first-class in the type system. It has *multiple adapter implementations* that are swappable per invocation via Layer composition — which is precisely what hexagonal architecture demands for external services that may be exchanged. And sagas cross it explicitly via `yield* Reasoning.classifyDrift(...)` or similar; the yield is visible in the code as a handoff to the agent's inner voice. If it weren't a highway, the LLM would be invisible in the architecture — and in v2 the LLM is how the agent thinks.
+
+*One provider-agnostic property worth calling out.* The Reasoning highway is where MCP integration lives as an adapter. When v2 is invoked with the MCP adapter provisioned, the LLM runs in another process (Claude Desktop, or an IDE plugin, or a remote service); v2 exposes its own verbs as MCP tools the LLM can call back into, *in addition* to v2 calling the LLM via `Reasoning.*`. The two directions of MCP — v2 as MCP client (calling the LLM) and v2 as MCP server (exposing tools to the LLM) — coexist inside the MCP adapter. The rest of v2 doesn't know which direction is active; it just yields from `Reasoning.Tag` and gets typed responses.
+
 ### 10.5 Composition and braiding — how Effect holds the highways together
 
 The highways are data routes. Effect is the composition calculus that moves data along them. The parallel work streams named throughout §3 become *compile-time guarantees* rather than scheduling wishes because `Effect.all` types them, `yield*` sequences them, `Context.Tag`s port them, `catchTag` discriminates their failures, and `Stream` threads their events through time. This section names the arterial patterns — the ones v2 uses at every handshake and relies on at every interchange — and then shows one end-to-end saga braided through all five highways.
@@ -1262,8 +1329,23 @@ const authorTest = (sourceRef: SourceRef, hypothesis?: Hypothesis) =>
       { concurrency: 1 } // per-step sequencing within the work item
     );
 
+    // ─── Reasoning highway: phrase step titles in QA vocabulary ──
+    // Test compose delegates business-vocabulary phrasing to the LLM;
+    // raw intent text goes in, QA-legible step titles come out. This
+    // is the difference between a test a human reads as "professional"
+    // and a test that reads as "generated."
+    const phrasedSteps = yield* Effect.all(
+      stepResults.map(({ step, facet }) =>
+        Effect.gen(function* () {
+          const title = yield* Reasoning.phraseStep({ intent: step, facet });
+          return { step, facet, title };
+        })
+      ),
+      { concurrency: 4 }  // bounded LLM fan-out
+    );
+
     // ─── Truth highway: compose and execute ──────────────────────
-    const testFile = yield* TestCompose.emit(parsed, stepResults);
+    const testFile = yield* TestCompose.emit(parsed, phrasedSteps);
     const runRecord = yield* TestExecute.run(testFile);
 
     // ─── Memory highway: corroborate or drift-emit ───────────────
@@ -1290,10 +1372,12 @@ const authorTest = (sourceRef: SourceRef, hypothesis?: Hypothesis) =>
     return runRecord;
   }).pipe(
     // ─── Typed recovery at the saga boundary ────────────────────
-    Effect.catchTag("NavigationTimeoutError", () => escalateToOperator),
+    Effect.catchTag("NavigationTimeoutError",      () => escalateToOperator),
     Effect.catchTag("LocatorLadderExhaustedError", () => handoffToAgent),
-    Effect.catchTag("AdoTransientError", () => retryWithBackoff),
-    Effect.catchTag("FacetStoreCorruptError", () => failFast),
+    Effect.catchTag("AdoTransientError",           () => retryWithBackoff),
+    Effect.catchTag("FacetStoreCorruptError",      () => failFast),
+    Effect.catchTag("ReasoningShapeError",         () => surfaceShapeErrorToOperator),
+    Effect.catchTag("ReasoningProviderError",      () => retryOrFailover),
     // any other error surfaces unhandled; the compiler's error-channel
     // residual lists what remains unrouted
     Effect.withSpan("authorTest", { attributes: { sourceRef: sourceRef.toString() } })
@@ -1384,10 +1468,12 @@ Note the mint provenance block is assembled inline — there is no retroactive m
 ```ts
 const absorbOperatorInput = (input: OperatorInput) =>
   Effect.gen(function* () {
-    // ─── Intent highway: extract candidates by input kind ─────────
+    // ─── Reasoning highway: LLM-powered extraction by input kind ─
+    // The Reasoning.Tag adapter (provider chosen at §11) handles the
+    // actual LLM call; the saga sees a typed CandidateFacet[] return.
     const candidates = yield* Match.value(input.kind).pipe(
-      Match.when("dialog",   () => DialogCapture.extract(input)),
-      Match.when("document", () => DocumentIngest.extract(input)),
+      Match.when("dialog",   () => Reasoning.extractFromDialog(input)),
+      Match.when("document", () => Reasoning.extractFromDocument(input)),
       Match.exhaustive,
     );
 
@@ -1397,11 +1483,12 @@ const absorbOperatorInput = (input: OperatorInput) =>
         CandidateReview.enqueue({
           candidate,
           provenance: {
-            operatorId:  input.operatorId,
-            sourceType:  input.kind,
-            sourceText:  candidate.sourceText,      // preserved verbatim per invariant 8
-            anchorRef:   candidate.anchorRef,        // doc-region pointer, if applicable
-            capturedAt:  yield* Clock.now,
+            operatorId:       input.operatorId,
+            sourceType:       input.kind,
+            sourceText:       candidate.sourceText,      // preserved verbatim per invariant 8
+            anchorRef:        candidate.anchorRef,        // doc-region pointer, if applicable
+            reasoningProvider: yield* Reasoning.providerId,  // audit trail: which adapter spoke
+            capturedAt:       yield* Clock.now,
           },
         })
       ),
@@ -1412,32 +1499,50 @@ const absorbOperatorInput = (input: OperatorInput) =>
   }).pipe(
     Effect.catchTag("DialogMalformedError",     () => logAndSkip),
     Effect.catchTag("DocumentUnreadableError",  () => surfaceErrorToOperator),
+    Effect.catchTag("ReasoningShapeError",      () => surfaceShapeErrorToOperator),
+    Effect.catchTag("ReasoningProviderError",   () => retryOrFailover),
     Effect.withSpan("absorbOperatorInput", { attributes: { kind: input.kind } })
   );
 ```
 
-Candidates are proposal-gated, not memory-written. The saga enqueues; the operator review saga (§10.5 Saga 6) disposes. Invariant 8 (source vocabulary preserved) binds at the extraction boundary: `candidate.sourceText` is verbatim operator wording.
+Candidates are proposal-gated, not memory-written. The saga enqueues; the operator review saga (§10.5 Saga 6) disposes. Invariant 8 (source vocabulary preserved) binds at the extraction boundary: `candidate.sourceText` is verbatim operator wording — the LLM parsed but did not paraphrase. The `reasoningProvider` field on provenance is the audit trail: every candidate carries which adapter (Anthropic, OpenAI, MCP, local) produced it, so a provider change is observable in the catalog's history.
 
 **Saga 4 — `respondToDrift`.** Fires when a memory-authored step fails at runtime in a mismatch pattern. Memory highway (classify + log) + Truth highway (may surface to handoff). Composed inside `authorTest`'s post-execution branch when `runRecord.pass === false` and the failure looks like drift rather than product failure.
 
 ```ts
 const respondToDrift = (runRecord: RunRecord, failedStep: StepResult) =>
   Effect.gen(function* () {
-    // ─── Memory highway: classify the mismatch deterministically ──
-    const classification = yield* DriftEmit.classify({
+    // ─── Memory highway: try deterministic classification first ──
+    // Rule-based path: known mismatch shapes (not-found, role-changed,
+    // name-changed, state-mismatch) resolve without a reasoning call.
+    const ruleBased = yield* DriftEmit.classifyByRules({
       facetId:       failedStep.facetId,
       observedState: failedStep.observedState,
       expectedState: failedStep.expectedState,
     });
 
+    // ─── Reasoning highway: LLM classification only when rules exhaust ─
+    // If rules are inconclusive, the Reasoning adapter resolves; the
+    // response is Schema-decoded into a typed classification before
+    // returning. The agent's inner voice is invoked here and only here.
+    const classification = ruleBased.kind !== "ambiguous"
+      ? ruleBased
+      : yield* Reasoning.classifyDrift({
+          facetId:       failedStep.facetId,
+          observedState: failedStep.observedState,
+          expectedState: failedStep.expectedState,
+          ruleHint:      ruleBased,  // gives the LLM what rules saw
+        });
+
     // ─── Memory highway: append drift event (append-only, invariant 3) ─
     const driftEvent = yield* DriftLog.append({
-      runId:        runRecord.runId,
-      facetId:      failedStep.facetId,
-      strategyKind: failedStep.strategyKind,
-      mismatchKind: classification.kind,
-      evidence:     classification.evidence,
-      observedAt:   yield* Clock.now,
+      runId:             runRecord.runId,
+      facetId:           failedStep.facetId,
+      strategyKind:      failedStep.strategyKind,
+      mismatchKind:      classification.kind,
+      evidence:          classification.evidence,
+      classifiedBy:      classification.source,  // "rule" | "reasoning:<provider>"
+      observedAt:        yield* Clock.now,
     });
 
     // ─── Memory highway: reduce confidence via negative evidence ──
@@ -1447,7 +1552,7 @@ const respondToDrift = (runRecord: RunRecord, failedStep: StepResult) =>
       reason:  classification.kind,
     });
 
-    // ─── If ambiguous, hand off to agent via structured decision ──
+    // ─── If the LLM itself returned ambiguous, hand off to operator ─
     if (classification.kind === "ambiguous") {
       const handoff = yield* InterventionHandoff.prepare({
         blockageType:        "drift-ambiguous",
@@ -1462,11 +1567,15 @@ const respondToDrift = (runRecord: RunRecord, failedStep: StepResult) =>
     return driftEvent;
   }).pipe(
     Effect.catchTag("AgenticDecisionRequired", (err) => surfaceHandoffToAgent(err.handoff)),
+    Effect.catchTag("ReasoningShapeError",     () => fallBackToAmbiguousAndSurface),
+    Effect.catchTag("ReasoningProviderError",  () => fallBackToAmbiguousAndSurface),
     Effect.withSpan("respondToDrift")
   );
 ```
 
 The saga never silently patches memory. Invariant 6 (no silent escalation) is visible here: every state change — the drift event, the negative evidence, the ambiguous handoff — is an append to a log the agent and operator can read. Confidence falls by rule, not by mutation.
+
+The Reasoning call is *gated by rules*. Rule-based classification runs first; only when rules return `ambiguous` does the saga spend an LLM call. This keeps cognition budget on the decisions that actually need it and makes the rule-based path the deterministic fallback when the Reasoning adapter is absent or misconfigured. The `classifiedBy` field on the drift event records which path produced the classification, so the receipt log later distinguishes rule-resolved drift from reasoning-resolved drift — useful telemetry for evaluating whether rules are keeping up with reality.
 
 **Saga 5 — `proposeRefinements`.** The L4 saga. Runs on a periodic schedule; aggregates accumulated signals (drift events, decayed facets, corroboration) into revision proposals for operator review. Memory highway (read signals) + Truth highway (append proposals). Not tied to any single work item.
 
@@ -1480,36 +1589,52 @@ const proposeRefinements = (window: TimeWindow) =>
       corroborated:  CorroborationLog.since(window.start),
     });
 
-    // ─── Aggregate into candidate revisions; pure synthesis, no I/O ─
-    const revisions = yield* RevisionPropose.synthesize(signals);
+    // ─── Load prior rejections so the LLM can see what's already been tried ─
+    const priorRejections = yield* ProposalLog.rejectionsInRecentHistory({ windowDays: 30 });
 
-    // ─── Filter against prior rejections so we don't resurface them ─
-    const priorRejections = yield* ProposalLog.rejectionsFor(revisions.map((r) => r.facetId));
-    const novel = revisions.filter((r) => !priorRejections.matches(r));
+    // ─── Reasoning highway: LLM-powered synthesis with context ────
+    // The synthesis is the saga's core work: given signals and rejection
+    // history, draft revision proposals that a human would recognize as
+    // reasonable. This is exactly where an LLM earns its keep — taking
+    // structured evidence and producing rationale-carrying proposals.
+    const revisions = yield* Reasoning.synthesizeRevision({
+      signals,
+      priorRejections,
+      constraints: {
+        maxProposalsPerRun: 10,
+        minEvidenceCitations: 1,
+        mustCiteEvidenceByFacetId: true,
+      },
+    });
 
     // ─── Truth highway: append each proposal with its cited evidence ─
     yield* Effect.all(
-      novel.map((revision) =>
+      revisions.map((revision) =>
         ProposalLog.append({
-          kind:           "revision",
-          facetId:        revision.facetId,
-          proposedChange: revision.proposedChange,
-          citedEvidence:  revision.citedEvidence,
-          rationale:      revision.rationale,
-          conditionedOn:  priorRejections.relevantTo(revision.facetId),
+          kind:              "revision",
+          facetId:           revision.facetId,
+          proposedChange:    revision.proposedChange,
+          citedEvidence:     revision.citedEvidence,   // enforced by Reasoning Schema
+          rationale:         revision.rationale,      // LLM-authored; verbatim
+          reasoningProvider: yield* Reasoning.providerId,
+          conditionedOn:     priorRejections.relevantTo(revision.facetId),
         })
       ),
       { concurrency: "unbounded" }
     );
 
-    return { proposed: novel.length, suppressedByPriorRejection: revisions.length - novel.length };
+    return { proposed: revisions.length };
   }).pipe(
-    Effect.catchTag("SignalStreamGapError", (err) => logAndContinueWithPartial(err)),
+    Effect.catchTag("SignalStreamGapError",   (err) => logAndContinueWithPartial(err)),
+    Effect.catchTag("ReasoningShapeError",    () => surfaceShapeErrorToOperator),
+    Effect.catchTag("ReasoningProviderError", () => retryOrFailover),
     Effect.withSpan("proposeRefinements", { attributes: { window: String(window) } })
   );
 ```
 
-The saga is what the feature ontology calls "self-refinement" operationalized: signals are pure reads; synthesis is pure computation; proposals are append-only with rejection history conditioning. Nothing autonomous; everything proposal-gated.
+The saga is what the feature ontology calls "self-refinement" operationalized. Signal gathering is deterministic reads over streams. The synthesis itself is a Reasoning call — the LLM takes structured evidence plus rejection history and drafts revisions with rationale. Proposals are append-only with the provider recorded, so an audit later can ask "which provider authored this proposal?" and the receipt log answers.
+
+Notice what the saga does *not* do: there is no autonomous memory change. Every proposal sits in the proposal log awaiting operator review (`applyApprovedProposal`, Saga 6). The LLM proposes; the operator disposes. This is invariant 7 (reversible agentic writes) enforced by saga shape — `proposeRefinements` writes nothing that isn't proposal-gated, regardless of how confident the LLM is in its own synthesis.
 
 **Saga 6 — `applyApprovedProposal`.** Fires when an operator review closes a proposal with `approved`. Short saga that routes by proposal kind to the right adapter. Closes the review loop; the next evaluation or authoring run picks up the effect of the approval.
 
