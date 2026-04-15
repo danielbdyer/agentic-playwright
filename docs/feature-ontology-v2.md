@@ -139,6 +139,17 @@ Features compose handshakes. A handshake is a specific contracted exchange betwe
 - **Corroborate.** A passing test run plus its referenced facets → increased confidence on those facets. Corroboration strength is proportional to how reliably the test has been passing; a flaky test does not corroborate.
 - **Revision propose.** Accumulated drift events plus decay plus corroboration → a revision proposal surfaced for operator review. The proposal names the evidence it is based on; if the operator rejects it, the rejection enters the proposal's history and conditions future proposals.
 
+### 7.9 Measurement surfaces (cross-cutting)
+
+Measurement is v2 exercising itself against a synthetic intent source. It composes existing handshakes rather than adding primitives — the aesthetic is that measurement is thin because the primitives are good.
+
+- **Testbed as intent-source variant** — `intent-fetch` (§7.1) is polymorphic over `source`. A work item with `source: testbed:v<N>` surfaces through the same parsed-intent shape as one with `source: ado:<id>`. Downstream handshakes do not distinguish.
+- **Metric verbs** — `metric-<name>` verbs are declared through the same manifest discipline as every other verb (§7.5). Signatures are frozen once published. Each metric is a named, pure derivation over the run-record log.
+- **Hypothesis proposal** — a variant of revision-propose (§7.8) carrying `{ proposedChange, predictedDelta: { metric, direction, magnitude }, rationale }` under a `kind: hypothesis` discriminator. Same proposal log, same review gate, same append-only discipline.
+- **Verification receipt** — after a hypothesis lands, the next evaluation produces run records the agent reads to compute the actual delta. `{ hypothesis, predictedDelta, actualDelta, confirmed: boolean }` appends to the receipt log. Contradictions never overwrite; the history stacks so the batting average is itself a derivation.
+
+This section names compositions; §9.21–§9.23 give the library-level paths.
+
 ## 8) Agent engagement
 
 The earlier sections describe what the system *is* — its primitives, its levels, its handshakes. The next section (§9) describes the deterministic technical paths those handshakes eventually converge to. This section sits between them: it models what the agent *does* inside the substrate, as its own process and implementation surface, independent of any library. Agent engagement is the primary mode of work at L0 and early L1 — the deterministic paths of §9 are the asymptotic target that engagement converges toward, not a starting assumption.
@@ -810,6 +821,73 @@ Deferred:
 - Concrete pagination limits, shard counts, rerun attempt caps. Defer to L2 shipping when corpus sizes force the choices; defaults at L1 are conservative single-shard.
 - Summary synthesis beyond static classification histograms (ranking, anomaly detection, LLM-assisted triage). The closed set of actionable verbs is fixed; the prioritization algorithm can evolve under L2+ pressure.
 - Cross-batch trend views (week-over-week flake rate, facet-failure rate over time). Defer to L3+ where the data accumulates meaningfully.
+
+### 9.21 Testbed as an intent-source variant (L0, Agent ↔ Intent source)
+
+Primary path — a minimal adapter that surfaces the committed testbed behind the same intent-fetch verb as ADO:
+
+1. Testbed lives as YAML files under `testbed/v<N>/` in v2's repository. Each file is one synthetic work item: `{ id, source: "testbed:v<N>", title, preconditions, actions, expected, parameters }`. Ground-truth expected outcomes are part of the committed work item.
+2. When `intent-fetch` is called with `source: testbed:v<N>`, the adapter reads the YAML files for version N instead of calling ADO. Returned work items match the shape the ADO adapter returns.
+3. Downstream handshakes (intent parse, navigate, observe, interact, test compose, test execute) cannot distinguish testbed from ADO. Every envelope carries the `source` field forward so run records filter cleanly later.
+
+Obligations at this depth:
+
+- Testbed version IDs are stable. Version N never mutates; incrementing means creating version N+1 with a named increment in verisimilitude.
+- Ground-truth expected outcomes are committed alongside the work item. Measurement depends on a fixed answer key for each testbed version.
+- The adapter honors the same error families as the ADO adapter (`not-found`, `transient`, `unclassified`); a missing testbed version is `not-found`, not `unclassified`.
+
+Deferred:
+
+- The specific directory layout and version-increment protocol. Defer to Step 5 shipping in `v2-direction.md`.
+- Fixture composition for testbed work items (shared baseline data, seeded auth). Defer until a testbed work item needs it; the first few are expected to be self-contained.
+
+### 9.22 Metric verb declaration and computation (L0+, Agent ↔ Memory)
+
+Primary path — metrics as first-class verbs over the run-record log:
+
+1. Each metric is declared in the manifest (§9.8) with `{ name: "metric-<name>", category: "measurement", inputs: { windowDays?, testbedVersion?, sourceFilter? }, outputs: { scalar, runSubsetIds, computedAt } }`. Signature is frozen once published.
+2. Computation is a pure derivation: filter run records by the input constraints, aggregate, return the scalar plus the run-subset identifiers the scalar was derived from (so the derivation is auditable and reproducible).
+3. Each metric-compute invocation itself appends a metric-compute record to the run log. The history of a metric's value over time is queryable through the same pagination rules §9.20 applies to run records.
+
+Starting metric set (declared at Step 5 shipping):
+
+- `metric-test-acceptance-rate` — proportion of testbed runs whose output was accepted into the suite (grounds L0).
+- `metric-authoring-time-p50` — median authoring duration per work item (grounds the ROI curve in §8.1 of the ontology).
+- `metric-memory-corroboration-rate` — proportion of referenced facets that gained positive evidence in passing runs (lights up at L1; declared but unpopulated before then).
+
+Obligations at this depth:
+
+- Signatures frozen once published (invariant 1 of §8.5). In-place mutation of inputs or outputs is forbidden; new behavior means a new metric verb.
+- Computation is pure given the run log. Same inputs → same outputs. Side-effect-free derivations.
+- Metric results are cacheable but the cache is a derived artifact; invalidation rules follow the evidence-log pattern (§9.11).
+
+Deferred:
+
+- The concrete aggregation functions for each metric beyond the starting set. Additional metrics earn their way in under §9.23 hypothesis proposals; each new metric names the aggregation it uses at declaration time.
+- Windowing rules and bucketing for time-series metric history. Defer to the first metric that needs them.
+
+### 9.23 Hypothesis proposal and verification (L0+, Agent ↔ Memory)
+
+Primary path — a hypothesis is a revision proposal (§9.15) about code, not about memory:
+
+1. The agent (or the team) submits a proposal: `{ kind: "hypothesis", proposedChange: { files, diffSummary }, predictedDelta: { metric, direction: "increase" | "decrease" | "maintain", magnitude: number | "qualitative" }, rationale }`. It lands in the same proposal log §9.15 revisions use; the `kind` discriminator distinguishes code-change hypotheses from memory-revision proposals.
+2. Operator review gates it like any other proposal. Proposal-gated reversibility applies (§8.6): accepted hypotheses enter the codebase, rejected hypotheses are preserved with rationale.
+3. If accepted, the code change lands. The next evaluation at the hypothesized metric's testbed version produces new run records.
+4. The agent reads the new run records, computes the actual delta via the relevant metric verb, and appends a verification receipt: `{ hypothesisId, predictedDelta, actualDelta, confirmed: boolean, computedAt }` to the receipt log.
+5. The receipt log is append-only. Contradicting a hypothesis never overwrites its receipt — confirmations and contradictions stack into history.
+6. `metric-hypothesis-confirmation-rate` (itself a declared metric verb) derives the batting average from the receipt log. The agent consumes it via the same verb surface.
+
+Obligations at this depth:
+
+- Hypothesis receipts append-only (invariant 3). Neither confirmation nor contradiction retroactively edits a prior receipt.
+- Verification runs against the next evaluation at the hypothesized testbed version, not against arbitrary prior state. If the evaluation hasn't run yet, the hypothesis is in a pending state; it does not resolve implicitly.
+- The same proposal-gated reversibility rules apply: accepted hypotheses can be reversed by subsequent contradicting hypotheses (which themselves require review); rejected hypotheses stay rejected unless re-proposed with new rationale.
+
+Deferred:
+
+- Statistical-significance rules for `confirmed` vs `contradicted` beyond the simple direction check. Defer until there is enough receipt history to calibrate.
+- Auto-proposing hypotheses from drift events or metric trends (agentic initiative without operator review). Defer; the default is that hypotheses are operator-reviewed before landing.
+- Cross-hypothesis interaction analysis (which combinations of proposals actually stacked into wins). Defer to L4+ when the receipt log is mature.
 
 ## 10) Cross-cutting disciplines
 

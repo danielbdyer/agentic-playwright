@@ -134,7 +134,19 @@ What the gate does reject: parallel abstractions, dual-master designs (serving a
 
 Determinism, typing, and architectural hygiene remain valuable tools in v2. They are not the organizing principle. The organizing principle is agent ergonomics in service of shipping tests a real customer QA team uses.
 
-## 7) Deliberately deferred
+## 7) Measurement stance
+
+v2 measures itself with its own primitives. A synthetic testbed — a small set of committed work items with known expected outcomes — sits alongside the real intent source. The `intent-fetch` verb is polymorphic over its source, so testbed work items surface through the same handshakes every other work item uses. Evaluation is authoring against the testbed; metrics are derivations over the run-record log, declared as manifest verbs; hypotheses are proposals under the same review discipline memory uses.
+
+The substrate does not prescribe specific metrics. They earn their way in through the proposal-gated mechanism everything else uses (§6). The starting set is deliberately small — test acceptance rate, authoring time, memory corroboration rate at L1+ — and grows only when a proposed metric proves it predicts something actionable.
+
+The testbed itself grows in controlled verisimilitude increments. Version 0 is deliberately simple. Each increment is a committed artifact with a stable identifier; the version history is first-class. Regressions at higher-complexity versions surface cleanly because each version is independently runnable.
+
+Measurement ships with v2's codebase, not to customers. The team and the agent are the audience. The operating frame is **trust, but verify**: every code change carries a hypothesis, the next evaluation either corroborates or contradicts it, the receipt log is append-only, and the batting average is itself a derivation the agent can query. Small bets, reviewed, measured, receipted.
+
+The aesthetic win is that measurement requires no new primitives. The testbed is an intent-source variant; evaluation is the normal authoring flow; metrics and hypotheses reuse the verb-declare and proposal-gated mechanisms respectively. The substrate is thin because the primitives are good.
+
+## 8) Deliberately deferred
 
 These decisions are out of scope for this document and are expected to resolve as shipping L0 and L1 forces the choices. Each is a committed follow-up, not an open question.
 
