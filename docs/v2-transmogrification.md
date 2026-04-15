@@ -2652,3 +2652,354 @@ When `NodeRuntime.runMain(main(parseCli(process.argv)))` runs, all of this — t
 
 The plan is the route. The architecture is what you build along it. The runtime is what makes the architecture run. The destination is where the customer's QA team accepts the tests. **Execute.**
 
+## 12. Self-governance — how features descend from the map to the towns
+
+§11 closed the architecture with a running process. This section opens it back up, from the perspective of a future agent (or engineer) picking up work without having read the whole plan. The question it answers: *I have a feature idea. What does it take to land it correctly?*
+
+The answer is the descent protocol. Every feature is a vertical slice through the cathedral. It starts at the map and descends through five levels until it lands as executable code. At each level, invariants bind. The author's job is to verify each as they descend, not re-derive them. This section names the levels, the obligations at each, the cohesion laws that govern descent, and the parallelizable feature lanes a team (of agents or humans) can pick up without coordination overhead.
+
+### 12.1 The descent principle
+
+A feature is not a PR. A feature is a commitment at every level of the cathedral. The PR is the last level's artifact. If the upper levels weren't walked, the PR is landing work on sand — the code compiles, but the doctrine drifts.
+
+The principle: **invariants propagate downward; evidence propagates upward**. A decision at the map level (which highway? which interchange?) constrains what can happen at the town level (which module? which verb?). A decision at the town level constrains the saga shape. A decision at the saga shape constrains the runtime composition. At every level, evidence — receipts, tests, metrics — flows back upward to validate or contradict the original map-level decision.
+
+Skipping levels produces the same kind of rot in every system: implementation that satisfies local tests but violates substrate invariants. v2 resists this by making the descent visible. The cohesion laws (§12.3) are what you check at each level before descending further.
+
+### 12.2 The five levels of descent
+
+Every feature descends through five levels. Each level has its own vocabulary, its own questions, its own evidence.
+
+| Level | Artifact | Vocabulary | Questions the author answers | Evidence at completion |
+|---|---|---|---|---|
+| 1. Substrate | `v2-substrate.md` | Primitives, levels, invariants | Which primitive does this touch? Which level's claim does it help ship? Does it pass the anti-scaffolding gate? | A one-sentence mapping: *(level, primitive, claim)* |
+| 2. Feature ontology | `feature-ontology-v2.md` §7 + §9 | Handshakes, technical paths | Which handshake surface does this operate on? Does it fit an existing §9 path, or does it need a new one? | Named handshake + primary-path sketch |
+| 3. Town | `v2-transmogrification.md` §10.4 | Modules, verbs, highways | Which town on which highway? Does it add a new verb or compose existing ones? Which invariants at that town still hold? | Named module path + manifest verb name with frozen signature |
+| 4. Saga | `v2-transmogrification.md` §10.5 | Effect programs, phantom types | Which saga calls this? Does it need a new saga or extend a composition? Does every yield write a receipt? | Saga sequence written out; receipt discipline verified at each yield |
+| 5. Runtime | `v2-transmogrification.md` §11 | Layers, fibers, CLI verbs | Which Layer provides the required service? Does the entry point reach this saga from the CLI? How does it surface in the fiber tree? | Composition added; CLI invocation documented; test passes end-to-end |
+
+The levels are not optional. A feature whose author stopped at Level 3 produces code that works but drifts from the saga shape the runtime expects. A feature whose author jumped from Level 1 to Level 5 produces runtime wiring for a primitive that doesn't yet have a handshake.
+
+**The one-page test.** At the end of the descent, the feature should fit on one page: *(level, primitive, claim)* + *named handshake* + *town + verb name* + *saga sequence* + *Layer + CLI surface*. If it doesn't fit on one page, either the feature is too large (decompose) or the author skipped a level (descend again).
+
+### 12.3 The cohesion laws
+
+Twelve laws descend automatically from the substrate's ten invariants into concrete implementation requirements. An author who follows the descent protocol without checking the laws will still break the substrate; the laws are the per-level translation of the invariants into things the code must look like.
+
+1. **Every new capability is a new verb.** (Invariant 1.) Adding a boolean flag to an existing verb is forbidden. The manifest-generator build check catches this; the author should catch it first.
+2. **Every manifest verb has a frozen signature from the moment it is published.** (Invariant 1.) Extension happens by adding new verbs, not by widening old ones.
+3. **Every agent-observable state change emits a receipt before the observing code can consume the result.** (Invariants 3 + 5.) A saga that yields and then reads the result without appending a receipt is a silent escalation.
+4. **Every receipt names its caller, its timestamp, and its inputs at least by fingerprint.** (Invariant 2.) Provenance is minted at the event, not reconstructed later.
+5. **Every cross-seam artifact carries an envelope with the four phantom axes (Stage × Source × Verdict × Fingerprint).** The compiler refuses otherwise; the author should not need to think about it, but occasionally the compiler's message is opaque — the law says: look at the axes first.
+6. **Every agent decision site produces an `InterventionHandoff` shape.** (Invariant 10.) No `throw` as escape. The handoff precedes the choice; the choice records back against it.
+7. **Every reasoning call produces a reasoning-receipt before returning.** The receipt's durability precedes the choice's visibility to the saga. Provider-specific errors classify into the named families.
+8. **Every append-only log is written by an adapter that refuses in-place updates.** (Invariant 3.) The adapter, not the caller, enforces this.
+9. **Every source vocabulary survives the inbound path as-is.** (Invariant 7.) Paraphrasing at the seam — even for brevity — is forbidden; preserved source text goes into provenance, paraphrases go into derivations.
+10. **Every governance verdict dispatches through `foldGovernance`, never through string comparison.** Architecture law 8 is a running test; the author should never need it to catch them.
+11. **Every exhaustive fold over a sum type is a `fold<X>` helper that causes a compile error on new variants.** When adding a new case, the compile error is the TODO list.
+12. **Every saga's yields are auditable: which verb, which receipt, which fingerprint, which error family.** A saga that yields without a receipt is ungoverned; a saga with a receipt but no named error family is ungoverned under failure.
+
+The laws are not twelve separate concerns. They are twelve views of the same commitment: **the doctrine descends, and descent makes governance automatic**. An author who checks the laws at each descent level ships features that slot into the cathedral without rework.
+
+### 12.4 The pre-flight checklist
+
+Before committing a feature, the author runs this checklist. It is short because the descent did the heavy lifting. Each question has a one-place-to-check answer; none requires re-reading the cathedral.
+
+**Substrate level (Level 1):**
+- [ ] Named the primitive this feature operates on (agent, intent, world, instruments, memory)?
+- [ ] Named the level whose claim this feature helps ship (L0 through L4)?
+- [ ] Passes the anti-scaffolding gate (substrate §6)?
+
+**Feature ontology level (Level 2):**
+- [ ] Identified the handshake in `feature-ontology-v2.md` §7 this feature affects?
+- [ ] Either a new §9 technical path is drafted, or an existing one is extended with a named section?
+
+**Town level (Level 3):**
+- [ ] Named the module path (`lib-v2/<bounded-context>/...`)?
+- [ ] Named the new verb (with frozen signature and error families) or the extension surface on an existing verb?
+- [ ] Identified the highway this verb traffics on (Intent, World, Memory, Verb, Reasoning, Truth)?
+
+**Saga level (Level 4):**
+- [ ] Named the saga(s) that call this verb (or a new saga is declared with a composition sketch)?
+- [ ] Each yield writes a receipt? (Checked by reading the saga code, not by running it.)
+- [ ] Every failure mode classifies into a named error family?
+- [ ] Reversibility class selected (self-reversing, proposal-gated, review-gated, hard-gated)?
+
+**Runtime level (Level 5):**
+- [ ] Layer in the Layer cake that provides the required service is named?
+- [ ] CLI verb (or daemon) that reaches the saga is declared?
+- [ ] End-to-end test passes against the testbed?
+
+**Cohesion laws:**
+- [ ] All twelve laws (§12.3) hold for this feature's code?
+
+**Measurement substrate:**
+- [ ] Testbed increment committed (new YAML under `testbed/v<N>/`)?
+- [ ] Hypothesis receipt logged (predicted delta named against a metric verb)?
+- [ ] After this feature lands, the next evaluation run either corroborates or contradicts the hypothesis; the receipt stacks.
+
+If any checkbox is unchecked, the feature is not ready to commit. The checklist is not a bureaucracy; it is the descent protocol written out.
+
+### 12.5 The parallelizable feature backlog
+
+§4 named five parallel tracks across the ten phases. This section names the finer-grained lanes within and across those tracks — lanes a future agent can pick up with clear handoff contracts. Every lane is a sub-feature of its parent track; every lane has explicit dependencies, an explicit deliverable, and an explicit post-condition that unblocks downstream work.
+
+The backlog is living. As phases complete, lanes retire. As phases open, lanes light up. The lanes below are the *current* parallelizable work; future maintainers should extend this section, not replace it.
+
+#### 12.5.1 Lane shape
+
+Every lane has the same six-field shape:
+
+```
+Lane: <name>
+Track: <A | B | C | D | E>         (from §4.3)
+Phase window: <phase or span>
+Depends on: <hard deps>
+Soft depends on: <soft deps>
+Deliverable: <what artifact the lane produces>
+Handoff contract: <what downstream lanes can assume true when this lane finishes>
+```
+
+Lanes are pickable independently — a new agent starting a session can read the lane card and know what to ship and what to leave alone.
+
+#### 12.5.2 Phase 0–2 lanes (structural setup)
+
+**Lane A1 — Envelope substrate port.**
+- Track: A. Phase window: 0. Depends on: none. Soft-depends on: nothing.
+- Deliverable: `lib-v2/domain/governance/workflow-types.ts`, `lib-v2/domain/kernel/hash.ts`, `lib-v2/domain/pipeline/source.ts`, `lib-v2/domain/handshake/epistemic-brand.ts` ported from v1; architecture law 8 running.
+- Handoff: every subsequent lane can `import` the four substrate modules and rely on their types. The phantom axes are available; governance dispatch through `foldGovernance` is enforceable.
+
+**Lane A2 — Reasoning port declaration.**
+- Track: A. Phase window: 0. Depends on: A1. Soft-depends on: nothing.
+- Deliverable: `lib-v2/domain/ports/reasoning.ts` (Context.Tag, operation signatures, named error families). Manifest entries for `reason-select`, `reason-interpret`, `reason-synthesize` declared with frozen signatures.
+- Handoff: every saga that needs cognition yields from `Reasoning.Tag`; adapters land in Phase 3 without disturbing saga code.
+
+**Lane A3 — Manifest generator build step.**
+- Track: A. Phase window: 1. Depends on: A1. Soft-depends on: A2.
+- Deliverable: build step that emits `manifest.json` from code-declared verbs; drift check that fails the build on non-additive manifest changes; canonical-task fluency fixture (one per declared verb at Phase 1).
+- Handoff: every subsequent verb-declaration lane triggers a manifest update automatically; breaking a signature breaks the build.
+
+**Lane A4 — Facet schema + YAML store.**
+- Track: A. Phase window: 2. Depends on: A1. Soft-depends on: nothing.
+- Deliverable: unified facet record types; kind-specific extensions; per-screen YAML storage with atomic temp-rename writes; in-memory index on load.
+- Handoff: L0 data-flow chain lanes (B1–B7) can mint and query facets via the typed interface without knowing storage details.
+
+#### 12.5.3 Phase 3 lanes (L0 instruments, the largest parallelization win)
+
+The seven L0 instruments can each be picked up by a separate agent with minimal coordination once Lanes A1–A4 land. This is the single largest wall-time win in the construction order.
+
+**Lane B1 — ADO intent-fetch + intent-parse.**
+- Track: B. Phase window: 3. Depends on: A1, A3.
+- Deliverable: verbs behind `IntentSource.Tag`; source provenance preserved; REST v7.1 client; XML step tokenization.
+- Handoff: authoring saga can pull work items via `yield* IntentSource` with parsed intent plus source-text provenance.
+
+**Lane B2 — Playwright navigate.**
+- Track: B. Phase window: 3. Depends on: A1, A3.
+- Deliverable: `navigate` verb with `page.url()` idempotence check; `{ reachedUrl, status, timingMs }` envelope; classified failure families.
+- Handoff: world-reach available; sagas yielding navigate get deterministic envelopes.
+
+**Lane B3 — Playwright observe.**
+- Track: B. Phase window: 3. Depends on: A1, A3, A4.
+- Deliverable: `observe` verb emitting timestamped snapshots; ladder resolution with v2 order (role → label → placeholder → text → test-id → css); observation-receipt append.
+- Handoff: facet-mint candidates flow from observations; ladder changes are one-file edits.
+
+**Lane B4 — Playwright interact.**
+- Track: B. Phase window: 3. Depends on: A1, A3.
+- Deliverable: `interact` verb with four-family error classification (`not-visible`, `not-enabled`, `timeout`, `assertion-like`); precondition checks.
+- Handoff: action dispatch governed; failure families are enumerable at every callsite.
+
+**Lane B5 — Test compose (AST-backed emitter).**
+- Track: B. Phase window: 3. Depends on: A1, A3, A4.
+- Deliverable: TypeScript AST emission producing Playwright tests referencing per-screen facades; no inline selectors; facade regeneration on catalog change.
+- Handoff: authoring saga produces QA-legible tests; catalog updates invalidate generated tests cleanly.
+
+**Lane B6 — Test execute (Playwright runner adapter).**
+- Track: B. Phase window: 3. Depends on: A1, A3.
+- Deliverable: `test-execute` verb invoking the Playwright CLI with `--reporter=json`; run-record envelope with `classification`; per-step evidence logged.
+- Handoff: run-record log fills; downstream memory layer (Phase 6) and measurement substrate (Phase 5) read this log.
+
+**Lane B7 — Reasoning adapter (one provider).**
+- Track: B. Phase window: 3. Depends on: A2.
+- Deliverable: one working adapter (direct Anthropic or OpenAI) behind `Reasoning.Tag`; reasoning-receipt log; provider-specific error classification into the named families.
+- Handoff: sagas that yield from `Reasoning.Tag` resolve against a real model; swapping providers is a `Layer.succeed` change, not a saga change.
+
+Lanes B1 through B7 are concurrent. A seven-engineer (or seven-agent) team collapses Phase 3's wall time to the longest single instrument's implementation.
+
+#### 12.5.4 Phase 5 lanes (measurement substrate)
+
+**Lane D1 — Testbed adapter (testbed:v0).**
+- Track: D. Phase window: 5. Depends on: B1 (IntentSource shape).
+- Deliverable: adapter that reads `testbed/v<N>/*.yaml` and produces the same parsed-intent shape as ADO; version 0 committed with a handful of deliberately simple work items and known expected outcomes.
+- Handoff: `author --source=testbed:v0` runs through the normal authoring flow; no downstream handshake distinguishes testbed from real.
+
+**Lane D2 — First two metric verbs.**
+- Track: D. Phase window: 5. Depends on: A3, B6 (run-record log).
+- Deliverable: `metric-test-acceptance-rate` and `metric-authoring-time-p50` declared in manifest; pure derivations over the run-record log; metric-compute-record append protocol.
+- Handoff: `evaluate` CLI verb produces a token-conservative report the agent consumes; metric history is queryable.
+
+**Lane D3 — Hypothesis-receipt discriminator.**
+- Track: D. Phase window: 5. Depends on: existing proposal log primitive.
+- Deliverable: `kind: "hypothesis"` variant on proposals; verification-receipt log append shape; `metric-hypothesis-confirmation-rate` declared for later computation.
+- Handoff: trust-but-verify cycle is live; every subsequent feature carries a hypothesis; the batting average is a derivation the agent can query.
+
+#### 12.5.5 Phase 6–9 lanes (memory layers, pipelined with measurement)
+
+**Lane E1 — Per-facet evidence log.**
+- Track: B/D hybrid. Phase window: 6. Depends on: A4.
+- Deliverable: append-only JSONL evidence log per facet; confidence-derivation helper; summary cache invalidated on new evidence.
+- Handoff: confidence is derived on read; caching is transparent.
+
+**Lane E2 — Locator-health co-location.**
+- Track: B. Phase window: 6. Depends on: E1.
+- Deliverable: locator strategies carry per-strategy health; health flows back into facets after each observation or execution.
+- Handoff: ladder choice at query time is evidence-backed rather than statically ordered.
+
+**Lane E3 — Dialog capture.**
+- Track: B. Phase window: 7. Depends on: A4, candidate-review queue primitive.
+- Deliverable: operator chat turn → candidate facets with operator wording preserved as provenance; candidate review queue.
+- Handoff: operator-sourced facets enter memory under proposal-gated reversibility.
+
+**Lane E4 — Document ingest.**
+- Track: B. Phase window: 7. Depends on: A4.
+- Deliverable: shared document (markdown first) → candidate facets with region anchors.
+- Handoff: document regions anchor candidate facets; non-DOM semantics enter memory.
+
+**Lane E5 — Drift emit.**
+- Track: B. Phase window: 8. Depends on: B6, E1.
+- Deliverable: `drift-events.jsonl` append-only log; drift classifier distinguishing product failure from memory-mismatch; per-facet confidence reduction on drift.
+- Handoff: drift events feed Phase 9 aging; agent and operator see drift signals at the same seam.
+
+**Lane E6 — DOM-less authoring policy.**
+- Track: B. Phase window: 8. Depends on: E1, E5.
+- Deliverable: confidence-gated authoring — when memory confidence about a surface exceeds a threshold, author without fresh observation.
+- Handoff: authoring throughput rises on known-enough surfaces; drift is the failure mode.
+
+**Lane E7 — Aging / corroboration / revision-propose.**
+- Track: B/D. Phase window: 9. Depends on: E1, E5.
+- Deliverable: confidence aging over the evidence log; corroboration hook on passing runs; revision-proposal aggregation; `maintenanceCycle` saga running as a daemon.
+- Handoff: memory refines between explicit authoring work; proposals flow to operator review under review-gated reversibility.
+
+#### 12.5.6 Cross-phase lanes
+
+**Lane F1 — Testbed growth.**
+- Track: D. Phase window: spans 5–9. Depends on: D1.
+- Deliverable: each phase commits an incremental testbed version (v0 → v4) with one named increment in verisimilitude (new role, new state, new workflow, new vocabulary variant).
+- Handoff: can begin one phase ahead of implementation — the increment is committed, the implementation that makes it relevant lands later. Pipelines serial wall time by ~30–40%.
+
+**Lane F2 — Metric catalog growth.**
+- Track: D. Phase window: spans 5–9. Depends on: A3, D2.
+- Deliverable: each phase declares one to three new metric verbs; declaration precedes implementation so Phase K ships with its verification hypothesis ready.
+- Handoff: the metric catalog grows under proposal-gated review; retired metrics earn deprecation, not deletion.
+
+**Lane F3 — Operator-review UI.**
+- Track: outside the main tracks. Phase window: spans 2–9. Depends on: candidate-review queue primitive.
+- Deliverable: JSONL queue + CLI is sufficient for construction; richer surfaces emerge only under customer pressure.
+- Handoff: independent of other lanes until customer adoption begins; every extension lands as a new verb, not a new review schema.
+
+**Lane F4 — Dashboard plug-in.**
+- Track: outside the main tracks. Phase window: spans 5–9. Depends on: A3 (manifest), D2 (metric verbs), B6 (run-record log).
+- Deliverable: read-only consumer of run-record, receipt, drift, and proposal logs via manifest verbs; writes nothing to the substrate.
+- Handoff: independent of all other lanes because it writes nothing; a dashboard that cannot be rebuilt from the logs is the dashboard's fault, not the substrate's.
+
+### 12.6 Handoff contracts
+
+Every lane's handoff contract is the shape downstream lanes can assume. The shape is always the same form: **"when this lane is complete, these invariants hold across the codebase."** Not "this file exists" — that's necessary but not sufficient.
+
+A valid handoff contract names invariants, not artifacts. Example:
+
+```
+Lane B3 (observe) handoff:
+- The `observe` verb is declared in the manifest with signature
+  (Route) => Effect<TimestampedSnapshot, ObserveError, PlaywrightAria>
+- ObserveError has exactly five variants: not-found, timeout, page-crashed,
+  degraded, unclassified
+- Every call emits an observation-receipt (receipt log append-only)
+- Snapshots carry `sourceFingerprint` that downstream facet-mint uses as provenance
+- Ladder resolution is behind a helper the observe verb consumes;
+  changing the ladder order is a one-file change, not a codebase-wide edit
+```
+
+An invalid handoff contract names artifacts without invariants:
+
+```
+Lane B3 handoff:
+- observe.ts is implemented   ← says nothing about invariants
+- Tests pass                  ← passes what tests?
+- Works with Playwright       ← says nothing about what downstream assumes
+```
+
+Handoff contracts descend from the cohesion laws and are therefore already half-written. The author's job is to name the specific invariants their lane establishes, not to invent the shape of the claim. A lane without a valid handoff contract cannot be parallelized — downstream work will discover the contract by running into it, which is what coordination-overhead looks like.
+
+### 12.7 Common temptations and their antidotes
+
+The descent is designed to resist common failures. These are the ones that still get past it; name them to make resistance automatic.
+
+**Temptation:** Add a boolean flag to an existing verb for a "small" variation.
+**Antidote:** Invariant 1 says new verb. The manifest drift check catches this; the author catches it first by checking cohesion law 1.
+
+**Temptation:** Paraphrase operator wording "for clarity" when storing in memory.
+**Antidote:** Invariant 7 says source vocabulary survives. Store the source text verbatim; put paraphrases in derivations. Cohesion law 9.
+
+**Temptation:** Read the governance verdict as a string and branch.
+**Antidote:** Architecture law 8. Route through `foldGovernance`. Cohesion law 10.
+
+**Temptation:** Have the reasoning adapter retry indefinitely on `rate-limited`.
+**Antidote:** Error families are structured fallthrough, not silent recovery. Classify, emit a handoff, let the saga decide. Invariant 10 + cohesion law 6.
+
+**Temptation:** Skip the testbed increment "because the feature is too small to need one."
+**Antidote:** Trust-but-verify says every code change carries a hypothesis. A feature too small to name a predicted delta is a feature too small to land. Pre-flight measurement-substrate checklist.
+
+**Temptation:** Mutate an existing facet entry instead of appending evidence.
+**Antidote:** Invariant 3. The store adapter refuses in-place updates (cohesion law 8); the caller doesn't get a chance to get it wrong.
+
+**Temptation:** Let a saga yield without a receipt "for performance."
+**Antidote:** Cohesion law 3. A saga without receipts is ungoverned. Performance concerns land as a proposal to change the receipt format, not as a waiver.
+
+**Temptation:** Add a new variant to a sum type and "fix the compile errors one by one."
+**Antidote:** Cohesion law 11. The `fold<X>` helper's compile errors *are* the TODO list. Handle every site before moving on.
+
+**Temptation:** Pick a Reasoning provider at a saga callsite because "we know we want Claude here."
+**Antidote:** Cohesion law 7; saga code is provider-agnostic. Provider choice is `Layer.succeed(Reasoning.Tag, <adapter>)` at composition, never at callsite.
+
+**Temptation:** Build a dashboard that writes back corrections to memory.
+**Antidote:** §7.10's dashboard-as-read-only-consumer law. Dashboards are eyes, not hands. Corrections flow through proposal-gated reversibility like every other memory write.
+
+**Temptation:** Inline a small helper in a saga rather than declare a new verb, because "it's only used once."
+**Antidote:** If it crosses a bounded-context boundary, it earns a verb. If it stays within the saga, it can inline. The test is the boundary, not the reuse count.
+
+**Temptation:** Let a daemon saga (e.g. `maintenanceCycle`) write memory directly to "save a round-trip."
+**Antidote:** Daemons produce proposals, same as interactive sagas. Review-gated reversibility applies regardless of who triggered the saga.
+
+### 12.8 When a feature genuinely doesn't fit
+
+Sometimes a feature descends and the descent doesn't close. No handshake fits; no saga composes cleanly; no cohesion law can be satisfied without bending. This is the signal that the substrate needs amendment, not that the feature needs forcing.
+
+The path for such features:
+
+1. **Write the one-page descent anyway.** Name the primitive, the level, the handshake, and where the descent breaks. The broken step is the evidence.
+2. **Open a substrate proposal.** Propose a substrate-level change (new primitive, new handshake category, new invariant, new cohesion law) with the feature as the forcing scenario. The proposal carries the same `kind: hypothesis` discriminator the measurement substrate uses — it names what will change and what the predicted impact is.
+3. **Wait for review.** Substrate changes are review-gated; the proposal enters the same proposal log memory revisions and hypothesis-receipts use. Operator + team review it against the anti-scaffolding gate: does this earn its place in the substrate?
+4. **If approved, the substrate changes first, then the feature descends cleanly.** If rejected, the feature is deferred or reconceived.
+
+This path is rare and should stay rare. A feature that breaks descent is either (a) evidence the substrate was wrong in a specific and now-falsifiable way, or (b) a poorly-scoped feature that wants to sneak around the doctrine. The proposal review gate distinguishes. If ten features in a row request the same substrate amendment, the substrate is indeed wrong; if no single feature can make the case, the doctrine is holding. Either outcome is valuable signal.
+
+### 12.9 Closing: the agent's own descent
+
+This section is a letter to future agents.
+
+You will open a session with no memory of this conversation. You will read the `CLAUDE.md` pointer to this document. You will have a feature to ship.
+
+Your first move: run the descent. Name the primitive. Name the level. Name the handshake. Name the town. Name the saga. Name the runtime seam. Write the five answers on one page in under five minutes. If you cannot, the feature isn't ready; reply with the descent gap, not with code.
+
+Your second move: check the cohesion laws. Run the pre-flight checklist. If anything is unchecked, either the descent missed a level or the feature is malformed.
+
+Your third move: pick a lane from §12.5 or name a new lane with the same six-field shape. Commit the handoff contract before you commit the implementation — other lanes depend on the shape of your deliverable, not on its code.
+
+Your fourth move: write the testbed increment and the hypothesis receipt. Your code must be a falsifiable claim about a metric you named before the code ran. Everything else is taste.
+
+Your fifth move: land the code. The descent did the governance; the code is the last-mile realization. If the descent was done, the PR is ten lines of context over a clean diff. If the descent was skipped, the PR is a debate.
+
+The substrate holds because every feature descends through the same five levels, and at every level the same invariants bind. The cathedral is built one descent at a time. This is how future agents, without reading any other document, can still build v2 coherently — **the descent is self-governing, and self-governance is what makes parallelism possible**.
+
+Execute with discipline. The doctrine descends; the evidence ascends. v2 grows one well-descended feature at a time.
+

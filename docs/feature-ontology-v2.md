@@ -947,6 +947,8 @@ Ask, in order:
 
 If all four questions have answers, the feature belongs. If any does not, the feature is not ready for the ontology — which is the same as saying it is not ready for the codebase.
 
+This section asks the ontology-level questions. A feature that clears these four is ready for the full descent protocol, which walks it from the substrate all the way to executable code across five levels with twelve cohesion laws. The descent protocol lives in `v2-transmogrification.md` §12; that section also names the parallelizable backlog lanes (with handoff contracts), the pre-flight checklist every feature runs before committing, and the common temptations the descent is designed to resist. This ontology is the Level 2 layer of the descent; the four questions above are the Level 2 gate.
+
 ## 12) Deliberately not here
 
 The following are intentionally absent and are expected to emerge from shipping, not from planning:
