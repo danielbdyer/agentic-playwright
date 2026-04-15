@@ -1,0 +1,715 @@
+# v2 Transmogrification
+
+> Status: the plan to turn v1 into v2. First-in-class execution document; the other four v2 docs (`v2-direction.md`, `v2-substrate.md`, `feature-ontology-v2.md`, `v2-delta-audit.md`) describe the destination, the principles, the features, and the delta. This one is the actual route.
+
+## 1. The shape
+
+v1 does not evolve into v2. v2 is constructed alongside v1 as its own codebase — in a new directory, on a construction branch — and draws v1 in as a library of aligned assets (the envelope-axis substrate, the L0 data-flow chain, the governance brands, the intervention-handoff shape, the file-backed decision bridge). The rest of v1 stays where it is, keeps running for whoever still needs it, and is retired by measurable decision when v2 sustains its shipping claim.
+
+There are ten construction steps, one shipping inflection, one measurement inflection, and one cut-over event. The steps are from `v2-direction.md §6`; the two inflections and the cut-over are what make this plan a plan rather than a checklist.
+
+**The shape in one paragraph:**
+
+Start with a clean `lib-v2/` directory on branch `claude/v2-construction-TKkRI`. Port the envelope-axis phantom substrate (Phase 0 complete in v1) as the first act; v2 inherits it whole and takes over elaboration of Phases B–E from there. Build the vocabulary manifest and fluency harness (the surface v1 never had) before writing any verbs. Commit the unified facet schema before writing the memory layer that uses it. Port the L0 data-flow chain — six instruments, parallelizable — with specific shape adjustments audited in `v2-delta-audit.md`. Ship L0 against the real customer backlog. Only then stand up the measurement substrate: a tiny committed testbed, a polymorphic `intent-fetch` adapter, two manifest-declared metric verbs, and a `kind: hypothesis` discriminator on the existing proposal log. From that point, every subsequent step — L1 memory, L2 operator semantics, L3 drift, L4 self-refinement — commits its testbed-version increment and names the hypothesis the step is betting on. The cut-over moment is a sustained metric floor, not a calendar date.
+
+**The discipline in one paragraph:**
+
+Trust, but verify. Small bets with a good batting average. No line of v2 code is justified without pointing at either a customer-facing capability or a measurement that verifies v2 is improving. No irreversible decision lands without the proposal-gated reversibility the rest of v2 uses. Every hypothesis receipt is append-only; contradictions never overwrite. The envelope-axis substrate enforces what the invariants demand at compile time. Fluency regression fails the build at the same severity as a broken product test. The plan is executable because its primitives are few, its sequencing is explicit, and its checkpoints are measurable.
+
+**The payoff in one paragraph:**
+
+When the cut-over fires, v2 is a small agent-facing surface — vocabulary manifest, facet catalog, QA-accepted tests — shipping against a real customer's OutSystems backlog. The measurement substrate runs alongside, producing hypothesis receipts the agent reads to propose the next change. v1's operational scaffolding (speedrun verbs, theorem groups, 15-knob parameter space, `.tesseract/` runtime directory, dogfood/production split) is archived. v1's aligned modules are owned by v2. The codebase is the size of the problem, not the size of the history. Subsequent evolution is by hypothesis receipt and measurement delta, not by doctrine drift.
+
+The rest of this document is the route.
+
+## 2. Choreography: how v1 becomes v2 mechanically
+
+Six decisions frame how the transmogrification executes. Each is named, decided, and justified once. These are not technical-path choices (those live in §3); they are the *mechanics* of the transition.
+
+### 2.1 Repo and package boundary
+
+**Decision:** v2 lives in a new top-level directory — `lib-v2/` — inside the existing repository, with an internal structure mirroring v1's (`domain/`, `infrastructure/`, `application/`, `composition/`, `generated/`). v1's `lib/` stays untouched until cut-over.
+
+**Why this over a separate repository:** the v1→v2 imports during the construction period are numerous and tight (the envelope-axis substrate, governance brands, intervention-handoff shape, file-backed decision bridge). Managing those across repository boundaries adds operational friction — submodules, npm-published intermediates, cross-repo CI — that outweighs the clean-slate appeal. A sibling directory is boring in the right way.
+
+**Why this over carving `lib/` in place:** carving risks envelope-axis skew. If v1 and v2 share phantom types and v1 keeps evolving them in response to its own pressure, v2 inherits drift silently. Keeping v1's `lib/` frozen and v2's `lib-v2/` evolving independently is cheap to do and cheap to reason about.
+
+**Why this over a long-lived branch with main-rename at cut-over:** a directory lives inside the same working tree alongside v1. Developers and the agent can see both at once, move code between them deliberately, and diff across the boundary. A long-lived branch loses that immediacy.
+
+**Build harness:** `package.json` gains a `build:v2` script alongside `build:v1`. A `tsconfig-v2.json` references `lib-v2/**`. CI runs both. When cut-over fires, `lib-v2/` becomes `lib/` and the v1 variants are removed as one commit.
+
+### 2.2 Freeze discipline — when v1 stops moving
+
+**Decision:** v1 enters *stabilization mode* the moment Step 4 (ship L0 against customer backlog) completes. Stabilization means: bug fixes only, and only for defects that block v2's adoption path or customer production incidents. No new features, no schema changes, no tuning of the 15-knob parameter space, no additions to the theorem-coverage matrix, no evolution of the envelope-axis Phases B–E inside `lib/`.
+
+**Before Step 4:** v1 continues to operate normally. Agent contributions during Steps 0–3 land in `lib-v2/` but v1 customers continue to get the v1 they're already using.
+
+**Between Step 4 and cut-over:** v1 is a stable reference. The four aligned module classes v2 ports from v1 are *owned by v2* inside `lib-v2/` (see §2.3); v1's originals do not change. If a customer production issue forces a v1 fix, it lands in `lib/` as a v1-only change and is mirrored forward into `lib-v2/` only if it affects a ported module.
+
+**After cut-over:** v1 is archived (§6). No further changes to `lib/`; the directory is deleted in the same commit that renames `lib-v2/` to `lib/`.
+
+**Team capacity:** one engineer holds the v1 maintenance lane. The rest of the team works in `lib-v2/`. The agent's contributions go to `lib-v2/` except for the narrow freeze-compatible bug fixes to `lib/`. Parallelism is *temporal* (v1 runs, v2 builds), not *concurrent* (no one works in both at once).
+
+### 2.3 Asset extraction mechanics
+
+Four classes of v1 asset flow into v2. Each has a specific extraction mechanism.
+
+**Class A — Envelope-axis substrate.** `lib/domain/governance/workflow-types.ts`, `lib/domain/kernel/hash.ts`, `lib/domain/pipeline/source.ts`, `lib/domain/handshake/epistemic-brand.ts`.
+
+*Mechanism: port-and-own.* Copy these four files into `lib-v2/domain/` at Step 0. Do not import them from v1. Freeze v1's copies; v2's copies evolve independently via Phases B–E. These are foundational phantom types; divergence would silently break compile-time invariants across the codebase. Ownership means v2 controls the elaboration surface.
+
+**Class B — L0 data-flow chain.** ADO adapter, Playwright adapters (ARIA, locate, interact), navigation strategy, codegen spec emitter, scenario-context facade.
+
+*Mechanism: import initially from v1 path, port-into-`lib-v2/`-on-earn.* In Step 1 the agent needs these verbs callable; the cheapest way is to `import` them from `../lib/...` relative paths. As Step 3 needs shape adjustments (ladder reorder, idempotence check on Navigate, four-family error classification on Interact, pre-generated-module facade shape on Test Compose), each module is ported into `lib-v2/` with the adjustment and the import redirect is updated. By end of Step 3, all Class-B modules live in `lib-v2/`.
+
+**Class C — Governance brands and architecture law 8.** `Approved<T>`, `ReviewRequired<T>`, `Blocked<T>`, `foldGovernance`, plus the test-suite law that forbids ad-hoc governance string comparisons.
+
+*Mechanism: port-and-own.* Copy into `lib-v2/domain/governance/` at Step 0 alongside Class A. Port the architecture law as part of `lib-v2/`'s test suite. v2's structured-fallthrough invariant (§8.5 invariant 10 of the ontology) depends on this pattern holding; inheriting the law keeps the enforcement current.
+
+**Class D — InterventionHandoff shape and file-backed decision bridge.** `lib/domain/handshake/intervention.ts` (the handoff fields), `lib/infrastructure/dashboard/file-decision-bridge.ts` (the atomic temp-rename transport).
+
+*Mechanism: port-with-adaptation.* Copy both into `lib-v2/` at Step 1 (the manifest needs the handoff shape to declare verb error families). Adapt the handoff to make it *required* on every agent-side decision, not optional as it was in v1. Preserve the atomic-rename protocol in the decision bridge — it is the race-safe transport v2's agent-in-the-loop depends on.
+
+**Class E — Convergence-proof harness.** `lib/application/improvement/convergence-proof.ts`, `lib/domain/convergence/types.ts`.
+
+*Mechanism: leave in v1, reimplement in v2.* Do not port. At Step 8 (L3) and Step 9 (L4), v2 reimplements the statistical shape as metric-verb derivations over the receipt log — `metric-convergence-delta-p50` and similar, declared through the manifest, reading from `testbed:v<N>` increments rather than stateful trials. v1's harness is tightly coupled to v1's `ImprovementRun` and `ImprovementLedger`, neither of which v2 inherits. Reimplementation in v2's primitives yields a smaller, more composable surface.
+
+### 2.4 Parallel-operation window
+
+**Decision:** v1 and v2 coexist as working codebases through Steps 1–9 of the construction order. The window opens the moment Step 0 commits to `lib-v2/` and closes at the cut-over moment (§6). During that window v1 runs in stabilization mode (§2.2) and v2 is under construction.
+
+**Regression policy:** v2 does not need to reach v1's feature surface before the window closes. v2 is smaller by design (§4 of the direction doc). The gate is the *shipping claim* (customer QA accepts tests v2 authored), not feature parity. If v2 does not do something v1 did and no customer needs it, that is not a regression — it is the `v1 → v2 delta` working as designed.
+
+If v2 does not do something v1 did *and a customer needs it*, the decision tree is: (a) can the need be served by a v1 maintenance release? — if yes, v1 ships a bug fix; (b) if no, the need is a v2 backlog item the team prioritizes before cut-over.
+
+The window does not close on time. It closes on evidence (§6).
+
+### 2.5 Team continuity and the agent's role
+
+**Decision:** all v2 construction work lands on branch `claude/v2-construction-TKkRI`. Merges to `main` happen only at cut-over. Until then, `main` tracks v1 stabilization; the construction branch tracks v2.
+
+**Where the agent works:** the agent reads from `lib/` for reference and writes to `lib-v2/` for construction. From Step 3 onward, every substantive code change the agent proposes carries a hypothesis: "this change will move `metric-X` by direction D, magnitude M." The hypothesis lands in the proposal log (same one revisions use, with `kind: hypothesis`). Operator review gates it. The next evaluation run produces a verification receipt: confirmed or contradicted. The receipt log is append-only; the batting average is itself a declared metric.
+
+**Review discipline:** every pull request to `claude/v2-construction-TKkRI` includes two links — to the hypothesis that motivated the change and to the receipt (once the next evaluation runs). Review checks three things: (a) does the code match the hypothesis design; (b) does the receipt corroborate the predicted delta; (c) does the change respect the ten invariants from `v2-substrate.md §4`. If any of the three fails, the PR does not merge.
+
+**When does the agent self-propose?** Once the measurement substrate is live (Step 5), the agent can read the receipt log, identify where metrics have plateaued or regressed, and propose follow-up hypotheses. Before Step 5, agent contributions are team-directed. The shift in the agent's autonomy happens at the §5 inflection.
+
+### 2.6 Cut-over moment
+
+**Decision:** cut-over is a *metric milestone*, not a calendar date. Three metric floors must be sustained for a full two-week window of customer-backlog work without intervention resets:
+
+- `metric-test-acceptance-rate ≥ 0.85` on the current testbed version (expected: `testbed:v3`, mid-fidelity with role diversity and state transitions) *and* on a 5-item sample of real customer work items reviewed by QA.
+- `metric-authoring-time-p50 ≤ 45 min` at L0 stage (memory-free baseline; this is the Stage α cost ceiling v2 commits to ship at).
+- `metric-hypothesis-confirmation-rate ≥ 0.70` across the last 30 hypothesis receipts — the agent and team are predicting what helps, not guessing.
+
+Once the floors are sustained, the team executes the cut-over in one atomic change (§6 details the mechanics).
+
+**Why metric, not shipping:** a shipping milestone ("QA accepts N tests") makes N arbitrary and defers to review capacity rather than product quality. A metric milestone makes the decision a consequence of the evidence v2 has already committed to producing.
+
+**Why metric, not coverage:** v2 is intentionally smaller than v1. Feature-parity is the wrong question. Acceptance-rate and batting-average are the right ones.
+
+**Why metric, not calendar:** a calendar creates pressure to cut over before the metrics are sustainable. Calendar is an input to planning, not to gating.
+
+## 3. Phase-by-phase plan
+
+Ten phases, keyed to the construction order in `v2-direction.md §6`. Each phase names what ships, what it depends on, the per-module work involved, the hypothesis the phase is betting on (where Step 5 is live), and the definition of done.
+
+Before Phase 0 begins — and at zero cost — the team can prepare. Agent 2's analysis surfaces five pieces of zero-cost exploratory work that feed directly into Steps 0–2 without touching the critical path:
+
+- Module-level audit of v1 salvage candidates (the audit is already written; the team can review).
+- Dependency-graph modeling for the ten-step construction order.
+- Build-harness prototyping (TypeScript + Effect + Playwright + test runner on a scratch project).
+- Manifest schema exploration — what the agent needs to read on session start.
+- Facet schema mockups — YAML structures, field naming, extensions.
+
+These can happen in parallel with the scaffolding phases below.
+
+### Phase 0 — Scaffolding and substrate import
+
+**What ships:**
+- New directory `lib-v2/` with internal structure (`domain/`, `infrastructure/`, `application/`, `composition/`, `generated/`).
+- Envelope-axis substrate ported wholesale into `lib-v2/domain/` (Class A assets from §2.3): `workflow-types.ts`, `hash.ts`, `source.ts`, `epistemic-brand.ts`.
+- Governance brands and `foldGovernance` ported into `lib-v2/domain/governance/` (Class C).
+- Architecture law 8 ported into `lib-v2/`'s test suite.
+- Build harness: `tsconfig-v2.json`, `package.json` scripts (`build:v2`, `test:v2`), CI config.
+- Branch `claude/v2-construction-TKkRI` created, `lib-v2/` committed.
+
+**Hard dependencies:** none. This is the starting line.
+
+**Parallel work streams within the step:**
+- (a) TypeScript + Effect + Playwright build harness.
+- (b) Class A envelope-axis port (four files; mechanical copy).
+- (c) Class C governance brand port.
+- (d) Architecture law 8 port into test suite.
+
+All four can happen concurrently; (a) is mildly blocking only in the sense that without the tsconfig, (b) through (d) cannot type-check. In practice (a) lands in a day and the rest follows.
+
+**Hypothesis carried:** none yet — Step 5 is not live. This phase is judgment.
+
+**Definition of done:**
+- `npm run build:v2` and `npm run test:v2` both succeed.
+- `lib-v2/` imports from `lib/` cleanly for Class A + C (or rather, does not — they're copied, not imported).
+- A smoke test that constructs a trivial `WorkflowEnvelope<'execution'>` and runs `foldGovernance` on an `Approved<string>` passes.
+- Architecture law 8 runs green against `lib-v2/` (which has no governance string comparisons by construction, since `lib-v2/` has almost no code yet).
+
+### Phase 1 — Vocabulary manifest and fluency harness
+
+**What ships:**
+- Manifest schema (`lib-v2/manifesting/manifest-schema.ts`) defining the shape of a verb entry: `{ name, category, inputs, outputs, errorFamilies, sinceVersion }`.
+- Manifest generator that runs at build time, scans verb-declaring code, and emits `manifest.json` at a fixed path.
+- Build-time check: if the emitted manifest diverges from the last committed manifest in a non-additive way (i.e., a verb signature changed instead of a new verb being added), the build fails.
+- Fluency test harness (`lib-v2/composition/fluency-harness.ts`): canonical agent tasks, one per declared verb, asserting the agent dispatches correctly.
+- Class D (InterventionHandoff shape + file-backed decision bridge) ported into `lib-v2/domain/handshake/` and `lib-v2/infrastructure/handshake/` with the handoff discipline tightened (handoff becomes mandatory on every agentic decision, not optional).
+
+**Hard dependencies:**
+- Step 0 (build harness must exist to generate the manifest).
+- Class D is dragged forward here because the manifest needs to declare handoff-carrying verbs with their error families.
+
+**Parallel work streams within the step:**
+- (a) Manifest schema and generator.
+- (b) Build-time sync check (drift detection).
+- (c) Fluency test fixtures (one per verb — but the verb set is tiny at this phase; fixtures accumulate across later phases).
+- (d) Class D port with the mandatory-handoff adjustment.
+
+**Hypothesis carried:** none yet.
+
+**Definition of done:**
+- Any attempt to change an existing verb's `inputs` or `outputs` in-place fails the build.
+- A fresh agent session reads `manifest.json` and runs its canonical task fixtures green.
+- A hand-crafted regression — a verb added in code but not declared in the manifest — causes the build to fail with a clear message.
+
+This step closes `feature-ontology-v2.md §9.8` (Absent in v1 in the audit). After this, invariant 1 (stable verb signatures) and invariant 10 (cheap introspection) both have teeth.
+
+### Phase 2 — Unified facet schema with stable IDs
+
+**What ships:**
+- Facet schema (`lib-v2/memory/facet-schema.ts`): unified record with `id = "<screen>:<elementOrConcept>"`, `kind` (element | state | vocabulary | route), `displayName`, `aliases`, `role`, `scope`, `locatorStrategies: [{ kind, value, health }]`, `confidence`, `provenance: { mintedAt, instrument, agentSessionId, runId }`, `evidence: <pointer>`.
+- Kind-specific extensions as declared in `feature-ontology-v2.md §9.16`.
+- Facet store (`lib-v2/memory/facet-store.ts`): per-screen YAML files under `lib-v2/catalog/`, loaded into an in-memory index on startup, atomic temp-then-rename writes.
+- Manifest entries for the memory verbs that will fire in later phases: `facet-mint`, `facet-query`, `facet-enrich`, `locator-health-track`. Signatures are committed; implementations land in Step 6 (L1).
+
+**Hard dependencies:**
+- Step 1 (manifest must exist to declare the memory verbs).
+
+**Parallel work streams within the step:**
+- (a) Schema definition and TypeScript types.
+- (b) YAML storage and atomic-write protocol.
+- (c) In-memory index keyed by stable ID.
+- (d) ID generation and stability rules (what happens if a screen is renamed? — the ID does not change, but `scope.screen` can be updated by proposal).
+
+**Hypothesis carried:** none yet.
+
+**Definition of done:**
+- A facet can be round-tripped through YAML and in-memory index without loss.
+- A crash mid-write leaves the previous file intact.
+- Two concurrent writes to different facets do not corrupt each other.
+- Manifest declares the four memory verbs with their signatures frozen.
+
+This step is a *forcing function* (see §5). The facet schema committed here shapes every downstream read and write. A late change forces catalog rewrites.
+
+### Phase 3 — L0 data-flow chain ported with shape adjustments
+
+**What ships:** the six L0 instruments, ported from v1 with per-module adjustments from the delta audit. Each is now callable behind a manifest-declared verb.
+
+Per-module work (Class B from §2.3; target paths are in `lib-v2/`):
+
+| v1 source | v2 target | Action | Specific adjustments |
+|---|---|---|---|
+| `lib/infrastructure/ado/live-ado-source.ts` | `lib-v2/infrastructure/intent/ado-source.ts` | port-asis | REST v7.1 + WIQL + XML regex unchanged; wrap behind manifest `intent-fetch` and `intent-parse` verbs |
+| `lib/playwright/aria.ts` | `lib-v2/instruments/observation/aria.ts` | port-asis | Accessibility snapshot call unchanged |
+| `lib/playwright/locate.ts` | `lib-v2/instruments/observation/locator-ladder.ts` | port-with-adjustments | Reorder ladder from v1 (test-id → role → css) to v2 (role → label → placeholder → text → test-id → css) per `v2-delta-audit.md §9.4` |
+| `lib/runtime/widgets/interact.ts` | `lib-v2/instruments/action/interact.ts` | port-with-adjustments | Keep role-affordances dispatch table; add four named failure families (`not-visible`, `not-enabled`, `timeout`, `assertion-like`) plus `unclassified` fallback on the action envelope |
+| `lib/runtime/adapters/navigation-strategy.ts` | `lib-v2/instruments/navigation/strategy.ts` | port-with-adjustments | Keep route classification and `waitUntil` selection; add `page.url()` idempotence check before `goto`; return discrete `{ reachedUrl, status, timingMs }` envelope |
+| `lib/domain/codegen/spec-codegen.ts` | `lib-v2/instruments/codegen/spec-codegen.ts` | port-with-adjustments | TypeScript AST emission unchanged; swap facade from runtime-instantiated (via `scenario-context.ts`) to pre-generated per-screen modules regenerated from facet catalog on every authoring pass; no inline selectors or data |
+
+**Hard dependencies:**
+- Step 1 (manifest verbs must be declared before the instruments can be wired).
+- Step 2 (facet schema must be committed before the codegen emitter can reference facet IDs).
+
+**Parallel work streams within the step:** six instrument sub-tracks, each largely independent — intent fetch/parse, ARIA capture, locator ladder, interact, navigation, codegen. Integration work at the end of the phase wires them together behind the test-compose and test-execute verbs. This is where wall-time parallelism pays off most.
+
+**Hypothesis carried:** still none — Step 5 is not live. This phase is judgment, but the judgment is constrained: every adjustment is traceable to a specific `v2-delta-audit.md` Partial-in-v1 or Shape-different verdict.
+
+**Definition of done:**
+- All six instruments respond to their manifest-declared verbs.
+- A single hand-crafted work item (an ADO fixture in `lib-v2/fixtures/`) flows through the full L0 chain and produces a Playwright test file that references facets (minted on the fly during composition) by ID, with no inline selectors or data.
+- The Playwright test, when executed, runs against a local fixture application and produces a run record with the new `classification` field populated.
+- Fluency checks added at Step 1 pass against the new verbs.
+
+### Phase 4 — Ship L0 against the customer backlog
+
+**What ships:** nothing new in code. The agent authors tests from real ADO work items against the customer's OutSystems application. QA reviews the tests. Acceptance is the signal.
+
+**Hard dependencies:**
+- Step 3 complete; all six L0 instruments working against a local fixture.
+- Customer ADO tenant access configured for the v2 adapter.
+- A small initial batch of work items selected by the team (5–10 items that are representative but not the most complex).
+
+**Parallel work streams within the step:**
+- (a) Agent sessions against the first batch (one work item at a time, receipted in session logs).
+- (b) QA review of emitted tests (parallel with agent work; reviews come back asynchronously).
+- (c) Facets minted on the fly during composition populate `lib-v2/catalog/` organically.
+
+**Hypothesis carried:** still none. This is the first shipping milestone. Expect Stage α costs — every work item is expensive; every test is bespoke; memory is empty.
+
+**This phase is an inflection point (the first of four, per §5).** Before Step 4, v2 is substrate-building without shipping feedback. After Step 4, every decision is measurable against QA acceptance. v1 enters stabilization mode (§2.2) at the moment this phase completes.
+
+**Definition of done:**
+- At least three tests v2 authored are reviewed by QA and either accepted into the suite or rejected with explicit feedback that the agent records in a handoff receipt.
+- A first *Stage α cost baseline* is captured: the median time-to-completion (authoring start to test passing under review) for the initial batch. This is the number `metric-authoring-time-p50` will be calibrated against at Step 5.
+- `lib-v2/catalog/` contains ≥ 20 minted facets with provenance blocks populated correctly.
+
+### Phase 5 — Stand up the measurement substrate
+
+**What ships:** the measurement stance from `v2-direction.md §5` and `feature-ontology-v2.md §9.21–§9.23`, implemented as a thin layer over v2's existing primitives.
+
+Per-module work (all greenfield):
+
+| v2 target | What it produces | Effort |
+|---|---|---|
+| `testbed/v0/` | Handful of synthetic work items as YAML under `testbed/v0/` with known expected outcomes. Deliberately simple — one screen, one affordance, one assertion. | small |
+| `lib-v2/measurement/testbed-adapter.ts` | Polymorphic branch in `intent-fetch` that reads testbed YAML when `source: testbed:v<N>` is specified; returns the same parsed-intent shape as the ADO adapter | small |
+| `lib-v2/measurement/metrics.ts` | Two manifest-declared metric verbs: `metric-test-acceptance-rate`, `metric-authoring-time-p50`. Each is a pure derivation over the run-record log. | medium |
+| `lib-v2/measurement/receipt-log.ts` | Append-only log of `{ hypothesis, predictedDelta, actualDelta, confirmed, computedAt }` verification receipts | small |
+| `lib-v2/memory/proposal-lifecycle.ts` | Extend the existing proposal log's `kind` discriminator to accept `kind: hypothesis`; same proposal-gated review flow applies | small |
+
+**Hard dependencies:**
+- Step 4 (L0 must be running and producing real run records, or metrics have nothing to derive from).
+- Steps 1, 2, 3 (manifest, facet schema, L0 chain — all needed for metric verb declarations and for run records to exist in the expected shape).
+
+**Parallel work streams within the step:**
+- (a) Testbed v0 YAML authoring.
+- (b) Testbed adapter wiring.
+- (c) Metric verb declaration + computation.
+- (d) Receipt log storage.
+- (e) Hypothesis kind discriminator on proposal lifecycle.
+
+All five are independent and small. This phase is *deliberately lightweight* because the aesthetic of the measurement stance is that it reuses existing primitives. There is no new evaluation runner. There is no metric store. There is only a new intent-source variant, a few new verbs, and a discriminator on an existing log.
+
+**Hypothesis carried:** the *first* hypothesis v2 records. A possible candidate: "Running the L0 chain against `testbed:v0` (synthetic) will produce `metric-test-acceptance-rate >= 0.95` since expected outcomes are hand-committed." If contradicted, the L0 chain has an integration bug the customer backlog's noise was hiding.
+
+**This phase is the second inflection point (§5).** Before Step 5, decisions are judgment. After Step 5, every substantive code change carries a hypothesis and a receipt. The agent's role shifts from directed-only to partially self-proposing (§2.5).
+
+**Definition of done:**
+- `npm run evaluate --source=testbed:v0` runs the L0 chain against the synthetic testbed and produces a batch summary.
+- The two metric verbs compute correctly from the run-record log; their outputs are logged as metric-compute records.
+- A first hypothesis-carrying proposal lands in the proposal log, is reviewed, accepted, implemented, and its verification receipt appears in the receipt log.
+- `metric-hypothesis-confirmation-rate` (declared as a future-facing verb, computed over zero receipts) returns a sensible zero-receipts-yet response.
+
+### Phase 6 — L1 memory layer with per-facet evidence log
+
+**What ships:** the memory layer that makes L0's "every work item bespoke" shift toward "repeat work is cheap."
+
+Per-module work (all greenfield, target `lib-v2/memory/`):
+
+| v2 target | What it produces | Effort |
+|---|---|---|
+| `lib-v2/memory/evidence-log.ts` | Per-facet append-only JSONL (`<facetId>.evidence.jsonl`). Each entry: `{ timestamp, runId, instrument, outcome, context }` | medium |
+| `lib-v2/memory/confidence.ts` | Confidence derivation on read from the evidence log; cached summary invalidated on new evidence | medium |
+| `lib-v2/memory/health-track.ts` | Per-strategy locator health co-located on the facet's `locatorStrategies` array (not a separate index as in v1's `SelectorHealthIndex`) | small |
+| `lib-v2/memory/query.ts` | Intent-phrase parser + ranked query over the in-memory facet index; matches ranked by confidence, health as tiebreaker | medium |
+| `lib-v2/instruments/codegen/facade-regenerator.ts` | Regenerates per-screen facade modules from the facet catalog on every authoring pass | small |
+| `lib-v2/measurement/metrics.ts` | Adds `metric-memory-hit-rate` and `metric-memory-corroboration-rate` metric verbs | small |
+
+**Hard dependencies:**
+- Step 4 (real customer work items have produced the initial catalog population).
+- Step 5 (receipt log exists; the L1 claim needs a hypothesis).
+
+**Soft dependencies:**
+- Step 3's codegen emitter — the facade regenerator extends it.
+
+**Parallel work streams within the step:**
+- (a) Evidence log storage + confidence derivation.
+- (b) Locator health co-location (data migration from v1's separate index if used; otherwise greenfield).
+- (c) Facet query implementation.
+- (d) Memory-backed authoring (test compose consults catalog before observation).
+- (e) Facade regeneration pipeline.
+- (f) Two new metric verbs.
+
+**Hypothesis carried:** *L1's foundational claim.* Candidate: "Once memory contains ≥ 50 facets from Stage α work, authoring time on a repeat surface drops by ≥ 30% compared to the L0 baseline captured at end of Step 4." The verification receipt — confirmed or contradicted — is the first real evidence of the compounding-memory claim.
+
+**Definition of done:**
+- Testbed `testbed/v1` (new, added at this phase) includes repeat-authoring scenarios. Authoring them exercises the memory query path.
+- `metric-memory-hit-rate` and `metric-memory-corroboration-rate` compute correctly from run records.
+- At least one real customer work item authored after Step 6 ships reuses ≥ 1 facet without live re-observation; the run record carries the `memory-backed: true` flag for that step.
+- The hypothesis receipt for the L1 claim is appended to the receipt log.
+
+### Phase 7 — L2 operator-supplied semantics
+
+**What ships:** the instruments that let operator dialog and shared documents enter the catalog as candidate facets.
+
+Per-module work (greenfield):
+
+| v2 target | What it produces | Effort |
+|---|---|---|
+| `lib-v2/instruments/operator/dialog-capture.ts` | Reads chat transcripts, extracts candidate facets with operator wording preserved | medium |
+| `lib-v2/instruments/operator/document-ingest.ts` | Parses operator-shared documents (Markdown initially; richer formats deferred), extracts candidates with region anchors | medium |
+| `lib-v2/memory/candidate-review.ts` | Queue with approve / edit / reject operations; rejected candidates preserved with rationale | small |
+| `lib-v2/measurement/metrics.ts` | Adds `metric-operator-wording-survival-rate` and `metric-vocabulary-alignment-score` | small |
+
+**Hard dependencies:**
+- Step 6 (candidate facets land in the same facet records L1's memory layer owns).
+
+**Soft dependencies:**
+- Step 5 (the L2 claim needs measurement to verify, but the implementation does not strictly block on metrics being live).
+
+**Parallel work streams within the step:** four — dialog capture, document ingest, candidate review queue, two new metric verbs.
+
+**Hypothesis carried:** candidate: "Authoring tests for work items whose domain semantics are explained in an operator-shared document produces tests whose step language is ≥ 80% vocabulary-aligned with the document, as scored by the new `metric-vocabulary-alignment-score`."
+
+**Definition of done:**
+- Testbed `testbed/v2` (new) includes synthetic dialog transcripts and synthetic documents as fixtures.
+- At least one candidate facet minted from an operator dialog and one from a document ingest are reviewed by an operator and either approved into the catalog or rejected with rationale.
+- The two new metric verbs compute correctly from test output.
+- Operator review discipline holds: no candidate enters memory without explicit approval; rejected candidates are retained in the rejection log.
+
+### Phase 8 — L3 drift detection and DOM-less authoring
+
+**What ships:** the confidence-gated authoring policy, drift-as-emitted-event, and drift event surfacing.
+
+Per-module work (greenfield):
+
+| v2 target | What it produces | Effort |
+|---|---|---|
+| `lib-v2/observation/drift-emit.ts` | Appends drift events to `drift-events.jsonl` with `{ runId, facetId, strategyKind, mismatchKind, evidence, observedAt }` shape. Emitter classifies at emit time; `ambiguous` fallback when unclear. | medium |
+| `lib-v2/instruments/codegen/confidence-gate.ts` | Authoring policy: when memory confidence about a surface exceeds threshold, author without fresh observation. Threshold is proposal-gated. | small |
+| `lib-v2/measurement/metrics.ts` | Adds `metric-drift-event-rate`, `metric-dom-less-authoring-share`, `metric-convergence-delta-p50` (the convergence-proof statistical shape, reimplemented as a metric verb per §2.3 Class E) | medium |
+
+**Hard dependencies:**
+- Step 6 (locator health must be populated; L3 consumes it).
+
+**Soft dependencies:**
+- Step 7 (richer memory from L2 raises confidence thresholds faster, but L3 works on L1-only memory).
+
+**Parallel work streams within the step:** drift emit, confidence gate, metric verbs.
+
+**Hypothesis carried:** candidate: "At `metric-memory-hit-rate ≥ 0.60` per surface, DOM-less authoring for that surface produces `metric-test-acceptance-rate` within 5 percentage points of the same surface authored with live observation — i.e., memory is faithful enough to skip observation."
+
+**This phase is the third inflection point (§5).** Before Step 8, agent always observes before authoring. After Step 8, the agent has a confidence-gated skip policy and drift is a first-class observational event rather than a silent test failure.
+
+**Definition of done:**
+- Testbed `testbed/v3` (new) includes surface-change scenarios where the synthetic world is perturbed between runs. Drift emits classify the perturbations correctly.
+- `metric-convergence-delta-p50` — the v2 equivalent of v1's convergence proof — is computed as a metric verb over testbed-version increments and returns a sensible value.
+- At least one real customer work item authored after Step 8 is authored DOM-less for at least one step; the run record flags which steps were memory-only.
+- A deliberately-injected drift (a test fixture with a changed `name` attribute) emits a drift event and surfaces to operator review.
+
+### Phase 9 — L4 self-refinement
+
+**What ships:** the maintenance passes and proposal flows that let memory improve between authoring sessions.
+
+Per-module work (greenfield):
+
+| v2 target | What it produces | Effort |
+|---|---|---|
+| `lib-v2/memory/confidence-age.ts` | Idempotent maintenance pass that decays confidence on uncorroborated evidence logs | small |
+| `lib-v2/memory/corroborate.ts` | Post-execution hook: passing test runs append positive evidence to every referenced facet | small |
+| `lib-v2/memory/revision-propose.ts` | Aggregates drift events + decay + corroboration into revision proposals; landing in the proposal log with `kind: revision` | medium |
+| `lib-v2/measurement/metrics.ts` | Adds `metric-hypothesis-confirmation-rate` (derives the batting average from the receipt log) — the final closure of the trust-but-verify loop | small |
+
+**Hard dependencies:**
+- Step 6 (evidence logs are the substrate).
+- Step 8 (drift events feed into revision proposals).
+
+**Parallel work streams within the step:** aging, corroboration, proposal generation, the final metric verb.
+
+**Hypothesis carried:** *the closure claim.* Candidate: "Across rolling 30-receipt windows, `metric-hypothesis-confirmation-rate` holds ≥ 0.70 — the agent and team are predicting what helps, not guessing." If this holds for a two-week window, the cut-over floors (§2.6) are within reach.
+
+**Definition of done:**
+- The three maintenance passes (age, corroborate, propose) run as scheduled or on-demand without requiring manual intervention.
+- Revision proposals surface to operator review with cited evidence; rejections are preserved.
+- `metric-hypothesis-confirmation-rate` computes over the receipt log and returns a running average.
+- The trust-but-verify loop closes: v2 is now measuring its own batting average at improving itself.
+
+After Phase 9, v2 is feature-complete relative to the level spine. The remaining work is sustaining the metrics (§2.6) until cut-over fires.
+
+## 4. Dependency graph and parallelization map
+
+The critical path is linear across the ten phases. Where wall time is won or lost is *within* each phase, through the parallel work streams named in §3 and through two multi-phase parallel tracks that span the construction order. This section names the DAG, the critical path, and the parallelization opportunities that collapse the most of it.
+
+### 4.1 The DAG
+
+Each phase depends hard on the phase before it, with two exceptions noted below.
+
+```
+    Phase 0 ── Scaffolding + substrate import
+        │
+        ▼
+    Phase 1 ── Vocabulary manifest + fluency harness
+        │
+        ▼
+    Phase 2 ── Unified facet schema
+        │
+        ▼
+    Phase 3 ── L0 data-flow chain (six parallel instrument tracks)
+        │
+        ▼
+    Phase 4 ── Ship L0  ◀── First inflection
+        │
+        ▼
+    Phase 5 ── Measurement substrate  ◀── Second inflection
+        │
+        ▼
+    Phase 6 ── L1 memory layer
+        │
+        ▼
+    Phase 7 ── L2 operator semantics
+        │
+        ▼
+    Phase 8 ── L3 drift + DOM-less  ◀── Third inflection
+        │
+        ▼
+    Phase 9 ── L4 self-refinement
+        │
+        ▼
+    Cut-over (metric floor sustained for 2 weeks)
+```
+
+**Critical path:** Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → Cut-over. Ten phases, each hard-blocking the next. The length of this chain is the minimum wall time to ship; no architectural shortcut exists.
+
+### 4.2 Soft dependencies (not on the critical path)
+
+Two soft dependencies are worth naming because they modulate when later phases become *useful* even though they don't block the code:
+
+- **Phase 7 soft-depends on Phase 5.** L2 instruments can ship without metrics, but the L2 claim ("memory reflects vocabulary operators actually use") is unfalsifiable without measurement. In practice, Phase 7's hypothesis cannot be receipted if Phase 5 is not live.
+- **Phase 8 soft-depends on Phase 7.** Richer memory from L2 raises confidence thresholds faster and makes DOM-less authoring reach its shipping claim earlier. L3 works on L1-only memory, but the convergence claim tightens with L2 semantics in place.
+
+### 4.3 Parallel tracks
+
+Five named tracks run through the construction order. Three are within-phase (tightening the phase-internal wall time); two are cross-phase (collapsing the overall critical path where they overlap with the phase structure).
+
+**Track A — Scaffolding and substrate port (Phases 0–2).**
+Within Phase 0: build harness, Class A port, Class C port, architecture law port — four sub-streams, concurrent. Within Phase 1: manifest schema, drift check, fluency fixtures, Class D port — four sub-streams. Within Phase 2: schema types, YAML store, in-memory index, ID rules — four sub-streams. The team can cover Phases 0–2 without serializing any sub-stream within them.
+
+**Track B — L0 instruments (Phase 3).**
+The six L0 instruments are independent of each other during implementation; they compose at integration. Running them as six concurrent sub-tracks collapses Phase 3's wall time by roughly 3–4× compared to sequential implementation. This is the single largest wall-time win in the plan.
+
+**Track C — Customer validation (Phase 4).**
+Agent sessions (a), QA review (b), and organic catalog population (c) run concurrently. Phase 4's wall time is dominated by QA reviewer availability, not by coding.
+
+**Track D — Measurement layers (Phases 5–9).**
+Each of Phases 5–9 grows the testbed by one version (v0 → v1 → v2 → v3 → v4) and adds a small set of metric verbs. These phases *can pipeline*: the testbed-version-N+1 increment for Phase K+1 can be authored and committed while Phase K's implementation completes, so that when Phase K ships, the next testbed version is ready to light up immediately. This collapses serial wall time on the measurement-plus-layer stretch by roughly 30–40%.
+
+**Track E — Pre-Phase 0 zero-cost exploration.**
+Five pieces of work that can happen before Phase 0 starts and feed directly into Phases 0–2:
+- Module-level audit of v1 salvage candidates (already written; review is the remaining work).
+- Dependency-graph modeling (this section is one realization; deeper module-level graphs can follow).
+- Build-harness prototyping on a scratch project (validates TypeScript + Effect + Playwright + test runner combination).
+- Manifest schema exploration (what fields a verb entry carries; what the agent reads on session start).
+- Facet schema mockups (YAML structures, field naming, extensions — informs Phase 2).
+
+Track E is free wall time — it happens before the critical path even begins and removes uncertainty from Phases 0–2.
+
+### 4.4 Highest-leverage parallelization
+
+Three opportunities dominate. Pursuing them reduces end-to-end wall time significantly; neglecting them adds roughly the same amount.
+
+1. **Parallelize the six L0 instruments in Phase 3.** Six concurrent sub-tracks instead of six sequential ones. Biggest single win; often the difference between a quarter and two.
+2. **Pipeline the measurement layers across Phases 5–9.** Testbed-version-N+1 authoring begins during Phase K, not after. Metric-verb declaration can happen slightly ahead of the implementation it will measure, so Phase K ships with its verification hypothesis ready.
+3. **Exploit Track E before Phase 0 begins.** Every uncertainty that's resolved before Phase 0 is wall time that does not appear on the critical path. The team should treat Track E as the starting line, not as "premature optimization."
+
+### 4.5 What the critical-path structure implies for team shape
+
+The critical path is linear, which means there is no escape from the ten-phase sequence. But the parallel tracks imply the team's shape:
+
+- **Phases 0–2:** one engineer can run most of it; the agent does the mechanical copies and the schema authoring. Two weeks feasible.
+- **Phase 3:** the six-parallel-instrument opportunity is the first place broader team capacity pays off. One engineer per instrument (or one agent per instrument, coordinated) collapses the phase to the longest-single-instrument wall time.
+- **Phase 4:** one engineer plus QA; this phase is bottlenecked on customer review, not on code.
+- **Phases 5–9:** pipeline-enabled; two or three engineers plus the agent working across testbed growth, metric verbs, and memory-layer implementation.
+
+The plan is feasible for a small team (2–4 people) plus the agent. Scaling the team beyond that does not linearly collapse the critical path because most of the dependencies between phases are hard.
+
+## 5. Forcing functions, inflection points, cascade risks
+
+Four classes of named concern. Each has a mitigation handle. None are optional to read; the plan's survival depends on the team tracking each class explicitly.
+
+### 5.1 Forcing functions
+
+Decisions whose early form constrains everything downstream. Once committed, late changes force cascading rework.
+
+| Forcing function | Committed in phase | What it constrains | Mitigation handle |
+|---|---|---|---|
+| **Facet schema shape** (ID format, required fields, provenance block) | Phase 2 | Every memory read and write in Phases 3, 6, 7, 8, 9 | Commit schema before Phase 3 integration begins. Build-time schema validator forbids unsigned shape changes. Treat schema additions as new fields (backward-compatible); forbid field removal during the construction period. |
+| **Vocabulary manifest format** (verb entry shape, signature schema) | Phase 1 | Every verb declaration in Phases 1–9; invariant 1 (stable verb signatures) is materialized here | Finalize format before any verb is published. Once a verb with a given signature ships in `manifest.json`, treat that signature as immutable: deprecate-and-replace, never change in place. `sinceVersion` field on every entry to enable deprecation tracking. |
+| **Testbed directory layout** (`testbed/v<N>/` convention, per-version immutability) | Phase 5 | The path convention for every subsequent testbed version; metric verbs that reference testbed versions | Fix `testbed/v<N>/` layout and version-increment protocol in Phase 5 before shipping v0. Version N, once committed, never mutates; increments create v1, v2, etc. Version-rollback is forbidden after public announcement. |
+| **Repo and package boundary** (`lib-v2/` sibling vs. carve-in-place vs. separate repo) | Phase 0 | Import paths, build config, CI pipelines, for all subsequent phases | Resolve in Phase 0 before any `import` is written. Recommendation is `lib-v2/` per §2.1; runner-up is a separate repo (rejected for friction). Once committed, relocation is a one-time cost that happens only at cut-over. |
+| **Envelope-axis phantom type shape** (inherited from v1's Phase 0-complete refactor) | Phase 0 | The compile-time invariants that hold across all ten phases | Port Class A as-is from v1 in Phase 0; do not modify during construction. Phases B–E (inherited from v1's in-flight refactor plan) elaborate in `lib-v2/` only after the basic port stabilizes. Cross-module integration tests confirm v1-imported types and v2-used types agree in shape. |
+
+The common thread: **every forcing function is committed in Phases 0–2**. That is by design. These three phases commit the substrate; the other seven phases compose on top of it. Team discipline during Phases 0–2 disproportionately determines the cost of everything downstream.
+
+### 5.2 Inflection points
+
+Four moments where the transmogrification's character changes. Each has prerequisites and tell-tale signs that indicate it has been crossed.
+
+**Inflection 1 — First L0 ship (end of Phase 4).**
+
+*What changes:* substrate-building becomes measurable shipping. The team has its first signal from customer QA.
+
+*Prerequisites:* Phases 0–3 complete; at least one end-to-end authoring flow works against a hand-crafted fixture.
+
+*Tell-tale signs the inflection has passed:*
+- First customer work item is authored by the agent and surfaces to QA.
+- QA reviews at least three tests and returns acceptance / rejection verdicts.
+- A Stage α cost baseline is captured and recorded.
+- v1 enters stabilization mode per §2.2.
+
+**Inflection 2 — Measurement substrate live (end of Phase 5).**
+
+*What changes:* design decisions stop being pure judgment and start carrying hypothesis receipts. The agent's autonomy shifts from directed to partially self-proposing.
+
+*Prerequisites:* Phase 4 shipped; testbed v0 committed; two metric verbs declared; `kind: hypothesis` discriminator live on the proposal lifecycle.
+
+*Tell-tale signs:*
+- `npm run evaluate --source=testbed:v0` produces a batch summary.
+- Metric verbs compute correctly from run records.
+- The first hypothesis-carrying proposal lands in the proposal log, is reviewed, lands in code, and its verification receipt appears.
+- The agent can read the receipt log to summarize "what has moved since last evaluation."
+
+**Inflection 3 — L3 drift + DOM-less authoring live (end of Phase 8).**
+
+*What changes:* the agent gains the confidence-gated skip policy; drift becomes a first-class observational event rather than a silent test failure. The character of failure changes from "red test" to "classified drift event with recovery options."
+
+*Prerequisites:* Phases 1–7 complete; at least 50 facets in the catalog with locator health populated across multiple runs; confidence threshold value approved by operator review.
+
+*Tell-tale signs:*
+- At least one real customer work item is authored with a DOM-less step (memory confidence ≥ threshold skips fresh observation), runs, and either passes or emits a drift event.
+- A deliberately-injected drift emits and surfaces to operator review.
+- `metric-convergence-delta-p50` (the v2 adaptation of v1's convergence proof) computes over testbed-version increments.
+
+**Inflection 4 — Cut-over (three metric floors sustained).**
+
+*What changes:* v1-primary becomes v2-primary. `lib-v2/` becomes `lib/`; `main-v1-archive` tag preserves v1.
+
+*Prerequisites:* Phase 9 shipped; `metric-test-acceptance-rate ≥ 0.85`, `metric-authoring-time-p50 ≤ 45 min`, `metric-hypothesis-confirmation-rate ≥ 0.70` all sustained for a two-week window.
+
+*Tell-tale signs:* see §6 below.
+
+### 5.3 Cascade risks
+
+Choices that, if wrong, force rework across multiple phases. Severity reflects how many phases would need rework.
+
+| Risk | Severity | Affected phases | Mitigation handle |
+|---|---|---|---|
+| **Facet schema proves inadequate when customer complexity arrives** | High | 3, 4, 6 (3 phases) | Phase 3 L0 authoring runs an explicit "expected facet shape" assertion per real work item. Before Phase 6 ships, conduct a facet-shape adequacy review against actual L0 output. Gate L1 shipping on zero required-field retrofits. |
+| **Verb signature proves wrong after real usage** | High | 3, 5, 6, 7, 8, 9 (6 phases) | Phase 4 real-world testing logs "verbs that failed to classify real errors" as a separate handoff category. In Phase 5, before declaring metrics, review the handoff log and proposal-gate any verb deprecations discovered. Deprecation with a new verb costs a manifest entry; in-place change violates invariant 1. |
+| **Confidence-derivation rule skew between L1 and L3** | Medium | 4, 5, 6, 7, 8 (5 phases) | Before Phase 6 ships, author the confidence-derivation rule as a named proposal. Gate L1 shipping on operator approval of the rule, even though enforcement fires at Phase 8. This aligns L1's evidence collection with L3's consumption. |
+| **Run-record log schema drift between Phase 3 and Phase 5** | Medium | 4, 5, 6, 7, 8, 9 (6 phases) | In Phase 3, commit the run-record schema to code and embed a `logVersion` field on every record. In Phase 5, metric verb signatures name their expected `logVersion`. Forbid run-record schema changes without deprecating affected metric verbs and issuing new ones. |
+| **Proposal-gating mechanism not live before Phase 6 depends on it** | Medium | 6, 7 (2 phases, but blocking) | Implement proposal-log infrastructure (append-only JSONL + review queue CLI) in Phase 5 alongside the testbed, not in Phase 6. Treat proposal-log as a prerequisite, not a Phase 6 feature. Dry-run a proposal cycle in Phase 5 to validate the mechanism before L1 depends on it. |
+| **L0 ladder order lock-in cost** | Medium | 3, 4, 6, 8 (4 phases) | Phase 3 tests measure locator-match quality per-rung on real customer surfaces. Phase 5 testbed v0 exercises each rung explicitly. Before Phase 6 L1 ships, a ladder-order adequacy review gates whether the chosen order stays or a reorder is proposal-gated before locator health commits. |
+| **Agent fluency regression undetected across phases** | Medium | 1, 3, 4, 5, 6, 7, 8, 9 (8 phases) | Embed fluency checks in the build at Phase 1, not as optional tests. Any PR that touches manifest, verb implementation, or handshake signatures must pass fluency checks to merge. Fluency regression is treated at the same severity as a broken product test. |
+
+### 5.4 Measurement dependencies — Phases 1–4 carry unmeasured choices
+
+The plan has a structural awkwardness: Phases 1–4 commit design choices before Phase 5 is live to verify them. This is unavoidable — you cannot build the measurement substrate before you have something to measure — but it is not unmanaged.
+
+Three specific choices carry forward into Phase 5 as things to *verify once measurement lights up*:
+
+- **Phase 1's verb signatures and error families** — did the chosen set classify real L0 failures adequately, or do handoffs frequently land in `unclassified`? Phase 5 reviews the Phase 4 handoff log and proposal-gates any deprecations.
+- **Phase 2's facet schema adequacy** — did the required fields cover real customer surfaces, or do Phase 4 facets frequently carry retrofits? Phase 6's shipping gate includes a schema adequacy review.
+- **Phase 3's L0 ladder order and error classification** — did the adjustments (role-first ladder, four-family error classification) improve real outcomes vs. v1's order and classification? Phase 5 testbed includes ladder-rung exercises; Phase 4 run records feed a comparison analysis.
+
+The plan does not pretend these choices are risk-free. It names them, flags them for Phase 5 review, and makes the review *mechanical*: the handoff log and run-record log together provide the evidence; the metric verbs declared at Phase 5 are the lens.
+
+## 6. Cut-over and v1 retirement
+
+Cut-over is a single commit. Everything that leads up to it is accumulated; everything that happens after it is irreversible. This section names what the commit contains.
+
+### 6.1 Gating the moment
+
+The three metric floors from §2.6:
+
+- `metric-test-acceptance-rate ≥ 0.85` on the current testbed version (expected `testbed:v3`) *and* on a 5-item sample of real customer work items reviewed by QA, sustained for **two consecutive weeks** of customer-backlog work without intervention resets.
+- `metric-authoring-time-p50 ≤ 45 min` at L0 stage across the same window.
+- `metric-hypothesis-confirmation-rate ≥ 0.70` across the rolling window of the last 30 hypothesis receipts.
+
+"Sustained" means: every daily evaluation run inside the two-week window reports all three metrics at or above their floors. A single dip below the floor resets the window to day zero.
+
+The team reviews the three-metric floor weekly during Phase 9 and the stretch beyond it. When the two-week window closes green, the cut-over commit is staged.
+
+### 6.2 The cut-over commit
+
+One atomic change. Six actions in one commit or a tight sequence of commits landed together:
+
+1. **Archive v1.** `git tag main-v1-archive` at the current `main` HEAD. This preserves v1 for historical inspection; the tag does not get garbage-collected.
+2. **Delete v1's `lib/`** in the v2 branch. The archive tag keeps it recoverable; the working tree loses it.
+3. **Rename `lib-v2/` to `lib/`.** Import paths across `lib-v2/` update in the same commit.
+4. **Promote the testbed location.** `testbed/v<N>/` stays at repo root; the `dogfood/` directory is removed (if it still exists) alongside the `lib/` removal.
+5. **Update the build harness.** `package.json`'s `build:v2` becomes `build`; `build:v1` is removed; `tsconfig-v2.json` replaces `tsconfig.json`.
+6. **Merge `claude/v2-construction-TKkRI` into `main`.** Tag the merge commit `v2.0`.
+
+The commit is a single reviewable change. The team reviews it; the agent reviews it; both sign off. QA is notified that v2 is now the primary target.
+
+### 6.3 What lives on after cut-over
+
+- The envelope-axis substrate in `lib/domain/` — ported from v1's Class A, now owned by v2.
+- The L0 data-flow chain in `lib/instruments/` — ported from v1's Class B with shape adjustments.
+- The governance brands and `foldGovernance` in `lib/domain/governance/` — Class C.
+- The InterventionHandoff shape and file-backed decision bridge — Class D, with the mandatory-handoff adjustment.
+- The facet catalog in `lib/catalog/` — populated organically during Phases 4–9 plus whatever the first real customer work produced.
+- The evidence log, receipt log, drift-event log, proposal log — all append-only, all preserved from their Phase-5-through-Phase-9 contents.
+- The testbed versions v0 through v3 (or whichever is current) — committed; their run records remain queryable.
+- `main-v1-archive` tag — v1's final state, recoverable by `git checkout main-v1-archive`.
+
+### 6.4 What is gone after cut-over
+
+- `lib/` with v1's operational scaffolding: speedrun verbs, theorem-group proof obligations, 15-knob parameter space, scorecard JSON, improvement ledger, learning-health ranking, `.tesseract/` ephemeral directory definitions.
+- The dogfood / production distinction as a structural axis. v2 runs against customer tenants; the synthetic testbed is a deliberate measurement surface, not a training shadow.
+- The six-slot lookup chain and reference-canon transitional slot — retired because the transition they managed is now complete.
+
+v1's CLI surface (`context`, `workflow`, `paths`, `trace`, `impact`, `surface`, `graph`, `types`) is removed from `package.json`. v2's CLI is narrower: `build`, `test`, `evaluate --source=testbed:v<N>`, and whatever manifest-declared verb invocations the team exposes as scripts.
+
+### 6.5 The post-cut-over first week
+
+One week of active watching. If any of the three metric floors dips, the team investigates but does not revert — the floors were sustained for two weeks before cut-over; transient dips are expected noise.
+
+Real test is whether v2 can handle a real customer issue in production: a surface change that requires a test update, a new work-item type that requires a new intent-parse path, a vocabulary request from an operator. v2's first week post-cut-over is observed; by end of that week, the team has a quiet confidence that v2 is holding its shipping claim without the v1 safety net.
+
+## 7. Definition of done
+
+Three layers, in order of increasing commitment.
+
+### 7.1 "v2 has shipped" — when the cut-over commit lands
+
+- All ten phases complete per the definition-of-done in each phase.
+- Three metric floors sustained for two weeks prior to cut-over.
+- `main-v1-archive` tag exists; `main` now points at the v2.0 merge commit.
+- `lib/` contains v2's code; `lib-v2/` no longer exists.
+- `testbed/v<N>/` versions v0 through current are committed.
+- The four supporting docs (`v2-substrate.md`, `feature-ontology-v2.md`, `v2-delta-audit.md`, `v2-direction.md`) are updated where references to "v1" or "v2" are stale in light of the cut-over.
+
+### 7.2 "v2 is sustaining" — one month post-cut-over
+
+- Three metric floors hold across the month.
+- At least one new metric verb has been proposed, reviewed, and declared — the metric catalog grows as v2's shipping reveals what's worth measuring.
+- At least five hypothesis receipts have appended to the receipt log since cut-over; the batting average is still ≥ 0.70.
+- No customer escalation has required a revert or a hot-fix branched off `main-v1-archive`.
+- The agent can read the receipt log and summarize v2's trajectory coherently without human-authored interpretation.
+
+### 7.3 "v2 is the system" — the transmogrification is fully past
+
+- Six months post-cut-over (or whenever the team agrees).
+- v1's archive tag has not been touched (nobody has needed to check out v1 for operational reasons).
+- The three metric floors have moved upward (e.g., acceptance rate now ≥ 0.90, authoring time ≤ 30 min p50, confirmation rate ≥ 0.75) — v2 has earned its way past the initial floors.
+- New capabilities have shipped under the proposal-gated hypothesis discipline, not as architectural overhauls.
+- The team considers v2 "the codebase" and v1 "historical reference."
+
+At this point, transmogrification is no longer a word the team uses for itself. It is a thing that happened once, and the system now measures its own evolution through the substrate v2 shipped with.
+
+## 8. What is deferred to execution
+
+The plan commits to what it needs to commit to. A number of decisions are explicitly *not* settled here and will be made during execution with evidence on the table. Each is named so its absence is not a surprise.
+
+- **Exact metric formulae for the first three metric verbs.** `metric-test-acceptance-rate`, `metric-authoring-time-p50`, `metric-hypothesis-confirmation-rate` are named with their semantics; the exact window lengths, aggregation functions, and outlier handling emerge at Phase 5 shipping.
+- **Confidence-derivation rule from the evidence log.** Aging half-life, corroboration weight, decay shape — all deferred to Phase 6 and made proposal-gated at that time.
+- **Drift classification thresholds.** What counts as `ambiguous` vs. a concrete mismatch; per-mismatch-kind confidence adjustments. Deferred to Phase 8.
+- **Testbed version increment protocol.** How often new versions are cut; what "controlled increment in verisimilitude" means concretely (add one new role? one new state? one new workflow?). Calibrated during Phases 5–8.
+- **Operator review UI.** JSONL queue plus a CLI is sufficient for the construction period per `feature-ontology-v2.md §9.14`. Richer surfaces, if needed, emerge under customer pressure after cut-over.
+- **The specific L2 document parser.** Markdown is the first format; richer formats (PDF, Confluence exports, images) defer to Phase 7 shipping pressure against real customer material.
+- **Who (or what) triggers the weekly metric-floor review.** Could be a scheduled CI job, an operator ritual, a chat bot; decided in Phase 9 as the metric floors become load-bearing for the cut-over decision.
+- **v1 archive retention policy.** The `main-v1-archive` tag is permanent by default, but the policy for ever deleting or pruning v1's history is an operational decision the team takes once v2 has proven out.
+
+These deferrals are not gaps in the plan. They are decisions whose right time is when the plan's execution has produced the evidence to inform them. Committing them earlier would be choosing in ignorance; committing them later is what the anti-scaffolding gate calls for.
+
+---
+
+v1 becomes v2 through ten phases, five parallel tracks, four inflection points, a handful of forcing functions named and gated, and one cut-over commit fired on a sustained three-metric floor. The plan is the route. The discipline is trust-but-verify. The end state is a codebase the size of the problem, producing tests a real customer accepts, measured by an agent that reads its own receipts. Execute.
+
