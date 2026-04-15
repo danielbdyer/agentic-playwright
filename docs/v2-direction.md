@@ -117,63 +117,58 @@ v2 has no equivalent concern because v2's design does not require one.
 - **The six-slot lookup chain and reference-canon transitional slot.** v1's `operator-override` → `agentic-override` → `deterministic-observation` → `reference-canon` → `live-derivation` → `cold-derivation` precedence resolver exists to manage a transition from pre-gate knowledge to gate-earned canonical artifacts. v2 has no such transition to manage. The facet catalog starts empty; it grows through gate-earned canonical artifacts only; ranking within the catalog is by confidence and health, not by slot.
 - **Dogfood / production split as a structural axis.** v1's `createProjectPaths(rootDir, suiteRoot)` indirection and gitignore governance of `dogfood/` exist because v1 is evolving through dogfood content. v2 runs against the customer's tenant and application; its synthetic testbed (§5) is a separate, deliberate measurement surface, not a dogfood shadow. There is no "dogfood mode" in v2.
 
-## 5. The v2 measurement substrate — reimagined, not inherited
+## 5. The v2 measurement substrate — v2 measures itself with its own primitives
 
-v1's measurement machinery is substantial. It carries choices specific to how v1 chose to measure itself, and those choices are not yet proven to represent anything v2 needs. v2 does not inherit the apparatus. v2 also does not ignore the problem it solves.
+The measurement substrate is not a parallel apparatus. It is **v2 applied to v2** — the same primitives (agent, intent source, world, instruments, memory), the same handshakes, the same invariants. Everything about measurement falls out of a single addition: a synthetic intent source committed alongside v2's code. Testbed runs go through v2's normal authoring flow; metrics are derivations over v2's existing run-record log; hypotheses are proposals under the same review discipline memory uses.
 
-Measurement is a first-class v2 concern, designed fresh from principles, because the agent's ability to help evolve v2 depends on seeing v2 under test.
+This is the functional aesthetic: no new primitives, no parallel code paths, measurement expressed in the vocabulary v2 already has. The substrate is thin because it reuses v2's primitives rather than inventing its own.
 
-The operating frame: **trust, but verify.** v2's product surface is small (§1) and the shipping discipline is small bets (§2). Small bets only pay off if the batting average is good, and batting average is only knowable through measurement. The measurement substrate is how v2 — with the agent as a partner — maintains a good batting average across iterations. "Can't improve what you don't measure."
+The operating frame is unchanged: **trust, but verify**, small bets with a good batting average, "can't improve what you don't measure." What changed between the first draft of this section and now is how much machinery those disciplines need. The answer turned out to be: very little, if the primitives are designed well.
 
-This substrate is a "both" concern. It ships *with* v2's codebase because the team needs it to verify v2 and the agent needs it to reason about v2's performance. It does not ship *to* customers as a product feature. The essentialization of §2 holds: product is what ships to customers; workshop is what ships with v2 for the team and the agent. The measurement substrate sits in the workshop space — shipped alongside v2, not on top of it — and is treated as first-class because without it v2 cannot iterate with confidence.
+### 5.1 The testbed is an intent-source variant
 
-### 5.1 The synthetic testbed with growing verisimilitude
+`intent-fetch` is polymorphic over its source. A work item returned by the Azure DevOps adapter and a work item returned by the testbed adapter have the same shape — `{ id, source, title, preconditions, actions, expected, parameters }`. The only distinguishing field is `source`, which for testbed items names the testbed version (`testbed:v0`, `testbed:v1`, …).
 
-v2 ships with a synthetic testbed: a reproducible set of work items, fixtures, and expected outcomes against which v2 can be exercised without touching real customer data. The testbed is designed from first principles, not ported from v1's `dogfood/scenarios/`. It starts deliberately simple — one screen, one affordance, one passing assertion — and grows verisimilitude in controlled increments: more roles, more state transitions, more affordance variants, more vocabulary drift, more workflow complexity.
+The testbed itself is committed alongside v2's code as YAML files under `testbed/v<N>/`. Each version is a stable snapshot — version 0 is the simplest possible case; version N+1 adds one named, committed increment in verisimilitude (a new role, a new state transition, a new vocabulary variant, a new workflow complexity). Testbed version history is a first-class artifact; regressions at higher-complexity versions surface cleanly because each version is independently runnable.
 
-Each increment is explicit and committed. v2's evaluation runner can execute the testbed at any committed version; the delta between version N and N+1 is itself a measurement. The verisimilitude path is tracked as a first-class artifact so regressions at higher-complexity increments surface cleanly rather than hiding inside averages.
+Downstream of the adapter, no handshake distinguishes testbed from real. Test compose, test execute, facet query, drift emit — all the same. If v2 can't author tests against the testbed, it can't author against real customers either.
 
-### 5.2 Metrics earn their place — no legacy slate
+### 5.2 Evaluation is authoring, not a separate runner
 
-v1's M5 and C6 are concepts v2 respects as ROI narrative (substrate §8.1). v1's specific operational definitions (floors locked at 1.0 / 1.2 / 1.5; cohort-comparable by scenario ID; wall-clock-plus-agentic-override in the denominator) are not inherited. They haven't earned their way in yet.
+To evaluate v2, run v2's normal authoring flow against a testbed version as its intent source. Same agent session, same memory consultation, same test compose, same test execute. The difference is only that the testbed ships with expected outcomes, so the run-record log — already kept by v2 as its memory of what happened — becomes an evaluation log when filtered to testbed work items.
 
-The v2 rule: **a metric earns its place by predicting something actionable.** If a number computed on the testbed correlates with customer-accepted test quality or authoring-time improvement, it stays. If it doesn't, it's noise. Metrics accrue incrementally as v2 proves what's worth measuring. The starting set is deliberately tiny:
+There is no separate evaluation runner. There is v2, invoked with `--source=testbed:v<N>`. The session receipt is functionally identical to a customer-backlog receipt; only the `source` field differs. One code path, two audiences.
 
-- **Test acceptance rate** from QA review (grounds the L0 shipping claim).
-- **Authoring time per work item** (grounds the ROI curve in §8.1 of the ontology).
-- **Memory corroboration rate** at L1+ (does memory actually pay off, not just accumulate?).
+### 5.3 Metrics are manifest-declared derivations over run records
 
-Additional metrics are proposed under the small-bets discipline: one hypothesis at a time, measured against the testbed, accepted only if the delta survives review. The metric catalog itself follows the same proposal-gated reversibility rules v2 applies to memory writes (§8.6).
+A metric is a named, manifest-declared derivation over the run-record log. `metric-test-acceptance-rate`, `metric-authoring-time-p50`, `metric-memory-corroboration-rate`. Each is a verb declared in the vocabulary manifest (§9.8) with a frozen signature once published. Adding a metric is adding a verb; retiring a metric is deprecating a verb; the same discipline verb declaration already enforces applies.
 
-### 5.3 Evaluation as a single cadence
+Metric computation is pure given the run log: filter run records by window and testbed version, aggregate, return the scalar plus the run subset the scalar was derived from (so the derivation is auditable). Computation is itself a run event — a metric-compute record appends to the log — so the history of metric values over time is queryable through the same pagination rules §9.20 applies to everything else.
 
-v1 exposes five speedrun verbs. v2's equivalent is a single evaluation cadence: run the testbed at the committed version, produce a structured report, append to the evaluation log.
+The starting set is deliberately small — three metrics, listed above. Additional metrics are proposed under the same proposal-gated reversibility rules memory uses (§8.6). A metric earns its place by predicting something actionable; if it doesn't, the review rejects it.
 
-The report is machine-readable, token-conservative (the §9.20 discipline applies here too), and keyed by testbed version *and* code version. It names: which work items passed, which failed, which memory queries hit, which fell through to live observation, which drift events fired, which metrics moved relative to the last run. It closes with a suggested-next-steps list drawn from the same closed-set verb vocabulary the manifest exposes — the agent consumes the same interface it uses for any other handshake.
+### 5.4 Hypotheses are proposals; verification is the next evaluation
 
-The evaluation log is append-only. Every run lives in the log with its testbed version, code version (git SHA), and report. The agent can query the log — "has this metric moved in the last N evaluations?" — as part of proposing code changes.
+A hypothesis is a specific kind of proposal: `{ kind: "hypothesis", proposedChange, predictedDelta: { metric, direction, magnitude }, rationale }`. It enters the same proposal log revisions use (§9.15), with a discriminator on `kind`. Operator review gates it like any other proposal.
 
-### 5.4 The agent in the loop
+If accepted, the code change lands; the next evaluation produces new run records; the agent reads the delta and appends a verification receipt: `{ hypothesis, predictedDelta, actualDelta, confirmed }`. The receipt log is append-only (invariant 3); contradicting a hypothesis never overwrites its receipt — confirmations and contradictions stack into history.
 
-With the measurement substrate in place, the agent participates in v2's evolution, not just in its operation:
+That history is itself queryable. A metric like `metric-hypothesis-confirmation-rate` is a derivation over the receipt log — the batting average, computed the same way every other metric is computed, readable by the agent through the same manifest verbs.
 
-1. **Read the evaluation log.** Summarize what has moved, plateaued, or regressed; highlight testbed versions where new complexity surfaced new failures.
-2. **Propose targeted code changes** with explicit hypotheses about which testbed metric they should move, and in which direction.
-3. **Verify after landing** whether the hypothesized metric moved. Receipts for every change link to the evaluation evidence before and after.
-4. **Retire or replace metrics** that consistently fail to predict useful outcomes — following the same reversibility discipline memory writes follow.
+### 5.5 Trust-but-verify in one sentence
 
-This operationalizes *trust, but verify*: v2 is trusted to ship what the team believes is net-positive; the verification is automatic; the agent is a partner in the verification loop rather than a tool the team calls during it.
+Every code change carries a hypothesis; the next evaluation confirms or contradicts it; the receipt log is append-only; the agent reads it to propose the next change. Small bets, reviewed, measured, receipted — and the batting average is a derivation the agent can pull at any time.
 
-### 5.5 What this substrate is not
+### 5.6 What this substrate is not
 
-The measurement substrate is not:
+- **Not a parallel apparatus.** The testbed runs through v2's normal authoring flow. There is no separate evaluation pipeline.
+- **Not a metric store.** Metrics are derivations over existing run records, not entries in a sibling database.
+- **Not a new primitive.** The testbed is an intent-source variant; every verb it touches is already declared.
+- **Not a replica of v1's scorecard with new names.** Metrics start from zero (three) and accrue only through earned predictive value under proposal review.
+- **Not a theorem-verification system.** v2's compounding claims stay narrative; operationalization pays its way.
+- **Not customer-facing.** The testbed and the evaluation output ship *with* v2's codebase for the team and the agent. They do not ship *to* customers as a product feature.
 
-- A replica of v1's scorecard with different field names. v2's metrics start from zero and accrue through earned predictive value.
-- A theorem-verification system with formal proof obligations. v2's compounding claims are narrative; operationalization pays its way.
-- A 15-knob tuning surface exposed as dogfood. v2's tuning surface is whatever the evaluation loop proves v2 needs — and no more than that.
-- A parallel track running alongside the product. The substrate ships *with* v2; its outputs are visible to the agent and the team; they are not customer-facing artifacts.
-
-It is a fresh instrument, designed to answer two questions: *is v2 getting better?* and *which of the proposed changes actually make it so?* Everything else about the substrate is subordinate to those two questions.
+The aesthetic win is that measurement disappears into v2's own primitives. The substrate is thin because the primitives are good.
 
 ## 6. Construction order — backwards from v2
 
@@ -232,18 +227,19 @@ This is a **shipping milestone**, not a coding milestone. Do not skip it.
 
 ### Step 5 — stand up the v2 measurement substrate
 
-**Why now:** L0 is running and producing real work. There is now something stable to measure. Before Step 4, a measurement substrate would be instrumenting speculation; after Step 4, the substrate starts paying for itself immediately by grounding every subsequent decision.
+**Why now:** L0 is running and producing real work. There is now something stable to measure. Because the substrate reuses v2's own primitives (§5), this step is small — a testbed adapter, a few YAML files, two or three manifest verb declarations. The aesthetic pays off by making the lift tiny.
 
 **What ships at this step:**
-- A synthetic testbed, version 0: the simplest possible testbed (one screen, one affordance, one assertion). Reproducible. Committed alongside v2's code.
-- An evaluation runner that executes the testbed at a committed version and produces a structured report.
-- An append-only evaluation log keyed by testbed version and code version.
-- The starting metric set: test acceptance rate, authoring time per work item, memory corroboration rate (when L1 lands).
-- Agent-side reporting hooks: the agent can summarize the log, propose code changes with hypotheses, and verify after landing.
+- **Testbed version 0**: a handful of synthetic work items under `testbed/v0/` as YAML, with known expected outcomes. Deliberately simple — one screen, one affordance, one assertion.
+- **An `intent-fetch` adapter** that reads testbed YAML when `source: testbed:v<N>` is specified, and returns the same parsed-intent shape as the ADO adapter. No other handshake changes.
+- **Two metric verbs declared in the manifest**: `metric-test-acceptance-rate`, `metric-authoring-time-p50`. Both are pure derivations over the run-record log; both carry the same verb-declare discipline as every other manifest entry. (`metric-memory-corroboration-rate` lights up at Step 6 when L1 makes it meaningful.)
+- **A `kind: hypothesis` discriminator on the proposal lifecycle.** Hypothesis proposals flow through the same proposal log §9.15 revisions use, with the discriminator distinguishing code-change proposals from memory-revision proposals. Verification receipts append to the receipt log after each evaluation.
 
-**What this closes:** §5 is now operational. From this point on, every subsequent step is measurable — each of Steps 6–9 commits to a testbed-version increment and a named metric hypothesis before landing.
+**What this closes:** §5 is operational. Every subsequent step commits a testbed-version increment and names a hypothesis before landing. Trust-but-verify is now a running loop.
 
-**What this does not close:** the testbed does not yet have high verisimilitude. That grows deliberately over later steps. Version 0 is honest about being a shallow model of the customer's reality.
+**What this does not close:** testbed verisimilitude is low. Growth happens incrementally at Steps 6–9 and continuously after. Version 0 is honest about being a shallow model of the customer's reality — that's the point of committing version history as a first-class artifact.
+
+**What this is explicitly *not* doing:** building a separate evaluation runner, a separate metric store, or a separate scorecard. All three would violate the functional aesthetic; all three turn out to be unnecessary given v2's primitives.
 
 ### Step 6 — L1 memory layer with per-facet evidence log
 
@@ -286,16 +282,16 @@ This is a **shipping milestone**, not a coding milestone. Do not skip it.
 
 **What this closes:** §9.15 Absent becomes implemented. The compounding-memory claim becomes measurable in the workshop.
 
-### Workshop extensions — built alongside, shipped with v2's codebase
+### Workshop extensions — grown from the same primitives
 
-The measurement substrate of Step 5 is the backbone; Steps 6–9 each extend it as the layer they introduce matures:
+Because the substrate is v2 applied to v2, "extending it" is the same motion as extending v2 itself: commit new testbed work items, declare new metric verbs, propose new hypotheses. Each subsequent step grows the testbed and the metric catalog by the scope of the layer it introduces:
 
-- **At Step 6 (L1 memory):** the substrate gains *memory-corroboration* and *memory-hit-rate* metrics; the testbed grows to include repeat-authoring scenarios against which L1's "repeat work is cheaper" claim is measured.
-- **At Step 7 (L2 operator semantics):** the testbed incorporates synthetic dialog transcripts and synthetic documents; metrics track vocabulary alignment and operator-wording survival through to test output.
-- **At Step 8 (L3 drift detection):** a convergence-proof harness adapted from v1's `lib/application/improvement/convergence-proof.ts` is incorporated to answer "does the loop converge?" across synthetic testbed versions.
-- **At Step 9 (L4 self-refinement):** the substrate gains revision-proposal acceptance tracking — do proposed revisions, once approved, actually improve subsequent evaluation runs?
+- **At Step 6 (L1 memory):** testbed grows to include repeat-authoring scenarios — the same affordance hit twice, three times. `metric-memory-hit-rate` and `metric-memory-corroboration-rate` are declared as new metric verbs. The L1 claim "repeat work is cheaper" is now measurable.
+- **At Step 7 (L2 operator semantics):** testbed fixtures gain synthetic dialog transcripts and synthetic documents. New metric verbs track vocabulary alignment and operator-wording survival through to test output.
+- **At Step 8 (L3 drift detection):** testbed adds surface-change scenarios where the synthetic world is perturbed between runs. Drift-detection metric verbs verify the emitter classifies correctly. The convergence claim — "does the loop settle under repeated perturbation?" — becomes a metric derivation over receipts across testbed-version increments, adapting the statistical shape of v1's `convergence-proof.ts` into the metric-verb vocabulary rather than carrying it in as a separate harness.
+- **At Step 9 (L4 self-refinement):** the receipt log is mature enough to derive the batting average. `metric-hypothesis-confirmation-rate` — the proportion of hypothesis receipts where `confirmed === true` — is itself a metric verb the agent can query. This closes the trust-but-verify loop: v2 measures its own batting average at improving itself.
 
-None of this ships to customers. All of it ships with v2's codebase. The team and the agent are the audience; the audit trail is the product of their collaboration.
+None of this ships to customers. All of it ships with v2's codebase. Testbed, metric verbs, and receipt log are the shared working surface between the team and the agent; the audit trail is the product of their collaboration.
 
 ## 7. How the subsidiary documents relate
 
