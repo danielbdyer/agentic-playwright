@@ -745,6 +745,18 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 **v2 analog:** v2 §8.4 (implementation surface — manifest, decision handoffs, receipt logs, candidate queues) generalizes this as the handshake layer; v1's review surface is a concrete proper-subset of v2's full engagement protocol.
 
+#### LLM access / Reasoning port
+
+**Verdict:** Partial in v1 — the concept exists at specific callsites, the unified port does not.
+
+**Module references:** `lib/application/resolution/translation/translation-provider.ts` (`TranslationProviderKind = 'deterministic' | 'llm-api' | 'copilot'`); `lib/application/agency/agent-interpreter-provider.ts`; `lib/application/agency/agent-interpretation-cache.ts`; `lib/runtime/resolution/rung8-llm-dom.ts` (rung-8 LLM-assisted DOM resolution); scattered agent harnesses in `lib/application/agency/`.
+
+**What it does:** v1 reaches LLMs through several independent ports, each shaped for its callsite. `TranslationProvider` is a strategy interface over three backends (deterministic, hosted LLM API, Copilot bridge) serving step-intent translation for resolution. `AgentInterpreterProvider` is a separate path for agent-level interpretation. `rung8-llm-dom` is a third callsite scoped to DOM exploration. DSPy/GEPA harnesses in the optimization lane are a fourth. Each has its own error model, its own retry policy, its own prompt shape.
+
+**What it serves in v1:** Pluggable translation backends for the resolution ladder, agent-in-the-loop interpretation for the workbench, and LLM-mediated DOM fallback as the rung-8 strategy. The pattern-per-callsite approach kept each concern small but coupled provider selection to callsite implementation.
+
+**v2 analog:** v2 §7.9 declares a single `Reasoning` port with three operations (`reason-select`, `reason-interpret`, `reason-synthesize`) consumed everywhere the agent's cognition is reached. Provider selection moves to `Layer.succeed(Reasoning.Tag, <adapter>)` at composition time; saga code is adapter-agnostic. The three operation shapes subsume what v1 distributes across `TranslationProvider`, `AgentInterpreterProvider`, and ad-hoc agent harnesses. Error families unify into `rate-limited | context-exceeded | malformed-response | unavailable | unclassified`. Every call writes a reasoning-receipt (§9.24). The verdict is Partial rather than Aligned because the callsite plumbing works but the unified port, unified receipt log, and composition-level provider choice are absent; v2 assembles them into one surface.
+
 ## Summary
 
 ### Verdict tally
@@ -752,16 +764,18 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 | Verdict | Count | Share |
 |---|---:|---:|
 | Aligned | 9 | 16% |
-| Shape-different | 15 | 27% |
-| Partial in v1 | 9 | 16% |
+| Shape-different | 15 | 26% |
+| Partial in v1 | 10 | 18% |
 | Absent in v1 | 5 | 9% |
 | v1-only | 18 | 32% |
 | &nbsp;&nbsp;— migration scaffolding | 2 | |
 | &nbsp;&nbsp;— operational scaffolding | 10 | |
 | &nbsp;&nbsp;— innovation | 6 | |
-| **Total blocks** | **56** | **100%** |
+| **Total blocks** | **57** | **100%** |
 
-Four blocks shifted from v1-only to Shape-different after the measurement stance was added to `v2-direction.md §5`, `v2-substrate.md §7`, and `feature-ontology-v2.md §7.9 / §9.21–§9.23`. The shifts: V1.4 Scorecard, V1.5 Convergence-proof harness, V1.5 Improvement run + ledger, V1.6 Scenario corpus partition. Each now has a structurally similar v2 analog, even though the v1 specifics do not port.
+Four blocks shifted from v1-only to Shape-different after the measurement stance was added to `v2-direction.md §5`, `v2-substrate.md §7`, and `feature-ontology-v2.md §7.10 / §9.21–§9.23`. The shifts: V1.4 Scorecard, V1.5 Convergence-proof harness, V1.5 Improvement run + ledger, V1.6 Scenario corpus partition. Each now has a structurally similar v2 analog, even though the v1 specifics do not port.
+
+One block was added after the Reasoning port landed as a first-class substrate concern (§7.9, §9.24, v2-direction §4A, substrate §2.4): V1.6 LLM access / Reasoning port, verdict Partial in v1 — v1 has working LLM plumbing distributed across several callsite-specific ports; v2 unifies the surface.
 
 ### Directory by verdict
 
@@ -769,7 +783,7 @@ Four blocks shifted from v1-only to Shape-different after the measurement stance
 
 **Shape-different (15):** §8.1 ROI curve · §8.6 Reversibility classes · §9.6 Test compose · §9.9 Facet mint · §9.10 Facet query · §9.11 Facet enrich · §9.12 Locator health track · §9.13 Drift emit · §9.16 Facet schema sketch · V1.4 Scorecard · V1.5 Convergence-proof harness · V1.5 Improvement run + ledger · V1.6 MCP server tool surface · V1.6 Review surface contract · V1.6 Scenario corpus partition.
 
-**Partial in v1 (9):** §8.2 Authoring session phases · §8.3 Decision surface · §8.4 Implementation surface · §8.5 Ten invariants · §9.3 Navigate · §9.4 Observe · §9.5 Interact · §9.7 Test execute · §9.20 Scale behavior.
+**Partial in v1 (10):** §8.2 Authoring session phases · §8.3 Decision surface · §8.4 Implementation surface · §8.5 Ten invariants · §9.3 Navigate · §9.4 Observe · §9.5 Interact · §9.7 Test execute · §9.20 Scale behavior · V1.6 LLM access / Reasoning port.
 
 **Absent in v1 (5):** §8.7 Engagement → determinism · §9.8 Verb declare / Manifest / Fluency · §9.14 Dialog / Document / Candidate review · §9.15 Confidence age / Corroborate / Revision propose · §9.17 Affordance extension authoring.
 
@@ -785,6 +799,6 @@ The L0 data-flow chain (§9.1–§9.7) is essentially present in v1 with envelop
 
 The v1-only blocks split three ways by intent. **Migration scaffolding** (2 blocks) retires once reference canon is empty. **Operational scaffolding** (10 blocks) is dogfood workflow — CLI, `.tesseract/` staging, 15-knob tuning, speedrun verbs — orthogonal to v2's product surface. **Innovation** (6 blocks) names finer-grained distinctions (epistemic branding vs governance, scope-of-effect vs reversibility, confidence lattice vs narrative M5/C6, operational alignment floors, file-backed decision transport) that v2 could inherit under shipping pressure.
 
-Two consequential patterns. First: v1's envelope-axis substrate (V1.2) is v2's own specification materialized in code — four of the nine Aligned verdicts sit in this cluster. `docs/envelope-axis-refactor-plan.md` Phase 0 is complete; Phases B–E are the v1→v2 convergence path. Second: once v2's measurement stance landed (`v2-direction.md §5`, `v2-substrate.md §7`, `feature-ontology-v2.md §7.9 and §9.21–§9.23`), four v1 blocks that had been tagged v1-only shifted to Shape-different — the measurement apparatus (scorecard, convergence-proof harness, improvement run + ledger, scenario corpus partition) now has a structurally similar v2 analog via the testbed + metric-verbs + hypothesis-receipts pattern, even though the v1 specifics do not port. The measurement concerns are first-class in both, expressed differently.
+Three consequential patterns. First: v1's envelope-axis substrate (V1.2) is v2's own specification materialized in code — four of the nine Aligned verdicts sit in this cluster. `docs/envelope-axis-refactor-plan.md` Phase 0 is complete; Phases B–E are the v1→v2 convergence path. Second: once v2's measurement stance landed (`v2-direction.md §5`, `v2-substrate.md §7`, `feature-ontology-v2.md §7.10 and §9.21–§9.23`), four v1 blocks that had been tagged v1-only shifted to Shape-different — the measurement apparatus (scorecard, convergence-proof harness, improvement run + ledger, scenario corpus partition) now has a structurally similar v2 analog via the testbed + metric-verbs + hypothesis-receipts pattern, even though the v1 specifics do not port. The measurement concerns are first-class in both, expressed differently. Third: once the Reasoning port landed as a substrate-level instrument (§2.4, §7.9, §9.24, v2-direction §4A and Step 0), v1's distributed LLM plumbing — `TranslationProvider`, `AgentInterpreterProvider`, rung-8, DSPy harnesses — consolidated into a single Partial-in-v1 block. The callsites work; what's missing is the unified port, the unified receipt, and the composition-level provider choice.
 
-Elsewhere, v1 is further from v2 where v2's claims are most structural (unified facet record, per-facet evidence log, drift as emitted event), and closest to v2 where v2's claims are procedural (intent fetch, test compose, parametric expansion, and — after the stance landed — measurement composed from existing primitives).
+Elsewhere, v1 is further from v2 where v2's claims are most structural (unified facet record, per-facet evidence log, drift as emitted event, unified Reasoning port), and closest to v2 where v2's claims are procedural (intent fetch, test compose, parametric expansion, and — after the stance landed — measurement composed from existing primitives).

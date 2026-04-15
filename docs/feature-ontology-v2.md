@@ -16,7 +16,7 @@ Every feature in v2 is a triple: *(level, primitive, claim)*. That triple is eno
 
 | Level | Primitives exercised | What's new at this level |
 | --- | --- | --- |
-| L0 | Agent, Intent, World, Instruments (Playwright, ADO, test runner) | Two instruments sufficient to ship a first test. No memory. Tests composed from live observation. |
+| L0 | Agent, Intent, World, Instruments (Playwright, ADO, test runner, Reasoning) | Instruments sufficient to ship a first test, including the Reasoning port through which the agent's cognition is reached (substrate §2.4). No memory. Tests composed from live observation. |
 | L1 | + Memory | Facet catalog, populated from discovery, read during authoring. |
 | L2 | + Instruments (Dialog, Document) | Operator-supplied semantics enter memory; vocabulary aligns with the business. |
 | L3 | (no new primitive; policy on Memory) | Memory confidence gates DOM-less authoring; drift detection surfaces as a runtime signal. |
@@ -139,7 +139,21 @@ Features compose handshakes. A handshake is a specific contracted exchange betwe
 - **Corroborate.** A passing test run plus its referenced facets → increased confidence on those facets. Corroboration strength is proportional to how reliably the test has been passing; a flaky test does not corroborate.
 - **Revision propose.** Accumulated drift events plus decay plus corroboration → a revision proposal surfaced for operator review. The proposal names the evidence it is based on; if the operator rejects it, the rejection enters the proposal's history and conditions future proposals.
 
-### 7.9 Measurement surfaces (cross-cutting)
+### 7.9 Agent ↔ Reasoning
+
+Reasoning is the agent's own cognition, reached as an instrument (substrate §2.4). Every interpretive decision in the level spine — ambiguous step text, candidate ranking at facet query, step phrasing choices, drift classification when rules are inconclusive, hypothesis synthesis — is a call through this surface. The handshakes name the contract; provider selection (hosted API, MCP-brokered, Copilot, local model) is a composition-time choice, not a handshake concern.
+
+- **Reason-select.** Decision handoff (§8.4) plus candidate set → one chosen candidate plus rationale. The chosen candidate ID must be one the handoff offered; free-form choices are rejected at the adapter boundary so §8's reversibility and receipt invariants hold. Rationale is preserved as provenance on the decision receipt.
+- **Reason-interpret.** Source text (work item, operator turn, document region) plus context → a structured interpretation keyed to the schemas the caller requested. Source text is never paraphrased into the interpretation; it survives as provenance (invariant 7, source vocabulary preserved).
+- **Reason-synthesize.** Structured inputs (accumulated drift events, facet history, candidate counter-examples) → a proposal with cited evidence. Synthesis never produces a memory write directly; it produces a proposal that enters the proposal log under §7.8's review gate.
+
+Obligations across all three:
+
+- Every call writes a receipt: prompt inputs, model identifier, choice returned, tokens consumed, latency. The provider is logged alongside the choice so cross-provider behavior is auditable.
+- Provider errors classify into named families (`rate-limited`, `context-exceeded`, `malformed-response`, `unavailable`, `unclassified`) — the same discipline §7.5 names for other instruments.
+- The Reasoning surface is many-to-one by construction: a single adapter is called from every decision site. Swapping providers is a configuration change, not a saga rewrite.
+
+### 7.10 Measurement surfaces (cross-cutting)
 
 Measurement is v2 exercising itself against a synthetic intent source. It composes existing handshakes rather than adding primitives — the aesthetic is that measurement is thin because the primitives are good.
 
@@ -147,8 +161,9 @@ Measurement is v2 exercising itself against a synthetic intent source. It compos
 - **Metric verbs** — `metric-<name>` verbs are declared through the same manifest discipline as every other verb (§7.5). Signatures are frozen once published. Each metric is a named, pure derivation over the run-record log.
 - **Hypothesis proposal** — a variant of revision-propose (§7.8) carrying `{ proposedChange, predictedDelta: { metric, direction, magnitude }, rationale }` under a `kind: hypothesis` discriminator. Same proposal log, same review gate, same append-only discipline.
 - **Verification receipt** — after a hypothesis lands, the next evaluation produces run records the agent reads to compute the actual delta. `{ hypothesis, predictedDelta, actualDelta, confirmed: boolean }` appends to the receipt log. Contradictions never overwrite; the history stacks so the batting average is itself a derivation.
+- **Dashboard as read-only consumer** — an external dashboard reads the run-record, receipt, drift, and proposal logs through the same manifest verbs everything else uses. It writes nothing; it subscribes to evidence the primary sagas already emit. A dashboard that cannot be rebuilt from the logs is the dashboard's fault, not the substrate's.
 
-This section names compositions; §9.21–§9.23 give the library-level paths.
+This section names compositions; §9.21–§9.24 give the library-level paths.
 
 ## 8) Agent engagement
 
@@ -888,6 +903,30 @@ Deferred:
 - Statistical-significance rules for `confirmed` vs `contradicted` beyond the simple direction check. Defer until there is enough receipt history to calibrate.
 - Auto-proposing hypotheses from drift events or metric trends (agentic initiative without operator review). Defer; the default is that hypotheses are operator-reviewed before landing.
 - Cross-hypothesis interaction analysis (which combinations of proposals actually stacked into wins). Defer to L4+ when the receipt log is mature.
+
+### 9.24 Reasoning port and provider adapters (L0+, Agent ↔ Reasoning)
+
+Primary path — a single port with interchangeable adapters:
+
+1. A `Reasoning` port is declared in `lib-v2/domain/ports/reasoning.ts` with three operations: `select(handoff, candidates)`, `interpret(text, schema, context)`, `synthesize(inputs, proposalShape)`. Inputs and outputs are schemas declared in the vocabulary manifest (§9.8); the port's verbs appear in the manifest as `reason-select`, `reason-interpret`, `reason-synthesize`.
+2. Adapters implement the port: `lib-v2/infrastructure/reasoning/anthropic-adapter.ts`, `openai-adapter.ts`, `mcp-broker-adapter.ts`, `copilot-adapter.ts`, `local-model-adapter.ts`. Each adapter handles provider-specific authentication, request formatting, response parsing, and error classification into the named families (`rate-limited`, `context-exceeded`, `malformed-response`, `unavailable`, `unclassified`).
+3. The composition root (`lib-v2/composition/`) provides a `Layer.succeed(Reasoning.Tag, <chosenAdapter>)` at boot; sagas consume the port via `yield* Reasoning`. No saga imports an adapter directly; swapping providers is a composition-level change.
+4. Every call emits a reasoning-receipt: `{ callerSaga, operation, promptFingerprint, modelIdentifier, choice, tokensIn, tokensOut, latencyMs, timestamp }` to the reasoning-receipt log. The prompt is fingerprinted rather than stored verbatim so the log stays cheap; the prompt itself is reproducible from the caller context at receipt replay time.
+5. `reason-select` enforces the handoff contract: the chosen candidate ID must appear in the handoff's `choices` array. The adapter rejects free-form responses and retries once with an explicit reminder; a second free-form response classifies as `malformed-response`.
+6. Multi-provider arbitration (e.g., call Claude and GPT and keep the agreement) is not part of the port — it's a higher-order composition expressed as a saga over multiple `Reasoning` calls if the team ever needs it. The port stays simple.
+
+Obligations at this depth:
+
+- Every reasoning call produces a receipt (invariant 3, append-only). The receipt precedes the returned choice's use; the caller cannot observe the choice before the receipt is durable.
+- The adapter layer is the only place provider-specific code lives. A saga that references an adapter type directly is an architecture-law violation.
+- Token budgets are adapter-level configuration, not saga-level. A saga exceeding a budget classifies as `context-exceeded` and structured-falls-through to the decision handoff (invariant 10).
+- Source vocabulary is preserved across the boundary (invariant 7): `reason-interpret` carries source text, not the adapter's paraphrase of it.
+
+Deferred:
+
+- Caching of `reason-interpret` over stable inputs. Cache shape, invalidation, and cross-session reuse defer until repeat interpretation costs measurably exceed fresh calls — a condition a metric verb can surface.
+- Confidence calibration of model outputs (mapping model self-reported confidence into the facet evidence log). Defer to L4 when the receipt log has enough cross-provider history.
+- Fine-grained prompt-template versioning and fluency checks per adapter. The manifest already freezes the verb signature; prompt-template discipline inside an adapter is an implementation concern defer to shipping.
 
 ## 10) Cross-cutting disciplines
 

@@ -109,6 +109,7 @@ The concepts below are first-class v2 concerns. The v1 implementations are not p
 - **Persistent surfaces named by concern, not `.tesseract/` as a bulk staging directory.** v1's twelve-subdirectory runtime engine directory is not replicated. v2 names each persistent surface explicitly: the facet catalog, the evidence log, the drift-event log, the proposal log, the receipt log, the evaluation log (§5). Each has its own location and its own owner.
 - **MCP as one adapter, not the exclusive agent surface.** v1's 33-tool dashboard MCP server is not v2's source of truth. v2's source of truth is the **vocabulary manifest file**, read by the agent on every session. MCP is one adapter over that manifest; the CLI is another; direct library use is a third. The manifest is the authority.
 - **Agent-facing error families, not pipeline-fitness classes.** v1's eight pipeline-level fitness classes (`translation-threshold-miss`, `normalization-gap`, and so on) are workshop-specific tuning labels. v2's error families (`not-visible`, `not-enabled`, `timeout`, `assertion-like`, `unclassified`) are execution-level families the agent consumes at runtime for recovery decisions. The pipeline-level classification, if it reappears, lives inside §5's evaluation reporting, not on runtime envelopes.
+- **Reasoning as a single port with interchangeable adapters.** v1 has LLM callsites (DSPy harnesses, prompt-engineering scaffolds, per-subsystem request shapes) but no unified port; the provider coupling is spread across the codebase. v2 declares a single `Reasoning` port with three operations — select, interpret, synthesize — and provider-specific adapters (Anthropic, OpenAI, MCP broker, Copilot, local model) behind it. The agent's cognition is reached as an instrument (substrate §2.4); provider choice becomes a composition-level `Layer.succeed(Reasoning.Tag, <adapter>)` decision, not a saga concern. Every reasoning call writes a receipt (prompt fingerprint, model identifier, choice, tokens, latency) under the same append-only discipline the receipt, evidence, and proposal logs already use.
 
 ### 4B. Left behind entirely
 
@@ -178,6 +179,7 @@ The destination dictates the sequence. Everything below is ordered by "what must
 
 - **Repository seed**: new v2 package. `lib/` structure aligned to the substrate's five primitives (agent / intent / world / instruments / memory), with `composition/` for wiring and `generated/` for emitter output.
 - **Envelope-axis substrate import**: port `lib/domain/governance/workflow-types.ts`, `lib/domain/kernel/hash.ts`, `lib/domain/pipeline/source.ts`, `lib/domain/handshake/epistemic-brand.ts` from v1. Architecture law 8 (no ad-hoc governance comparisons) comes with them.
+- **Reasoning port declaration**: declare the `Reasoning` port (`select` / `interpret` / `synthesize`) as a Context.Tag with no adapter wired yet. The manifest lists `reason-select`, `reason-interpret`, `reason-synthesize` with frozen signatures and the named error families. One stub adapter — Anthropic direct or OpenAI direct — lands at Step 3 when L0 sagas need to call it.
 - **Build harness**: TypeScript, Effect, Playwright test runner, a minimal CI-equivalent build step that runs locally.
 
 This is not v2 work in a designed sense; it is the starting line.
@@ -295,13 +297,14 @@ None of this ships to customers. All of it ships with v2's codebase. Testbed, me
 
 ## 7. How the subsidiary documents relate
 
-This document is first in line. The other three are read in service of this one.
+This document is first in line. The other four are read in service of this one.
 
 - **`v2-substrate.md`** defines the five primitives, the five levels, the handoff boundary between agent-authored artifacts and human-editable ones, the anti-scaffolding gate, and the list of deliberately deferred decisions. Read it when you need to verify that a proposed design fits v2's primitives or to check whether a concern belongs to a level v2 has or hasn't reached.
 - **`feature-ontology-v2.md`** enumerates the handshakes, technical paths, agent-engagement flows, invariants, and reversibility classes. Read it when you are about to design or implement a specific handshake and need the per-feature contract.
 - **`v2-delta-audit.md`** measures v1 against v2. Read it when you need to decide whether a v1 asset is ready to port, needs shape adjustment, or should be left behind. The verdict tally there feeds the "leverage" and "leave behind" decisions in §§3–4 of this document.
+- **`v2-transmogrification.md`** is the execution plan: the cathedral (§9), the highway map with six arteries including Reasoning (§10), the saga gallery of fifteen composed flows (§10.5), the runtime composition including the Layer cake, CLI entry points, and fiber tree (§11), and the harvesting flywheel that names how sessions compound across time (§11.7). Read it when you need to trace how a feature in the ontology actually runs — which sagas call it, which highway carries its traffic, and which runtime surfaces it touches.
 
-If there is ever a conflict between this document and the other three, **this document wins**. The subsidiary docs describe; this one directs. If a contradiction appears, either this document is wrong and should be corrected, or the subsidiary document is stale. Do not act on the subsidiary version without resolving the contradiction here first.
+If there is ever a conflict between this document and the other four, **this document wins**. The subsidiary docs describe; this one directs. If a contradiction appears, either this document is wrong and should be corrected, or the subsidiary document is stale. Do not act on the subsidiary version without resolving the contradiction here first.
 
 ## 8. What success looks like for this document
 
@@ -314,7 +317,7 @@ A reader who finishes this document should be able to answer, without consulting
 - How does v2 measure whether it is getting better? (§5)
 - What is built first, second, third? (§6)
 
-If any of those is unclear on a reading of this document alone, this document has failed and should be revised. The other three documents elaborate what this one names; they do not substitute for the clarity this document is expected to provide.
+If any of those is unclear on a reading of this document alone, this document has failed and should be revised. The other four documents elaborate what this one names; they do not substitute for the clarity this document is expected to provide.
 
 The destination is small enough to hold in one head: an agent, three shipped surfaces (manifest, catalog, tests), five primitives, five levels, ten invariants, a measurement substrate that verifies progress, and a clean line between what ships to customers and what ships with v2. Trust, but verify. Small bets, good batting average. If that holds, v2 is on course.
 

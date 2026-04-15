@@ -26,7 +26,9 @@ The application under test. In v0, a large OutSystems application that already h
 
 ### 2.4 Instruments
 
-The tools the agent calls. Each instrument is independently enableable. Adding one is an increment; removing one degrades gracefully. The v0 set: Playwright (to reach the world), Azure DevOps (to reach intent), memory read, memory write, run-a-test, compare-runs. Later instruments: operator dialog capture, document ingestion. Each instrument exposes a named verb. The union of verbs is the codebase's public API — stable, well-named, and versioned.
+The tools the agent calls. Each instrument is independently enableable. Adding one is an increment; removing one degrades gracefully. The v0 set: Playwright (to reach the world), Azure DevOps (to reach intent), memory read, memory write, run-a-test, compare-runs, and reasoning (to reach the agent's own cognition). Later instruments: operator dialog capture, document ingestion. Each instrument exposes a named verb. The union of verbs is the codebase's public API — stable, well-named, and versioned.
+
+Reasoning is named as an instrument deliberately. Every "agent interprets," "agent chooses," "agent synthesizes" referenced in the levels below is a call through this instrument, not a property of the agent. The instrument is provider-polymorphic: a hosted LLM (Anthropic, OpenAI), an MCP-brokered model, a VSCode Copilot bridge, or a local model are interchangeable at the adapter boundary. Treating reasoning as an instrument rather than a built-in property keeps the substrate honest — provider choice is configuration, not structure, and no saga is coupled to a specific model family.
 
 ### 2.5 Memory — the facet catalog
 
