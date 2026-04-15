@@ -34,7 +34,7 @@ v2 separates them.
 
 This split is not a cost-cutting move. It is a **clarity move**: once the product is small and the workshop is separate, each can be judged on its own terms. A workshop feature that doesn't move the product forward is a workshop concern, not a product feature. The anti-scaffolding gate applies to the product surface; the workshop is permitted its own kitchen sink because its consumers are the team, not the customer.
 
-The consequence for how v2 is built: **every line of code in v2 is justified by whether it helps the agent ship tests to the customer**. If a line helps the team evaluate whether the agent is improving, it lives in the workshop. If it helps both, the workshop imports it from the product.
+The consequence for how v2 is built: **every line of code in v2 is justified by whether it helps the agent ship tests to the customer, or helps the team and the agent verify that shipping is working.** If a line helps the customer's QA team accept a test, it's product. If it helps the team and the agent *verify* that v2 is getting better, it's workshop — but it still ships with v2's codebase, because the agent needs it to reason about v2's performance and the team needs it to run v2 under test. The measurement substrate (§5) is the canonical "both" case: shipped *with* v2, not *to* customers. This is how v2 maintains a good batting average on small bets, which is the shipping discipline.
 
 ## 3. What v2 leverages from v1
 
@@ -74,11 +74,11 @@ v2 takes these v1 assets because v2 needs them and v1 has them in the right shap
 
 **Adjustment:** in v1 the handoff is optional on InterventionReceipt; in v2 every agentic decision produces a handoff receipt. The shape stays; the discipline around its population tightens.
 
-### 3.5 Convergence-proof harness — leveraged for v2's validation, not shipped with v2
+### 3.5 Convergence-proof harness — leveraged into v2's measurement substrate
 
 **v1 assets:** `lib/application/improvement/convergence-proof.ts`, `lib/domain/convergence/types.ts`.
 
-**Why v2 uses it (in the workshop):** the N-trial statistical harness answers "does the loop actually converge?" — a question v2 needs answered about its own memory-compounding claim. This asset moves to the workshop, not the product. It validates v2's L1 and L4 shipping claims without shipping with v2.
+**Why v2 uses it:** the N-trial statistical harness answers "does the loop actually converge?" — a question v2 needs answered about its own memory-compounding claim. It becomes part of v2's measurement substrate (§5), not a shipped product feature. Customers don't see it; the team and the agent use it to verify that v2's L1 and L4 claims hold.
 
 ### 3.6 Learnings that shape v2 but are not imported as code
 
@@ -90,51 +90,92 @@ The audit surfaced several v1 innovations v2 adopts as *ideas* without necessari
 
 These are design lessons v2 learned through v1. The code may or may not carry forward; the ideas do.
 
-## 4. What v2 does not draw from v1
+## 4. What v2 does not inherit from v1
 
-Not because any of these is bad. Because v2's design doesn't need them. Each is named with the reason v2 leaves it behind.
+Items below split into two categories. Most are **redesigned fresh for v2** — the concept survives; v1's specific implementation does not. A smaller set is **left behind entirely** — v2 has no equivalent concern because v2's design does not require one.
 
-### 4.1 The six-slot lookup chain and reference-canon transitional slot
+The distinction matters. Redesigned-fresh items are first-class v2 concerns and v2 will build them from principles; they just don't carry v1's specific choices as a default. Left-behind items are *absent* from v2, not reshaped.
 
-v1 uses a six-slot precedence resolver (operator-override → agentic-override → deterministic-observation → reference-canon → live-derivation → cold-derivation) to manage the transition from pre-gate hand-curated knowledge to gate-earned canonical artifacts. v2 has no such transition to manage. Memory is one catalog populated by deterministic observations and agentic proposals from day one; the ranking within the catalog is by confidence and health, not by slot. The chain exists in v1 because v1 inherited legacy content and needed a way to keep using it while phasing it out. v2 starts empty.
+### 4A. Redesigned fresh for v2
 
-### 4.2 Confidence lattice as a named total order
+The concepts below are first-class v2 concerns. The v1 implementations are not ported. Most of the measurement-related items are grouped under **§5, the v2 measurement substrate** — see there for how v2 handles them collectively.
 
-v1 defines `unbound < intent-only < agent-proposed < agent-verified < compiler-derived < human` as a load-bearing total order. v2 treats confidence as a scalar derived from the per-facet evidence log. Named rungs are a byproduct of the derivation; they are not part of the memory spec. This keeps §9.11's "confidence derived on read" honest — if confidence were an immutable lattice position, the derivation would be theatrical.
+- **Confidence as a derived scalar, not a named total order.** v1's `unbound < intent-only < agent-proposed < agent-verified < compiler-derived < human` is replaced by confidence derived from the per-facet evidence log. Named rungs may emerge as a byproduct of derivation; they are not part of the memory spec. This keeps §9.11's "confidence derived on read" honest.
+- **Theorem claims as narrative framing, operationalized only when they earn it.** v1's K/L/S/V/D/R/A/C/M/H groups and 19 proof obligations are not inherited as shipping artifacts. v2 acknowledges the compounding-memory and intervention-payoff claims in the substrate (§8.1); specific operationalization earns its way back through §5's trust-but-verify discipline, one metric at a time.
+- **Measurement over a fresh synthetic testbed, not over v1's dogfood scenarios.** The 10000-series legacy and 20000-series generated-cohort partition is not ported. v2 designs its own synthetic testbed from first principles, with verisimilitude that grows deliberately in controlled increments (§5.1). The existing v1 scenarios do not represent v2's proving ground; v2 starts the testbed over.
+- **Scorecard and tuning surface redesigned through §5's evaluation cadence.** v1's Pareto frontier over M5/C6/effectiveHitRate with per-SHA lineage, and the 15-knob `PipelineConfig` driving fitness under sensitivity analysis, are not ported. v2's measurement substrate has its own evaluation cycle and its own tuning decisions; metrics earn their place rather than inheriting it.
+- **A single evaluation cadence, not a five-verb speedrun surface.** The `corpus` / `iterate` / `fitness` / `score` / `baseline` verb surface and the `ImprovementRun` / `ImprovementLedger` / `learning-health` aggregates are replaced by v2's single evaluation command against its testbed, producing a token-conservative report the agent consumes (§5.3).
+- **Proposal-gating discipline, not per-artifact confidence thresholds.** v1's trust-policy thresholds (element 0.95, posture 0.95, surface 0.95, snapshot 0.98, hint 0.90, pattern 0.95, route 0.95) are not inherited. The *mechanism* — proposal-gated memory writes with operator review — is v2's §8.6 invariant; specific thresholds emerge under L2+ shipping pressure against the real customer tenant.
+- **Persistent surfaces named by concern, not `.tesseract/` as a bulk staging directory.** v1's twelve-subdirectory runtime engine directory is not replicated. v2 names each persistent surface explicitly: the facet catalog, the evidence log, the drift-event log, the proposal log, the receipt log, the evaluation log (§5). Each has its own location and its own owner.
+- **MCP as one adapter, not the exclusive agent surface.** v1's 33-tool dashboard MCP server is not v2's source of truth. v2's source of truth is the **vocabulary manifest file**, read by the agent on every session. MCP is one adapter over that manifest; the CLI is another; direct library use is a third. The manifest is the authority.
+- **Agent-facing error families, not pipeline-fitness classes.** v1's eight pipeline-level fitness classes (`translation-threshold-miss`, `normalization-gap`, and so on) are workshop-specific tuning labels. v2's error families (`not-visible`, `not-enabled`, `timeout`, `assertion-like`, `unclassified`) are execution-level families the agent consumes at runtime for recovery decisions. The pipeline-level classification, if it reappears, lives inside §5's evaluation reporting, not on runtime envelopes.
 
-### 4.3 Theorem groups K/L/S/V/D/R/A/C/M/H and the 19 proof obligations
+### 4B. Left behind entirely
 
-v1 frames the system as provably satisfying ten theorem families with nineteen named obligations, classifying each as `direct | proxy | missing`. v2 keeps the theorem concepts as **narrative framing** (§8.1's ROI curve acknowledges the compounding claim M5 asserts) but does not ship the proof-obligation scaffolding. Theorem verification is a workshop concern; v2's customer does not need to know the system is a formal proof of anything.
+v2 has no equivalent concern because v2's design does not require one.
 
-### 4.4 Pipeline fitness scorecard and the 15-knob parameter space
+- **The six-slot lookup chain and reference-canon transitional slot.** v1's `operator-override` → `agentic-override` → `deterministic-observation` → `reference-canon` → `live-derivation` → `cold-derivation` precedence resolver exists to manage a transition from pre-gate knowledge to gate-earned canonical artifacts. v2 has no such transition to manage. The facet catalog starts empty; it grows through gate-earned canonical artifacts only; ranking within the catalog is by confidence and health, not by slot.
+- **Dogfood / production split as a structural axis.** v1's `createProjectPaths(rootDir, suiteRoot)` indirection and gitignore governance of `dogfood/` exist because v1 is evolving through dogfood content. v2 runs against the customer's tenant and application; its synthetic testbed (§5) is a separate, deliberate measurement surface, not a dogfood shadow. There is no "dogfood mode" in v2.
 
-The Pareto frontier over M5 slope, C6 acceptance rate, and `effectiveHitRate`; the append-only scorecard history keyed by git SHA; the 15-knob `PipelineConfig` driving fitness under sensitivity analysis — all live in the workshop. They exist to tune the agent and evaluate whether tuning is working. They do not ship. The customer's QA team does not know or care about M5 floors.
+## 5. The v2 measurement substrate — reimagined, not inherited
 
-### 4.5 Speedrun verb surface, improvement ledger, learning-health ranking
+v1's measurement machinery is substantial. It carries choices specific to how v1 chose to measure itself, and those choices are not yet proven to represent anything v2 needs. v2 does not inherit the apparatus. v2 also does not ignore the problem it solves.
 
-The `corpus`, `iterate`, `fitness`, `score`, `baseline` verbs; the `ImprovementRun` / `ImprovementLedger` aggregates; the learning-health bottleneck ranking — workshop tools. v2's agent interacts with its own vocabulary manifest, which points at production verbs (intent-fetch, test-compose, test-execute, facet-query, facet-mint, drift-emit, etc.), not at workshop verbs.
+Measurement is a first-class v2 concern, designed fresh from principles, because the agent's ability to help evolve v2 depends on seeing v2 under test.
 
-### 4.6 Theorem-family trust policy thresholds per artifact type
+The operating frame: **trust, but verify.** v2's product surface is small (§1) and the shipping discipline is small bets (§2). Small bets only pay off if the batting average is good, and batting average is only knowable through measurement. The measurement substrate is how v2 — with the agent as a partner — maintains a good batting average across iterations. "Can't improve what you don't measure."
 
-v1's trust policy engine gates elements, postures, hints, patterns, surfaces, and snapshot templates with per-artifact confidence thresholds (0.95, 0.95, 0.95, 0.98, 0.90, 0.95, 0.95) plus evidence-count rules. v2 does not ship these specific thresholds. The *mechanism* — proposal-gated memory writes with operator review — is v2's §8.6 invariant; the specific thresholds emerge under L2+ shipping pressure against the real customer tenant.
+This substrate is a "both" concern. It ships *with* v2's codebase because the team needs it to verify v2 and the agent needs it to reason about v2's performance. It does not ship *to* customers as a product feature. The essentialization of §2 holds: product is what ships to customers; workshop is what ships with v2 for the team and the agent. The measurement substrate sits in the workshop space — shipped alongside v2, not on top of it — and is treated as first-class because without it v2 cannot iterate with confidence.
 
-### 4.7 Dogfood / production split and scenario corpus partition
+### 5.1 The synthetic testbed with growing verisimilitude
 
-The 10000-series legacy vs. 20000-series generated cohort split; the `dogfood/` vs. production suite-root abstraction; the `createProjectPaths(rootDir, suiteRoot)` indirection. v2 runs against the customer's Azure DevOps tenant and the customer's OutSystems application. There is no dogfood. There is one corpus: the one the customer already has.
+v2 ships with a synthetic testbed: a reproducible set of work items, fixtures, and expected outcomes against which v2 can be exercised without touching real customer data. The testbed is designed from first principles, not ported from v1's `dogfood/scenarios/`. It starts deliberately simple — one screen, one affordance, one passing assertion — and grows verisimilitude in controlled increments: more roles, more state transitions, more affordance variants, more vocabulary drift, more workflow complexity.
 
-### 4.8 `.tesseract/` ephemeral artifact directory
+Each increment is explicit and committed. v2's evaluation runner can execute the testbed at any committed version; the delta between version N and N+1 is itself a measurement. The verisimilitude path is tracked as a first-class artifact so regressions at higher-complexity increments surface cleanly rather than hiding inside averages.
 
-v1 stages all runtime artifacts (bound tasks, run records, evidence, inbox, learning, runs, sessions, tasks, workbench) under a single `.tesseract/` directory that is bulk-gitignored. v2 names its persistent surfaces by concern: the facet catalog file, the evidence log, the drift-event log, the proposal log, the receipt log. Each has its own location, owned by the feature that writes it. The staging concept (write-here-then-promote-there) belongs to the workshop's flywheel, not to v2's product surface.
+### 5.2 Metrics earn their place — no legacy slate
 
-### 4.9 The 33-tool MCP server as the exclusive agent surface
+v1's M5 and C6 are concepts v2 respects as ROI narrative (substrate §8.1). v1's specific operational definitions (floors locked at 1.0 / 1.2 / 1.5; cohort-comparable by scenario ID; wall-clock-plus-agentic-override in the denominator) are not inherited. They haven't earned their way in yet.
 
-v1's `dashboard-mcp-server.ts` enumerates 33 tools (observe/decide/control categories) as TypeScript code, read by MCP clients via stdio transport. v2's agent surface is the **vocabulary manifest file** — a single JSON artifact read on every session start. MCP is *one adapter* over that manifest; the CLI is another; direct library use is a third. The manifest is the source of truth, not any particular adapter.
+The v2 rule: **a metric earns its place by predicting something actionable.** If a number computed on the testbed correlates with customer-accepted test quality or authoring-time improvement, it stays. If it doesn't, it's noise. Metrics accrue incrementally as v2 proves what's worth measuring. The starting set is deliberately tiny:
 
-### 4.10 Fitness failure classification with eight named classes
+- **Test acceptance rate** from QA review (grounds the L0 shipping claim).
+- **Authoring time per work item** (grounds the ROI curve in §8.1 of the ontology).
+- **Memory corroboration rate** at L1+ (does memory actually pay off, not just accumulate?).
 
-v1 classifies every step-level execution outcome into `translation-threshold-miss`, `normalization-gap`, `alias-coverage-gap`, `resolution-rung-skip`, `scoring-weight-mismatch`, `recovery-strategy-miss`, `convergence-stall`, `trust-policy-over-block`. These are pipeline-level failure classes useful for tuning; v2's error families (`not-visible`, `not-enabled`, `timeout`, `assertion-like`, `unclassified`) are execution-level families useful to the agent at runtime. The eight-class scheme is a workshop instrument. v2 does not ship it.
+Additional metrics are proposed under the small-bets discipline: one hypothesis at a time, measured against the testbed, accepted only if the delta survives review. The metric catalog itself follows the same proposal-gated reversibility rules v2 applies to memory writes (§8.6).
 
-## 5. Construction order — backwards from v2
+### 5.3 Evaluation as a single cadence
+
+v1 exposes five speedrun verbs. v2's equivalent is a single evaluation cadence: run the testbed at the committed version, produce a structured report, append to the evaluation log.
+
+The report is machine-readable, token-conservative (the §9.20 discipline applies here too), and keyed by testbed version *and* code version. It names: which work items passed, which failed, which memory queries hit, which fell through to live observation, which drift events fired, which metrics moved relative to the last run. It closes with a suggested-next-steps list drawn from the same closed-set verb vocabulary the manifest exposes — the agent consumes the same interface it uses for any other handshake.
+
+The evaluation log is append-only. Every run lives in the log with its testbed version, code version (git SHA), and report. The agent can query the log — "has this metric moved in the last N evaluations?" — as part of proposing code changes.
+
+### 5.4 The agent in the loop
+
+With the measurement substrate in place, the agent participates in v2's evolution, not just in its operation:
+
+1. **Read the evaluation log.** Summarize what has moved, plateaued, or regressed; highlight testbed versions where new complexity surfaced new failures.
+2. **Propose targeted code changes** with explicit hypotheses about which testbed metric they should move, and in which direction.
+3. **Verify after landing** whether the hypothesized metric moved. Receipts for every change link to the evaluation evidence before and after.
+4. **Retire or replace metrics** that consistently fail to predict useful outcomes — following the same reversibility discipline memory writes follow.
+
+This operationalizes *trust, but verify*: v2 is trusted to ship what the team believes is net-positive; the verification is automatic; the agent is a partner in the verification loop rather than a tool the team calls during it.
+
+### 5.5 What this substrate is not
+
+The measurement substrate is not:
+
+- A replica of v1's scorecard with different field names. v2's metrics start from zero and accrue through earned predictive value.
+- A theorem-verification system with formal proof obligations. v2's compounding claims are narrative; operationalization pays its way.
+- A 15-knob tuning surface exposed as dogfood. v2's tuning surface is whatever the evaluation loop proves v2 needs — and no more than that.
+- A parallel track running alongside the product. The substrate ships *with* v2; its outputs are visible to the agent and the team; they are not customer-facing artifacts.
+
+It is a fresh instrument, designed to answer two questions: *is v2 getting better?* and *which of the proposed changes actually make it so?* Everything else about the substrate is subordinate to those two questions.
+
+## 6. Construction order — backwards from v2
 
 The destination dictates the sequence. Everything below is ordered by "what must exist for the next step to ship."
 
@@ -189,7 +230,22 @@ The agent authors its first tests. QA reviews them. Acceptance is the signal v2 
 
 This is a **shipping milestone**, not a coding milestone. Do not skip it.
 
-### Step 5 — L1 memory layer with per-facet evidence log
+### Step 5 — stand up the v2 measurement substrate
+
+**Why now:** L0 is running and producing real work. There is now something stable to measure. Before Step 4, a measurement substrate would be instrumenting speculation; after Step 4, the substrate starts paying for itself immediately by grounding every subsequent decision.
+
+**What ships at this step:**
+- A synthetic testbed, version 0: the simplest possible testbed (one screen, one affordance, one assertion). Reproducible. Committed alongside v2's code.
+- An evaluation runner that executes the testbed at a committed version and produces a structured report.
+- An append-only evaluation log keyed by testbed version and code version.
+- The starting metric set: test acceptance rate, authoring time per work item, memory corroboration rate (when L1 lands).
+- Agent-side reporting hooks: the agent can summarize the log, propose code changes with hypotheses, and verify after landing.
+
+**What this closes:** §5 is now operational. From this point on, every subsequent step is measurable — each of Steps 6–9 commits to a testbed-version increment and a named metric hypothesis before landing.
+
+**What this does not close:** the testbed does not yet have high verisimilitude. That grows deliberately over later steps. Version 0 is honest about being a shallow model of the customer's reality.
+
+### Step 6 — L1 memory layer with per-facet evidence log
 
 **Why after L0 ships:** L1 optimizes the repeat-authoring case. Without L0 running, there's no repeat authoring to optimize.
 
@@ -202,7 +258,7 @@ This is a **shipping milestone**, not a coding milestone. Do not skip it.
 
 **What this closes:** §9.11 Shape-different, §9.12 Shape-different. The scale claim in §9.18 ("one catalog update fixes N tests") becomes real.
 
-### Step 6 — L2 operator-supplied semantics
+### Step 7 — L2 operator-supplied semantics
 
 **What ships at this step:**
 - Dialog capture instrument: chat transcripts → candidate facets with operator wording preserved.
@@ -211,7 +267,7 @@ This is a **shipping milestone**, not a coding milestone. Do not skip it.
 
 **What this closes:** §9.14 Absent becomes implemented. The memory starts picking up non-DOM semantics.
 
-### Step 7 — L3 drift detection and DOM-less authoring
+### Step 8 — L3 drift detection and DOM-less authoring
 
 **What ships at this step:**
 - Drift-emit as an observational event, not a mutation. `drift-events.jsonl` append-only log.
@@ -220,7 +276,7 @@ This is a **shipping milestone**, not a coding milestone. Do not skip it.
 
 **What this closes:** §9.13 Shape-different to Aligned within v2. §9.17 (affordance extension authoring) becomes possible once drift infrastructure exists — the encounter-propose-review pathway matches the drift pathway in shape.
 
-### Step 8 — L4 self-refinement
+### Step 9 — L4 self-refinement
 
 **What ships at this step:**
 - Confidence aging over the evidence log.
@@ -230,16 +286,18 @@ This is a **shipping milestone**, not a coding milestone. Do not skip it.
 
 **What this closes:** §9.15 Absent becomes implemented. The compounding-memory claim becomes measurable in the workshop.
 
-### Workshop assets — built alongside but not shipped
+### Workshop extensions — built alongside, shipped with v2's codebase
 
-In parallel with Steps 1–8, the workshop gains:
-- A convergence-proof harness adapted from v1's `lib/application/improvement/convergence-proof.ts` — answers "is the loop converging?" against v2's memory.
-- A scorecard adapted from v1's improvement ledger — tracks v2's test-acceptance rate and authoring-time-per-work-item against baselines.
-- Speedrun-style verbs the team uses to exercise v2 on synthetic corpora when real customer data is scarce.
+The measurement substrate of Step 5 is the backbone; Steps 6–9 each extend it as the layer they introduce matures:
 
-The workshop has its own lifecycle, separate from v2 product releases. Workshop tools are the team's working surfaces; they ship only to the team.
+- **At Step 6 (L1 memory):** the substrate gains *memory-corroboration* and *memory-hit-rate* metrics; the testbed grows to include repeat-authoring scenarios against which L1's "repeat work is cheaper" claim is measured.
+- **At Step 7 (L2 operator semantics):** the testbed incorporates synthetic dialog transcripts and synthetic documents; metrics track vocabulary alignment and operator-wording survival through to test output.
+- **At Step 8 (L3 drift detection):** a convergence-proof harness adapted from v1's `lib/application/improvement/convergence-proof.ts` is incorporated to answer "does the loop converge?" across synthetic testbed versions.
+- **At Step 9 (L4 self-refinement):** the substrate gains revision-proposal acceptance tracking — do proposed revisions, once approved, actually improve subsequent evaluation runs?
 
-## 6. How the subsidiary documents relate
+None of this ships to customers. All of it ships with v2's codebase. The team and the agent are the audience; the audit trail is the product of their collaboration.
+
+## 7. How the subsidiary documents relate
 
 This document is first in line. The other three are read in service of this one.
 
@@ -249,17 +307,18 @@ This document is first in line. The other three are read in service of this one.
 
 If there is ever a conflict between this document and the other three, **this document wins**. The subsidiary docs describe; this one directs. If a contradiction appears, either this document is wrong and should be corrected, or the subsidiary document is stale. Do not act on the subsidiary version without resolving the contradiction here first.
 
-## 7. What success looks like for this document
+## 8. What success looks like for this document
 
 A reader who finishes this document should be able to answer, without consulting the others:
 
 - What is v2? (§1)
-- What ships with v2, and what stays in the workshop? (§2)
+- What ships to customers, and what ships with v2 for the team and the agent? (§2)
 - Which parts of v1 does v2 draw from, and why those specifically? (§3)
-- Which parts of v1 does v2 leave behind, and why? (§4)
-- What is built first, second, third? (§5)
+- Which parts of v1 does v2 redesign fresh, and which does v2 leave behind entirely? (§4)
+- How does v2 measure whether it is getting better? (§5)
+- What is built first, second, third? (§6)
 
 If any of those is unclear on a reading of this document alone, this document has failed and should be revised. The other three documents elaborate what this one names; they do not substitute for the clarity this document is expected to provide.
 
-The destination is small enough to hold in one head: an agent, three ships (manifest, catalog, tests), five primitives, five levels, ten invariants, and a clean line between product and workshop. If that holds, v2 is on course.
+The destination is small enough to hold in one head: an agent, three shipped surfaces (manifest, catalog, tests), five primitives, five levels, ten invariants, a measurement substrate that verifies progress, and a clean line between what ships to customers and what ships with v2. Trust, but verify. Small bets, good batting average. If that holds, v2 is on course.
 
