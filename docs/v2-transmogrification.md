@@ -888,7 +888,423 @@ Legend:
 - Arrows with labels are the highways named in §10.1.
 - Every edge respects the ten invariants; every node honors its bounded-context discipline.
 
-### 10.3 The interchanges
+### 10.3 Substrate foundations — the bedrock beneath every highway
+
+Before any highway can carry traffic, the substrate must hold. The modules below do not sit on one highway; they underpin all five. Every envelope crossing a seam carries `WorkflowMetadata`; every governance dispatch routes through `foldGovernance`; every content-addressed reference uses `Fingerprint<Tag>`; every agentic decision produces an `InterventionHandoff`. These are the load-bearing stones §9 named; §10 shows where they sit.
+
+| Stone | Path | Role | Lights up |
+|---|---|---|---|
+| `WorkflowMetadata<S>` + `WorkflowEnvelope<T, S>` | `lib-v2/domain/governance/workflow-types.ts` | Base envelope parameterized by stage literal; carries ids, fingerprints, lineage, governance, payload | Phase 0 |
+| `Fingerprint<Tag>` + `stableStringify` + `sha256` | `lib-v2/domain/kernel/hash.ts` | Content-addressed identity with phantom tag over a closed registry (30+ tags) | Phase 0 |
+| `PhaseOutputSource` + `foldPhaseOutputSource` | `lib-v2/domain/pipeline/source.ts` | Provenance source discriminant with exhaustive fold (v2 subset excludes `reference-canon`) | Phase 0 |
+| `EpistemicallyTyped<T, S>` + `foldEpistemicStatus` | `lib-v2/domain/handshake/epistemic-brand.ts` | Observational-confidence brand orthogonal to governance | Phase 0 |
+| Governance phantom brands + `foldGovernance` | `lib-v2/domain/governance/workflow-types.ts` | `Approved<T>`, `ReviewRequired<T>`, `Blocked<T>`; exhaustive match forces unhandled state to compile error | Phase 0 |
+| Architecture Law 8 | `lib-v2/tests/architecture/governance-verdict.laws.spec.ts` | Runnable assertion forbidding ad-hoc governance string comparisons in production code | Phase 0 |
+| `InterventionHandoff` shape | `lib-v2/domain/handshake/intervention.ts` | Required shape of every structured decision handoff when determinism exhausts | Phase 1 |
+| File-backed decision bridge | `lib-v2/infrastructure/handshake/file-decision-bridge.ts` | Atomic temp-rename cross-process transport for decision messages | Phase 1 |
+| Manifest emitter | build step | Generates `manifest.json` from code; fails build on non-additive drift | Phase 1 |
+
+The substrate is invisible on the macro map but present at every interchange. The highways rest on it; pull any stone and the relevant highway loses its discipline.
+
+### 10.4 Highway town catalogs
+
+Each highway from §10.1 runs through a sequence of towns — the specific modules and verbs that give it its traffic. These are the "parallel work streams" of §3 reorganized by highway rather than by phase. The same modules, viewed along their second axis.
+
+For each highway: the arc it traces, the towns along it, the phase each town lights up, the shape as ASCII when that adds clarity.
+
+#### 10.4.1 Verb highway towns
+
+The shortest highway in the map. Manifest is published at build time, read once per session, consulted implicitly by every other highway at every interchange. Four towns — all at Phase 1 — plus the fluency checks that keep them honest.
+
+| Town | Path | Role | Phase |
+|---|---|---|---|
+| Manifest Schema | `lib-v2/manifesting/manifest-schema.ts` | TypeScript types for verb entries: `{ name, category, inputs, outputs, errorFamilies, sinceVersion }` | 1 |
+| Manifest Generator | build step in `lib-v2/manifesting/` | Scans verb-declaring code; emits `manifest.json` at build time | 1 |
+| Sync Check | build step | Fails build if emitted manifest diverges from committed manifest in a non-additive way | 1 |
+| Fluency Harness | `lib-v2/composition/fluency-harness.ts` | Canonical agent-task fixtures, one per declared verb, asserting correct dispatch | 1 |
+
+```
+   ┌────────────┐     ┌────────────┐     ┌────────────┐
+   │ Schema     │───▶ │ Generator  │───▶ │ Sync Check │
+   └────────────┘     └─────┬──────┘     └─────┬──────┘
+                            │                  │
+                            ▼                  ▼
+                      manifest.json       build passes
+                            │                  │
+                            ▼                  │
+                   ┌────────────────┐          │
+                   │ Fluency Harness│◀─────────┘
+                   └────────────────┘
+                            │
+                   asserts dispatch on
+                  canonical agent tasks
+```
+
+Every verb-declaring town on every other highway (below) contributes entries to this manifest. The verb highway is not a *path* as much as a *channel*: one direction, one consumer (the agent, at session start), one refresh cadence (per build).
+
+*Composition.* Verb definitions live as `Context.Tag` declarations at each bounded-context edge. At build time, the manifest generator walks every declared tag, extracts its `Schema`-typed inputs and outputs, and emits the manifest. At session start the agent reads the manifest once via `Effect.sync(() => fs.readFileSync('manifest.json'))` and parses it through `Schema.decode` into a typed verb table. The fluency harness composes canonical tasks as `Effect<Success, FluencyError, VerbTable>`; running them under the declared verb table either proves dispatch or fails the build. No runtime reflection; no per-call lookup cost beyond a typed table read.
+
+#### 10.4.2 Intent highway towns
+
+One-way inbound. Four source towns funnel into two handshake towns; a typed `ParsedIntent` artifact emerges at the agent's end.
+
+**Source towns (polymorphic branches of `intent-fetch`):**
+
+| Town | Path | Role | Phase |
+|---|---|---|---|
+| ADO Source | `lib-v2/infrastructure/intent/ado-source.ts` | Azure DevOps REST v7.1 + WIQL adapter; PAT auth; field extraction | 3 |
+| Testbed Adapter | `lib-v2/measurement/testbed-adapter.ts` | Reads `testbed/v<N>/*.yaml` when `source: testbed:v<N>` | 5 |
+| Dialog Capture | `lib-v2/instruments/operator/dialog-capture.ts` | Extracts candidate facets from chat transcripts (contributes to Memory highway too) | 7 |
+| Document Ingest | `lib-v2/instruments/operator/document-ingest.ts` | Extracts candidate facets from operator-shared documents (Markdown → PDF later) | 7 |
+
+**Handshake towns:**
+
+| Town | Path | Role | Phase |
+|---|---|---|---|
+| Intent Fetch | `lib-v2/application/intent/fetch.ts` | Polymorphic dispatch over `source` field; returns uniform work-item shape | 3 |
+| Intent Parse | within ADO source at Phase 3; generalized later | XML step extraction, entity decoding, preconditions/actions/expected outcomes with source-text provenance | 3 |
+
+```
+   ADO Source   ─┐
+   Testbed Adapter ─┤
+   Dialog Capture   ─┼─▶ Intent Fetch ──▶ Intent Parse ──▶ ParsedIntent
+   Document Ingest  ─┘                                       (to agent)
+```
+
+By Phase 7 the highway carries four source types through one handshake shape. Downstream of Intent Parse, no handshake can distinguish where the work item came from — every source is equivalent to the agent's workbench. This is the polymorphism that lets v2 measure itself with the same code it ships.
+
+*Composition.* `IntentFetch` is a `Context.Tag` whose contract is `(sourceRef: SourceRef) => Effect<WorkItem, IntentError>`. The four source towns contribute implementations via `Layer.succeed(IntentFetch, adoImpl) | Layer.succeed(IntentFetch, testbedImpl) | ...` — polymorphism is typed and dispatch is by layer provision. Errors are tagged (`AdoTransientError`, `AdoAuthError`, `TestbedNotFoundError`, `DialogMalformedError`); `Effect.catchTag` routes them without `instanceof` gymnastics.
+
+#### 10.4.3 World highway towns
+
+Two-way. Outbound requests (navigation, element resolution, interaction); inbound observations (accessibility tree, state probes). The only highway where v2 reaches past its own borders.
+
+**Outbound (request) towns:**
+
+| Town | Path | Role | Phase |
+|---|---|---|---|
+| Navigation Strategy | `lib-v2/instruments/navigation/strategy.ts` | `page.goto` with `waitUntil` per URL pattern; `page.url()` idempotence check; discrete `{ reachedUrl, status, timingMs }` envelope | 3 |
+| Locator Ladder | `lib-v2/instruments/observation/locator-ladder.ts` | Ordered strategy ladder: role → label → placeholder → text → test-id → css; first match wins; rung recorded | 3 |
+| Interact | `lib-v2/instruments/action/interact.ts` | Role-keyed action dispatch (`click`, `fill`, `selectOption`, `check`, `press`, `hover`); pre-action state validation; four-family error classification | 3 |
+
+**Inbound (observation) towns:**
+
+| Town | Path | Role | Phase |
+|---|---|---|---|
+| ARIA Snapshot | `lib-v2/instruments/observation/aria.ts` | `page.accessibility.snapshot({ root, interestingOnly: false })`; yields the canonical ARIA tree for facet minting | 3 |
+| State Probes | `lib-v2/instruments/observation/state-probes.ts` | `isVisible`, `isEnabled`, `textContent`, `inputValue`, `getAttribute`, `count`; non-ARIA supplementary observation | 3 |
+
+```
+                           outbound ─▶ Navigation Strategy ──┐
+                                    ─▶ Locator Ladder       ─┼─▶ (Playwright + SUT)
+                                    ─▶ Interact              ─┘
+                                                                     │
+                           inbound  ◀─ ARIA Snapshot        ◀────────┤
+                                    ◀─ State Probes         ◀────────┘
+```
+
+*Composition.* `Page` is an `Effect.Resource` (`Effect.acquireUseRelease`) acquired once per session. Every world operation is an effect requiring `Page` from context. Parallel probes compose via `Effect.all(probes, { concurrency: 4 })` — bounded because hammering the SUT with unbounded parallelism is itself a failure mode. Pre-action state probes run as `Effect.filterOrFail` guards *before* the action effect, so `NotVisibleError` or `NotEnabledError` fires before the action does, rather than as a post-attempt classification of Playwright's own timeout.
+
+#### 10.4.4 Memory highway towns
+
+Longest and densest highway. v2's compounding asset lives here, so the highway branches into four sub-carriageways: *storage* (where facets and evidence live), *derivation* (how confidence and health are read), *gates* (how proposals and drift surface), and *maintenance* (how memory tends itself).
+
+**Storage towns:**
+
+| Town | Path | Role | Phase |
+|---|---|---|---|
+| Facet Schema | `lib-v2/memory/facet-schema.ts` | Unified facet record types with kind-specific extensions for element, state, vocabulary, route | 2 |
+| Facet Store | `lib-v2/memory/facet-store.ts` | Per-screen YAML with atomic temp-rename writes; in-memory index on load, keyed by `<screen>:<element>` IDs | 2 |
+| Evidence Log | `lib-v2/memory/evidence-log.ts` | Per-facet append-only JSONL; each entry `{ timestamp, runId, instrument, outcome, context }` | 6 |
+| Candidate Review | `lib-v2/memory/candidate-review.ts` | Operator-facing queue for L2 candidate facets; accept/edit/reject with rationale preserved | 7 |
+
+**Derivation towns:**
+
+| Town | Path | Role | Phase |
+|---|---|---|---|
+| Confidence | `lib-v2/memory/confidence.ts` | Pure function from evidence log → confidence scalar; cached summary invalidated on new evidence | 6 |
+| Facet Query | `lib-v2/memory/query.ts` | Intent phrase → parsed constraints → ranked facets via structured-field matching; confidence is primary key, health is tiebreaker | 6 |
+| Locator Health Track | `lib-v2/memory/health-track.ts` | Per-strategy `{ successCount, failureCount, lastSuccessAt, lastFailureAt }` co-located on the facet's `locatorStrategies` array | 6 |
+| Facade Regenerator | `lib-v2/instruments/codegen/facade-regenerator.ts` | Derives per-screen facade TypeScript modules from the catalog on every authoring pass | 6 |
+
+**Gate towns:**
+
+| Town | Path | Role | Phase |
+|---|---|---|---|
+| Drift Emit | `lib-v2/observation/drift-emit.ts` | Appends classified drift events to `drift-events.jsonl`; mismatch kinds `not-found | role-changed | name-changed | state-mismatch | ambiguous` | 8 |
+| Confidence Gate | `lib-v2/instruments/codegen/confidence-gate.ts` | DOM-less authoring policy: skips live observation when memory confidence ≥ threshold for that surface | 8 |
+
+**Maintenance towns:**
+
+| Town | Path | Role | Phase |
+|---|---|---|---|
+| Confidence Age | `lib-v2/memory/confidence-age.ts` | Idempotent maintenance pass applying decay to uncorroborated evidence logs | 9 |
+| Corroborate | `lib-v2/memory/corroborate.ts` | Post-execution hook: passing test runs append positive evidence to every referenced facet | 9 |
+| Revision Propose | `lib-v2/memory/revision-propose.ts` | Aggregates drift events + decay + corroboration into revision proposals for operator review | 9 |
+
+```
+                         ┌── Storage ──┐    ┌── Derivation ──┐
+    agent ◀──query──▶   │  Facet      │──▶│ Confidence      │
+                         │  Store      │    │ Facet Query     │
+                         │  Evidence   │    │ Locator Health  │
+                         │  Log        │    │ Facade Regen    │
+                         └─────────────┘    └─────────────────┘
+                                │                    │
+                                ▼                    ▼
+                         ┌── Maintenance ─┐    ┌── Gates ──────┐
+                         │ Confidence Age │    │ Drift Emit    │──▶ drift-events.jsonl
+                         │ Corroborate    │    │ Confidence    │──▶ DOM-less policy
+                         │ Revision       │    │ Gate          │
+                         │ Propose        │    └───────────────┘
+                         └────────────────┘
+```
+
+*Composition.* `FacetStore`, `EvidenceLog`, `DriftLog` are `Context.Tag`s over file-system adapters. Writes go through `Effect.sync` wrapping the atomic temp-rename protocol; a crash mid-write leaves prior state intact. `facet-query` is `Effect.gen` yielding from `FacetStore.Tag`, parsing the intent phrase via `Schema.decode`, filtering the index, returning ranked facets — pure except for the initial read. Confidence derivation is a fold over the evidence log: `Stream.runFold(stream, zeroSummary, applyEvent)`, with summary cached behind a `Ref` and invalidated on new evidence. Maintenance passes (`Confidence Age`, `Corroborate`) are `Effect.schedule`d; they run on a cadence the application layer configures and append their outcomes back to the evidence log like any other event.
+
+#### 10.4.5 Truth highway towns
+
+Cyclical. Starts with the emitted test; flows through execution, run records, metrics, proposals, review, approved changes; closes back onto the agent as verification receipts.
+
+**Run and record towns:**
+
+| Town | Path | Role | Phase |
+|---|---|---|---|
+| Test Compose | `lib-v2/instruments/codegen/spec-codegen.ts` | AST-backed emission via ts-morph; facet-keyed facades; no inline selectors or data | 3 |
+| Test Execute | `lib-v2/application/execute/` | Playwright Test runner invocation via CLI with `--reporter=json`; structured run record return | 3 |
+| Run Record Log | `catalog/runs/*.jsonl` | Append-only log of every test execution with step-level evidence | 3 |
+
+**Metric towns** (all declared in `lib-v2/measurement/metrics.ts`; each is a manifest-declared pure derivation):
+
+| Metric verb | Measures | Phase |
+|---|---|---|
+| `metric-test-acceptance-rate` | Proportion of testbed runs passing + QA-accepted real runs | 5 |
+| `metric-authoring-time-p50` | Median authoring duration per work item | 5 |
+| `metric-memory-hit-rate` | Proportion of steps resolved from memory vs. live observation | 6 |
+| `metric-memory-corroboration-rate` | Proportion of referenced facets gaining positive evidence | 6 |
+| `metric-operator-wording-survival-rate` | Fraction of operator wording preserved into generated tests | 7 |
+| `metric-vocabulary-alignment-score` | Test-step language aligned with operator vocabulary | 7 |
+| `metric-drift-event-rate` | Drift events per N memory-authored tests | 8 |
+| `metric-dom-less-authoring-share` | Fraction of steps authored without live observation | 8 |
+| `metric-convergence-delta-p50` | Statistical convergence across testbed-version increments (the v1 convergence-proof harness re-expressed as a metric derivation) | 8 |
+| `metric-hypothesis-confirmation-rate` | The batting average — proportion of hypothesis receipts with `confirmed: true` | 9 |
+
+**Proposal and review towns:**
+
+| Town | Path | Role | Phase |
+|---|---|---|---|
+| Proposal Log | `lib-v2/memory/proposal-lifecycle.ts` | Append-only log keyed by `kind`: `revision | hypothesis | candidate` | 5 |
+| Operator Review | external process + CLI | `accept | edit | reject`; rejections preserved with rationale | 5 |
+| Receipt Log | `lib-v2/measurement/receipt-log.ts` | Append-only verification receipts: `{ hypothesisId, predictedDelta, actualDelta, confirmed, computedAt }` | 5 |
+
+```
+    Test Compose ─▶ Test Execute ─▶ Run Record Log
+                                          │
+                                          ▼
+                              ┌── metric verbs ──┐
+                              │  (manifest-      │
+                              │   declared       │
+                              │   derivations)   │
+                              └────────┬─────────┘
+                                       │
+                                       ▼
+                              Proposal Log
+                           (revision | hypothesis |
+                            candidate)
+                                       │
+                                       ▼
+                              Operator Review
+                                       │
+                         ┌─────────────┴──────────────┐
+                         ▼                            ▼
+                   catalog change                code change
+                   (revisions/candidates)   (hypotheses → next build)
+                         │                            │
+                         └──────────────┬─────────────┘
+                                        ▼
+                              next evaluation run
+                                        │
+                                        ▼
+                                 Receipt Log
+                                        │
+                                        └──▶ agent reads,
+                                              proposes next
+```
+
+*Composition.* The truth highway is the longest saga. One evaluation run is `Effect.gen` composing testbed fetch → authoring → execution → run-record append → metric computation in sequence; independent metric derivations are parallelized via `Effect.all`. The proposal lifecycle is a state machine expressed as `Stream` transforms — `pending → approved → landed → verified` or `pending → rejected`. Operator review is a suspended `Fiber` that resumes on the decision bridge's atomic-rename signal. The closure — agent reads receipt, proposes next — is a long-running `Fiber.daemon` scoped to the session's lifecycle.
+
+### 10.5 Composition and braiding — how Effect holds the highways together
+
+The highways are data routes. Effect is the composition calculus that moves data along them. The parallel work streams named throughout §3 become *compile-time guarantees* rather than scheduling wishes because `Effect.all` types them, `yield*` sequences them, `Context.Tag`s port them, `catchTag` discriminates their failures, and `Stream` threads their events through time. This section names the arterial patterns — the ones v2 uses at every handshake and relies on at every interchange — and then shows one end-to-end saga braided through all five highways.
+
+**Pattern 1 — Ports as service tags.** Every bounded context exposes its operations as `Context.Tag`s. `IntentFetch.Tag`, `PlaywrightPage.Tag`, `FacetStore.Tag`, `EvidenceLog.Tag`, `ManifestRegistry.Tag`, `ReceiptLog.Tag`. Domain code *requires* the tag; the composition layer *provides* the implementation via `Layer.succeed(Tag, impl)` or `Layer.effect(Tag, constructor)`. Hexagonal architecture's port/adapter mechanic is Effect's service-layer mechanic; one pattern, two vocabularies.
+
+```ts
+// Declaration at the domain edge
+class IntentFetch extends Context.Tag("IntentFetch")<
+  IntentFetch,
+  { fetch: (ref: SourceRef) => Effect.Effect<WorkItem, IntentError> }
+>() {}
+
+// Provision at the composition edge
+const AdoLive = Layer.succeed(IntentFetch, { fetch: adoImpl });
+const TestbedLive = Layer.succeed(IntentFetch, { fetch: testbedImpl });
+
+// Consumption anywhere in the domain
+const work = Effect.gen(function* () {
+  const fetcher = yield* IntentFetch;
+  return yield* fetcher.fetch(someRef);
+});
+```
+
+**Pattern 2 — Handshakes as small `Effect.gen` programs.** Every handshake in §7 of the feature ontology is a short generator: yield from the ports it needs, compose the operations, return the result. Three or four `yield*`s per handshake is typical.
+
+```ts
+const intentFetchHandshake = Effect.gen(function* () {
+  const source = yield* IntentFetch;
+  const raw = yield* source.fetch(sourceRef);
+  const parsed = yield* source.parse(raw);
+  return parsed;
+});
+```
+
+The `yield*` at each boundary is a typed handoff; each return value's shape is inferred; every error the handshake can surface is part of the inferred error channel. No runtime dispatch; no cast-and-pray.
+
+**Pattern 3 — Parallel work streams as `Effect.all`.** When §3 names "parallel work streams within the step," the compile-time shape is `Effect.all`. Independent effects run concurrently; their results collect into a tuple the next step consumes.
+
+```ts
+// Within Phase 3: the six L0 instruments integrate in parallel
+const [adoReady, ariaReady, ladderReady, interactReady, navReady, composeReady] =
+  yield* Effect.all([
+    portAdoSource,
+    portAriaSnapshot,
+    portLocatorLadder,
+    portInteract,
+    portNavigation,
+    portTestCompose,
+  ], { concurrency: "unbounded" });
+
+// Within whole-screen observation: bounded-concurrency element probes
+const states = yield* Effect.all(
+  elements.map((el) => probeElement(el)),
+  { concurrency: 4 }
+);
+```
+
+Parallelism is declared, typed, and bounded. The scheduler handles the actual interleaving; the code reads sequentially.
+
+**Pattern 4 — Typed error channels as `catchTag` / `catchTags`.** Every handshake carries an inferred error channel listing the tagged errors it can surface. Recovery routing is `Effect.catchTag('X', handlerX)` or `Effect.catchTags({ X: handlerX, Y: handlerY })`. No `instanceof`; no untyped `catch` blocks; the compiler knows every branch.
+
+```ts
+const withRecovery = intentFetchHandshake.pipe(
+  Effect.catchTag("AdoTransientError", () => retryWithBackoff),
+  Effect.catchTag("AdoAuthError", () => escalateToOperator),
+  Effect.catchTag("AdoNotFoundError", () => logAndReturnNull),
+);
+```
+
+If a new error tag is added to the handshake's channel, every composition that doesn't route it remains a compile-checkable residual in the outer effect's error channel. The compiler refuses to pretend every error is handled unless it actually is.
+
+**Pattern 5 — Event streams as `Stream`.** The evidence log, drift log, receipt log, run-record log all expose `Stream` interfaces. Metric verbs are folds: `Stream.runFold(stream, initial, combine)`. Subscribers consume events without polling.
+
+```ts
+const corroborationRate: Effect.Effect<number, never, EvidenceLog> =
+  Effect.gen(function* () {
+    const log = yield* EvidenceLog;
+    return yield* Stream.runFold(
+      log.since(windowStart),
+      { positives: 0, total: 0 },
+      (acc, evt) => ({
+        positives: acc.positives + (evt.outcome === "pass" ? 1 : 0),
+        total: acc.total + 1,
+      })
+    ).pipe(Effect.map(({ positives, total }) => total === 0 ? 0 : positives / total));
+  });
+```
+
+A metric verb is just a fold over a stream plus a signature declaration in the manifest. Adding a metric is adding a verb.
+
+**Pattern 6 — Long-running sagas as `Fiber`.** The measurement loop runs as a `Fiber.daemon` for the lifetime of the session. Operator review is a suspended fiber that resumes when the decision bridge's atomic rename delivers the decision. Session lifecycle scopes the fiber tree; shutdown collects children deterministically.
+
+**Pattern 7 — Retry and schedule for temporal discipline.** Transient failures retry on a declared schedule; maintenance passes run on a declared cadence. Both use `Effect.retry` / `Effect.retryOrElse` / `Effect.schedule` with composable schedules — `Schedule.exponential("100 millis").pipe(Schedule.compose(Schedule.recurs(3)))` for a bounded exponential backoff, `Schedule.fixed("1 hour")` for a maintenance pass.
+
+**The braided shape — one saga through all five highways.**
+
+Here is an authoring saga expressed as one Effect program, with each `yield*` annotated by the highway it crosses. Read top-to-bottom; every line is a handoff; every error has a typed path.
+
+```ts
+const authorTest = (sourceRef: SourceRef, hypothesis?: Hypothesis) =>
+  Effect.gen(function* () {
+    // ─── Verb highway: fluency was established at session start ───
+    // (implicit: the agent already read the manifest; every subsequent
+    //  yield* lands on a declared verb with a frozen signature)
+
+    // ─── Intent highway ─────────────────────────────────────────
+    const intent = yield* IntentFetch.fetch(sourceRef);
+    const parsed = yield* IntentParse.apply(intent);
+
+    // ─── For each step, walk Memory highway first; fall through ──
+    // ─── to World highway only when memory is insufficient ───────
+    const stepResults = yield* Effect.all(
+      parsed.steps.map((step) =>
+        Effect.gen(function* () {
+          // Memory highway: query
+          const candidates = yield* FacetQuery.resolve(step.intentPhrase);
+
+          // Branch on confidence — memory wins or world fills in
+          const facet =
+            candidates.top && candidates.top.confidence >= step.threshold
+              ? candidates.top
+              : yield* ObserveAndMint.forStep(step); // World + Memory mint
+
+          return { step, facet };
+        })
+      ),
+      { concurrency: 1 } // per-step sequencing within the work item
+    );
+
+    // ─── Truth highway: compose and execute ──────────────────────
+    const testFile = yield* TestCompose.emit(parsed, stepResults);
+    const runRecord = yield* TestExecute.run(testFile);
+
+    // ─── Memory highway: corroborate or drift-emit ───────────────
+    yield* Effect.all(
+      stepResults.map(({ facet }) =>
+        runRecord.pass
+          ? Corroborate.append(facet, runRecord)
+          : DriftEmit.classify(facet, runRecord)
+      ),
+      { concurrency: "unbounded" }
+    );
+
+    // ─── Truth highway: verify hypothesis if one was attached ───
+    if (hypothesis) {
+      const actualDelta = yield* MetricCompute.delta(hypothesis.metric);
+      yield* ReceiptLog.append({
+        hypothesisId: hypothesis.id,
+        predictedDelta: hypothesis.predictedDelta,
+        actualDelta,
+        confirmed: directionMatches(hypothesis.predictedDelta, actualDelta),
+      });
+    }
+
+    return runRecord;
+  }).pipe(
+    // ─── Typed recovery at the saga boundary ────────────────────
+    Effect.catchTag("NavigationTimeoutError", () => escalateToOperator),
+    Effect.catchTag("LocatorLadderExhaustedError", () => handoffToAgent),
+    Effect.catchTag("AdoTransientError", () => retryWithBackoff),
+    Effect.catchTag("FacetStoreCorruptError", () => failFast),
+    // any other error surfaces unhandled; the compiler's error-channel
+    // residual lists what remains unrouted
+    Effect.withSpan("authorTest", { attributes: { sourceRef: sourceRef.toString() } })
+  );
+```
+
+Count the braiding. The saga touches every highway: Verb (implicit at session start), Intent (fetch + parse), Memory (query), World (observe + mint when memory misses), Memory again (corroborate or drift-emit), Truth (compose + execute + receipt). Eleven `yield*`s; two `Effect.all`s for parallelism; four `catchTag`s for typed recovery; one `withSpan` for observability. The saga is small because each verb is a port, each port is typed, each composition is associative, each error is discriminated. The braiding is *readable* because the sequence of `yield*`s literally walks the highway map.
+
+**Why the braiding doesn't break under change.** If a new source lands on the intent highway, `Layer.succeed(IntentFetch, newImpl)` is the only change; `authorTest`'s consumers are untouched. If a new metric verb joins the truth highway, it appears in the manifest and in `MetricCompute` without rewriting `authorTest`. If a new error tag is introduced to any handshake, the inferred error channel of `authorTest` gains it as a residual until a `catchTag` routes it — a compile error the build catches. Additions are additive; subtractions are deprecations with paths; changes are compile-checkable. The map holds because Effect's composition is both *compositional* (parts combine without knowing about each other) and *total* (every error has a typed path).
+
+### 10.6 The interchanges
 
 The highways meet at five places. Each interchange is where one primitive's output becomes another primitive's input, and each carries a specific discipline.
 
@@ -902,7 +1318,33 @@ The highways meet at five places. Each interchange is where one primitive's outp
 
 **The receipt interchange** — where code changes meet the next evaluation. The loop's closing joint: a hypothesis lands, the next evaluation runs, the metric verb computes the actual delta, the verification receipt appends, the agent reads it. The batting average is a derivation over what happens here. This is the single joint the entire trust-but-verify discipline hangs from.
 
-### 10.4 The map in motion — one session traced
+### 10.7 The lighting-up sequence — which towns come online at each phase
+
+The highways are built gradually. A phase-indexed view of the town catalogs answers "what's live after Phase K?" The matrix below traces which highway's towns light up at each phase; empty cells indicate nothing is added to that highway in that phase. Substrate foundations (§10.3) are implicitly Phase 0 across all rows.
+
+| Phase | Verb highway | Intent highway | World highway | Memory highway | Truth highway |
+|---|---|---|---|---|---|
+| **0** — scaffolding | — | — | — | — | — |
+| **1** — manifest + fluency | Manifest Schema · Manifest Generator · Sync Check · Fluency Harness | — | — | — | — |
+| **2** — facet schema | — | — | — | Facet Schema · Facet Store | — |
+| **3** — L0 data-flow | — | ADO Source · Intent Fetch · Intent Parse | Navigation · Locator Ladder · Interact · ARIA Snapshot · State Probes | (catalog populates organically via compose-time minting) | Test Compose · Test Execute · Run Record Log |
+| **4** — ship L0 | — | — | — | (organic population continues) | (run records accumulate) |
+| **5** — measurement substrate | — | Testbed Adapter | — | — | `metric-test-acceptance-rate` · `metric-authoring-time-p50` · Proposal Log · Operator Review · Receipt Log |
+| **6** — L1 memory | — | — | — | Evidence Log · Confidence · Locator Health Track · Facet Query · Facade Regenerator | `metric-memory-hit-rate` · `metric-memory-corroboration-rate` |
+| **7** — L2 operator | — | Dialog Capture · Document Ingest | — | Candidate Review | `metric-operator-wording-survival-rate` · `metric-vocabulary-alignment-score` |
+| **8** — L3 drift + DOM-less | — | — | — | Drift Emit · Confidence Gate | `metric-drift-event-rate` · `metric-dom-less-authoring-share` · `metric-convergence-delta-p50` |
+| **9** — L4 self-refinement | — | — | — | Confidence Age · Corroborate · Revision Propose | `metric-hypothesis-confirmation-rate` |
+
+Read horizontally for "what phase lit up which highway"; read vertically for "when did this highway gain its towns." Some observations this matrix makes visible that the phase-indexed view of §3 does not:
+
+- **The Verb highway lights up once and then stays static in shape.** All four of its towns land in Phase 1; every subsequent phase adds verb *declarations* but never verb *infrastructure*.
+- **The World highway lights up once.** Phase 3 ships every town; Phase 8 adds a policy that consumes World highway outputs (the Confidence Gate) but does not extend the highway itself.
+- **The Memory highway is the most phased.** Storage towns at Phase 2; derivation towns at Phase 6; gate towns at Phase 8; maintenance towns at Phase 9. Each phase adds a sub-carriageway to a highway that grew along with v2's capability.
+- **The Truth highway lights up in two stages.** Phase 3 gives it its record-keeping infrastructure (compose, execute, run-record log); Phase 5 and thereafter add the measurement layer (metric verbs, proposal/receipt logs). Between Phase 4 (first ship) and Phase 5 (first metrics), run records accumulate without being measured — this is the deliberate "unmeasured choices" gap §5 flagged.
+
+The matrix is also the staging plan for a v2 build that wants to preview a single highway at a time. A team could, for example, build Phases 0–2 + Phase 1's Verb towns + Phase 2's Storage towns, and have a working Memory highway skeleton before any authoring runs. Such staging orderings are *permitted* (they don't violate hard dependencies from §4.1) but *not recommended*: the phase order is backward-chained from v2 as the destination, not from any individual highway's completeness.
+
+### 10.8 The map in motion — one session traced
 
 Open the map and trace a single authoring session.
 
@@ -928,7 +1370,7 @@ Open the map and trace a single authoring session.
 
 Every step above travels a highway; every handoff between steps is an interchange. The map is the session. The session is the map in motion.
 
-### 10.5 What this map is for
+### 10.9 What this map is for
 
 Three uses.
 
