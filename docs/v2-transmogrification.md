@@ -1884,6 +1884,139 @@ Contradiction does not roll back the code change. It appends a `confirmed: false
 
 In practice the saga is split into a body (`maintenanceTick`, one iteration) and a daemon wrapper (`maintenanceDaemon = maintenanceTick.pipe(Effect.schedule(Schedule.fixed("1 hour")), Effect.forkDaemon)`). The CLI verb `v2 maintain --once` invokes the body; the implicit daemon in `main` uses the wrapper. One body, two invocation paths, identical logic.
 
+**Saga 13 — `compareEvaluations`.** The workshop's diff tool. Given two evaluation summaries from the evaluation log (most often: the one before a code change landed and the one after), produces a typed delta report — which metrics moved, which run records appeared or disappeared, what the code-version and testbed-version deltas were. The workshop's bread-and-butter operation when reasoning about whether a change paid off; the runtime correlate of `git diff` for v2 itself.
+
+```ts
+const compareEvaluations = (older: EvaluationId, newer: EvaluationId) =>
+  Effect.gen(function* () {
+    // ─── Truth highway: read both summaries ──────────────────
+    const olderEval = yield* EvaluationLog.read(older);
+    const newerEval = yield* EvaluationLog.read(newer);
+
+    // ─── Truth highway: compute every metric's delta in parallel ─
+    const metricDeltas = yield* Effect.all(
+      ManifestRegistry.declaredMetrics().map((metric) =>
+        Effect.gen(function* () {
+          const olderValue = yield* MetricCompute.fromEvaluation(metric, olderEval);
+          const newerValue = yield* MetricCompute.fromEvaluation(metric, newerEval);
+          return {
+            metric,
+            older:     olderValue,
+            newer:     newerValue,
+            delta:     newerValue - olderValue,
+            direction: directionOf(newerValue - olderValue),
+          };
+        })
+      ),
+      { concurrency: "unbounded" }
+    );
+
+    // ─── Set diffs over the run-record cohorts ───────────────
+    const newRunRecords     = newerEval.runRecordIds.filter((id) => !olderEval.runRecordIds.includes(id));
+    const removedRunRecords = olderEval.runRecordIds.filter((id) => !newerEval.runRecordIds.includes(id));
+    const sharedRunRecords  = olderEval.runRecordIds.filter((id) => newerEval.runRecordIds.includes(id));
+
+    // ─── Build the report; append to ComparisonLog for audit ──
+    const report = {
+      from:               older,
+      to:                 newer,
+      computedAt:         yield* Clock.now,
+      metricDeltas,
+      newRunRecords,
+      removedRunRecords,
+      sharedRunRecords,
+      codeVersionDelta:   { from: olderEval.codeVersion,    to: newerEval.codeVersion },
+      testbedVersionDelta:{ from: olderEval.testbedVersion, to: newerEval.testbedVersion },
+    };
+
+    yield* ComparisonLog.append(report);
+    return report;
+  }).pipe(
+    Effect.catchTag("EvaluationNotFoundError", () => failFast),
+    Effect.catchTag("MetricComputeError",      () => surfaceErrorToOperator),
+    Effect.withSpan("compareEvaluations", {
+      attributes: { from: String(older), to: String(newer) },
+    })
+  );
+```
+
+The saga has two consumers. The team uses it directly to answer "did this change actually move the metric?" — the answer is in the delta report. `verifyHypothesis` (Saga 11) implicitly composes the same shape but for one metric only; `compareEvaluations` produces the full N-metric picture across two evaluations. The agent uses it as part of `proposeHypothesis` (Saga 9) when reasoning about which hypotheses to propose next — reading recent comparison reports tells the agent which hypothesis-shaped changes have been working historically.
+
+The append to `ComparisonLog` is what makes this a saga rather than a CLI utility: every comparison the team runs is durable, queryable, and linkable from receipts. A reviewer auditing v2's evolution can walk back through the comparison log and see every "did this change pay off?" question the team ever asked.
+
+**Saga 14 — `dashboardSnapshot`.** The dashboard plug-in. Composes read-only queries across the entire system into one typed snapshot artifact for an external dashboard UI to render. The default dashboard model in v2 is *external*: an HTML/SPA UI reads the snapshot file (or polls v2 for it) and renders. v2 doesn't ship a dashboard server; it ships the snapshot the dashboard renders.
+
+```ts
+const dashboardSnapshot = Effect.gen(function* () {
+  // ─── Truth highway: latest evaluation + batting average ──
+  const latestEval         = yield* EvaluationLog.latest;
+  const battingAverage     = yield* MetricCompute.computeMetric("metric-hypothesis-confirmation-rate");
+  const recentMetricTrends = yield* Effect.all(
+    ManifestRegistry.declaredMetrics().map((m) => MetricCompute.recentTrend(m, { windowDays: 7 })),
+    { concurrency: "unbounded" }
+  );
+
+  // ─── Truth highway: pending review counts ─────────────────
+  const pendingProposals = yield* ProposalLog.pendingCount();
+  const pendingHandoffs  = yield* HandoffQueue.pendingCount();
+
+  // ─── Memory highway: catalog and drift signals ───────────
+  const facetCount         = yield* FacetStore.count();
+  const recentDriftCount   = yield* DriftLog.countSince({ hours: 24 });
+  const lowConfidenceFacetCount = yield* FacetStore.countWithConfidenceBelow(0.5);
+
+  // ─── Truth highway: latest run + session activity ────────
+  const lastRunRecord  = yield* RunRecordLog.latest;
+  const activeSessions = yield* SessionReceipt.activeCount();
+
+  // ─── Verb + Reasoning highway: provider and verb status ──
+  const reasoningProvider = yield* Reasoning.providerId;
+  const manifestVersion   = yield* ManifestRegistry.currentVersion;
+
+  // ─── Compose the typed snapshot artifact ─────────────────
+  const snapshot = {
+    timestamp:       yield* Clock.now,
+    codeVersion:     yield* CodeVersion.current,
+    manifestVersion,
+    reasoningProvider,
+    latestEvaluation:    latestEval,
+    battingAverage,
+    recentMetricTrends,
+    pending: {
+      proposals: pendingProposals,
+      handoffs:  pendingHandoffs,
+    },
+    memory: {
+      facetCount,
+      recentDriftCount,
+      lowConfidenceFacetCount,
+    },
+    runtime: {
+      lastRunRecord,
+      activeSessions,
+    },
+  };
+
+  // ─── Write the snapshot to the agreed dashboard path ─────
+  yield* DashboardSnapshot.write(snapshot);
+  return snapshot;
+}).pipe(
+  Effect.catchTag("MetricComputeError", () => skipMetricAndContinue),
+  Effect.catchTag("EvaluationLogEmptyError", () => emitEmptySnapshot),
+  Effect.withSpan("dashboardSnapshot")
+);
+```
+
+Three uses of the snapshot, all by external consumers:
+
+- **Static dashboard UI.** The snapshot file (`./.v2/dashboard-snapshot.json`) is read by an HTML page or an editor extension; the page renders metric trends, pending counts, and the active-session list.
+- **Polling refresh.** A dashboard scheduling a `v2 dashboard-snapshot` invocation every 30 seconds keeps a near-real-time view without v2 hosting any HTTP server.
+- **Real-time push (advanced).** A dashboard process can subscribe to v2's append-only logs directly via `Stream` (per the §10.5 patterns); the snapshot is then a backstop for first-paint and for clients that don't subscribe.
+
+The saga doesn't include UI rendering, server logic, or transport. v2 produces; the dashboard consumes; the boundary between them is the snapshot artifact. Any dashboard implementation — terminal-based, web-based, embedded in an IDE, posted to a Slack channel — composes from the same snapshot.
+
+This is the workshop's *windshield* — the single object the team and the agent look at to know v2's current state. Without it, knowing v2's state requires reading multiple log files and computing aggregates manually. With it, one read returns one typed value.
+
 ```ts
 const maintenanceCycle = Effect.gen(function* () {
   // ─── Memory highway: age confidence over uncorroborated evidence ─
@@ -1911,27 +2044,39 @@ Three sub-operations composed in sequence; the whole forked as a daemon scoped t
 
 **Why the braiding doesn't break under change.** If a new source lands on the intent highway, `Layer.succeed(IntentFetch, newImpl)` is the only change; `authorTest`'s consumers are untouched. If a new metric verb joins the truth highway, it appears in the manifest and in `MetricCompute` without rewriting `authorTest`. If a new proposal kind joins `applyApprovedProposal`, the `Match.exhaustive` call site becomes a compile error until the new case is handled — the visitor pattern enforced by the type system. If a new error tag is introduced to any handshake, the inferred error channel of every saga that composes that handshake gains the tag as a residual until a `catchTag` routes it. Additions are additive; subtractions are deprecations with paths; changes are compile-checkable. The map holds because Effect's composition is both *compositional* (parts combine without knowing about each other) and *total* (every error has a typed path, every proposal kind has an exhaustive match, every saga has a scoped fiber).
 
-**The saga set is closed.** The thirteen sagas above — `authorTest` (the flagship), plus `onboardSession`, `growMemoryForStep`, `absorbOperatorInput`, `respondToDrift`, `proposeRefinements`, `recordProposalRejection`, `applyHandoffDecision`, `proposeHypothesis`, `applyApprovedProposal`, `evaluateTestbed`, `verifyHypothesis`, and `maintenanceCycle` (with its `maintenanceTick` body) — are the whole of v2's runtime behavior. Every action v2 takes, at any phase of its life, composes these sagas or sub-sagas thereof. Adding a new capability means adding to the set with the same structural discipline; changing a capability means evolving a saga under the proposal-gated hypothesis loop. The closed set is the claim: v2 does nothing that does not fall into one of these braided paths.
+**The saga set is closed.** The fifteen sagas above — `authorTest` (the flagship), plus the fourteen-saga gallery — are the whole of v2's runtime behavior. Every action v2 takes, at any phase of its life, composes these sagas or sub-sagas thereof. Adding a new capability means adding to the set with the same structural discipline; changing a capability means evolving a saga under the proposal-gated hypothesis loop. The closed set is the claim: v2 does nothing that does not fall into one of these braided paths.
 
-The shape of the thirteen, by relationship to the highways:
+The shape of the fifteen, by relationship to the highways and to the parallel work streams of §3:
 
-| # | Saga | Trigger | Primary highways |
-|---|---|---|---|
-| 0 | `authorTest` | per work item (CLI `v2 author`) | all six |
-| 1 | `onboardSession` | every session start | Verb (then implicit on every other) |
-| 2 | `growMemoryForStep` | sub-saga in `authorTest` on facet-miss | World → Memory |
-| 3 | `absorbOperatorInput` | operator action (CLI `v2 absorb`) | Reasoning → Memory |
-| 4 | `respondToDrift` | sub-saga in `authorTest` on memory-vs-world mismatch | Memory + Truth (+ Reasoning if ambiguous) |
-| 5 | `proposeRefinements` | scheduled (in `maintenanceCycle`) | Memory → Reasoning → Truth |
-| 6 | `applyApprovedProposal` | operator action (CLI `v2 approve`) | Memory or Truth, by kind |
-| 7 | `recordProposalRejection` | operator action (CLI `v2 reject`) | Truth |
-| 8 | `applyHandoffDecision` | operator or agent action (CLI `v2 decide`) | Memory + Truth |
-| 9 | `proposeHypothesis` | agent self-driven (CLI `v2 propose-hypothesis`) | Truth → Memory → Reasoning → Truth |
-| 10 | `evaluateTestbed` | manual or scheduled (CLI `v2 evaluate`) | all six (via `authorTest`) |
-| 11 | `verifyHypothesis` | after hypothesis-carrying change lands (CLI `v2 verify`) | Truth |
-| 12 | `maintenanceCycle` | `Schedule.fixed("1 hour")` daemon (CLI `v2 maintain`) | Memory |
+| # | Saga | Trigger | Primary highways | Phase 3 streams it integrates |
+|---|---|---|---|---|
+| 0 | `authorTest` | per work item (CLI `v2 author`) | all six | intent + observation + interact + nav + compose + execute |
+| 1 | `onboardSession` | every session start | Verb (then implicit on every other) | manifest read + fluency check |
+| 2 | `growMemoryForStep` | sub-saga in `authorTest` on facet-miss | World → Memory | observation + locator ladder + facet mint |
+| 3 | `absorbOperatorInput` | operator action (CLI `v2 absorb`) | Reasoning → Memory | dialog/document → candidate review |
+| 4 | `respondToDrift` | sub-saga in `authorTest` on memory-vs-world mismatch | Memory + Truth (+ Reasoning if ambiguous) | drift emit + classification + handoff |
+| 5 | `proposeRefinements` | scheduled (in `maintenanceCycle`) | Memory → Reasoning → Truth | maintenance signals → revision proposals |
+| 6 | `applyApprovedProposal` | operator action (CLI `v2 approve`) | Memory or Truth, by kind | proposal lifecycle → catalog write |
+| 7 | `recordProposalRejection` | operator action (CLI `v2 reject`) | Truth | proposal lifecycle → rejection log |
+| 8 | `applyHandoffDecision` | operator or agent action (CLI `v2 decide`) | Memory + Truth | handoff queue → resolution log |
+| 9 | `proposeHypothesis` | agent self-driven (CLI `v2 propose-hypothesis`) | Truth → Memory → Reasoning → Truth | receipt history → hypothesis log |
+| 10 | `evaluateTestbed` | manual or scheduled (CLI `v2 evaluate`) | all six (via `authorTest`) | testbed adapter + metric verbs |
+| 11 | `verifyHypothesis` | after hypothesis-carrying change lands (CLI `v2 verify`) | Truth | metric delta → verification receipt |
+| 12 | `maintenanceCycle` | `Schedule.fixed("1 hour")` daemon (CLI `v2 maintain`) | Memory | confidence age + corroborate + refine |
+| 13 | `compareEvaluations` | operator/agent action (CLI `v2 compare`) | Truth | evaluation log → comparison report |
+| 14 | `dashboardSnapshot` | scheduled or on-demand (CLI `v2 dashboard-snapshot`) | all six (read-only) | every log → snapshot artifact |
 
-The two new operator-decision sagas (`recordProposalRejection`, `applyHandoffDecision`) close the half of the operator review loop that the original gallery left implicit; the new `proposeHypothesis` closes the agent's side of the trust-but-verify loop. With these in place the saga gallery is genuinely complete: every behavior the prior five v2 docs name is owned by exactly one saga (or one named sub-saga), and every saga is reachable from exactly one CLI verb dispatched through `main`.
+The fourteen gallery sagas close every gap the prior five v2 docs imply: the six canonical agent flows from `feature-ontology-v2.md §8.1` (onboard, author, grow memory, absorb operator, respond to drift, propose refinement) plus the measurement substrate from `v2-direction.md §5` (evaluate, verify, propose hypothesis, maintenance) plus the operator-review surfaces (approve, reject, decide handoffs) plus the workshop instruments (compare evaluations, dashboard snapshot). Every parallel work stream from §3 of this document is integrated into one of the sagas (rightmost column); every CLI verb maps to exactly one saga; every saga's typed error channel routes through `catchTag` at its boundary; every saga's trace span surfaces in the observability layer.
+
+What this set does *not* contain is also a claim — v2 does not have:
+
+- A "main loop" that runs continuously and decides what to do next. The agent makes that decision via Reasoning; sessions are bounded, not perpetual.
+- A "self-modifying" saga that rewrites code without operator review. Hypothesis proposals require approval.
+- A "dashboard server" saga. Dashboards are external consumers of `dashboardSnapshot` and the append-only logs.
+- A "session resume" saga. Sessions are atomic-or-fail; a killed session restarts from `onboardSession`, not from a checkpoint.
+- A "configuration change" saga. Provider, thresholds, and Layer choices are environment / config; changing them means restarting.
+
+Each absence is a deliberate constraint. Adding any of them would expand the surface; the gallery's closure is what keeps v2 small enough to be a cathedral and not a sprawl.
 
 ### 10.6 The interchanges
 
@@ -2015,13 +2160,14 @@ The cathedral of §9 holds because every stone carries weight the others need. T
 
 §10 showed what v2 *is* when it's running. This section shows how v2 *starts running*: how every port gets wired once, how sagas get dispatched at invocation time, how the fiber tree scopes the run, how shutdown collects its children, and how observability makes the whole thing visible. This is the single `main` that makes everything compose. If §9 was the cathedral and §10 was the map, §11 is the ignition.
 
-Six subsections:
+Seven subsections:
 - **§11.1** the Layer cake — every port wired once.
 - **§11.2** the entry point — `main` as saga dispatcher.
 - **§11.3** invocation modes — what the CLI accepts.
 - **§11.4** the fiber tree — session scope, daemons, shutdown.
 - **§11.5** observability — every saga is its own span.
 - **§11.6** the shape of an actual run — one CLI invocation traced.
+- **§11.7** the harvesting flywheel — iterative hardening across sessions.
 
 And a short closing stanza.
 
@@ -2132,6 +2278,8 @@ type RuntimeRequest =
   | { kind: "reject";             rejection: ProposalRejection }
   | { kind: "decide";             decision: HandoffDecision }
   | { kind: "propose-hypothesis"; context: HypothesisContext }
+  | { kind: "compare";            from: EvaluationId; to: EvaluationId }
+  | { kind: "dashboard-snapshot" }
   | { kind: "maintain";           once?: boolean };
 
 // The single entry point — composes onboarding + dispatch + closeout
@@ -2157,6 +2305,8 @@ const main = (request: RuntimeRequest) =>
       Match.tag("reject",             ({ rejection })             => recordProposalRejection(rejection)),
       Match.tag("decide",             ({ decision })              => applyHandoffDecision(decision)),
       Match.tag("propose-hypothesis", ({ context })               => proposeHypothesis(context)),
+      Match.tag("compare",            ({ from, to })              => compareEvaluations(from, to)),
+      Match.tag("dashboard-snapshot", ()                          => dashboardSnapshot),
       Match.tag("maintain",           ({ once })                  => once ? maintenanceTick : maintenanceDaemon),
       Match.exhaustive,
     );
@@ -2260,6 +2410,19 @@ export const parseCli = (argv: string[]): RuntimeRequest =>
       context: Option.getOrElse(context, () => HypothesisContext.defaults),
     })),
 
+    compare: Command.make({
+      from: Options.text("from").pipe(Options.withDescription("evaluation id (older)")),
+      to:   Options.text("to").pipe(Options.withDescription("evaluation id (newer)")),
+    }, ({ from, to }) => ({
+      kind: "compare" as const,
+      from: EvaluationId.parse(from),
+      to:   EvaluationId.parse(to),
+    })),
+
+    dashboardSnapshot: Command.make({}, () => ({
+      kind: "dashboard-snapshot" as const,
+    })),
+
     maintain: Command.make({
       once: Options.boolean("once").pipe(Options.withDefault(false)),
     }, ({ once }) => ({
@@ -2269,7 +2432,7 @@ export const parseCli = (argv: string[]): RuntimeRequest =>
   });
 ```
 
-Nine verbs, mapped to real commands:
+Eleven verbs, mapped to real commands:
 
 | CLI | What it does | Saga | Typical cadence |
 |---|---|---|---|
@@ -2282,6 +2445,8 @@ Nine verbs, mapped to real commands:
 | `v2 reject --rejection=prop-89.json` | Record an operator's rejection of a proposal with rationale | `recordProposalRejection` | after operator review closes a proposal as rejected |
 | `v2 decide --decision=hf-42.json` | Resolve a pending intervention handoff with a chosen option + rationale | `applyHandoffDecision` | when the operator (or the agent) clears a queued handoff |
 | `v2 propose-hypothesis [--context=ctx.json]` | Agent reads receipt log + recent metrics; proposes a code change with predicted delta | `proposeHypothesis` | agent-initiated, typically at session start when the agent decides the batting average warrants action |
+| `v2 compare --from=eval-101 --to=eval-118` | Diff two evaluation summaries; produce a delta report | `compareEvaluations` | after any meaningful change has produced a new evaluation |
+| `v2 dashboard-snapshot` | Compose current state across all logs into one snapshot artifact | `dashboardSnapshot` | scheduled (every 30s for live dashboards) or on-demand for static views |
 | `v2 maintain` | Run the maintenance daemon (age + corroborate + refine, scheduled) | `maintenanceDaemon` | scheduled hourly via cron or systemd |
 | `v2 maintain --once` | Run a single maintenance tick and exit | `maintenanceTick` | on demand (e.g., right after a large catalog change) |
 
@@ -2418,7 +2583,62 @@ The end-to-end shape: 14.2 seconds to author, execute, corroborate, and verify-h
 
 A reader watching the trace in real time sees v2's behavior as a literal walk through the highway map: Verb (manifest read in onboard) → Intent (ADO fetch + parse) → Memory (query, mint for the missed step) → World (resolve, observe, interact) → Reasoning (phrase steps) → Truth (compose, execute, run record) → Memory again (corroborate) → Truth again (hypothesis verification, receipt). Six highways crossed in 14 seconds. One sustained execution of the trust-but-verify loop.
 
-### 11.7 The closing stanza
+### 11.7 The harvesting flywheel — iterative hardening across sessions
+
+§11.6 traced one session. This subsection traces the cycle the team and the agent execute *across many sessions* — the workshop's iterative-hardening loop, where each turn produces evidence that hardens v2's outcome over time. It is not a single Effect program; it is a multi-session composition in which existing sagas play their parts at different moments.
+
+The flywheel has six turns, each producing a specific kind of hardening. Read each turn as "what happened?" plus "which saga did it?" plus "what's now harder than it was before?"
+
+**Turn 1 — Authoring produces evidence.**
+- *What happened.* The agent authors a test against a real ADO work item (`v2 author --source=ado:N`) or a synthetic testbed item. Some facets are queried from memory; some are minted; the test runs; the run record appends.
+- *Sagas in play.* `onboardSession` → `authorTest` → `growMemoryForStep` (when memory misses) → on pass, `Corroborate.append` runs against referenced facets; on fail-with-mismatch, `respondToDrift` runs.
+- *Hardened.* The catalog now has *more facets* (newly minted) or *more evidence on existing facets* (corroboration appended). Confidence on referenced facets either rises (corroboration) or falls (drift). Locator health gets one more outcome per strategy used. Nothing has been *promoted* yet — the catalog grew, but hardening hasn't fired.
+
+**Turn 2 — Maintenance ages and corroborates.**
+- *What happened.* On the next maintenance tick (`v2 maintain --once` or the `maintenanceDaemon`), confidence ages on uncorroborated facets, recent passing runs corroborate their referenced facets in batch, and `proposeRefinements` synthesizes revision proposals from accumulated drift events plus decay plus corroboration.
+- *Sagas in play.* `maintenanceTick` → `ConfidenceAge.run` → `Corroborate.fromRun × N` → `proposeRefinements` → `Reasoning.synthesizeRevision` → `ProposalLog.append(kind: revision)`.
+- *Hardened.* Stale facets have *lower confidence*; corroborated facets have *higher confidence*. New revision proposals sit in the queue, each citing the evidence that motivated them.
+
+**Turn 3 — Operator review surfaces decisions.**
+- *What happened.* The operator (or an external dashboard the operator drives) inspects the proposal queue. Each proposal carries cited evidence and a rationale; the operator decides accept or reject for each. Pending handoffs from prior sessions surface in the same review pass.
+- *Sagas in play.* `applyApprovedProposal` for accepts; `recordProposalRejection` for rejects; `applyHandoffDecision` for handoffs. All three invoked from the operator's review tool, which is itself just a CLI client of v2's verbs.
+- *Hardened.* The catalog gains *operator-blessed revisions*. The proposal log records *operator-blessed rejections* with rationale (which conditions future proposals away from the same dead end). Pending handoffs are *resolved into memory*, so the next authoring attempt at the same situation finds the choice already made.
+
+**Turn 4 — Evaluation re-grounds the metrics.**
+- *What happened.* Either scheduled or operator-triggered, an evaluation runs against the current testbed version. Every metric verb computes from run records produced under the new (post-Turn-3) catalog state. The evaluation summary appends to the evaluation log.
+- *Sagas in play.* `evaluateTestbed` → fan-out of `authorTest` over the testbed → `Effect.all` of metric computations → `EvaluationLog.append`.
+- *Hardened.* The metric trajectory now includes a *post-revision data point*. The team can ask: "did the revisions help?" — but until Turn 5, that question doesn't have a typed answer.
+
+**Turn 5 — Comparison answers the question.**
+- *What happened.* The team (or the agent autonomously) runs `compareEvaluations(previousEvalId, latestEvalId)`. The delta report shows which metrics moved, which run records appeared/disappeared, what the catalog and code-version deltas were.
+- *Sagas in play.* `compareEvaluations` → `Effect.all` of per-metric deltas → `ComparisonLog.append`.
+- *Hardened.* The team and agent now *know* whether Turn 3's revisions paid off. The comparison log gains a typed verdict tying revisions to outcomes.
+
+**Turn 6 — The agent proposes the next change.**
+- *What happened.* The agent reads the receipt log and the comparison log; it sees what's worked and what hasn't; it proposes a hypothesis — a code change with a predicted metric delta — that aims to harden whatever the comparison revealed as the weakest link.
+- *Sagas in play.* `proposeHypothesis` → reads `ReceiptLog.recent` + `MetricCompute.snapshot` + `MemoryHealthSnapshot` + `ProposalLog.rejectedHypothesesIn` → `Reasoning.proposeHypothesis` → `ProposalLog.append(kind: hypothesis)`.
+- *Hardened.* A new hypothesis sits in the proposal queue, *citing the comparison evidence* that motivated it. The next operator review (Turn 3 of the next cycle) will weigh it.
+
+The cycle returns to Turn 1: if the operator approves the hypothesis, a code change lands, and the next authoring run produces evidence under the changed code. Each turn through the flywheel hardens something specific:
+
+| Turn | What hardens | Where it shows |
+|---|---|---|
+| 1 | The catalog (more facets, more evidence) | `FacetStore` + `EvidenceLog` |
+| 2 | Confidence (aged or boosted) + revision proposals | `EvidenceLog` derivation + `ProposalLog` |
+| 3 | Operator-approved revisions + handoff resolutions | Catalog write + `HandoffResolutionLog` |
+| 4 | Metric trajectory updated post-revision | `EvaluationLog` |
+| 5 | Causal claim (revision → metric delta) | `ComparisonLog` |
+| 6 | Hypothesis citing causal evidence | `ProposalLog (kind: hypothesis)` |
+
+**The flywheel's reach into existing infrastructure.** None of the six turns introduces new infrastructure. Every turn composes existing sagas; every saga writes to existing append-only logs; every log is read by either a downstream saga in the cycle or by the dashboard snapshot. The dashboard renders the flywheel's state at any point — which proposals are pending, what the latest comparison said, what the batting average is, where in the cycle the team currently sits.
+
+**The dashboard's role in the flywheel.** `dashboardSnapshot` is consulted between turns. The team looks at the dashboard to know what to do next: a high pending-proposals count means Turn 3 is the next move; a stale-evaluation timestamp means Turn 4 is overdue; a low batting-average means Turn 6 should slow down (the agent should propose less and verify more). The dashboard does not drive the flywheel — the team and the agent do — but it is the surface they read to know where they are.
+
+**Why this is the harvesting flow.** Each turn *harvests* something specific from the prior turn's output: Turn 2 harvests evidence into proposals; Turn 3 harvests proposals into approvals; Turn 4 harvests approvals into measured deltas; Turn 5 harvests deltas into causal claims; Turn 6 harvests causal claims into the next proposal. Nothing is wasted; every artifact a turn produces is the input to a subsequent turn. The catalog gets richer; confidence gets calibrated; metrics get sharper; the agent's batting average gets a new data point; the next cycle starts with stronger ground than the last. **This is what "iterative hardening of outcome" means in v2 — a cycle in which every saga has its turn and every turn produces something the next turn consumes.**
+
+The flywheel is closed in the sense that all fifteen sagas have a place in it, and it does not require any additional sagas to operate. New sagas (if they were ever added) would either belong to one of the existing turns or would extend the cycle with a seventh turn — which is itself a kind of structural change the flywheel's metric layer would be asked to verify is worth making.
+
+### 11.8 The closing stanza
 
 Eleven sections. Begun with §1's one-page shape; closing here with the runtime that makes everything in those sections actually run.
 
