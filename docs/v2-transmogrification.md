@@ -797,3 +797,146 @@ The cathedral holds because each stone carries weight the others need. Remove an
 
 What v2 ships, as product, is three surfaces: a manifest, a catalog, tests. What v2 is, as architecture, is a cathedral whose structure makes those three surfaces simple to write, simple to read, and simple to verify. The transmogrification plan is the act of raising that cathedral on the ground v1 prepared. When cut-over fires and the agent works inside it, every part is there for a reason and every reason serves the shipping claim. That is what the plan ships, and that is where it ends.
 
+## 10. The highway map — how everything connects
+
+§9 named the stones. This section draws the highways. Five major arteries move information through v2; they meet at five interchanges; the whole flows as one loop over append-only time. This is the map you put on the wall — the macro view that tells you where any piece of the system sits and how anything you do ripples through the rest.
+
+### 10.1 The five highways
+
+**Intent highway.** From an intent source to the agent's workbench. Sources are polymorphic — Azure DevOps work items, synthetic testbed work items, operator dialog turns, operator-shared documents. They all arrive at the agent through `intent-fetch` and `intent-parse`, shaped identically, tagged with `source`. The highway runs one-way: inbound.
+
+**World highway.** Between the agent and the system under test. Runs both directions. Outbound are navigation, observation, and interaction requests mediated by Playwright; inbound are snapshots, state probes, and action outcomes. The only two-way highway in the map.
+
+**Memory highway.** Between the agent and the facet catalog plus the evidence log. Outbound are queries (by intent phrase) and writes (mints, enrichments, health updates). Inbound are ranked facets, derived confidence, drift classifications. The highway carries no raw data — just facet identifiers, structured records, and derivations.
+
+**Verb highway.** From the vocabulary manifest to every call site in the codebase. A single file, read once per session by the agent, declares every verb with a frozen signature. No code writes to this highway at runtime; it is published at build time and consumed at session start. It is the shortest and most-used highway in the system.
+
+**Truth highway.** The measurement loop. Run records feed metric derivations; metric derivations plus drift events plus evidence accumulation feed proposals; proposals feed operator review; approved changes land in code or memory; the next evaluation produces new run records; verification receipts append; the agent reads the receipt log to propose the next change. This highway is circular — it closes back on itself, and the cycle is how v2 learns.
+
+### 10.2 The macro map
+
+```
+                        ┌──────────────────────────┐
+                        │   VOCABULARY MANIFEST    │
+                        │   (verbs + signatures    │
+                        │    + error families)     │
+                        └────────────┬─────────────┘
+                                     │
+                                     │ read once
+                                     │ per session
+                                     ▼
+ ┌──────────────┐           ╔════════════════════╗           ┌──────────────┐
+ │   INTENT     │           ║                    ║           │              │
+ │   SOURCE     │──fetch───▶║       AGENT        ║◀─observe──│    WORLD     │
+ │              │   parse   ║                    ║  interact │              │
+ │  ADO       ──│           ║  (authoring,       ║           │  Playwright  │
+ │  Testbed   ──│           ║   decision         ║           │  + SUT       │
+ │  Dialog    ──│           ║   handoffs,        ║           │              │
+ │  Document  ──│           ║   receipts)        ║           │              │
+ └──────────────┘           ╚═══════╤════════════╝           └──────────────┘
+                                    │
+                              query │ mint
+                              read  │ enrich
+                                    ▼
+                        ╔═══════════════════════════╗
+                        ║         MEMORY            ║
+                        ║                           ║
+                        ║   facet catalog           ║
+                        ║   evidence log            ║  ◀── append-only
+                        ║   drift log               ║      (invariant 3)
+                        ║   proposal log            ║
+                        ║   receipt log             ║
+                        ║   run-record log          ║
+                        ╚═══════════╤═══════════════╝
+                                    │
+                                    │  metric verbs
+                                    │  (manifest-declared
+                                    │   derivations)
+                                    ▼
+                        ┌───────────────────────────┐
+                        │   EVALUATION OUTPUTS      │
+                        │                           │
+                        │   batch summary           │
+                        │   metric values           │
+                        │   batting average         │
+                        └───────────┬───────────────┘
+                                    │
+                          proposals │ (kind: revision |
+                                    │   hypothesis | candidate)
+                                    ▼
+                        ┌───────────────────────────┐
+                        │     OPERATOR REVIEW       │
+                        │                           │
+                        │     accept / reject       │
+                        │     (proposal-gated       │
+                        │      reversibility)       │
+                        └───────────┬───────────────┘
+                                    │
+                                    │ approved changes land:
+                                    │   • memory revisions → catalog/evidence
+                                    │   • code hypotheses  → next build
+                                    │   • candidate facets → catalog
+                                    │
+                                    └──▶ next authoring run generates new
+                                         run records; verification receipts
+                                         append; agent reads; loop closes
+```
+
+Legend:
+- Double borders `╔═══╗` mark the three primitives that hold state (Agent, Memory).
+- Single borders `┌───┐` mark stateless inputs and outputs.
+- Arrows with labels are the highways named in §10.1.
+- Every edge respects the ten invariants; every node honors its bounded-context discipline.
+
+### 10.3 The interchanges
+
+The highways meet at five places. Each interchange is where one primitive's output becomes another primitive's input, and each carries a specific discipline.
+
+**The fluency interchange** — where the verb highway meets the agent. Read on session start; never read again during the session. The agent's capability is fixed at the moment of reading; new verbs require a new session. This interchange is where agent fluency is made cheap (one file read) and agent capability is made stable (no mid-session discovery).
+
+**The mint interchange** — where the world highway meets the memory highway. When an observation produces a new facet, provenance is threaded at this moment: instrument, session, run, timestamp. No later write can retrofit provenance; invariant 2 binds here. This is the most structurally load-bearing interchange in the map; every downstream claim about the facet rests on what is committed at mint.
+
+**The query interchange** — where the agent meets memory in the read direction. Intent phrases become parsed constraints; constraints become ranked facets; ranking is by confidence (a derivation) with health as tiebreaker. This is where memory *earns its way* — a query that returns nothing above threshold falls through to live observation, and the memory highway hands off to the world highway.
+
+**The proposal interchange** — where evaluation outputs meet operator review. Three kinds of proposal converge here: revision (change a facet), hypothesis (change code, predict a metric delta), candidate (new facet from operator input). All three follow the same proposal-gated reversibility; the operator sees them in a single queue; accept/reject is a typed decision; rejection is preserved with rationale. This is where human judgment sits in the loop by design.
+
+**The receipt interchange** — where code changes meet the next evaluation. The loop's closing joint: a hypothesis lands, the next evaluation runs, the metric verb computes the actual delta, the verification receipt appends, the agent reads it. The batting average is a derivation over what happens here. This is the single joint the entire trust-but-verify discipline hangs from.
+
+### 10.4 The map in motion — one session traced
+
+Open the map and trace a single authoring session.
+
+**(1)** The agent starts. `fs.readFile('manifest.json')` — the verb highway delivers the full verb set. The agent is fluent before any action.
+
+**(2)** The agent picks a work item. `intent-fetch` with `source: ado:12345` — the intent highway brings the work item inbound. `intent-parse` shapes it into ordered preconditions, actions, expected outcomes, with source-text provenance per step.
+
+**(3)** For each step, the agent queries memory. `facet-query` with intent phrase — the memory highway outbound. If the query returns above-threshold facets, the agent has what it needs. If not, the query interchange hands off: the world highway lights up. `navigate` + `observe` produce snapshots; at the mint interchange, `facet-mint` writes new entries with full provenance.
+
+**(4)** With facets in hand, the agent composes the test. `test-compose` produces a Playwright test file that references facets by name — no inline selectors, no inline data. The facade regenerator updates per-screen facade modules from the catalog.
+
+**(5)** `test-execute` runs the test. Run records append to the run-record log. Step-level evidence, outcomes, facets-referenced — all captured, all structured, all append-only.
+
+**(6)** If the test fails in a memory-mismatch pattern, `drift-emit` fires. The drift log receives a classified event; the offending facet's confidence drops. If the test passes, `corroborate` fires; positive evidence appends to the referenced facets' evidence logs.
+
+**(7)** Metrics recompute. `metric-test-acceptance-rate`, `metric-authoring-time-p50`, `metric-memory-hit-rate` — each is a pure derivation over the relevant log. The evaluation outputs show what moved.
+
+**(8)** If the session's authoring carried a hypothesis ("moving the ladder order will improve match rate by 10%"), the evaluation produces a verification receipt: `{ hypothesis, predictedDelta, actualDelta, confirmed }`. The receipt appends to the receipt log. The agent, at the start of its next session, reads this log.
+
+**(9)** If the drift log or metrics indicate a pattern the agent can propose a response to, the agent emits a proposal. The proposal interchange routes it to operator review. Accepted proposals land — as code changes, memory revisions, or approved candidates. The next evaluation verifies.
+
+**(10)** The session closes. A closeout receipt captures what was touched, what was minted, what was proposed. The receipt log has one more entry. The agent has one more piece of its own history to learn from. The loop has turned once.
+
+Every step above travels a highway; every handoff between steps is an interchange. The map is the session. The session is the map in motion.
+
+### 10.5 What this map is for
+
+Three uses.
+
+**For orientation.** A new engineer or a new agent session can find itself on the map in seconds. Every primitive is visible; every flow is named; every interchange has a discipline attached. No hidden paths.
+
+**For impact analysis.** When a change is proposed — a new verb, a new metric, a shape adjustment to a facet — its blast radius is traceable on the map. Follow the highways from the change point; every interchange it touches is a place where discipline must hold. The architecture's cascade risks (§5) are visible as walks across the map.
+
+**For the agent's reasoning.** The agent at session start reads the manifest; it can also, metaphorically, read this map. The agent's own actions are traces through the highways; the agent's own receipts sit at the receipt interchange; the agent's own proposals route through the proposal interchange. When the agent asks "what should I do next?" it is asking where on the map it currently sits.
+
+The cathedral of §9 holds because every stone carries weight the others need. The highway map of §10 is the routing that makes the cathedral a place you can move through — not just admire, but *use*. Together they are the whole: the structural commitment and the navigational poster. v2 is both at once, which is why the plan is executable and the execution has somewhere to go.
+
