@@ -1665,7 +1665,141 @@ const applyApprovedProposal = (approval: ApprovedProposal) =>
 
 `Match.tag` with `Match.exhaustive` makes the three proposal kinds a compile-checkable total function. Adding a fourth kind of proposal later fails the build until this saga handles it — the GoF visitor pattern enforced at the type system.
 
-**Saga 7 — `evaluateTestbed`.** The measurement saga. Runs a full evaluation against a committed testbed version: fan out authoring across testbed work items, compute metrics in parallel, append evaluation summary. Composes `authorTest` against the testbed source; crosses all five highways via that composition.
+**Saga 7 — `recordProposalRejection`.** Counterpart to `applyApprovedProposal`. Fires when an operator review closes a proposal with `rejected`. The rejection is not just a state change — its rationale is preserved verbatim and conditions every subsequent synthesis that touches the same facet, so the same proposal does not resurface unchanged.
+
+```ts
+const recordProposalRejection = (rejection: ProposalRejection) =>
+  Effect.gen(function* () {
+    // ─── Truth highway: append rejection with rationale ──────────
+    // Rationale preserved verbatim per invariant 8 so future
+    // synthesis (proposeRefinements, proposeHypothesis) can
+    // condition on it without resurfacing the same proposal.
+    yield* ProposalLog.markRejected(rejection.proposalId, {
+      rejectedBy:  rejection.operatorId,
+      rationale:   rejection.rationale,
+      rejectedAt:  yield* Clock.now,
+    });
+
+    return rejection.proposalId;
+  }).pipe(
+    Effect.catchTag("ProposalNotFoundError",     () => failFast),
+    Effect.catchTag("ProposalAlreadyResolvedError", () => logAndSkip),
+    Effect.withSpan("recordProposalRejection")
+  );
+```
+
+The saga is short by design — the work is the rationale-preservation discipline, not the state transition. Without this saga, rejection rationales become folklore (the operator remembers, the agent doesn't); with it, every rejection is queryable evidence the next synthesis must consider.
+
+**Saga 8 — `applyHandoffDecision`.** Closes a pending intervention handoff. Fires when an operator (or the agent itself, via Reasoning) provides a chosen option for a handoff that previously surfaced from a saga that hit a deadlock (ambiguous drift, exhausted locator ladder, etc.). The choice does not resume a suspended fiber — the originating saga already exited. Instead, the choice is recorded as a hint the next authoring attempt at the same facet will see and apply, per the handoff's `reversalPolicy`.
+
+```ts
+const applyHandoffDecision = (decision: HandoffDecision) =>
+  Effect.gen(function* () {
+    // ─── Memory highway: load the handoff being resolved ─────
+    const handoff = yield* HandoffQueue.read(decision.handoffId);
+
+    // ─── Validate: the chosen option must be one the handoff offered ─
+    const valid = handoff.choices.some((c) => c.id === decision.chosenOptionId);
+    if (!valid) {
+      return yield* Effect.fail(new InvalidHandoffChoiceError({
+        handoffId:      decision.handoffId,
+        chosenOptionId: decision.chosenOptionId,
+      }));
+    }
+
+    // ─── Memory highway: append a resolution record ──────────
+    // The next authoring run that hits the same situation reads
+    // this and applies the choice without re-emitting the handoff.
+    yield* HandoffResolutionLog.append({
+      handoffId:       decision.handoffId,
+      chosenOptionId:  decision.chosenOptionId,
+      resolvedBy:      decision.resolverId,         // operator or agent
+      resolvedVia:     decision.resolutionMethod,   // "operator" | "reasoning"
+      rationale:       decision.rationale,
+      reversalPolicy:  handoff.reversalPolicy,
+      resolvedAt:      yield* Clock.now,
+    });
+
+    // ─── If the handoff is bound to a facet, enrich it with the choice ─
+    if (handoff.attachmentRegion?.facetId) {
+      yield* EvidenceLog.appendHandoffResolution({
+        facetId:    handoff.attachmentRegion.facetId,
+        handoffId:  decision.handoffId,
+        choice:     decision.chosenOptionId,
+      });
+    }
+
+    // ─── Memory highway: mark queue entry resolved ───────────
+    yield* HandoffQueue.markResolved(decision.handoffId);
+
+    return decision.handoffId;
+  }).pipe(
+    Effect.catchTag("HandoffNotFoundError",      () => failFast),
+    Effect.catchTag("InvalidHandoffChoiceError", () => surfaceErrorToOperator),
+    Effect.withSpan("applyHandoffDecision")
+  );
+```
+
+The two resolution paths (operator-via-CLI and agent-via-Reasoning) flow through the same saga; `decision.resolutionMethod` records which one this was. Per the handoff's `reversalPolicy`, the resolution may be revisited at the next evaluation if drift contradicts the choice — invariant 7 (reversible agentic writes) holds here too.
+
+**Saga 9 — `proposeHypothesis`.** The agent's self-driven proposal saga. Counterpart to `proposeRefinements`: where that produces *revision* proposals (change a facet), this produces *hypothesis* proposals (change code with a predicted metric delta). Fires when the agent reads the receipt log and decides the batting average suggests a code change is worth proposing.
+
+```ts
+const proposeHypothesis = (context: HypothesisContext) =>
+  Effect.gen(function* () {
+    // ─── Truth highway: read recent receipts + metric trajectory ─
+    const receiptHistory  = yield* ReceiptLog.recent({ count: 30 });
+    const metricSnapshot  = yield* MetricCompute.snapshot({
+      metrics: context.focusMetrics,
+      window:  context.window,
+    });
+
+    // ─── Memory highway: shape of memory for grounding ───────
+    const memorySnapshot = yield* MemoryHealthSnapshot.compute();
+
+    // ─── Truth highway: prior rejected hypotheses to condition on ─
+    const priorRejected = yield* ProposalLog.rejectedHypothesesIn(context.window);
+
+    // ─── Reasoning highway: synthesize a hypothesis ──────────
+    // LLM authors a code change + predicted metric delta, grounded
+    // in receipts and trajectory, conditioned on prior rejections.
+    const hypothesis = yield* Reasoning.proposeHypothesis({
+      receiptHistory,
+      metricSnapshot,
+      memorySnapshot,
+      priorRejected,
+      constraints: {
+        mustCiteReceipts:                true,
+        mustNamePredictedMetric:         true,
+        mustNamePredictedDirection:      true,
+        mustEstimatePredictedMagnitude:  true,
+        maxFilesInProposedChange:        5,
+      },
+    });
+
+    // ─── Truth highway: append to proposal log (kind: hypothesis) ─
+    const proposalId = yield* ProposalLog.append({
+      kind:              "hypothesis",
+      proposedChange:    hypothesis.proposedChange,
+      predictedDelta:    hypothesis.predictedDelta,
+      rationale:         hypothesis.rationale,
+      citedReceipts:     hypothesis.citedReceipts,
+      reasoningProvider: yield* Reasoning.providerId,
+      proposedAt:        yield* Clock.now,
+    });
+
+    return proposalId;
+  }).pipe(
+    Effect.catchTag("ReceiptLogEmptyError",   () => skipUntilReceiptsAccumulate),
+    Effect.catchTag("ReasoningShapeError",    () => surfaceShapeErrorToOperator),
+    Effect.catchTag("ReasoningProviderError", () => retryOrFailover),
+    Effect.withSpan("proposeHypothesis")
+  );
+```
+
+This is the agent closing the trust-but-verify loop on its own initiative. Without this saga, hypotheses are only ever human-authored — which limits how much of v2's evolution the agent can drive. With it, the agent reads the receipt log at session start and may emit a hypothesis proposal that the operator reviews like any other; if approved, it lands as a code change; the next evaluation verifies; the receipt appends; the agent reads again. The flywheel that §5 of the direction doc describes is what this saga turns.
+
+**Saga 10 — `evaluateTestbed`.** The measurement saga. Runs a full evaluation against a committed testbed version: fan out authoring across testbed work items, compute metrics in parallel, append evaluation summary. Composes `authorTest` against the testbed source; crosses all five highways via that composition.
 
 ```ts
 const evaluateTestbed = (version: TestbedVersion) =>
@@ -1708,7 +1842,7 @@ const evaluateTestbed = (version: TestbedVersion) =>
 
 Notice what the saga does *not* do: there is no special evaluation-runner code. The authoring path is the same. The testbed adapter provides work items indistinguishable from real ADO items; `authorTest` runs identically. The only distinction is the `source` field — polymorphism doing the work so measurement and production share a code path.
 
-**Saga 8 — `verifyHypothesis`.** Fires after a hypothesis-carrying code change lands. Runs the next evaluation at the hypothesis' declared testbed version; computes the delta against the prior summary; appends the verification receipt. The closing joint of the trust-but-verify loop.
+**Saga 11 — `verifyHypothesis`.** Fires after a hypothesis-carrying code change lands. Runs the next evaluation at the hypothesis' declared testbed version; computes the delta against the prior summary; appends the verification receipt. The closing joint of the trust-but-verify loop.
 
 ```ts
 const verifyHypothesis = (hypothesis: Hypothesis) =>
@@ -1746,7 +1880,9 @@ const verifyHypothesis = (hypothesis: Hypothesis) =>
 
 Contradiction does not roll back the code change. It appends a `confirmed: false` receipt. The next agent session reads the receipt log; if the batting average is slipping, the agent proposes a reversal through the proposal-gated pathway. Reversibility is a property of the log history, not of automated rollback.
 
-**Saga 9 — `maintenanceCycle`.** The L4 daemon. Scheduled on a cadence (e.g., once per hour). Runs confidence-aging, batch corroboration for recent passing runs, and a refinement proposal synthesis over the last window. Memory highway self-loop; entirely internal.
+**Saga 12 — `maintenanceCycle`.** The L4 daemon. Scheduled on a cadence (e.g., once per hour). Runs confidence-aging, batch corroboration for recent passing runs, and a refinement proposal synthesis over the last window. Memory highway self-loop; entirely internal.
+
+In practice the saga is split into a body (`maintenanceTick`, one iteration) and a daemon wrapper (`maintenanceDaemon = maintenanceTick.pipe(Effect.schedule(Schedule.fixed("1 hour")), Effect.forkDaemon)`). The CLI verb `v2 maintain --once` invokes the body; the implicit daemon in `main` uses the wrapper. One body, two invocation paths, identical logic.
 
 ```ts
 const maintenanceCycle = Effect.gen(function* () {
@@ -1775,7 +1911,27 @@ Three sub-operations composed in sequence; the whole forked as a daemon scoped t
 
 **Why the braiding doesn't break under change.** If a new source lands on the intent highway, `Layer.succeed(IntentFetch, newImpl)` is the only change; `authorTest`'s consumers are untouched. If a new metric verb joins the truth highway, it appears in the manifest and in `MetricCompute` without rewriting `authorTest`. If a new proposal kind joins `applyApprovedProposal`, the `Match.exhaustive` call site becomes a compile error until the new case is handled — the visitor pattern enforced by the type system. If a new error tag is introduced to any handshake, the inferred error channel of every saga that composes that handshake gains the tag as a residual until a `catchTag` routes it. Additions are additive; subtractions are deprecations with paths; changes are compile-checkable. The map holds because Effect's composition is both *compositional* (parts combine without knowing about each other) and *total* (every error has a typed path, every proposal kind has an exhaustive match, every saga has a scoped fiber).
 
-**The saga set is closed.** The nine sagas above — `onboardSession`, `authorTest` (the flagship), `growMemoryForStep`, `absorbOperatorInput`, `respondToDrift`, `proposeRefinements`, `applyApprovedProposal`, `evaluateTestbed`, `verifyHypothesis`, `maintenanceCycle` — are the whole of v2's runtime behavior. Every action v2 takes, at any phase of its life, composes these sagas or sub-sagas thereof. Adding a new capability means adding to the set with the same structural discipline; changing a capability means evolving a saga under the proposal-gated hypothesis loop. The closed set is the claim: v2 does nothing that does not fall into one of these braided paths.
+**The saga set is closed.** The thirteen sagas above — `authorTest` (the flagship), plus `onboardSession`, `growMemoryForStep`, `absorbOperatorInput`, `respondToDrift`, `proposeRefinements`, `recordProposalRejection`, `applyHandoffDecision`, `proposeHypothesis`, `applyApprovedProposal`, `evaluateTestbed`, `verifyHypothesis`, and `maintenanceCycle` (with its `maintenanceTick` body) — are the whole of v2's runtime behavior. Every action v2 takes, at any phase of its life, composes these sagas or sub-sagas thereof. Adding a new capability means adding to the set with the same structural discipline; changing a capability means evolving a saga under the proposal-gated hypothesis loop. The closed set is the claim: v2 does nothing that does not fall into one of these braided paths.
+
+The shape of the thirteen, by relationship to the highways:
+
+| # | Saga | Trigger | Primary highways |
+|---|---|---|---|
+| 0 | `authorTest` | per work item (CLI `v2 author`) | all six |
+| 1 | `onboardSession` | every session start | Verb (then implicit on every other) |
+| 2 | `growMemoryForStep` | sub-saga in `authorTest` on facet-miss | World → Memory |
+| 3 | `absorbOperatorInput` | operator action (CLI `v2 absorb`) | Reasoning → Memory |
+| 4 | `respondToDrift` | sub-saga in `authorTest` on memory-vs-world mismatch | Memory + Truth (+ Reasoning if ambiguous) |
+| 5 | `proposeRefinements` | scheduled (in `maintenanceCycle`) | Memory → Reasoning → Truth |
+| 6 | `applyApprovedProposal` | operator action (CLI `v2 approve`) | Memory or Truth, by kind |
+| 7 | `recordProposalRejection` | operator action (CLI `v2 reject`) | Truth |
+| 8 | `applyHandoffDecision` | operator or agent action (CLI `v2 decide`) | Memory + Truth |
+| 9 | `proposeHypothesis` | agent self-driven (CLI `v2 propose-hypothesis`) | Truth → Memory → Reasoning → Truth |
+| 10 | `evaluateTestbed` | manual or scheduled (CLI `v2 evaluate`) | all six (via `authorTest`) |
+| 11 | `verifyHypothesis` | after hypothesis-carrying change lands (CLI `v2 verify`) | Truth |
+| 12 | `maintenanceCycle` | `Schedule.fixed("1 hour")` daemon (CLI `v2 maintain`) | Memory |
+
+The two new operator-decision sagas (`recordProposalRejection`, `applyHandoffDecision`) close the half of the operator review loop that the original gallery left implicit; the new `proposeHypothesis` closes the agent's side of the trust-but-verify loop. With these in place the saga gallery is genuinely complete: every behavior the prior five v2 docs name is owned by exactly one saga (or one named sub-saga), and every saga is reachable from exactly one CLI verb dispatched through `main`.
 
 ### 10.6 The interchanges
 
@@ -1968,12 +2124,15 @@ import { Effect, NodeRuntime, Match } from "effect";
 
 // The runtime request — what the CLI parses into
 type RuntimeRequest =
-  | { kind: "author";    sourceRef: SourceRef;    hypothesis?: Hypothesis }
-  | { kind: "evaluate";  version: TestbedVersion }
-  | { kind: "verify";    hypothesis: Hypothesis }
-  | { kind: "absorb";    input: OperatorInput }
-  | { kind: "approve";   approval: ApprovedProposal }
-  | { kind: "maintain" };
+  | { kind: "author";             sourceRef: SourceRef;       hypothesis?: Hypothesis }
+  | { kind: "evaluate";           version: TestbedVersion }
+  | { kind: "verify";             hypothesis: Hypothesis }
+  | { kind: "absorb";             input: OperatorInput }
+  | { kind: "approve";            approval: ApprovedProposal }
+  | { kind: "reject";             rejection: ProposalRejection }
+  | { kind: "decide";             decision: HandoffDecision }
+  | { kind: "propose-hypothesis"; context: HypothesisContext }
+  | { kind: "maintain";           once?: boolean };
 
 // The single entry point — composes onboarding + dispatch + closeout
 const main = (request: RuntimeRequest) =>
@@ -1982,16 +2141,23 @@ const main = (request: RuntimeRequest) =>
     const session = yield* onboardSession(SessionId.generate());
 
     // ─── Fork maintenance cycle as a daemon for the session's life ─
-    const maintenanceFiber = yield* maintenanceCycle;
+    // Skipped when the invocation IS the maintenance command itself,
+    // to avoid double-scheduling.
+    if (request.kind !== "maintain") {
+      yield* maintenanceDaemon;
+    }
 
     // ─── Dispatch to the requested saga by kind ───────────────
     const result = yield* Match.value(request).pipe(
-      Match.tag("author",   ({ sourceRef, hypothesis }) => authorTest(sourceRef, hypothesis)),
-      Match.tag("evaluate", ({ version })               => evaluateTestbed(version)),
-      Match.tag("verify",   ({ hypothesis })            => verifyHypothesis(hypothesis)),
-      Match.tag("absorb",   ({ input })                 => absorbOperatorInput(input)),
-      Match.tag("approve",  ({ approval })              => applyApprovedProposal(approval)),
-      Match.tag("maintain", ()                          => Effect.succeed({ daemonAlive: true })),
+      Match.tag("author",             ({ sourceRef, hypothesis }) => authorTest(sourceRef, hypothesis)),
+      Match.tag("evaluate",           ({ version })               => evaluateTestbed(version)),
+      Match.tag("verify",             ({ hypothesis })            => verifyHypothesis(hypothesis)),
+      Match.tag("absorb",             ({ input })                 => absorbOperatorInput(input)),
+      Match.tag("approve",            ({ approval })              => applyApprovedProposal(approval)),
+      Match.tag("reject",             ({ rejection })             => recordProposalRejection(rejection)),
+      Match.tag("decide",             ({ decision })              => applyHandoffDecision(decision)),
+      Match.tag("propose-hypothesis", ({ context })               => proposeHypothesis(context)),
+      Match.tag("maintain",           ({ once })                  => once ? maintenanceTick : maintenanceDaemon),
       Match.exhaustive,
     );
 
@@ -2030,10 +2196,10 @@ One last property, subtle but load-bearing: `NodeRuntime.runMain` is the *only* 
 
 ### 11.3 Invocation modes — what the CLI accepts
 
-Six CLI verbs, each parsing into one `RuntimeRequest`, each dispatching to one saga (or, in the `maintain` case, sitting alive to host the daemon). The whole CLI is declared once in `lib-v2/cli/parse.ts`; the parser is a pure function over `process.argv`; every combination that passes the parser has a corresponding saga and cannot slip through.
+Nine CLI verbs, each parsing into one `RuntimeRequest`, each dispatching to one saga (or, in the `maintain` case, sitting alive to host the daemon). The whole CLI is declared once in `lib-v2/cli/parse.ts`; the parser is a pure function over `process.argv`; every combination that passes the parser has a corresponding saga and cannot slip through.
 
 ```ts
-// The CLI surface — six verbs, one parser, one RuntimeRequest output
+// The CLI surface — nine verbs, one parser, one RuntimeRequest output
 export const parseCli = (argv: string[]): RuntimeRequest =>
   Command.parse(argv, {
     author: Command.make({
@@ -2073,11 +2239,37 @@ export const parseCli = (argv: string[]): RuntimeRequest =>
       approval,
     })),
 
-    maintain: Command.make({}, () => ({ kind: "maintain" as const })),
+    reject: Command.make({
+      rejection: Options.fileJson("rejection", ProposalRejectionSchema),
+    }, ({ rejection }) => ({
+      kind: "reject" as const,
+      rejection,
+    })),
+
+    decide: Command.make({
+      decision: Options.fileJson("decision", HandoffDecisionSchema),
+    }, ({ decision }) => ({
+      kind: "decide" as const,
+      decision,
+    })),
+
+    proposeHypothesis: Command.make({
+      context: Options.fileJson("context", HypothesisContextSchema).pipe(Options.optional),
+    }, ({ context }) => ({
+      kind: "propose-hypothesis" as const,
+      context: Option.getOrElse(context, () => HypothesisContext.defaults),
+    })),
+
+    maintain: Command.make({
+      once: Options.boolean("once").pipe(Options.withDefault(false)),
+    }, ({ once }) => ({
+      kind: "maintain" as const,
+      once,
+    })),
   });
 ```
 
-Six verbs, mapped to real commands:
+Nine verbs, mapped to real commands:
 
 | CLI | What it does | Saga | Typical cadence |
 |---|---|---|---|
@@ -2087,7 +2279,11 @@ Six verbs, mapped to real commands:
 | `v2 verify --hypothesis=hyp-17.json` | Run evaluation at the hypothesis' version; append receipt | `verifyHypothesis` | after a hypothesis-carrying change lands in code |
 | `v2 absorb --input=dialog-0142.json` | Extract candidates from an operator dialog or document | `absorbOperatorInput` | when the operator provides input |
 | `v2 approve --approval=prop-89.json` | Apply an operator's approved proposal (revision / candidate / hypothesis) | `applyApprovedProposal` | after operator review closes a proposal |
-| `v2 maintain` | Run the maintenance daemon (age + corroborate + refine) | `maintenanceCycle` (forked daemon) | scheduled hourly via cron or systemd |
+| `v2 reject --rejection=prop-89.json` | Record an operator's rejection of a proposal with rationale | `recordProposalRejection` | after operator review closes a proposal as rejected |
+| `v2 decide --decision=hf-42.json` | Resolve a pending intervention handoff with a chosen option + rationale | `applyHandoffDecision` | when the operator (or the agent) clears a queued handoff |
+| `v2 propose-hypothesis [--context=ctx.json]` | Agent reads receipt log + recent metrics; proposes a code change with predicted delta | `proposeHypothesis` | agent-initiated, typically at session start when the agent decides the batting average warrants action |
+| `v2 maintain` | Run the maintenance daemon (age + corroborate + refine, scheduled) | `maintenanceDaemon` | scheduled hourly via cron or systemd |
+| `v2 maintain --once` | Run a single maintenance tick and exit | `maintenanceTick` | on demand (e.g., right after a large catalog change) |
 
 Two observations about this surface:
 
