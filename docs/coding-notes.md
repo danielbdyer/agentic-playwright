@@ -4,7 +4,7 @@
 
 These notes are opinionated. They exist because the master architecture is precise but dense, and an implementer mid-flight needs the throughline — not another index, but a lens that makes every subsequent design decision feel obvious.
 
-If something here contradicts `docs/master-architecture.md`, the master architecture wins.
+If something here contradicts the v2 direction set in `docs/v2-direction.md` + `docs/v2-substrate.md`, the v2 direction wins. For v1's historical architecture doctrine see `docs/v1-reference/master-architecture.md`.
 
 ---
 
@@ -612,7 +612,7 @@ When adding a new compilation phase or lowering step:
 
 Every cross-boundary artifact carries a standard envelope: `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, `payload`. Use `mapPayload(envelope, f)` for transforms. Never destructure and reassemble envelopes manually.
 
-**Declaring a new envelope type.** Extend `WorkflowMetadata<'stage'>` with the narrow stage literal for your concrete type. Do NOT inline the envelope header fields — they come from the base. This is Phase 0a's stage-phantom discipline; see `docs/envelope-axis-refactor-plan.md` and `docs/master-architecture.md` § "Envelope Axis Vocabulary" for the full story.
+**Declaring a new envelope type.** Extend `WorkflowMetadata<'stage'>` with the narrow stage literal for your concrete type. Do NOT inline the envelope header fields — they come from the base. This is Phase 0a's stage-phantom discipline; see `docs/v1-reference/envelope-axis-refactor-plan.md` and `docs/v1-reference/master-architecture.md` § "Envelope Axis Vocabulary" for the full story.
 
 ```typescript
 // ✅ Correct: extend WorkflowMetadata with a narrow stage literal.

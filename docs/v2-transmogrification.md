@@ -3826,18 +3826,111 @@ The substrate holds because every feature descends through the same five levels,
 
 Execute with discipline. The doctrine descends; the evidence ascends. v2 grows one well-descended feature at a time.
 
-## 13. Per-lane salvage audit — what ports, what changes, what's fresh
+## 13. Per-file salvage audit — destinations in the three-folder compartmentalization
 
-§12 named the lanes and the towns inside them. This section answers the question a future agent asks when they pick up a lane: *what can I port, what do I port with changes, and what do I write from scratch?* The goal is zero additional discovery: every v1 file with a salvage opportunity is named here, every shape adjustment is specified, and every fresh module is justified. A future agent can open this section, find their lane, and start working.
+> **2026-04-17 revision.** §§13.0 below is the authoritative audit under the three-folder framing. The legacy lane-track subsections (§§13.1–13.7) were written against the `lib-v2/` sibling plan and remain as historical detail for cross-reference until their specific content is fully reconciled; treat their paths (`lib-v2/<bounded-context>/...`) as placeholders that resolve to the new `product/` / `workshop/` / `dashboard/` layout named here.
 
-Each lane block follows the same shape:
+### 13.0 Per-folder destination summary
 
-- **Clean port** — specific v1 file copies into `lib-v2/` with only import rewiring. No logic change.
-- **Port with changes** — specific v1 file ports with a named shape adjustment. The change is spelled out so the author does not have to infer it.
-- **Write fresh** — no v1 analog. The reason names why there is no port (either v1 never had the concern, or v1's concern is being left behind per `v2-direction.md` §4).
-- **Cross-lane dependencies** — v1 or v2 files the lane's work relies on but that live in another lane's scope. Listed so the lane's author knows what must be stable before or alongside their own work.
+Every v1 file lands in exactly one of three folders. Most ports clean — the work is an import-path rewrite. A smaller set ports with named shape adjustments. A still-smaller set is fresh code that v1 never had. And a small group of files retire with the reference-canon slot, the dogfood tree, and the scenario partition.
 
-Paths in this section are illustrative — `lib-v2/<bounded-context>/...` placeholders may resolve to slightly different concrete layouts during Phase 0 scaffolding. The port classifications and shape adjustments are stable; the directory tree is the author's call during Step 0.
+#### 13.0.1 `product/domain/` — the envelope-axis substrate, brands, and shared types
+
+Clean port (no logic changes):
+- `lib/domain/governance/workflow-types.ts` → `product/domain/governance/workflow-types.ts` — `WorkflowMetadata<S>`, `WorkflowEnvelope<T, S>`, the governance phantom brands (`Approved<T>`, `ReviewRequired<T>`, `Blocked<T>`), `foldGovernance`, the Envelope ⊣ Receipt adjunction helpers, the closed `WorkflowStage` / `WorkflowLane` / `WorkflowScope` / `ResolutionMode` / `StepWinningSource` / etc. enums, and the `KnowledgePosture` + `foldKnowledgePosture` helper.
+- `lib/domain/kernel/hash.ts` → `product/domain/kernel/hash.ts` — `stableStringify`, `sha256`, `Fingerprint<Tag>` with the closed 30+ tag registry, `taggedFingerprintFor`, `asFingerprint`, `computeAdoContentHash`, `normalizeHtmlText`.
+- `lib/domain/handshake/epistemic-brand.ts` → `product/domain/handshake/epistemic-brand.ts` — `EpistemicallyTyped<T, S>`, `foldEpistemicStatus`, audited mint functions (`mintObserved`, `mintInterpreted`, `mintInformational`), the `ObservedSource` / `InterpretedSource` source-constrained unions, `epistemicStatusForSource` adapter.
+- `lib/domain/handshake/intervention.ts` → `product/domain/handshake/intervention.ts` — `InterventionHandoff` shape. The "required on every agentic decision" discipline lands as a separate shape-adjustment commit, not Step 0.
+
+Port with changes:
+- `lib/domain/pipeline/source.ts` → `product/domain/pipeline/source.ts` — Step 0 moves the file; Step 1 retires the `reference-canon` variant. After Step 1, `PhaseOutputSource` contracts to five variants, `foldPhaseOutputSource` loses the `referenceCanon:` arm, `PostureSourceBound<'warm-start'>` loses `'reference-canon'`, and `isReferenceCanon` / `isDemotable` simplify (`isDemotable` becomes identical to `isCanonicalArtifact`).
+
+#### 13.0.2 `product/instruments/` and `product/runtime/` — the L0 data-flow chain and runtime resolution
+
+Clean port:
+- `lib/infrastructure/ado/live-ado-source.ts` → `product/instruments/intent/ado-source.ts`.
+- `lib/playwright/aria.ts` → `product/instruments/observation/aria.ts`.
+
+Port with named shape adjustments (§3.2 of the direction doc):
+- `lib/playwright/locate.ts` → `product/instruments/observation/locator-ladder.ts` — ladder order flips from `test-id → role → css` to `role → label → placeholder → text → test-id → css`.
+- `lib/runtime/widgets/interact.ts` → `product/instruments/action/interact.ts` — add `not-visible` / `not-enabled` / `timeout` / `assertion-like` / `unclassified` error families to the action envelope.
+- `lib/runtime/adapters/navigation-strategy.ts` → `product/instruments/navigation/strategy.ts` — add `page.url()` idempotence check before `goto`.
+- `lib/domain/codegen/spec-codegen.ts` → `product/instruments/codegen/spec-codegen.ts` — switch the facade from runtime-instantiated to pre-generated per-screen modules.
+
+Monolith splits (§3.7):
+- `lib/runtime/resolution/resolution-stages.ts` (~875 LOC) → `product/runtime/resolution/` — split into `lattice/` (RankedLattice + candidate ranking), `stages/` (per-rung stage functions), `exhaustion/` (trail recording), and `accumulator/` (ResolutionAccumulator). The rung count contracts where the probe IR and Reasoning port consolidation allow it.
+- `lib/runtime/scenario.ts` (~882 LOC) → `product/runtime/scenario/` — split into `environment/` (RuntimeScenarioEnvironment), `route/` (route-variant ranking + pre-navigation), `execution/` (step interpretation + console sentinel), `recovery/` (recovery envelope + strategy iteration), and `accrual/` (semantic accrual — conditional on whether the dictionary layer stays).
+
+#### 13.0.3 `product/intelligence/` and `product/graph/` — the discovery-engine monoliths split
+
+- `lib/application/observation/interface-intelligence.ts` (~1600 LOC) → `product/intelligence/` — split into `index/` (CatalogScreenIndex + pre-indexing strategies), `target/` (TargetDescriptor), `selector-canon/` (SelectorProbe + SelectorCanon), `state-graph/` (state/event/transition graph builder). The O(1) pre-indexing lessons, state identity key composition, and confidence-record keying are the non-negotiable preserves.
+- `lib/domain/graph/derived-graph.ts` (~1515 LOC) → `product/graph/` — split into `phases/` (PhaseResult + per-phase builders), `conditional/` (ConditionalEdge composition), `scenario-binding/` (step-binding pre-indexing, `StepGraphContext`), `evidence-lineage/` (overlays + pattern nodes). The conditional-edge pattern is the reusable abstraction.
+
+#### 13.0.4 `product/reasoning/` — the ~320-LOC Reasoning port consolidation (§3.6)
+
+Port with changes:
+- `lib/application/resolution/translation/translation-provider.ts` — the Translation port surface collapses into `product/reasoning/` under the unified `Reasoning.Tag` with operations `select` / `interpret` / `synthesize`.
+- `lib/application/agency/agent-interpreter-provider.ts` — the AgentInterpreter port surface collapses into the same `Reasoning.Tag`. Vision support (screenshot + ARIA snapshot) stays structured in the request payload.
+- `lib/domain/resolution/types.ts` `TranslationReceipt` → `product/reasoning/receipt.ts` `ReasoningReceipt<Op>` — adds token counts, model identifier, latency, prompt fingerprint.
+
+Write fresh:
+- `product/reasoning/error-union.ts` — the unified `ReasoningError` with five families (`rate-limited`, `context-exceeded`, `malformed-response`, `unavailable`, `unclassified`) and `foldReasoningError`.
+- `product/reasoning/prompt-fingerprint.ts` — stable cache keys via `stableStringify` → `sha256` over prompt structure.
+
+#### 13.0.5 `product/catalog/` and `product/logs/` — facet catalog + append-only log set
+
+Port with changes:
+- `lib/application/canon/minting.ts` and `lib/application/canon/decompose-screen-elements.ts` / `decompose-screen-hints.ts` → `product/catalog/` — collapse the split-across-two-files pattern (elements.yaml + hints.yaml) into one `FacetRecord` per facet.
+- `lib/application/drift/selector-health.ts` → `product/catalog/locator-health.ts` — co-locate health on `FacetRecord.locatorStrategies` instead of a separate `SelectorHealthIndex`.
+
+Write fresh:
+- `product/catalog/facet-record.ts` — the unified record with id / kind / displayName / aliases / role / scope / locatorStrategies+health / confidence / provenance / evidence-log reference.
+- `product/logs/evidence/` and `product/logs/drift/` — append-only JSONL per facet (evidence) and append-only stream (drift events).
+
+#### 13.0.6 `workshop/` — measurement infrastructure (§3.5)
+
+Clean port (with import-path rewrites only):
+- `lib/application/improvement/speedrun.ts` → `workshop/orchestration/speedrun.ts` — the `corpus` / `iterate` / `fitness` / `score` / `baseline` four-verb orchestration.
+- `lib/application/improvement/convergence-proof.ts` + `lib/domain/convergence/types.ts` → `workshop/convergence/` — the N-trial hylomorphic harness.
+- `.tesseract/policy/trust-policy.yaml` + `lib/application/governance/trust-policy.ts` → `workshop/policy/` — the YAML gate plus `evaluateTrustPolicy()`.
+- `.tesseract/benchmarks/scorecard.json` history + the scorecard types + visitors → `workshop/scorecard/` — the loss curve with history + Pareto frontier.
+
+Port with changes (per the metric-visitor audit in `v2-substrate.md §8a`):
+- `lib/domain/fitness/metric/visitors/` → `workshop/metrics/visitors/`:
+  - `extraction-ratio.ts`, `handshake-density.ts`, `rung-distribution.ts` — clean port.
+  - `intervention-cost.ts` — 1–2 line recalibration (fallback becomes primary when the proof obligation is absent).
+  - `compounding-economics.ts` — 15–30 line reshape; decouple from the `compounding-economics` proof obligation and from the `.canonical-artifacts/` tax model.
+  - `memory-worthiness-ratio.ts` (M5) — 30+ line reshape; re-index the trajectory by **probe-surface cohort** instead of scenario ID.
+  - `intervention-marginal-value.ts` (C6) — 30+ line reshape; becomes `metric-hypothesis-confirmation-rate` computed over the receipt log (the v1 stub retires; the graduation-gate metric lands).
+
+Write fresh:
+- `workshop/probe-derivation/` — walks `product/manifest/manifest.json` + per-verb fixture specifications, produces `Probe[]`.
+- `workshop/metrics/receipts/` — the hypothesis-receipt log reader (feeds `metric-hypothesis-confirmation-rate`).
+
+#### 13.0.7 `dashboard/` — the MCP surface and view layer
+
+Port with changes:
+- `lib/infrastructure/mcp/dashboard-mcp-server.ts` (~1815 LOC) → `dashboard/mcp/` — split into `handlers/` (the ToolHandler registry, one file per tool), `context/` (decision-context enrichment), `actions/` (suggested-action scoring). **The tool implementations rewire to read through manifest-declared verbs** instead of importing `product/` domain types directly — that's the seam enforcement applied to the dashboard's read side.
+- `lib/infrastructure/dashboard/file-decision-bridge.ts` writer → `product/instruments/handshake/decision-bridge.ts`; watcher → `dashboard/bridges/decision-watcher.ts`. The atomic temp-rename protocol is a shared file-system contract between the writer and watcher; neither imports the other.
+
+#### 13.0.8 What retires (no destination)
+
+- `dogfood/knowledge/**`, `dogfood/benchmarks/**`, pre-gate `dogfood/controls/**` — reference-canon content, deleted at Step 1.
+- `dogfood/scenarios/` — the 10000/20000 scenario partition; probes replace it.
+- `lib/application/canon/reference-canon-*` loaders (any remaining ones after Step 1's retirement).
+- `scripts/decompose-canon.ts` if still present (already deleted per CLAUDE.md's 2026-04-10 reframe).
+- `.tesseract/*` runtime scratch directory shape — collapses into named append-only logs under `product/logs/` and `workshop/logs/`.
+
+#### 13.0.9 Bottom-line counts (indicative)
+
+Based on the per-folder summary above, the rough compartmentalization shape is:
+
+- `product/` takes the bulk of `lib/`: envelope-axis substrate (~1100 LOC), L0 data-flow chain (~6 files), intelligence + graph monoliths (~3100 LOC across the two), runtime resolution + scenario (~1700 LOC across the two), Reasoning port consolidation (~320 LOC retrofit).
+- `workshop/` takes the improvement infrastructure: speedrun orchestration, seven metric visitors, scorecard machinery, convergence proof, trust policy, improvement ledger.
+- `dashboard/` takes the MCP server (split) and the decision-bridge watcher.
+- What retires is narrower than earlier drafts implied: no v1 file is archived wholesale because it was "v1 doctrine"; what retires is content (reference-canon, scenario corpus) and the transitional-slot type variant.
+
+The legacy lane-track audit below (§§13.1–13.7) provides per-lane detail compatible with this summary. Where the two disagree, §13.0 is authoritative.
 
 ### 13.1 A-track — structural setup
 

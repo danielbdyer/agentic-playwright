@@ -35,7 +35,7 @@ The Summary at the end gives verdict counts and a verdict-indexed directory back
 
 **v2:** Three-stage cost shape (α/β/γ); early authoring is expensive; deterministic wins emerge as memory accrues; Stage β arrives through pattern emergence from Stage α receipts.
 
-**v1:** M5 (Memory Worthiness Ratio) operationalizes the same ROI claim (`lib/domain/fitness/memory-maturity.ts`, `memory-maturity-trajectory.ts`). Floors locked in `docs/alignment-targets.md` §1 (1.0 → 1.2 → 1.5 across quarters). Status: `proxy`, not `direct` — requires ≥3 cohort-comparable history points before slope can be computed honestly.
+**v1:** M5 (Memory Worthiness Ratio) operationalizes the same ROI claim (`lib/domain/fitness/memory-maturity.ts`, `memory-maturity-trajectory.ts`). Floors locked in `docs/v1-reference/alignment-targets.md` §1 (1.0 → 1.2 → 1.5 across quarters). Status: `proxy`, not `direct` — requires ≥3 cohort-comparable history points before slope can be computed honestly.
 
 **Delta:**
 - v2's α/β/γ is narrative; v1's M5 is quantified but incomplete (proxy status).
@@ -248,7 +248,7 @@ The `acquired` block (`CanonicalKnowledgeMetadata` in `lib/domain/knowledge/type
 
 **v2:** In-memory index queried by parsed intent phrase (kind / role / screen / roleVisibility); matches ranked by confidence, health as tiebreaker; parsed-constraint representation logged for debugging.
 
-**v1:** Resolution runs through the six-slot lookup chain (`lib/domain/pipeline/lookup-chain.ts`; doctrine in `docs/canon-and-derivation.md` §6): `operator-override` → `agentic-override` → `deterministic-observation` → `reference-canon` → `live-derivation` → `cold-derivation`. Address-based, not intent-phrase-based; no intra-result ranking within a single slot.
+**v1:** Resolution runs through the six-slot lookup chain (`lib/domain/pipeline/lookup-chain.ts`; doctrine in `docs/v1-reference/canon-and-derivation.md` §6): `operator-override` → `agentic-override` → `deterministic-observation` → `reference-canon` → `live-derivation` → `cold-derivation`. Address-based, not intent-phrase-based; no intra-result ranking within a single slot.
 
 **Delta:**
 - v1 has no intent-phrase query layer; chain precedence *is* the ranking.
@@ -391,7 +391,7 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 **Verdict:** v1-only *(migration scaffolding)*.
 
-**Module references:** `lib/domain/pipeline/lookup-chain.ts` (interface + mode predicates); `docs/canon-and-derivation.md` §6 (doctrine); `LookupMode = 'warm' | 'cold' | 'compare' | 'no-overrides'`.
+**Module references:** `lib/domain/pipeline/lookup-chain.ts` (interface + mode predicates); `docs/v1-reference/canon-and-derivation.md` §6 (doctrine); `LookupMode = 'warm' | 'cold' | 'compare' | 'no-overrides'`.
 
 **What it does:** Six-slot precedence resolver — for a request "give me phase output X" — that walks slots 1→6 and returns the resolved artifact along with which slot satisfied the request: (1) operator-override, (2) agentic-override, (3) deterministic-observation, (4) reference-canon (transitional), (5) live-derivation, (6) cold-derivation. Slots 1–3 are canonical ground truth; slot 4 is pre-gate fallback; slots 5–6 are promotion candidates. Mode flags skip different slot ranges to test discovery-engine fidelity or measure migration debt.
 
@@ -403,7 +403,7 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 **Verdict:** v1-only *(migration scaffolding)*.
 
-**Module references:** `docs/canon-and-derivation.md` §3.2a (reference-canon definition + exit paths), §6.4 (why slot 4 outranks derived output), §11 (classification of current `dogfood/` content), §14.0–14.2 (graduation condition). `PhaseOutputSource` enum (`lib/domain/pipeline/source.ts:45–66`) distinguishes `'reference-canon'` so fitness reports can exclude pre-gate entries from denominators.
+**Module references:** `docs/v1-reference/canon-and-derivation.md` §3.2a (reference-canon definition + exit paths), §6.4 (why slot 4 outranks derived output), §11 (classification of current `dogfood/` content), §14.0–14.2 (graduation condition). `PhaseOutputSource` enum (`lib/domain/pipeline/source.ts:45–66`) distinguishes `'reference-canon'` so fitness reports can exclude pre-gate entries from denominators.
 
 **What it does:** Reference canon is committed YAML at canon-shaped paths authored before the promotion-gate and intervention-receipt infrastructure existed — hand-typed or agent-typed without a real provenance chain. During the migration window, reference canon is consulted at slot 4 as fallback when canonical artifacts are sparse. The demotion clock tracks three exits: (a) agentic override lands at the same address and outranks it, (b) deterministic observation is promoted at the same address and outranks it, or (c) the entry is deleted. When slot 4 is empty over a full cohort, the transitional layer is retired.
 
@@ -415,7 +415,7 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 **Verdict:** v1-only *(operational scaffolding)*.
 
-**Module references:** `lib/application/cli/shared.ts:62, 378` (`--posture` flag); `docs/canon-and-derivation.md` §6.5; `LookupMode` union in `lib/domain/pipeline/lookup-chain.ts:64`.
+**Module references:** `lib/application/cli/shared.ts:62, 378` (`--posture` flag); `docs/v1-reference/canon-and-derivation.md` §6.5; `LookupMode` union in `lib/domain/pipeline/lookup-chain.ts:64`.
 
 **What it does:** Five CLI flags control which slots of the lookup chain are consulted: `--mode warm` (default; walk all), `--mode cold` (skip slots 3–5; respect overrides but run discovery), `--mode compare` (walk to slot 3, *also* run discovery, report diff), `--no-reference-canon` (orthogonal skip of slot 4), `--no-overrides` (skip slots 1–2). `--posture` (cold-start / warm-start / production) maps to execution context. Combining flags stresses edge cases: `--mode cold --no-overrides --no-reference-canon` is the strongest cold-start test (zero safety nets).
 
@@ -431,11 +431,11 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 **Module references:** `lib/domain/governance/workflow-types.ts:194–213` (`WorkflowMetadata<S>`, `WorkflowEnvelope<T, S>`); `lib/domain/kernel/hash.ts:128–227` (`Fingerprint<Tag>`); `lib/domain/pipeline/source.ts:44–169` (`PhaseOutputSource`, `foldPhaseOutputSource`, `SOURCE_PRECEDENCE`); `lib/domain/handshake/epistemic-brand.ts:24–91` (`EpistemicallyTyped<T, S>`, `foldEpistemicStatus`).
 
-**What it does:** Lifts the envelope axis vocabulary from runtime strings to compile-time phantom types. Every artifact in transit is pinned to a point in (`Stage` × `Source` × `Fingerprint-tag` × `Governance`) with compiler-enforced invariants. `WorkflowMetadata<S>` parameterizes artifacts by `WorkflowStage` literal (`'preparation' | 'resolution' | 'execution' | 'evidence' | 'proposal' | 'projection'`); `Fingerprint<Tag>` brands content-addressed IDs with closed-registry phantom tags (30+ tags); `PhaseOutputSource` carries the six-slot lookup-chain precedence with exhaustive `foldPhaseOutputSource`. Phase 0a–0d complete per `docs/envelope-axis-refactor-plan.md`; phases B–E deferred.
+**What it does:** Lifts the envelope axis vocabulary from runtime strings to compile-time phantom types. Every artifact in transit is pinned to a point in (`Stage` × `Source` × `Fingerprint-tag` × `Governance`) with compiler-enforced invariants. `WorkflowMetadata<S>` parameterizes artifacts by `WorkflowStage` literal (`'preparation' | 'resolution' | 'execution' | 'evidence' | 'proposal' | 'projection'`); `Fingerprint<Tag>` brands content-addressed IDs with closed-registry phantom tags (30+ tags); `PhaseOutputSource` carries the six-slot lookup-chain precedence with exhaustive `foldPhaseOutputSource`. Phase 0a–0d complete per `docs/v1-reference/envelope-axis-refactor-plan.md`; phases B–E deferred.
 
 **What it serves in v1:** Eliminates runtime string confusion at seams (wrong-slot assignments, silent type drift, untagged fingerprint transpositions). Phantom types impose zero runtime cost while making envelope leakage impossible at the type level. Architecture-law test (`tests/architecture/governance-verdict.laws.spec.ts` Law 8) enforces zero ad-hoc governance comparisons.
 
-**v2 analog:** **Essentially present — this *is* v2's envelope-axis vocabulary in code.** `docs/envelope-axis-refactor-plan.md` explicitly reverse-engineered from v2's framing. v2's "Envelope Axis Vocabulary" and the closed-registry discipline are architectural laws in both. Phases B–E remain in-flight on the v1→v2 convergence path.
+**v2 analog:** **Essentially present — this *is* v2's envelope-axis vocabulary in code.** `docs/v1-reference/envelope-axis-refactor-plan.md` explicitly reverse-engineered from v2's framing. v2's "Envelope Axis Vocabulary" and the closed-registry discipline are architectural laws in both. Phases B–E remain in-flight on the v1→v2 convergence path.
 
 #### Concrete envelope type hierarchy with stage narrowing
 
@@ -539,7 +539,7 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 **Verdict:** v1-only *(innovation)*.
 
-**Module references:** `lib/domain/handshake/intervention.ts:L69–76` (`InterventionBlastRadius = 'local' | 'review-bound' | 'global' | 'irreversible'`; `InterventionAuthority`); `:L195–219` (`InterventionHandoff.attachmentRegion`); `docs/cold-start-convergence-plan.md §4.C` (C6 measurement).
+**Module references:** `lib/domain/handshake/intervention.ts:L69–76` (`InterventionBlastRadius = 'local' | 'review-bound' | 'global' | 'irreversible'`; `InterventionAuthority`); `:L195–219` (`InterventionHandoff.attachmentRegion`); `docs/v1-reference/cold-start-convergence-plan.md §4.C` (C6 measurement).
 
 **What it does:** Two orthogonal governance axes on every handoff. `InterventionBlastRadius` classifies scope of effect (local element, scoped runbook, global across scenarios, irreversible). `InterventionAuthority` enum (`approve-canonical-change`, `request-rerun`, `promote-shared-pattern`, `change-pipeline`, `defer-work-item`) declares the governance tier required. `attachmentRegion` field on the handoff scopes which screens/elements the intervention claims to affect, enabling C6 (Intervention-Adjusted Economics) before/after snapshot comparison.
 
@@ -553,7 +553,7 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 **Verdict:** v1-only *(operational scaffolding)*.
 
-**Module references:** `docs/temporal-epistemic-kernel.md §2–§4`; `lib/domain/fitness/types.ts:97` (`LogicalTheoremGroup` enum), `:100–111` (`LogicalProofObligation` with `propertyRefs: readonly LogicalTheoremGroup[]`).
+**Module references:** `docs/v1-reference/temporal-epistemic-kernel.md §2–§4`; `lib/domain/fitness/types.ts:97` (`LogicalTheoremGroup` enum), `:100–111` (`LogicalProofObligation` with `propertyRefs: readonly LogicalTheoremGroup[]`).
 
 **What it does:** Ten formal theorem families anchor the temporal-epistemic kernel — K (posture separability, canonical continuity, bounded successors, drift locality, marginal discovery decay, suspension legibility, synthetic augmentation governability); L (target observability, outcome legibility, unresolvedness legibility, neighborhood sufficiency); S (affordance recoverability, constraint family persistence); V (role/data/phase/policy factorability); D (transition learnability, constraint manifestation, route coherence, suspension localization); R (semantic drift recoverability, drift classification, deferred repairability); A (handoff sufficiency, synthetic governability, continuation integrity, cross-actor substitutability, deterministic leverage, deferred enhancement, augmentation alignment, intervention boundary); C (compounding economics, extraction ratio, handshake density); M (memory worthiness, intervention marginal value); H (meta-properties, outcome metrics). 19 named `LogicalProofObligation` entries map back to families via `propertyRefs`.
 
@@ -565,7 +565,7 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 **Verdict:** v1-only *(innovation)* — operational definitions locked where v2 keeps them asymptotic.
 
-**Module references:** `docs/alignment-targets.md` (operational definitions locked 2026-04-10); `lib/domain/fitness/memory-maturity.ts` + `memory-worthiness-ratio.ts` (M5: `RememberingBenefit(τ) / MemoryMaintenanceCost(τ)`, wall-clock + agentic-override maintenance in denominator); `lib/domain/fitness/intervention-marginal-value.ts` (C6 numerator); `lib/domain/attention/pipeline-config.ts:27–33` (MemoryCapacityConfig in maintenance-cost denominator).
+**Module references:** `docs/v1-reference/alignment-targets.md` (operational definitions locked 2026-04-10); `lib/domain/fitness/memory-maturity.ts` + `memory-worthiness-ratio.ts` (M5: `RememberingBenefit(τ) / MemoryMaintenanceCost(τ)`, wall-clock + agentic-override maintenance in denominator); `lib/domain/fitness/intervention-marginal-value.ts` (C6 numerator); `lib/domain/attention/pipeline-config.ts:27–33` (MemoryCapacityConfig in maintenance-cost denominator).
 
 **What it does:** Two scoreboard metrics. M5 measures whether remembering is worth more than forgetting (slope of effective-hit-rate over memory-maturity, divided by per-iteration maintenance cost). C6 measures whether agentic overrides actually reduce ambiguity / suspension / rung-score within one loop iteration (>50% acceptance-correlated improvement target). Both are trajectory-based, not point-in-time. M5 floors locked per quarter: 1.0 → 1.2 → 1.5. Cohort-comparable = same scenario IDs.
 
@@ -603,7 +603,7 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 **Verdict:** v1-only *(operational scaffolding)*.
 
-**Module references:** `docs/recursive-self-improvement.md §2–§5` (parameter space, sensitivity analysis), `§6` (manual runbook), `§9` (autonomous evolution path); `lib/domain/attention/pipeline-config.ts` (`PipelineConfig` interface with 15 tunable parameters).
+**Module references:** `docs/v1-reference/recursive-self-improvement.md §2–§5` (parameter space, sensitivity analysis), `§6` (manual runbook), `§9` (autonomous evolution path); `lib/domain/attention/pipeline-config.ts` (`PipelineConfig` interface with 15 tunable parameters).
 
 **What it does:** Fifteen code constants across eight groups serve as the deterministic gradient of the self-improvement loop: BottleneckWeights (translation-threshold, repair-density, translation-rate, unresolved-rate, inverse-fragment-share), RankingWeights (scenario-impact, bottleneck-reduction, trust-policy, evidence), MemoryCapacityConfig (max-active-refs, staleness-ttl, max-recent-assertions, screen-confidence-floor, max-lineage-entries), DomScoringWeights (visibility, role-name, locator-quality, widget-compatibility), CandidateLimits (max-candidates, max-probes), ConfidenceScaling (compiler-derived, agent-verified, agent-proposed), IntentThresholds (element, screen), ProposalConfidenceValues (precedence-base, translation, dom, dom-shortlist), and `convergenceThreshold`. Each knob maps deterministically to one of the eight fitness failure classes.
 
@@ -665,7 +665,7 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 **Verdict:** Shape-different — v2 has its own synthetic testbed under `testbed/v<N>/` (§9.21), designed from first principles rather than porting the 10000/20000 scenarios. The specific scenarios do not migrate; the concept of a committed synthetic corpus does.
 
-**Module references:** `docs/scenario-partition.md`; `dogfood/scenarios/demo/` (10000-series legacy, test-pinned); `dogfood/scenarios/reference/` (20000-series generated reference cohorts via `lib/application/synthesis/cohort-generator.ts`).
+**Module references:** `docs/v1-reference/scenario-partition.md`; `dogfood/scenarios/demo/` (10000-series legacy, test-pinned); `dogfood/scenarios/reference/` (20000-series generated reference cohorts via `lib/application/synthesis/cohort-generator.ts`).
 
 **What it does:** Partitions the scenario workload into two disjoint populations: hand-curated golden fixtures (10000-series) used by unit tests, and deterministically-generated reference cohorts (20000-series, 12 cohorts × 20 scenarios) that serve as the immutable measurement workload for the improvement loop. The partition prevents feedback loops where adding a cohort breaks unrelated unit tests.
 
@@ -689,7 +689,7 @@ Grouped thematically. Overlapping findings across the five agents are merged; wh
 
 **Verdict:** v1-only *(operational scaffolding)*.
 
-**Module references:** `lib/application/paths/factory.ts` (`EnginePaths` defining all subdirectories); CLAUDE.md § "Ephemeral Artifact Confusion?"; `docs/recursive-self-improvement.md` § "Ephemeral Artifact Management". Subdirectories: `.tesseract/bound/`, `benchmarks/`, `evidence/`, `graph/`, `inbox/`, `interface/`, `learning/`, `policy/`, `runs/`, `sessions/`, `tasks/`, `workbench/`.
+**Module references:** `lib/application/paths/factory.ts` (`EnginePaths` defining all subdirectories); CLAUDE.md § "Ephemeral Artifact Confusion?"; `docs/v1-reference/recursive-self-improvement.md` § "Ephemeral Artifact Management". Subdirectories: `.tesseract/bound/`, `benchmarks/`, `evidence/`, `graph/`, `inbox/`, `interface/`, `learning/`, `policy/`, `runs/`, `sessions/`, `tasks/`, `workbench/`.
 
 **What it does:** Runtime engine directory holding all transient artifacts produced during speedrun execution. Twelve subdirectories partition by concern: compiled task packets (bound), run records + fitness reports (benchmarks), step-level evidence (evidence), resolution graph (graph), operator-review queue (inbox), knowledge proposal state (learning), trust policy + approval receipts (policy), per-run logs (runs), agent session transcripts (sessions), resolution task packets (tasks), file-backed decision queue (workbench). Bulk-gitignored; only governance anchors (`trust-policy.yaml`, `scorecard.json`) persist.
 
@@ -799,6 +799,6 @@ The L0 data-flow chain (§9.1–§9.7) is essentially present in v1 with envelop
 
 The v1-only blocks split three ways by intent. **Migration scaffolding** (2 blocks) retires once reference canon is empty. **Operational scaffolding** (10 blocks) is dogfood workflow — CLI, `.tesseract/` staging, 15-knob tuning, speedrun verbs — orthogonal to v2's product surface. **Innovation** (6 blocks) names finer-grained distinctions (epistemic branding vs governance, scope-of-effect vs reversibility, confidence lattice vs narrative M5/C6, operational alignment floors, file-backed decision transport) that v2 could inherit under shipping pressure.
 
-Three consequential patterns. First: v1's envelope-axis substrate (V1.2) is v2's own specification materialized in code — four of the nine Aligned verdicts sit in this cluster. `docs/envelope-axis-refactor-plan.md` Phase 0 is complete; Phases B–E are the v1→v2 convergence path. Second: once v2's measurement stance landed (`v2-direction.md §5`, `v2-substrate.md §7`, `feature-ontology-v2.md §7.10 and §9.21–§9.23`), four v1 blocks that had been tagged v1-only shifted to Shape-different — the measurement apparatus (scorecard, convergence-proof harness, improvement run + ledger, scenario corpus partition) now has a structurally similar v2 analog via the testbed + metric-verbs + hypothesis-receipts pattern, even though the v1 specifics do not port. The measurement concerns are first-class in both, expressed differently. Third: once the Reasoning port landed as a substrate-level instrument (§2.4, §7.9, §9.24, v2-direction §4A and Step 0), v1's distributed LLM plumbing — `TranslationProvider`, `AgentInterpreterProvider`, rung-8, DSPy harnesses — consolidated into a single Partial-in-v1 block. The callsites work; what's missing is the unified port, the unified receipt, and the composition-level provider choice.
+Three consequential patterns. First: v1's envelope-axis substrate (V1.2) is v2's own specification materialized in code — four of the nine Aligned verdicts sit in this cluster. `docs/v1-reference/envelope-axis-refactor-plan.md` Phase 0 is complete; Phases B–E are the v1→v2 convergence path. Second: once v2's measurement stance landed (`v2-direction.md §5`, `v2-substrate.md §7`, `feature-ontology-v2.md §7.10 and §9.21–§9.23`), four v1 blocks that had been tagged v1-only shifted to Shape-different — the measurement apparatus (scorecard, convergence-proof harness, improvement run + ledger, scenario corpus partition) now has a structurally similar v2 analog via the testbed + metric-verbs + hypothesis-receipts pattern, even though the v1 specifics do not port. The measurement concerns are first-class in both, expressed differently. Third: once the Reasoning port landed as a substrate-level instrument (§2.4, §7.9, §9.24, v2-direction §4A and Step 0), v1's distributed LLM plumbing — `TranslationProvider`, `AgentInterpreterProvider`, rung-8, DSPy harnesses — consolidated into a single Partial-in-v1 block. The callsites work; what's missing is the unified port, the unified receipt, and the composition-level provider choice.
 
 Elsewhere, v1 is further from v2 where v2's claims are most structural (unified facet record, per-facet evidence log, drift as emitted event, unified Reasoning port), and closest to v2 where v2's claims are procedural (intent fetch, test compose, parametric expansion, and — after the stance landed — measurement composed from existing primitives).

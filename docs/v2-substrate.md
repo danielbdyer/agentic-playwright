@@ -180,5 +180,22 @@ These decisions are out of scope for this document and are expected to resolve a
 - **Manifest format.** The concrete shape of the agent fluency manifest and how it stays in sync with the code. Resolved at Step 2 when the first agent has to read it to do its job.
 - **Drift semantics.** How confidence is computed, what thresholds gate the L3 policy, and how refinement logic works. Resolved at Steps 9–10 (L3 + L4).
 - **Operator interaction model.** The chat, dialog, and document channels; how operator input is attributed, reviewable, and revocable; where consent lives. Resolved incrementally at Step 8 (L2).
-- **Metric visitor audit outcomes.** Which of the seven inherited visitors (`extraction-ratio`, `handshake-density`, `rung-distribution`, `intervention-cost`, `compounding-economics`, `memory-worthiness-ratio`, `intervention-marginal-value`) port forward unchanged, which need denominator recalibration against the probe IR, and which retire. Resolved after the metric-visitor audit lands as an appendix to this doc (see `v2-direction.md §3.5`).
 - **Probe IR verdicts for additional verbs.** The spike protocol (§6a) covers three representative verbs. The per-verb fixture specifications for the remaining declared verbs get authored as those verbs ship; the IR's authority extends verb by verb as fixtures land.
+
+## 8a) Metric visitor audit — port verdicts per visitor
+
+The seven inherited visitors (`extraction-ratio`, `handshake-density`, `rung-distribution`, `intervention-cost`, `compounding-economics`, `memory-worthiness-ratio` / M5, `intervention-marginal-value` / C6) each carry forward into `workshop/metrics/` under one of three dispositions. None retire as concepts; the dispositions differ in how much implementation reshape is required.
+
+| Visitor | Disposition | Reshape scope | Notes |
+|---|---|---|---|
+| `extraction-ratio` | port unchanged | 0 LOC | Hit-rate frontier is substrate-generic. Computes over any run record regardless of source. |
+| `handshake-density` | port unchanged | 0 LOC | Suspension / agent-fallback / live-DOM-fallback rates are intrinsic to any authoring flow. |
+| `rung-distribution` | port unchanged | 0 LOC | Rung precedence is a resolver-level concept that survives the monolith split of `resolution-stages.ts`. |
+| `intervention-cost` | minor recalibration | 1–2 LOC | Fallback formula (suspension + agent-fallback) is stable. The primary signal (`operator-intervention-density` proof obligation) may not exist post-compartmentalization; mark the fallback as primary when the obligation is absent. |
+| `compounding-economics` | significant reshape | 15–30 LOC | Concept survives (does memory earn its keep). Implementation decouples from the `compounding-economics` proof obligation and the `.canonical-artifacts/` tax model; refactors around the probe-coverage cohort key introduced below. |
+| `memory-worthiness-ratio` (**M5**) | significant reshape | 30+ LOC + trajectory redesign | Concept is load-bearing for workshop graduation. Implementation retires its scenario-ID cohort key and re-indexes trajectories by **probe-surface cohort** (probes exercising the same verb × facet-kind × error-family triple). The slope formula `slope(effectiveHitRate over MemoryMaturity) / maintenanceOverhead` stays intact; what changes is what "cohort-comparable" means. |
+| `intervention-marginal-value` (**C6**) | significant reshape | 30+ LOC | Concept is the **workshop graduation gate**. The v1 stub pending `InterventionTokenImpact` ledger work retires; the successor is **`metric-hypothesis-confirmation-rate`** — the fraction of hypothesis receipts where `confirmed === true` across a rolling window. This is C6 in probe-IR language and lands as a manifest-declared metric verb at `v2-direction.md §6` Step 10. |
+
+**Summary verdict:** three visitors port unchanged; one ports with a one-line comment; three port with significant reshape. **No visitor retires as a concept.** M5 and C6 require the most work, but both answer questions the workshop graduation gate cannot retire: "is memory compounding?" and "does accepting a hypothesis pay off?"
+
+**Audit background:** the per-visitor rationale and the per-file code references (visitor implementations plus supporting types under `lib/domain/fitness/`) are summarized from a full-read audit performed 2026-04-17. The audit identified M5's cohort dependency on the v1 10000/20000 scenario partition and C6's dependency on the improvement-ledger stub as the two load-bearing reshape surfaces. The scenario partition retires with the dogfood tree (`v2-direction.md §4B`); the ledger stub retires with the workshop's shift to hypothesis receipts as the durable proposal-outcome record.
