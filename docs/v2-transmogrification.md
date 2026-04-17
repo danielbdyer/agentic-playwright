@@ -1,114 +1,94 @@
 # v2 Transmogrification
 
-> Status: the plan to turn v1 into v2. First-in-class execution document; the other four v2 docs (`v2-direction.md`, `v2-substrate.md`, `feature-ontology-v2.md`, `v2-delta-audit.md`) describe the destination, the principles, the features, and the delta. This one is the actual route.
+> Status: the execution plan for reshaping v1 into v2 via in-place compartmentalization. Reads alongside `v2-direction.md` (primary direction), `v2-substrate.md` (primitives and invariants), `feature-ontology-v2.md` (handshakes and technical paths), and `v2-delta-audit.md` (per-handshake v1→v2 verdicts). This document is the route; the others name the destination.
+
+> **2026-04-17 revision note.** Earlier drafts of this document framed v2 as a `lib-v2/` sibling rebuild with an atomic cut-over commit. That framing is retired. v2 is now an in-place reshape of v1's `lib/` into three top-level folders (`product/`, `workshop/`, `dashboard/`) with a manifest-mediated seam between them. The per-lane salvage audit (§13) and the later sections (§§9–12) are in transition; they still reference `lib-v2/` and should be read as historically-sourced detail rather than current doctrine until this revision completes. The core §§1–2 below are the current plan; §3 construction order lives in `v2-direction.md §6` as the canonical sequence.
 
 ## 1. The shape
 
-v1 does not evolve into v2. v2 is constructed alongside v1 as its own codebase — in a new directory, on a construction branch — and draws v1 in as a library of aligned assets (the envelope-axis substrate, the L0 data-flow chain, the governance brands, the intervention-handoff shape, the file-backed decision bridge). The rest of v1 stays where it is, keeps running for whoever still needs it, and is retired by measurable decision when v2 sustains its shipping claim.
+v1 reshapes into v2 in place. The key move is compartmentalization — one atomic tree reshape that divides today's `lib/` into three top-level folders, each with a single responsibility and a manifest-mediated seam to its siblings:
 
-There are ten construction steps, one shipping inflection, one measurement inflection, and one cut-over event. The steps are from `v2-direction.md §6`; the two inflections and the cut-over are what make this plan a plan rather than a checklist.
+- **`product/`** — the packageable core. Agent-facing shipping surface. What the customer sees.
+- **`workshop/`** — the measurement consumer. Consumes `product/`'s manifest to derive probes and runs them through `product/`'s normal authoring flow.
+- **`dashboard/`** — the read-only observer. Projects both upstreams through manifest-declared verbs.
+
+There are ten construction steps (named in `v2-direction.md §6`), one shipping inflection (first customer acceptance at Step 6), and one graduation condition (workshop probe coverage saturates at 100% and the batting average sustains above its floor). There is **no cut-over commit**. There is **no `lib-v2/` sibling**. v1 does not freeze while v2 is built — the workshop is already running, the trust policy is already enforcing, the seven-visitor metric tree is already producing a scorecard history. What changes is the seam between shipping surface and measurement surface.
 
 **The shape in one paragraph:**
 
-Start with a clean `lib-v2/` directory on branch `claude/v2-construction-TKkRI`. Port the envelope-axis phantom substrate (Phase 0 complete in v1) as the first act; v2 inherits it whole and takes over elaboration of Phases B–E from there. Build the vocabulary manifest and fluency harness (the surface v1 never had) before writing any verbs. Commit the unified facet schema before writing the memory layer that uses it. Port the L0 data-flow chain — six instruments, parallelizable — with specific shape adjustments audited in `v2-delta-audit.md`. Ship L0 against the real customer backlog. Only then stand up the measurement substrate: a tiny committed testbed, a polymorphic `intent-fetch` adapter, two manifest-declared metric verbs, and a `kind: hypothesis` discriminator on the existing proposal log. From that point, every subsequent step — L1 memory, L2 operator semantics, L3 drift, L4 self-refinement — commits its testbed-version increment and names the hypothesis the step is betting on. The cut-over moment is a sustained metric floor, not a calendar date.
+Step 0 is the compartmentalization commit — an atomic tree reshape that moves every v1 file into `product/`, `workshop/`, or `dashboard/` per the destinations in `v2-direction.md §3` and the per-file table in §13 (pending revision). Step 1 retires the reference-canon transitional slot via a type-level surgical edit on `source.ts` plus the demotion sweep. Steps 2–4 land the vocabulary manifest + fluency harness, the unified facet schema, and the L0 data-flow chain with the named shape adjustments and the five monolith splits. Step 5 is the probe IR spike (substrate §6a) — three representative verbs, fixture specifications, a go/no-go verdict on whether manifest-derived probes can stand as workshop's testbed. Step 6 is the first customer shipping inflection; the workshop is watching via probes already. Steps 7–10 expand L1 through L4 under the trust-but-verify loop the workshop is already running.
 
 **The discipline in one paragraph:**
 
-Trust, but verify. Small bets with a good batting average. No line of v2 code is justified without pointing at either a customer-facing capability or a measurement that verifies v2 is improving. No irreversible decision lands without the proposal-gated reversibility the rest of v2 uses. Every hypothesis receipt is append-only; contradictions never overwrite. The envelope-axis substrate enforces what the invariants demand at compile time. Fluency regression fails the build at the same severity as a broken product test. The plan is executable because its primitives are few, its sequencing is explicit, and its checkpoints are measurable.
+Trust, but verify. Small bets with a good batting average. No line of v2 code is justified without pointing at either a customer-facing capability in `product/` or a measurement in `workshop/` that verifies `product/` is improving. No irreversible decision lands without the proposal-gated reversibility the trust policy already enforces. Every hypothesis receipt is append-only; contradictions never overwrite. The envelope-axis substrate in `product/domain/` enforces what the invariants demand at compile time. Fluency regression fails the build at the same severity as a broken product test. The seam between folders is a compile error, not a convention. The plan is executable because its primitives are few, its sequencing is explicit, its checkpoints are measurable, and its folder seams are enforced.
 
 **The payoff in one paragraph:**
 
-When the cut-over fires, v2 is a small agent-facing surface — vocabulary manifest, facet catalog, QA-accepted tests — shipping against a real customer's OutSystems backlog. The measurement substrate runs alongside, producing hypothesis receipts the agent reads to propose the next change. v1's operational scaffolding (speedrun verbs, theorem groups, 15-knob parameter space, `.tesseract/` runtime directory, dogfood/production split) is archived. v1's aligned modules are owned by v2. The codebase is the size of the problem, not the size of the history. Subsequent evolution is by hypothesis receipt and measurement delta, not by doctrine drift.
+When Step 10 lands, `product/` is a small agent-facing surface — vocabulary manifest, facet catalog, QA-accepted tests — shipping against a real customer's OutSystems backlog. `workshop/` continues running alongside, producing hypothesis receipts and scorecard deltas the agent reads to propose the next change. `dashboard/` reads from both without writing back. v1's operational scaffolding that was coupling across the concern boundary retires. The codebase an agent opens in a fresh session is 10× cheaper to orient in because the three folders name one concern each, and feature velocity inside each folder rises because no lane has to negotiate three constituencies. Subsequent evolution is by hypothesis receipt and measurement delta, not by doctrine drift.
 
 The rest of this document is the route.
 
 ## 2. Choreography: how v1 becomes v2 mechanically
 
-Six decisions frame how the transmogrification executes. Each is named, decided, and justified once. These are not technical-path choices (those live in §3); they are the *mechanics* of the transition.
+Four decisions frame how the transmogrification executes. Each is named once; each answers a question a new contributor or agent will ask in their first session.
 
-### 2.1 Repo and package boundary
+### 2.1 The three-folder structure and the seam discipline
 
-**Decision:** v2 lives in a new top-level directory — `lib-v2/` — inside the existing repository, with an internal structure mirroring v1's (`domain/`, `infrastructure/`, `application/`, `composition/`, `generated/`). v1's `lib/` stays untouched until cut-over.
+**Decision:** `lib/` reshapes into three top-level folders — `product/`, `workshop/`, `dashboard/` — inside the existing repository. Each has a single responsibility per `v2-direction.md §1`. The seam between folders is enforced as a compile error via an architecture test that forbids `workshop/` or `dashboard/` from importing `product/` (except through manifest-declared public verbs and the append-only log set).
 
-**Why this over a separate repository:** the v1→v2 imports during the construction period are numerous and tight (the envelope-axis substrate, governance brands, intervention-handoff shape, file-backed decision bridge). Managing those across repository boundaries adds operational friction — submodules, npm-published intermediates, cross-repo CI — that outweighs the clean-slate appeal. A sibling directory is boring in the right way.
+**Why not a `lib-v2/` sibling rebuild:** earlier drafts defended a sibling approach on the grounds that v1's envelope-axis substrate might drift if shared during construction. Deeper inspection of v1's substrate files (`workflow-types.ts`, `hash.ts`, `source.ts`, `epistemic-brand.ts`, total 1133 LOC) showed they are Phase-0a/b/c/d complete and load-bearing, and that the workshop infrastructure (seven-visitor metric tree, scorecard with history, trust policy, convergence-proof harness) is running production today. Building a sibling meant either (a) duplicating a meticulous substrate and a running workshop, or (b) importing them across the seam and accepting drift anyway. The compartmentalization move does neither — it makes the seam explicit and the substrate stays where it is, with its existing doctrine preserved.
 
-**Why this over carving `lib/` in place:** carving risks envelope-axis skew. If v1 and v2 share phantom types and v1 keeps evolving them in response to its own pressure, v2 inherits drift silently. Keeping v1's `lib/` frozen and v2's `lib-v2/` evolving independently is cheap to do and cheap to reason about.
+**Why not separate repositories:** the three folders will continue to share the envelope-axis phantom types, the fingerprint tag registry, and the governance brands. Cross-repo coordination of those shared types adds friction without buying meaningful isolation. A folder split in one repo with a compile-enforced seam is the minimum mechanism that delivers the agent-discovery payoff.
 
-**Why this over a long-lived branch with main-rename at cut-over:** a directory lives inside the same working tree alongside v1. Developers and the agent can see both at once, move code between them deliberately, and diff across the boundary. A long-lived branch loses that immediacy.
+**Build harness:** `package.json` scripts gain per-folder targets (`build:product`, `build:workshop`, `build:dashboard`) alongside the aggregate `build`. `tsconfig.json` references all three folders through project references. CI runs each folder's tests. The architecture test that enforces the import seam runs in `product/`'s test suite (since any violation originates in a file under `workshop/` or `dashboard/` trying to reach into `product/`).
 
-**Build harness:** `package.json` gains a `build:v2` script alongside `build:v1`. A `tsconfig-v2.json` references `lib-v2/**`. CI runs both. When cut-over fires, `lib-v2/` becomes `lib/` and the v1 variants are removed as one commit.
+### 2.2 In-place evolution: v1 does not stop running
 
-### 2.2 Freeze discipline — when v1 stops moving
+**Decision:** v1 does not freeze. The workshop infrastructure continues running throughout the construction order — running speedrun verbs, appending to the scorecard history, enforcing the trust policy, producing convergence verdicts. What happens during Steps 0–10 is a targeted reshape of the existing tree, not a parallel-build cutover.
 
-**Decision:** v1 enters *stabilization mode* the moment Step 4 (ship L0 against customer backlog) completes. Stabilization means: bug fixes only, and only for defects that block v2's adoption path or customer production incidents. No new features, no schema changes, no tuning of the 15-knob parameter space, no additions to the theorem-coverage matrix, no evolution of the envelope-axis Phases B–E inside `lib/`.
+**Why this is possible:** the workshop runs against v1's existing `lib/` today. Step 0 moves files but preserves behavior; the workshop keeps reading its run-record log, its scorecard history keeps accumulating, the trust policy keeps gating. The probe IR (introduced at Step 5) changes the workshop's *input* from handwritten dogfood scenarios to manifest-derived probes, but does not change its *machinery*.
 
-**Before Step 4:** v1 continues to operate normally. Agent contributions during Steps 0–3 land in `lib-v2/` but v1 customers continue to get the v1 they're already using.
+**What does retire:** the reference-canon transitional slot (Step 1 — the type-level source union contracts from six to five variants), the dogfood content tree, the `dogfood/`-vs-root `createProjectPaths` split, and the scenario-corpus 10000/20000 partition. These retire on their own commit with named mechanics; see `v2-direction.md §4B` for the full list.
 
-**Between Step 4 and cut-over:** v1 is a stable reference. The four aligned module classes v2 ports from v1 are *owned by v2* inside `lib-v2/` (see §2.3); v1's originals do not change. If a customer production issue forces a v1 fix, it lands in `lib/` as a v1-only change and is mirrored forward into `lib-v2/` only if it affects a ported module.
+**What does not retire:** the seven-visitor metric tree, the scorecard history, the trust policy YAML, the convergence-proof harness, the speedrun four-verb orchestration, the file-backed decision bridge. These port forward in place — most with no logic changes; some (the metric tree) subject to per-visitor audit.
 
-**After cut-over:** v1 is archived (§6). No further changes to `lib/`; the directory is deleted in the same commit that renames `lib-v2/` to `lib/`.
+**Team capacity:** no "one engineer holds the v1 lane" constraint. The team works in one tree. What distributes work is the folder split: a contributor or agent can pick up a lane inside one folder without negotiating the other two. Parallelism is structural (one folder at a time per contributor), not temporal (no freeze/thaw choreography).
 
-**Team capacity:** one engineer holds the v1 maintenance lane. The rest of the team works in `lib-v2/`. The agent's contributions go to `lib-v2/` except for the narrow freeze-compatible bug fixes to `lib/`. Parallelism is *temporal* (v1 runs, v2 builds), not *concurrent* (no one works in both at once).
+### 2.3 File movement mechanics — one atomic reshape at Step 0
 
-### 2.3 Asset extraction mechanics
+**Decision:** every file in `lib/` moves to its destination folder in a single atomic commit (Step 0 per `v2-direction.md §6`). The per-file destinations come from the salvage audit at §13 of this document (pending revision to a three-folder destination table).
 
-Four classes of v1 asset flow into v2. Each has a specific extraction mechanism.
+**Mechanism:**
 
-**Class A — Envelope-axis substrate.** `lib/domain/governance/workflow-types.ts`, `lib/domain/kernel/hash.ts`, `lib/domain/pipeline/source.ts`, `lib/domain/handshake/epistemic-brand.ts`.
+- **Group A — envelope-axis substrate and governance brands.** `workflow-types.ts`, `hash.ts`, `source.ts`, `epistemic-brand.ts` → `product/domain/`. Architecture law 8 → `product/tests/architecture/`. No logic changes. Phases B–E of the envelope-axis refactor continue landing in place as needed after Step 0.
+- **Group B — L0 data-flow chain.** ADO adapter, Playwright adapters, navigation strategy, codegen, runtime widgets → `product/instruments/` and `product/runtime/` per §3.2 of the direction doc. Shape adjustments (ladder reorder, idempotence check, four-family error classification, pre-generated facade) land at Step 4, not Step 0 — Step 0 is structural only.
+- **Group C — workshop infrastructure.** Speedrun orchestration, seven-visitor metric tree, scorecard code and YAML, convergence-proof harness, trust-policy gate, improvement ledger → `workshop/`. Subdirectories by concern: `workshop/orchestration/`, `workshop/metrics/`, `workshop/scorecard/`, `workshop/convergence/`, `workshop/policy/`, `workshop/ledger/`. No code logic changes at Step 0.
+- **Group D — dashboard + MCP.** Dashboard MCP server, HTTP bridge, file-backed decision bridge watcher → `dashboard/`. The writer side of the decision bridge migrates to `product/instruments/handshake/`.
+- **Group E — InterventionHandoff shape.** `lib/domain/handshake/intervention.ts` → `product/domain/handshake/`. The adaptation that makes the handoff required on every agentic decision lands separately (likely Step 4 or earlier, as the shape adjustments are small).
+- **Group F — reference-canon content.** Deleted at Step 1 (not moved). Mechanism in `v2-direction.md §4B`.
 
-*Mechanism: port-and-own.* Copy these four files into `lib-v2/domain/` at Step 0. Do not import them from v1. Freeze v1's copies; v2's copies evolve independently via Phases B–E. These are foundational phantom types; divergence would silently break compile-time invariants across the codebase. Ownership means v2 controls the elaboration surface.
+**The seam-enforcement test** lands as part of Step 0's test suite additions: an architecture law forbidding `workshop/` or `dashboard/` from importing `product/` except through manifest-declared verbs and the shared log set.
 
-**Class B — L0 data-flow chain.** ADO adapter, Playwright adapters (ARIA, locate, interact), navigation strategy, codegen spec emitter, scenario-context facade.
+### 2.4 Team continuity and the agent's role
 
-*Mechanism: import initially from v1 path, port-into-`lib-v2/`-on-earn.* In Step 1 the agent needs these verbs callable; the cheapest way is to `import` them from `../lib/...` relative paths. As Step 3 needs shape adjustments (ladder reorder, idempotence check on Navigate, four-family error classification on Interact, pre-generated-module facade shape on Test Compose), each module is ported into `lib-v2/` with the adjustment and the import redirect is updated. By end of Step 3, all Class-B modules live in `lib-v2/`.
+**Decision:** construction work lands on the current feature branch (`claude/review-v2-architecture-fEH5v` at the time of this revision); Step 0's atomic reshape merges to `main` as one commit once reviewed. After Step 0, subsequent steps land as individual PRs that each respect the folder seam.
 
-**Class C — Governance brands and architecture law 8.** `Approved<T>`, `ReviewRequired<T>`, `Blocked<T>`, `foldGovernance`, plus the test-suite law that forbids ad-hoc governance string comparisons.
+**Where the agent works:** the agent works across all three folders but in one folder per session. A session opens `product/README.md`, `workshop/README.md`, or `dashboard/README.md` and orients from there. From Step 5 onward, every substantive change the agent proposes in any folder carries a hypothesis: "this change will move `metric-X` by direction D, magnitude M." The hypothesis lands in the proposal log (`kind: hypothesis`), gets operator review, and produces a verification receipt on the next workshop run.
 
-*Mechanism: port-and-own.* Copy into `lib-v2/domain/governance/` at Step 0 alongside Class A. Port the architecture law as part of `lib-v2/`'s test suite. v2's structured-fallthrough invariant (§8.5 invariant 10 of the ontology) depends on this pattern holding; inheriting the law keeps the enforcement current.
+**Review discipline:** every PR declares its folder (`product/`, `workshop/`, or `dashboard/`) and respects the seam. Review checks four things: (a) does the change match its hypothesis design; (b) does the receipt corroborate the predicted delta; (c) does the change respect the ten invariants from `v2-substrate.md §4`; (d) does the change stay within its declared folder. If any of the four fails, the PR does not merge.
 
-**Class D — InterventionHandoff shape and file-backed decision bridge.** `lib/domain/handshake/intervention.ts` (the handoff fields), `lib/infrastructure/dashboard/file-decision-bridge.ts` (the atomic temp-rename transport).
+**Agent self-proposal:** the workshop is running from Step 0 forward, so the agent can read the receipt log and scorecard history and propose follow-up hypotheses at any time. The Step 5 inflection earlier drafts named (where agent autonomy shifts from directed to partially self-proposing) retires — self-proposal discipline is on from the start, with proposal-gated reversibility as the safety net.
 
-*Mechanism: port-with-adaptation.* Copy both into `lib-v2/` at Step 1 (the manifest needs the handoff shape to declare verb error families). Adapt the handoff to make it *required* on every agent-side decision, not optional as it was in v1. Preserve the atomic-rename protocol in the decision bridge — it is the race-safe transport v2's agent-in-the-loop depends on.
+### 2.5 Graduation, not cut-over
 
-**Class E — Convergence-proof harness.** `lib/application/improvement/convergence-proof.ts`, `lib/domain/convergence/types.ts`.
+**Decision:** there is no cut-over commit. v2 graduates rather than cuts over. Graduation has two components:
 
-*Mechanism: leave in v1, reimplement in v2.* Do not port. At Step 8 (L3) and Step 9 (L4), v2 reimplements the statistical shape as metric-verb derivations over the receipt log — `metric-convergence-delta-p50` and similar, declared through the manifest, reading from `testbed:v<N>` increments rather than stateful trials. v1's harness is tightly coupled to v1's `ImprovementRun` and `ImprovementLedger`, neither of which v2 inherits. Reimplementation in v2's primitives yields a smaller, more composable surface.
+- **`product/` graduation.** `product/` is customer-facing today in the sense that its shipping surface (manifest + facet catalog + tests) is what the agent emits when authoring. The graduation gate is the shipping-claim gate: customer QA accepts tests `product/` authored, `metric-test-acceptance-rate` sustains above floor, `metric-authoring-time-p50` sustains below ceiling. At that point `product/` is shippable as a standalone package, and the workshop is not required to ship with it.
+- **`workshop/` graduation.** `workshop/` graduates when probe coverage reaches 100% against the manifest and the batting average (`metric-hypothesis-confirmation-rate`) sustains above floor. At that point the workshop's active role is done — it degrades to a passive alarm running the same probes on schedule. If `product/` changes, new probes appear automatically; the workshop re-engages until coverage returns to 100%.
 
-### 2.4 Parallel-operation window
+**Why this is better than a cut-over:** graduation is a natural consequence of the probe IR. Cut-overs are risk events that compress many decisions into one commit and defer operational learning until after the event. Graduations are continuous — the workshop gets quieter as it runs out of things to measure against a steady-state surface, and the team learns its floor-sustaining discipline while the workshop is still active.
 
-**Decision:** v1 and v2 coexist as working codebases through Steps 1–9 of the construction order. The window opens the moment Step 0 commits to `lib-v2/` and closes at the cut-over moment (§6). During that window v1 runs in stabilization mode (§2.2) and v2 is under construction.
-
-**Regression policy:** v2 does not need to reach v1's feature surface before the window closes. v2 is smaller by design (§4 of the direction doc). The gate is the *shipping claim* (customer QA accepts tests v2 authored), not feature parity. If v2 does not do something v1 did and no customer needs it, that is not a regression — it is the `v1 → v2 delta` working as designed.
-
-If v2 does not do something v1 did *and a customer needs it*, the decision tree is: (a) can the need be served by a v1 maintenance release? — if yes, v1 ships a bug fix; (b) if no, the need is a v2 backlog item the team prioritizes before cut-over.
-
-The window does not close on time. It closes on evidence (§6).
-
-### 2.5 Team continuity and the agent's role
-
-**Decision:** all v2 construction work lands on branch `claude/v2-construction-TKkRI`. Merges to `main` happen only at cut-over. Until then, `main` tracks v1 stabilization; the construction branch tracks v2.
-
-**Where the agent works:** the agent reads from `lib/` for reference and writes to `lib-v2/` for construction. From Step 3 onward, every substantive code change the agent proposes carries a hypothesis: "this change will move `metric-X` by direction D, magnitude M." The hypothesis lands in the proposal log (same one revisions use, with `kind: hypothesis`). Operator review gates it. The next evaluation run produces a verification receipt: confirmed or contradicted. The receipt log is append-only; the batting average is itself a declared metric.
-
-**Review discipline:** every pull request to `claude/v2-construction-TKkRI` includes two links — to the hypothesis that motivated the change and to the receipt (once the next evaluation runs). Review checks three things: (a) does the code match the hypothesis design; (b) does the receipt corroborate the predicted delta; (c) does the change respect the ten invariants from `v2-substrate.md §4`. If any of the three fails, the PR does not merge.
-
-**When does the agent self-propose?** Once the measurement substrate is live (Step 5), the agent can read the receipt log, identify where metrics have plateaued or regressed, and propose follow-up hypotheses. Before Step 5, agent contributions are team-directed. The shift in the agent's autonomy happens at the §5 inflection.
-
-### 2.6 Cut-over moment
-
-**Decision:** cut-over is a *metric milestone*, not a calendar date. Three metric floors must be sustained for a full two-week window of customer-backlog work without intervention resets:
-
-- `metric-test-acceptance-rate ≥ 0.85` on the current testbed version (expected: `testbed:v3`, mid-fidelity with role diversity and state transitions) *and* on a 5-item sample of real customer work items reviewed by QA.
-- `metric-authoring-time-p50 ≤ 45 min` at L0 stage (memory-free baseline; this is the Stage α cost ceiling v2 commits to ship at).
-- `metric-hypothesis-confirmation-rate ≥ 0.70` across the last 30 hypothesis receipts — the agent and team are predicting what helps, not guessing.
-
-Once the floors are sustained, the team executes the cut-over in one atomic change (§6 details the mechanics).
-
-**Why metric, not shipping:** a shipping milestone ("QA accepts N tests") makes N arbitrary and defers to review capacity rather than product quality. A metric milestone makes the decision a consequence of the evidence v2 has already committed to producing.
-
-**Why metric, not coverage:** v2 is intentionally smaller than v1. Feature-parity is the wrong question. Acceptance-rate and batting-average are the right ones.
-
-**Why metric, not calendar:** a calendar creates pressure to cut over before the metrics are sustainable. Calendar is an input to planning, not to gating.
+**Why no metric-floor cut-over commit:** the cut-over metrics earlier drafts named (acceptance rate ≥ 0.85, authoring time ≤ 45 min, confirmation rate ≥ 0.70) stay as product and workshop graduation floors. What changes is that they do not trigger a single atomic event; they gate whether `product/` can be packaged and distributed without `workshop/`, and whether `workshop/` degrades to passive mode. Each is a continuous decision reviewed per release.
 
 ## 3. Phase-by-phase plan
 
