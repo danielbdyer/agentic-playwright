@@ -21,6 +21,10 @@ import {
   latestHitRate,
   type MemoryMaturityPoint,
 } from '../../workshop/metrics/memory-maturity-trajectory';
+import {
+  probeSurfaceCohortKey,
+  parseProbeSurfaceCohort,
+} from '../../workshop/metrics/probe-surface-cohort';
 
 function makePoint(overrides: Partial<MemoryMaturityPoint> & { effectiveHitRate: number }): MemoryMaturityPoint {
   const counts: MemoryMaturityCounts = {
@@ -151,5 +155,47 @@ describe('Memory maturity trajectory laws', () => {
     ]);
     expect(latestMaturity(t)).toBe(computeMemoryMaturity({ approvedElements: 20, promotedPatterns: 0, approvedRouteVariants: 0 }));
     expect(latestHitRate(t)).toBe(0.7);
+  });
+
+  // ─── Law 12: Probe-surface cohort identity ──────────────────
+
+  test('Law 12: points sharing a probe-surface triple are comparable; differing triples are not', () => {
+    // Two points over the same (verb, facet-kind, error-family) surface
+    // should share a cohort key — M5 groups them as one trajectory.
+    const observeElementKey = probeSurfaceCohortKey({
+      verb: 'observe',
+      facetKind: 'element',
+      errorFamily: null,
+    });
+    const observeStateKey = probeSurfaceCohortKey({
+      verb: 'observe',
+      facetKind: 'state',
+      errorFamily: null,
+    });
+    const testComposeElementKey = probeSurfaceCohortKey({
+      verb: 'test-compose',
+      facetKind: 'element',
+      errorFamily: null,
+    });
+
+    // Same surface → comparable.
+    const a = makePoint({ cohortId: observeElementKey, effectiveHitRate: 0.4 });
+    const b = makePoint({ cohortId: observeElementKey, effectiveHitRate: 0.6 });
+    expect(isComparableAt(a, b)).toBe(true);
+
+    // Different facet kinds → not comparable.
+    const c = makePoint({ cohortId: observeStateKey, effectiveHitRate: 0.5 });
+    expect(isComparableAt(a, c)).toBe(false);
+
+    // Different verbs → not comparable.
+    const d = makePoint({ cohortId: testComposeElementKey, effectiveHitRate: 0.5 });
+    expect(isComparableAt(a, d)).toBe(false);
+
+    // The serialization round-trips through the parser.
+    expect(parseProbeSurfaceCohort(observeElementKey)).toEqual({
+      verb: 'observe',
+      facetKind: 'element',
+      errorFamily: null,
+    });
   });
 });

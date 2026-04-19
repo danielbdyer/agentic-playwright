@@ -506,6 +506,15 @@ export interface ScorecardHighWaterMark {
   readonly memoryMaturityEntries?: number | undefined;
 }
 
+/** Which cohort-key era this history entry was recorded under. Step 1
+ *  re-keyed M5 from `'scenario-id'` (the v1 cohort key) to
+ *  `'probe-surface'` (the triple `(verb, facet-kind, error-family)`).
+ *  Trajectory points from different eras are not losslessly
+ *  comparable; the scorecard reset at the Step 1 commit is the epoch
+ *  boundary and `cohortKeyEra` marks which side of it a given entry
+ *  lives on. See `docs/v2-readiness.md §10`. */
+export type CohortKeyEra = 'scenario-id' | 'probe-surface';
+
 export interface ScorecardHistoryEntry {
   readonly runAt: string;
   readonly pipelineVersion: string;
@@ -518,6 +527,10 @@ export interface ScorecardHistoryEntry {
   /** Operational `MemoryMaturity(τ)` at the time of this entry. */
   readonly memoryMaturity?: number | undefined;
   readonly memoryMaturityEntries?: number | undefined;
+  /** Which cohort-key era this entry was recorded under. Absent on
+   *  legacy pre-Step-1 entries; explicit on entries written after
+   *  the probe-surface re-key. */
+  readonly cohortKeyEra?: CohortKeyEra | undefined;
 }
 
 // ─── Pareto Frontier ───
@@ -595,6 +608,11 @@ export interface PipelineScorecard {
   readonly highWaterMark: ScorecardHighWaterMark;
   readonly history: readonly ScorecardHistoryEntry[];
   readonly paretoFrontier?: readonly ParetoFrontierEntry[];
+  /** Cohort-key era this scorecard's entries were written under. The
+   *  field is written on every scorecard produced after the Step 1
+   *  re-key; on legacy scorecards it is absent and should be read as
+   *  `'scenario-id'`. See `docs/v2-readiness.md §10`. */
+  readonly cohortKeyEra?: CohortKeyEra | undefined;
 }
 
 // ─── Generalization Metrics (held-out validation) ───
