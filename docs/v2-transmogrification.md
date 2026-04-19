@@ -92,14 +92,26 @@ Four decisions frame how the transmogrification executes. Each is named once; ea
 
 ## 3. Step-by-step execution plan
 
-Eleven steps (0 through 10), keyed to the construction order in `v2-direction.md §6`. This section adds the *execution mechanics* per step — parallel work streams, hard dependencies, hypotheses carried, definition of done — that v2-direction omits in favor of "what ships." Where the two diverge, `v2-direction.md §6` is authoritative on what ships and the order; this section is authoritative on how each step lands operationally.
+Thirteen steps grouped into three phases. Each phase has a coherent risk profile and a cleaner status-report answer than "we're on Step N of 13"; each step inside a phase retains its operational detail (parallel work streams, hard dependencies, hypotheses carried, definition of done). Where this doc and `v2-direction.md §6` diverge, the direction doc is authoritative on *what ships*; this section is authoritative on *how each step lands operationally*.
 
-Before Step 0 begins, the following preparatory work can happen at zero cost without touching the critical path:
+**The three phases:**
+
+- **Phase 1 — The Reshape (Steps 0, 1, 1.5, 2, 3; ~4 weeks).** Bounded restructure. Compartmentalization, reference-canon retirement with transitional probe set, customer-reality probe, manifest + fluency harness, facet schema. Single coordinated effort; everything else blocks on this.
+- **Phase 2 — The Unstitching (Steps 4a, 4b, 4c, 5, 6; ~8 weeks).** Bounded interior reshape. Monolith splits, L0 shape adjustments against probes, dashboard manifest-reshape, Reasoning port consolidation, probe IR spike, first customer ship. Parallelizable; first customer shipping signal emerges here.
+- **Phase 3 — The Compounding (Steps 7–10, continuous).** Open-ended incremental. L1 memory, L2 operator, L3 drift, L4 self-refinement. Each ships when its claim is verified. Continuous graduation over releases.
+
+**Before Phase 1 begins**, the following preparatory work can happen at zero cost without touching the critical path:
 
 - Per-folder destination dry-run against `§13.0`: validate that every v1 file has an unambiguous home.
 - Build-harness prototyping (per-folder `tsconfig` references, per-folder `npm` scripts).
 - Manifest schema sketching (verb entry shape — though the freeze happens at Step 2).
 - Facet schema mockups (the consolidated record shape — freeze at Step 3).
+
+---
+
+### Phase 1 — The Reshape
+
+*Bounded restructure. Steps 0, 1, 1.5, 2, 3. Phase DoD: three-folder compartmentalization live; reference-canon retired with transitional probe set running; one customer-reality observation banked; manifest + fluency harness + facet schema committed. Fresh-agent orientation cost measurably reduced; workshop producing scorecard updates against the transitional probe set; no cross-folder import violations compile.*
 
 ### Step 0 — Compartmentalization commit
 
@@ -123,27 +135,51 @@ All four can run concurrently. (c) is the bulk of the diff; (a), (b), (d) are sm
 - A `git grep "from '\\.\\./lib"` from inside any of the three folders returns nothing — every cross-folder reference goes through the manifest seam or fails the seam-enforcement test.
 - The workshop's existing speedrun (`scripts/speedrun.ts`) continues to run end-to-end without behavior change, proving the move was structural-only.
 
-### Step 1 — Reference-canon retirement and source contraction
+### Step 1 — Reference-canon retirement with transitional probe set
 
-**What ships:** the type-level surgical edit on `source.ts` plus the demotion sweep, per `v2-direction.md §6` Step 1.
+**What ships:** the type-level surgical edit on `source.ts`, the demotion sweep, the deletion of reference-canon content, AND a **transitional probe set** that gives the workshop something coherent to measure against between Step 1 and Step 5 (when the manifest-derived probe IR lights up).
 
-**Hard dependencies:** Step 0 (the source-axis types live at `product/domain/pipeline/source.ts` after Step 0).
+**Why the transitional probe set:** if we delete reference-canon content without a replacement input, the workshop's seven-visitor metric tree silently loses its denominator. M5 in particular (cohort-comparable keyed by scenario ID) breaks — the scenarios are gone. The scorecard history's continuity as a claim evaporates. The transitional probe set is a modest bridging input: derived mechanically from a small pre-manifest verb inventory hard-coded into `workshop/probe-derivation/transitional.ts`, exercising a handful of product surfaces with known-good outcomes. It's thrown away at Step 5 when the real probe IR takes over.
+
+**Hard dependencies:** Step 0 (the source-axis types live at `product/domain/pipeline/source.ts` after Step 0; workshop code lives at `workshop/`).
 
 **Parallel work streams within the step:**
-- (a) Delete reference-canon content (`dogfood/knowledge/`, `dogfood/benchmarks/`, pre-gate `dogfood/controls/`, `dogfood/scenarios/`).
-- (b) Contract `PhaseOutputSource` to five variants; update `foldPhaseOutputSource`; update `PostureSourceBound`.
-- (c) Run the demotion sweep (synthetic feature completion plan Commit 5) once over any stragglers; sweep proposal set should be empty.
-- (d) Update workshop's metric visitors to use the contracted source union (small denominator change in `compounding-economics`).
+- (a) Author the transitional probe set — 5–10 probes against a known-good subset of v1's existing resolution + execution surfaces, encoded inline rather than from a manifest (which doesn't exist until Step 2).
+- (b) Delete reference-canon content (`dogfood/knowledge/`, `dogfood/benchmarks/`, pre-gate `dogfood/controls/`, `dogfood/scenarios/`). The transitional probes replace them as workshop input.
+- (c) Contract `PhaseOutputSource` to five variants; update `foldPhaseOutputSource`; update `PostureSourceBound`.
+- (d) Run the demotion sweep once over any stragglers; sweep proposal set should be empty.
+- (e) Update workshop's metric visitors to use the contracted source union and to re-key M5's cohort identity from scenario-ID to **probe-surface cohort** (the probe's (verb × facet-kind × error-family) triple).
 
-All four are part of the same commit; the TypeScript compiler surfaces every consumer needing the `referenceCanon:` arm removed.
+All five land together; the TypeScript compiler surfaces every consumer needing the `referenceCanon:` arm removed.
 
-**Hypothesis carried:** "After the reference-canon contraction, `metric-extraction-ratio` and `metric-handshake-density` continue computing within ±5% of their pre-contraction values on the surviving (non-pre-gate) input set." Confirms the source contraction did not unintentionally change visitor formulas.
+**Hypothesis carried:** "After the reference-canon contraction and transitional-probe switchover, `metric-extraction-ratio` and `metric-handshake-density` produce sensible values against the transitional probe set; M5's re-keyed cohort produces a non-zero trajectory; no visitor errors out on missing inputs." Confirms the switchover preserves workshop continuity.
 
 **Definition of done:**
 - `PhaseOutputSource` has five variants; every fold callsite compiles.
 - `dogfood/knowledge/`, `dogfood/benchmarks/`, `dogfood/scenarios/` no longer exist.
-- The demotion sweep returns an empty proposal set (no reference-canon atoms remain).
-- Workshop runs against the surviving input set and produces a scorecard whose visitor outputs differ from pre-Step-1 by at most ±5% per the hypothesis above.
+- The demotion sweep returns an empty proposal set.
+- `workshop/probe-derivation/transitional.ts` commits with 5–10 transitional probes.
+- Workshop runs against the transitional probe set and produces a scorecard with non-error visitor outputs.
+- The hypothesis receipt confirms the switchover.
+
+### Step 1.5 — Customer-reality probe (non-blocking observation)
+
+**What ships:** one real customer work item, authored by the agent *using v1's existing pipeline* (which is still running post-Step 0), against the customer's real ADO + OutSystems environment. This is not a shipping event. It is a **reality probe** — an observation of what the agent actually needs to succeed, banked as input to Phase 2's design decisions.
+
+**Why this step exists:** Steps 2–5 commit forcing-function design choices (manifest format, facet schema shape, ladder order, Reasoning port taxonomy) with no customer contact. If any of those choices mismatches customer reality, the plan forces rework back to Step 2 once shipping starts at Step 6. One customer-reality observation inside Phase 1 de-risks the downstream forcing functions for the cost of a single authoring session.
+
+**Hard dependencies:** Step 0 (so the compartmentalized structure is the context of the observation). Customer ADO + OutSystems tenant access already configured (the plan assumes this; see §8 on customer assumption).
+
+**Not strictly serial with Steps 2–3:** Step 1.5 can happen in parallel with Steps 2 and 3 authoring; its output feeds Step 4 design, not Step 2 or Step 3. A team member or agent does the probe session; the team reviews the observation together; Steps 4a/4b/4c design lands with this observation in context.
+
+**Hypothesis carried:** none directly. This is observational. The value lands as *named design constraints* surfaced before Phase 2 begins — e.g., "the customer uses role X that doesn't fit our current ladder assumption" or "the customer's ADO steps include a pattern we haven't seen in dogfood."
+
+**Definition of done:**
+- One customer work item authored in a single session; session transcript + run record + agent handoff log committed to `workshop/observations/customer-probe-01/`.
+- A team-reviewed **observation memo** committed at the same path, listing 3–5 named design constraints the probe surfaced (if any) or explicitly stating "no material surprises" (valuable on its own).
+- The memo references the specific Step 4 sub-steps (4a / 4b / 4c) its constraints apply to.
+
+**What this step does not do:** it does not ship a test to the customer's suite. It does not commit any product code. v1's pipeline does the authoring; v2's Phase 2 learns from the observation.
 
 ### Step 2 — Vocabulary manifest and fluency harness
 
@@ -192,25 +228,72 @@ After this step, invariant 1 (stable verb signatures) and invariant 10 (cheap in
 
 This step is a *forcing function* (see §5). A late schema change forces catalog rewrites.
 
-### Step 4 — L0 data-flow chain with the monolith splits
+---
 
-**What ships:** per `v2-direction.md §6` Step 4 — the six L0 instruments with named shape adjustments, the five monolith splits (`§3.7` of the direction doc and `§13.0.3`/`§13.0.2` of this doc), and the Reasoning port consolidation (`§3.6` of the direction doc, `§13.0.4` here).
+### Phase 2 — The Unstitching
 
-**Hard dependencies:** Step 2 (manifest verbs declared). Step 3 (facet schema committed; codegen references facet IDs).
+*Bounded interior reshape. Steps 4a, 4b, 4c, 5, 6. Phase DoD: every monolith has cut along its natural internal seam into bounded per-concern modules; L0 shape adjustments are measurable under the workshop's seven visitors; `dashboard/mcp/` tool implementations route through the manifest; the Reasoning port is one port with three operations; the probe IR has a go-verdict (or named gap list); first customer work items are in QA review. Phase 2 is the plan's largest parallelization opportunity — earlier drafts compressed this into a single "Step 4" which was structurally dishonest about the work's shape.*
 
-**Parallel work streams within the step:**
-- (a) Six L0 instruments with their shape adjustments — each is independent during implementation; integration at end of step wires them under test-compose / test-execute. Largest wall-time parallelism win in the construction order.
-- (b) Five monolith splits — each is bounded to one source file plus its destination subfolder; no cross-split coupling.
-- (c) Reasoning port consolidation (~320 LOC, 3–4 files) — independent of the L0 instruments and the monolith splits; collapses `TranslationProvider` and `AgentInterpreter` into one `Reasoning.Tag` with three operations.
+### Step 4a — Monolith splits (internal reshape, no behavior change)
 
-**Hypothesis carried:** "The shape adjustments (role-first ladder, four-family error classification, idempotence check, pre-generated facade) materially improve `metric-extraction-ratio` and reduce `metric-handshake-density` against the same input set as Step 1." The workshop's existing visitors compute the verification.
+**What ships:** per `v2-direction.md §6` Step 4 — the five monolith splits per §13.0.2 and §13.0.3: `interface-intelligence.ts`, `derived-graph.ts`, `resolution-stages.ts`, `scenario.ts`, `dashboard-mcp-server.ts`. Each splits along its natural internal seam; existing test surfaces stay green; no behavior changes.
+
+**Why before 4b:** the L0 shape adjustments (Step 4b) touch `locator-ladder.ts`, `interact.ts`, `navigation/strategy.ts`, `spec-codegen.ts`. Some of these are inside the `resolution-stages.ts` / `scenario.ts` monoliths today. Splitting the monoliths first means 4b's shape adjustments land in bounded modules rather than in 900-line monolith bodies.
+
+**Hard dependencies:** Steps 0, 2, 3 (folder structure + manifest + facet schema).
+
+**Parallel work streams within the step:** five sub-tracks, one per monolith. Each is bounded to one source file plus its destination sub-folder; no cross-split coupling. Customer-reality probe (Step 1.5) observation memo informs where to cut each monolith.
+
+**Hypothesis carried:** "The split monoliths each pass their existing test surface with no logic changes; the split module boundaries survive 4b's shape adjustments without forcing a re-split." Verified by re-running the existing test suite after each split and after 4b lands.
 
 **Definition of done:**
-- All six L0 instruments respond to their manifest-declared verbs.
-- A hand-crafted work item flows through the full L0 chain and produces a Playwright test that references facets by ID, with no inline selectors or data.
-- The five monolith splits each compile and pass their existing test surface.
-- Reasoning port: both prior callsites (Translation, AgentInterpreter) route through `Reasoning.Tag`; provider choice is a `Layer.succeed` decision at composition.
-- The verification hypothesis returns a confirmed receipt.
+- `interface-intelligence.ts` → `product/intelligence/` sub-modules (`index/`, `target/`, `selector-canon/`, `state-graph/`).
+- `derived-graph.ts` → `product/graph/` sub-modules (`phases/`, `conditional/`, `scenario-binding/`, `evidence-lineage/`).
+- `resolution-stages.ts` → `product/runtime/resolution/` sub-modules (`lattice/`, `stages/`, `exhaustion/`, `accumulator/`).
+- `scenario.ts` → `product/runtime/scenario/` sub-modules (`environment/`, `route/`, `execution/`, `recovery/`, `accrual/`).
+- `dashboard-mcp-server.ts` → `dashboard/mcp/` sub-modules (`handlers/`, `context/`, `actions/`) — **behavior-preserving split only; the manifest reshape lands at 4c**.
+- Existing tests continue passing.
+
+### Step 4b — L0 shape adjustments (behavior changes, workshop-measurable)
+
+**What ships:** the named shape adjustments from §3.2 of the direction doc: ladder reorder (role-first), four-family error classification on interact, `page.url()` idempotence check on navigate, pre-generated facade on test-compose. The Reasoning port consolidation (`~320 LOC` collapse of `TranslationProvider` and `AgentInterpreter` into one `Reasoning.Tag` with three operations) lands here too because several shape adjustments reference Reasoning call-sites.
+
+**Why after 4a:** the shape adjustments touch modules split at 4a. Landing them in split modules is cleaner than landing them in monoliths.
+
+**Hard dependencies:** Step 4a (splits) + Step 3 (facet schema for pre-generated facade).
+
+**Parallel work streams within the step:**
+- (a) Six L0 instruments with their shape adjustments — intent-fetch/parse (no shape change), navigate (idempotence check), observe (ladder reorder), interact (four-family classification), test-compose (pre-generated facade), test-execute (unchanged).
+- (b) Reasoning port consolidation.
+
+**Hypothesis carried:** "The shape adjustments materially improve `metric-extraction-ratio` and reduce `metric-handshake-density` against the transitional probe set (the Step-1 input)." The workshop's existing visitors compute the verification.
+
+**Definition of done:**
+- All six L0 instruments respond to their manifest-declared verbs with the named shape adjustments.
+- A hand-crafted work item flows through the full L0 chain and produces a Playwright test referencing facets by ID.
+- Reasoning port: both prior callsites (Translation, AgentInterpreter) route through `Reasoning.Tag`; provider choice is a `Layer.succeed` composition decision.
+- Workshop shows measurable improvement on extraction-ratio and handshake-density against the transitional probe set.
+- The verification hypothesis confirms.
+
+### Step 4c — Dashboard manifest-reshape
+
+**What ships:** `dashboard/mcp/` tool implementations rewired to route through manifest-declared verbs instead of importing domain types directly. The compile-enforced seam (no `import` from `dashboard/mcp/` reaches `product/domain/` except via manifest-declared verb references) goes green.
+
+**Why its own step:** earlier drafts buried this under a broader "Step 4" bonanza. In practice the dashboard MCP reshape is ~1815 LOC of hand-curated tool implementations becoming a manifest-driven projection — a substantive reshape with independent dependencies, not a side-effect of the L0 shape adjustments.
+
+**Hard dependencies:** Step 2 (manifest must exist for tool implementations to route through it). Step 4a (the dashboard monolith is split into `handlers/ context/ actions/` sub-folders; this step changes what the handlers do).
+
+**Parallel work streams within the step:**
+- (a) For each tool handler: identify the verbs it currently reaches into `product/domain/` for, and rewire to manifest-declared verb references. Many tools become thin projections over the append-only log set.
+- (b) The seam-enforcement architecture test gains explicit cases for `dashboard/mcp/` imports. Violations fail the build.
+- (c) MCP tool catalog becomes a read-only projection of the verb manifest, organized by category (Observe | Control | Metric).
+
+**Hypothesis carried:** "`dashboard/mcp/` compiles and passes the seam-enforcement test with zero direct imports from `product/domain/`. The hand-curated 9-to-33-tool surface in v1 becomes a manifest-driven projection with equivalent observability."
+
+**Definition of done:**
+- `grep -r "from '\\.\\./\\.\\./product/domain'" dashboard/mcp/` returns nothing (tests enforce this).
+- MCP observability tools (`get_learning_summary`, `list_proposals`, `get_fitness_metrics`, `get_queue_items`, etc.) continue working end-to-end against the running workshop.
+- The tool catalog is derivable from the manifest; adding a verb to `product/` automatically extends the dashboard's tool surface at the next build.
 
 ### Step 5 — Probe IR spike against representative verbs
 
@@ -253,6 +336,12 @@ This step is a *forcing function* (see §5). A late schema change forces catalog
 - The workshop's scorecard reflects the first customer datapoint; the verification receipt appends.
 
 This step is the second inflection point (§5).
+
+---
+
+### Phase 3 — The Compounding
+
+*Open-ended incremental. Steps 7–10. Each L-level ships on its own hypothesis; each adds a metric or two to the workshop catalog; each commits fixture specifications for any new verbs it declares. Phase 3 does not have a single DoD — it has **continuous graduation** (§6). Product graduates when the customer-acceptance curve sustains; workshop graduates when probe coverage reaches 100% against the current-release manifest and the batting average sustains above its calibrated floor. Phase 3 completes when both graduation conditions hold; its steps ship in order, but its end is a state, not an event.*
 
 ### Step 7 — L1 memory layer with per-facet evidence log
 
@@ -341,55 +430,83 @@ After Step 10, the codebase is feature-complete relative to the level spine. Sub
 
 ## 4. Dependency graph and parallelization map
 
-The critical path is linear across the eleven steps. Where wall time is won or lost is *within* each step, through the parallel work streams named in §3 and through two cross-step parallel tracks. This section names the DAG, the critical path, and the parallelization opportunities that collapse the most of it.
+The critical path runs across thirteen steps grouped into three phases (§3). Where wall time is won or lost is *within* each step (parallel work streams named in §3) and through one cross-phase parallel track (probe-fixture authoring). This section names the DAG, the critical path, and the parallelization opportunities that collapse the most of it.
 
 ### 4.1 The DAG
 
-Each step depends hard on the step before it. There is no cut-over event at the end — graduation (§6) is a continuous condition, not a discrete commit.
+Each step depends hard on the step before it, with the Phase-1 observational sub-step (Step 1.5) as the one exception (it runs in parallel with Steps 2 and 3, not in serial). There is no cut-over event at the end — graduation (§6) is a continuous condition, not a discrete commit.
 
 ```
-    Step 0 ── Compartmentalization commit  ◀── First inflection
-        │
-        ▼
-    Step 1 ── Reference-canon retirement
-        │
-        ▼
-    Step 2 ── Vocabulary manifest + fluency harness
-        │
-        ▼
-    Step 3 ── Unified facet schema
-        │
-        ▼
-    Step 4 ── L0 data-flow chain + monolith splits + Reasoning port
-        │
-        ▼
-    Step 5 ── Probe IR spike
-        │
-        ▼
-    Step 6 ── Ship L0 against customer  ◀── Second inflection
-        │
-        ▼
-    Step 7 ── L1 memory layer
-        │
-        ▼
-    Step 8 ── L2 operator semantics
-        │
-        ▼
-    Step 9 ── L3 drift + DOM-less  ◀── Third inflection
-        │
-        ▼
-    Step 10 ── L4 self-refinement
-        │
-        ▼
+    ┌─ Phase 1 — The Reshape ─────────────────────┐
+    │                                              │
+    │   Step 0  ── Compartmentalization  ◀── First inflection
+    │       │                                      │
+    │       ▼                                      │
+    │   Step 1  ── Reference-canon retirement      │
+    │       │   + transitional probe set           │
+    │       │                                      │
+    │       ├──────── Step 1.5 (parallel)          │
+    │       │        ── Customer-reality probe     │
+    │       │        (feeds Step 4 design)         │
+    │       │                                      │
+    │       ▼                                      │
+    │   Step 2  ── Manifest + fluency harness      │
+    │       │                                      │
+    │       ▼                                      │
+    │   Step 3  ── Unified facet schema            │
+    │                                              │
+    └──────────────────────────────────────────────┘
+                     │
+                     ▼
+    ┌─ Phase 2 — The Unstitching ─────────────────┐
+    │                                              │
+    │   Step 4a ── Monolith splits                 │
+    │       │    (no behavior change)              │
+    │       │                                      │
+    │       ▼                                      │
+    │   Step 4b ── L0 shape adjustments            │
+    │       │    + Reasoning port consolidation    │
+    │       │                                      │
+    │       ▼                                      │
+    │   Step 4c ── Dashboard manifest-reshape      │
+    │       │                                      │
+    │       ▼                                      │
+    │   Step 5  ── Probe IR spike                  │
+    │       │                                      │
+    │       ▼                                      │
+    │   Step 6  ── Ship L0 against customer        │
+    │              ◀── Second inflection           │
+    │                                              │
+    └──────────────────────────────────────────────┘
+                     │
+                     ▼
+    ┌─ Phase 3 — The Compounding ─────────────────┐
+    │                                              │
+    │   Step 7  ── L1 memory layer                 │
+    │       │                                      │
+    │       ▼                                      │
+    │   Step 8  ── L2 operator semantics           │
+    │       │                                      │
+    │       ▼                                      │
+    │   Step 9  ── L3 drift + DOM-less             │
+    │              ◀── Third inflection            │
+    │       │                                      │
+    │       ▼                                      │
+    │   Step 10 ── L4 self-refinement              │
+    │                                              │
+    └──────────────────────────────────────────────┘
+                     │
+                     ▼
     Continuous graduation (§6) — both gates evaluated per release
 ```
 
-**Critical path:** Step 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → graduation. Eleven steps, each hard-blocking the next on shipping the concrete capability. The length of this chain is the minimum wall time to graduation.
+**Critical path:** Step 0 → 1 → 2 → 3 → 4a → 4b → 4c → 5 → 6 → 7 → 8 → 9 → 10 → graduation. Thirteen steps; twelve hard-blocking transitions. Step 1.5 is the one branch off the critical path (observational, non-blocking).
 
 ### 4.2 Soft dependencies (not on the critical path)
 
-Two soft dependencies modulate when later steps become *useful* even though they don't block the code:
+Three soft dependencies modulate when later steps become *useful* even though they don't block the code:
 
+- **Step 4a soft-depends on Step 1.5 landing.** The customer-reality probe observation memo informs where to cut each monolith. Step 4a can proceed without Step 1.5's observation, but with higher re-split risk if the cuts don't match customer reality.
 - **Step 8 soft-depends on Step 7.** L2 instruments build on L1's memory layer; a candidate facet from operator dialog or document ingest enters the same `FacetRecord` shape. L2 can technically ship before L1 completes, but the value compounds when both are present.
 - **Step 9 soft-depends on Step 8.** Richer memory from L2 raises confidence thresholds faster and makes DOM-less authoring reach its shipping claim earlier. L3 works on L1-only memory, but the convergence claim tightens with L2 semantics in place.
 
@@ -397,43 +514,41 @@ Two soft dependencies modulate when later steps become *useful* even though they
 
 Four named tracks run through the construction order.
 
-**Track A — Structural setup (Steps 0–3).**
-Within Step 0: per-folder tsconfig, npm scripts, the tree reshape, the seam-enforcement test — four sub-streams, concurrent. Within Step 1: content deletion, source contraction, sweep, visitor recalibration — same commit. Within Step 2: manifest schema, drift check, fluency fixtures, handoff discipline, hypothesis discriminator — five sub-streams. Within Step 3: schema definition, YAML store, in-memory index, ID stability rules — four sub-streams. The team can cover Steps 0–3 without serializing any sub-stream within them.
+**Track A — Structural setup (Phase 1: Steps 0–3).**
+Within Step 0: per-folder tsconfig, npm scripts, the tree reshape, the seam-enforcement test — four sub-streams, concurrent. Within Step 1: transitional probe set authoring, content deletion, source contraction, sweep, visitor recalibration — five sub-streams. Step 1.5 runs in parallel with Steps 2 and 3. Within Step 2: manifest schema, drift check, fluency fixtures, handoff discipline, hypothesis discriminator — five sub-streams. Within Step 3: schema definition, YAML store, in-memory index, ID stability rules — four sub-streams. The team can cover Phase 1 without serializing any sub-stream within it.
 
-**Track B — L0 + monolith splits + Reasoning port (Step 4).**
-Three concurrent sub-tracks: six L0 instruments (parallel), five monolith splits (each bounded to one source file), and the Reasoning port consolidation (~320 LOC, 3–4 files). Step 4 is the largest single wall-time-win opportunity in the plan; running these in parallel collapses what would otherwise be a multi-month sequential implementation.
+**Track B — Interior reshape (Phase 2: Steps 4a–4c).**
+Step 4a runs five monolith-split sub-tracks in parallel. Step 4b runs six L0-instrument shape-adjustment sub-tracks plus the Reasoning port consolidation, in parallel. Step 4c's dashboard reshape is its own sub-track with independent dependencies on Step 2 (manifest) and Step 4a (split). If the team has the bandwidth, Steps 4a and 4b can pipeline (start 4b on a module as soon as 4a finishes splitting it), though serial-first is the safer default.
 
-**Track C — Probe IR + workshop probes (Steps 5–10).**
+**Track C — Probe IR + probe-fixture authoring (Steps 5–10).**
 Step 5 lands the spike against three representative verbs. Steps 7–10 each add new probe fixtures as new product verbs land. Probe-fixture authoring can pipeline across step boundaries: fixtures for Step K+1's verbs can land while Step K's implementation completes, so probes derive automatically the moment the corresponding verbs ship.
 
-**Track D — Pre-Step-0 zero-cost exploration.**
+**Track D — Pre-Phase-1 zero-cost exploration.**
 Work that can happen before Step 0 begins and feeds directly into the early steps:
 - Per-folder destination dry-run against `§13.0`.
 - Build-harness prototyping (per-folder tsconfig + npm script combinations).
 - Manifest schema sketching (verb entry shape).
 - Facet schema mockups (consolidated record shape).
 
-Track D is free wall time — it removes uncertainty from Steps 0–3 without appearing on the critical path.
+Track D is free wall time — it removes uncertainty from Phase 1 without appearing on the critical path.
 
 ### 4.4 Highest-leverage parallelization
 
 Three opportunities dominate:
 
-1. **Parallelize the three concurrent sub-tracks in Step 4.** Six L0 instruments + five monolith splits + Reasoning port consolidation can land concurrently. This is the largest single wall-time win — typically the difference between a quarter and a half.
+1. **Run Step 4a's five monolith splits concurrently, and Step 4b's six-instrument-plus-Reasoning-port work concurrently.** Phase 2's biggest wall-time win.
 2. **Pipeline the probe-fixture authoring across Steps 5–10.** Each step's product-verb additions get their fixture YAMLs authored slightly ahead of the implementation so probes derive automatically when verbs ship.
-3. **Exploit Track D before Step 0 begins.** Every uncertainty resolved before Step 0 is wall time off the critical path.
+3. **Exploit Track D before Phase 1 begins.** Every uncertainty resolved before Step 0 is wall time off the critical path.
 
 ### 4.5 What the critical-path structure implies for team shape
 
-The critical path is linear; there is no escape from the eleven-step sequence. But the parallel tracks imply the team's shape:
+The critical path is mostly linear; the only escape is within-step parallelism and the one branch at Step 1.5. The parallel tracks imply the team's shape:
 
-- **Steps 0–3:** one engineer can run most of it; the agent does the mechanical moves and the schema authoring. Two to three weeks feasible.
-- **Step 4:** the largest parallelization opportunity. One engineer per L0 instrument, one per monolith split, one for the Reasoning port — collapses the step to the longest single sub-track's wall time. Pays off most when the team has 4–6 contributors plus the agent.
-- **Step 5:** small team — the probe IR spike is bounded to three verbs.
-- **Step 6:** one engineer plus QA; bottlenecked on customer review, not code.
-- **Steps 7–10:** pipeline-enabled; two or three engineers plus the agent across product features and probe-fixture authoring.
+- **Phase 1 (Steps 0–3 plus Step 1.5):** one engineer plus the agent can run most of it in 3–4 weeks. Step 1.5 adds one agent-led customer session in that window.
+- **Phase 2 (Steps 4a–4c, 5, 6):** the largest parallelization opportunity. Step 4a fits one engineer per monolith (five lanes). Step 4b fits one engineer per L0 instrument (six lanes) plus one for the Reasoning port. Step 4c is its own lane. Pays off most when the team has 4–6 contributors plus the agent across Phase 2's 6–8 week window. Step 6 is QA-bottlenecked, not code-bottlenecked.
+- **Phase 3 (Steps 7–10):** pipeline-enabled; two or three engineers plus the agent across product features and probe-fixture authoring.
 
-The plan is feasible for a small team (2–4 people) plus the agent. Scaling the team beyond that does not linearly collapse the critical path because most of the dependencies between steps are hard.
+The plan is feasible for a small team (2–4 people) plus the agent sustained across Phases 1 and 3; Phase 2 rewards a temporary widening to 4–6 for its parallelizable interior reshape. Scaling the team beyond that does not linearly collapse the critical path because most of the transitions between steps are hard.
 
 ## 5. Forcing functions, inflection points, cascade risks
 
@@ -446,13 +561,15 @@ Decisions whose early form constrains everything downstream. Once committed, lat
 | Forcing function | Committed in step | What it constrains | Mitigation handle |
 |---|---|---|---|
 | **Three-folder layout and the seam-enforcement test** | Step 0 | Import paths, build config, architecture test, for every subsequent step | Resolve in Step 0 before any subsequent commit lands. The seam-enforcement architecture test runs in CI from Step 0 onward; violations break the build. Once committed, relocation across folders is a deliberate move requiring its own commit. |
-| **Source-axis contraction shape** (`PhaseOutputSource` from six variants to five) | Step 1 | Every `foldPhaseOutputSource` callsite; every `PostureSourceBound` consumer; the catalog write rules | Land Step 1 as one commit; the TypeScript compiler surfaces every consumer needing the `referenceCanon:` arm removed. Reference-canon content deletion happens in the same commit so no half-state exists. |
+| **Source-axis contraction shape** (`PhaseOutputSource` from six variants to five) | Step 1 | Every `foldPhaseOutputSource` callsite; every `PostureSourceBound` consumer; the catalog write rules | Land Step 1 as one commit; the TypeScript compiler surfaces every consumer needing the `referenceCanon:` arm removed. Reference-canon content deletion and transitional probe set authoring happen in the same commit so no half-state exists. |
+| **Transitional probe set shape** (5–10 probes against v1 surfaces, encoded inline pre-manifest) | Step 1 | What the workshop measures against between Step 1 and Step 5; whether the seven-visitor scorecard stays continuous | Encode probes inline in `workshop/probe-derivation/transitional.ts` (pre-manifest, so no dependency on Step 2). Re-key M5's cohort identity from scenario-ID to probe-surface cohort in the same commit. Probe set retires at Step 5 when the manifest-derived IR takes over. |
 | **Vocabulary manifest format** (verb entry shape, signature schema) | Step 2 | Every verb declaration in Steps 2–10; invariant 1 (stable verb signatures) is materialized here | Finalize format before any verb is published. Once a verb with a given signature ships in `manifest.json`, treat that signature as immutable: deprecate-and-replace, never change in place. `sinceVersion` field on every entry to enable deprecation tracking. |
-| **Facet schema shape** (ID format, required fields, provenance block) | Step 3 | Every memory read and write in Steps 4, 7, 8, 9, 10 | Commit schema before Step 4 integration begins. Build-time schema validator forbids unsigned shape changes. Treat schema additions as new fields (backward-compatible); forbid field removal during the construction period. |
+| **Facet schema shape** (ID format, required fields, provenance block) | Step 3 | Every memory read and write in Steps 4a, 4b, 4c, 7, 8, 9, 10 | Commit schema before Step 4a integration begins. Build-time schema validator forbids unsigned shape changes. Treat schema additions as new fields (backward-compatible); forbid field removal during the construction period. The customer-reality probe at Step 1.5 may surface constraints that inform schema fields before the Step 3 freeze. |
+| **Monolith split boundaries** (where each of the five monoliths cuts internally) | Step 4a | Where subsequent shape adjustments (Step 4b) land; where dashboard reshape (Step 4c) reads from | Use the customer-reality probe observation memo (Step 1.5) plus §13.0.3 to inform cut boundaries. Each split's test surface is preserved at Step 4a; re-splitting is allowed but expensive, so prefer conservative cuts that leave room for 4b shape work. |
 | **Probe IR fixture-specification format** (per-verb YAML alongside the verb declaration) | Step 5 | The shape of every `Probe` workshop derives from the manifest; what verbs the workshop can mechanically exercise | Land the spike protocol per `v2-substrate.md §6a` before fixture specifications proliferate. The spike's pass condition (≥80% of probes derive without hand-tuning) gates whether the IR becomes authoritative or stays a partial supplement. |
-| **Envelope-axis phantom type shape** (already Phase-0a/b/c/d complete in v1) | Step 0 | The compile-time invariants that hold across all eleven steps | Port Class A as-is at Step 0; do not modify during the move. Phases B–E of the in-flight envelope-axis refactor elaborate in `product/` post-Step 0 as needed. Cross-module integration tests confirm shape consistency across the three folders. |
+| **Envelope-axis phantom type shape** (already Phase-0a/b/c/d complete in v1) | Step 0 | The compile-time invariants that hold across all thirteen steps | Port Class A as-is at Step 0; do not modify during the move. Phases B–E of the in-flight envelope-axis refactor elaborate in `product/` post-Step 0 as needed. Cross-module integration tests confirm shape consistency across the three folders. |
 
-The common thread: **every forcing function is committed in Steps 0–5**. That is by design. These early steps commit the substrate, the layout, and the measurement seam; later steps compose on top of them. Team discipline during Steps 0–5 disproportionately determines the cost of everything downstream.
+The common thread: **every forcing function is committed by end of Step 5**. That is by design. Phase 1 commits the substrate, the layout, and the measurement seam; Phase 2 commits the interior reshape and the probe IR shape. Later steps compose on top of them. Team discipline during Phase 1 and Phase 2 disproportionately determines the cost of everything downstream.
 
 ### 5.2 Inflection points
 
@@ -508,29 +625,44 @@ Choices that, if wrong, force rework across multiple steps. Severity reflects ho
 | Risk | Severity | Affected steps | Mitigation handle |
 |---|---|---|---|
 | **Compartmentalization import map proves wrong** | High | 0, all subsequent | Step 0's per-folder destinations are spelled out in `v2-transmogrification.md §13.0`. Before the Step 0 commit lands, dry-run the seam-enforcement test against a sample import-rewrite to verify the destinations hold. Late corrections require moving files between folders, not changing logic. |
-| **Facet schema proves inadequate when customer complexity arrives** | High | 3, 4, 6, 7 | Step 4 authoring runs an explicit "expected facet shape" assertion per real work item. Before Step 7 (L1) ships, conduct a facet-shape adequacy review against actual L0 output. Gate L1 shipping on zero required-field retrofits. |
-| **Verb signature proves wrong after real usage** | High | 2, 4, 5, 6, 7, 8, 9, 10 | Step 6 real-world authoring logs "verbs that failed to classify real errors" as a separate handoff category. The workshop's existing receipt log surfaces these from Day 1. Before any later step extends the manifest, review the handoff log and proposal-gate any verb deprecations discovered. |
-| **Probe IR fails the spike** | High | 5, 6, 7, 8, 9, 10 | Step 5 is the spike (`v2-substrate.md §6a`). If the spike fails (>20% of probes need bespoke schemas), the IR concept stays but its authority shrinks until the gap-list verbs gain hand-lifted fixture schemas. Subsequent step planning depends on the spike's go/no-go verdict. |
+| **Facet schema proves inadequate when customer complexity arrives** | High | 3, 4a, 4b, 6, 7 | Step 1.5's customer-reality probe surfaces design constraints before Step 3 freeze. Step 6 authoring runs an explicit "expected facet shape" assertion per real work item. Before Step 7 (L1) ships, conduct a facet-shape adequacy review against actual L0 output. Gate L1 shipping on zero required-field retrofits. |
+| **Verb signature proves wrong after real usage** | High | 2, 4b, 5, 6, 7, 8, 9, 10 | Step 6 real-world authoring logs "verbs that failed to classify real errors" as a separate handoff category. The workshop's existing receipt log surfaces these from Day 1. Before any later step extends the manifest, review the handoff log and proposal-gate any verb deprecations discovered. |
+| **Probe IR fails the spike** | High | 5, 6, 7, 8, 9, 10 | Step 5 is the spike (`v2-substrate.md §6a`). The spike has three possible outcomes: **pass** (≥80% synthesize mechanically — IR becomes authoritative), **partial pass** (50–80% synthesize — IR proceeds with a named exception list of verbs needing hand-lifted schemas), **fail** (<50% — IR concept deferred; probes author against hand-lifted schemas until the fixture grammar matures). Step 6 can ship under any of the three outcomes; the difference is how much of the workshop's probe coverage is mechanically derived. |
+| **Monolith split boundaries prove wrong at Step 4b** | High | 4a, 4b, 4c, 7, 8, 9 | Step 1.5's observation memo informs cut boundaries before Step 4a lands. Step 4a preserves all existing test surfaces; re-splitting is allowed but expensive. If Step 4b surfaces a boundary that doesn't hold (e.g., a shape adjustment that wants to straddle two sub-modules), raise a proposal to re-split rather than landing a cross-cutting shape adjustment. |
+| **Gamed workshop graduation** (coverage gamed by avoiding hard verbs; batting average gamed by trivial predicted deltas) | Medium | 10 + post-graduation | The graduation gate adds a **calibration test** (§6.3) — deliberately-planted regressions at rolling intervals; workshop passes calibration by catching them within N days. Additionally, `metric-hypothesis-confirmation-rate` is stratified by predicted-delta magnitude; graduation requires the batting average to hold at the material-delta stratum, not just the trivial-delta stratum. |
 | **Confidence-derivation rule skew between L1 and L3** | Medium | 6, 7, 8, 9 | Before Step 7 (L1) ships, author the confidence-derivation rule as a named proposal. Gate L1 shipping on operator approval of the rule, even though enforcement fires at Step 9. This aligns L1's evidence collection with L3's consumption. |
-| **Run-record log schema drift between Step 4 and downstream metrics** | Medium | 4, 5, 6, 7, 8, 9, 10 | At Step 4, commit the run-record schema to code and embed a `logVersion` field on every record. Workshop's metric-verb signatures name their expected `logVersion`. Forbid run-record schema changes without deprecating affected metric verbs and issuing new ones. |
-| **L0 ladder order lock-in cost** | Medium | 4, 6, 7, 9 | Step 4 tests measure locator-match quality per-rung on real customer surfaces. Step 5 probes exercise each rung explicitly. Before Step 7 (L1) ships, a ladder-order adequacy review gates whether the chosen order stays or a reorder is proposal-gated before locator health commits. |
-| **Agent fluency regression undetected across steps** | Medium | 2, 4, 5, 6, 7, 8, 9, 10 | Embed fluency checks in the build at Step 2, not as optional tests. Any PR that touches manifest, verb implementation, or handshake signatures must pass fluency checks to merge. Fluency regression is treated at the same severity as a broken product test. |
+| **Run-record log schema drift between Step 4b and downstream metrics** | Medium | 4b, 5, 6, 7, 8, 9, 10 | At Step 4b, commit the run-record schema to code and embed a `logVersion` field on every record. Workshop's metric-verb signatures name their expected `logVersion`. Forbid run-record schema changes without deprecating affected metric verbs and issuing new ones. |
+| **L0 ladder order lock-in cost** | Medium | 4b, 6, 7, 9 | Step 4b tests measure locator-match quality per-rung against the transitional probe set first, then against real customer surfaces at Step 6. Step 5 probes exercise each rung explicitly once the IR lands. Before Step 7 (L1) ships, a ladder-order adequacy review gates whether the chosen order stays or a reorder is proposal-gated before locator health commits. |
+| **Agent fluency regression undetected across steps** | Medium | 2, 4b, 5, 6, 7, 8, 9, 10 | Embed fluency checks in the build at Step 2, not as optional tests. Any PR that touches manifest, verb implementation, or handshake signatures must pass fluency checks to merge. Fluency regression is treated at the same severity as a broken product test. |
+| **Test suite breakage invisible at Step 0** | Medium | 0, 1, 2, 3 | Moving 550+ files in `lib/` breaks every `import` in the test suite. Step 0's definition of done names `npm test` green — which is substantive work, not a tautology. Estimate: test-import rewrite is 30–40% of Step 0's effort. Budget time for it; treat `npm test` green as a shipping gate. |
+| **Dogfood-retired-but-probe-not-ready** (the input gap earlier drafts carried) | Medium | 1, 2, 3, 4a, 4b, 4c, 5 | The Step 1 transitional probe set closes this gap. Encoded inline in `workshop/probe-derivation/transitional.ts` pre-manifest; re-keys M5's cohort from scenario-ID to probe-surface cohort. Retires at Step 5 when the manifest-derived IR takes over. Without this, the workshop's scorecard history continuity evaporates at Step 1. |
 
 ### 5.4 Measurement-already-running discipline
 
-Earlier drafts named a structural awkwardness: phases committed design choices before measurement lit up. That awkwardness retired with the in-place reshape — the workshop is already running from Step 0 forward. Steps 0–6 commit design choices under workshop supervision, not before it. The hypothesis-receipt discipline applies from Step 0.
+Earlier drafts named a structural awkwardness: phases committed design choices before measurement lit up. That awkwardness retired with the in-place reshape — the workshop is already running from Step 0 forward. Phase 1 and Phase 2 commit design choices under workshop supervision, not before it. The hypothesis-receipt discipline applies from Step 0.
 
-What does need attention is the *transition* of the workshop's own measurement input from the dogfood corpus to the probe IR. That transition spans Steps 1–5:
+What does need attention is the *transition* of the workshop's own measurement input from the dogfood corpus to the probe IR. That transition spans Phase 1 and the first half of Phase 2:
 
-- **Step 1** retires reference-canon content. Workshop's input loses the dogfood YAMLs that were feeding probes today. Until Step 5 lands, workshop runs against a thinner input set (only the surviving non-pre-gate scenarios in the existing corpus); the seven inherited metric visitors keep computing, but their denominators shrink.
-- **Step 5** lands the probe IR spike. If the spike succeeds, workshop's input switches to manifest-derived probes. If it partially succeeds, hand-lifted fixtures fill the gaps for named verbs.
-- **Steps 6–10** extend the probe set as `product/` declares new verbs. The workshop's probe coverage rises from "what the spike covered" toward 100% over these steps.
+- **Step 1** retires reference-canon content AND lands the transitional probe set. Workshop's input shifts from the dogfood YAMLs to 5–10 inline-encoded probes. The seven inherited metric visitors keep computing against the new input; M5's cohort key re-defines from scenario-ID to probe-surface cohort in the same commit. The scorecard history stays continuous because the visitors still produce values — on a different denominator, but without a silent gap.
+- **Step 5** lands the probe IR spike. Workshop's input switches from the transitional probes to manifest-derived probes. If the spike partially succeeds (50–80% synthesize mechanically), hand-lifted fixtures fill the named gaps; workshop runs on a hybrid input temporarily.
+- **Steps 6–10** extend the probe set as `product/` declares new verbs. Workshop's probe coverage rises toward 100% over these steps, growing per release.
 
-The workshop's metric trajectories may show a discontinuity between Step 1 and Step 5 because the input population is changing. That discontinuity is documented in the scorecard history — appended, not overwritten — and the team reasons about it explicitly when comparing pre-Step-1 to post-Step-5 metric values. The seven-visitor metric tree continues to produce values throughout; the denominator-recalibration audit (`v2-substrate.md §8a`) lands during this window so the visitors' formulas stay honest as the input population shifts.
+The workshop's metric trajectories may show a detectable shift at Step 1 (when the input population switches from dogfood to transitional probes) and again at Step 5 (when it switches to manifest-derived probes). These shifts are documented in the scorecard history — appended, not overwritten — with explicit labels on the shift events. The team reasons about them explicitly when comparing pre-Step-1 to post-Step-5 metric values. The denominator-recalibration audit (`v2-substrate.md §8a`) lands during Phase 1 so the visitors' formulas stay honest across the two input-shift events.
 
 ## 6. Graduation, not cut-over
 
 Earlier drafts framed v2's completion as a single atomic cut-over commit (delete `lib/`, rename `lib-v2/` to `lib/`, archive v1, merge construction branch). That framing retired in the 2026-04-17 revision. v2 evolves in place; there is no `lib-v2/` sibling; there is no point at which `lib/` gets archived. What there is, instead, is **continuous graduation** with two distinct gates — one for `product/` and one for `workshop/` — each evaluated continuously rather than triggered as an event.
+
+### 6.0 The customer assumption
+
+Graduation depends on customer QA acceptance of authored tests (`metric-test-acceptance-rate`). This presupposes a **contracted or committed customer**: an organization with a real OutSystems application, a real ADO backlog of manual test cases, and QA staff willing to review the agent's output. The plan is written against this assumption.
+
+**If no customer is contracted when the plan executes**, graduation gates cannot fire as written. Two permissible alternatives:
+
+- **Sibling-team proxy.** An internal team operating as a customer stand-in — reviewing tests, providing acceptance verdicts. Graduation gate reads the same; the source of QA acceptance shifts. Useful as a bridge while a customer is being sourced, or as a permanent mode if the plan's goal is sibling-team adoption rather than external shipping.
+- **Synthetic acceptance proxy.** A hand-curated "golden set" of work items with known-good expected output. `metric-test-acceptance-rate` computes against this proxy. Weaker than real QA (because the proxy reflects the team's own shape assumptions, not a real customer's) but useful at very early Phase 2 when customer contact is not yet regular.
+
+The plan as written assumes a real customer is available at Phase 2. If that changes, the graduation gates re-bind to whichever proxy is in play; name the proxy explicitly in the graduation review.
 
 ### 6.1 Why graduation instead of cut-over
 
@@ -538,27 +670,41 @@ A cut-over commit is an event that compresses many decisions into one moment. It
 
 What earlier drafts called "cut-over" therefore has nothing left to do. There is no parallel codebase to merge in, no sibling tree to delete, no archive tag to mint. The graduation gates below replace the cut-over event with two continuous decisions the team makes per release — one for the product surface, one for the workshop's active role.
 
-### 6.2 `product/` graduation — the shipping-claim gate
+### 6.2 `product/` graduation — the shipping-claim curve
 
-`product/` graduates when its three customer-facing surfaces (manifest, facet catalog, QA-accepted tests) are accepted by the customer at a rate that justifies the team trusting the product to ship without close team supervision. Concretely:
+Earlier drafts used a single flat threshold (`metric-test-acceptance-rate ≥ 0.85`) as the product-graduation gate. That threshold is wrong at Step 6's first customer ship: Stage α acceptance is realistically 0.30–0.50 with empty memory, not 0.85. The 0.85 floor is a **destination**, not a starting line. Product graduation is a **curve** — an expected acceptance floor at each level, sustained.
 
-- `metric-test-acceptance-rate ≥ 0.85` on a rolling sample of real customer work items reviewed by QA, sustained for two consecutive weeks of customer-backlog work without intervention resets.
-- `metric-authoring-time-p50 ≤ 45 min` at L0 stage across the same window (memory-free baseline; the Stage α cost ceiling).
+**The curve:**
 
-When both floors sustain, `product/` is considered shippable as a standalone package: a customer (or an internal sibling team) can install `product/` without taking on any `workshop/` infrastructure dependency. This is the graduation event that earlier drafts called the "v2.0 ship." It is now a packaging milestone — `product/` becomes installable as its own npm package, separable from `workshop/` and `dashboard/` — rather than a tree-rename event.
+| Stage reached | `metric-test-acceptance-rate` floor | Shipping posture |
+|---|---:|---|
+| Step 6 first ship (no memory) | ≥ 0.50 | customer QA reviewing; team present at every session |
+| Post-Step 7 (L1 memory live) | ≥ 0.65 | team present on new surfaces; memory-backed work auto-reviewed |
+| Post-Step 8 (L2 operator semantics) | ≥ 0.75 | operator-enriched work auto-reviewed |
+| Post-Step 9 (L3 drift + DOM-less) | ≥ 0.85 | DOM-less authoring trusted; drift surfaces to operator review only |
+| Post-Step 10 (L4 self-refinement) | ≥ 0.85 sustained for 4 weeks | packaging milestone: `product/` installable standalone |
 
-If the floors slip below threshold for a release, `product/` un-graduates: customer shipping pauses, the team investigates with `workshop/`'s receipts and metric history, hypothesis-gated changes land, and the floors re-rise. There is no archive tag to revert to and no codebase to roll back; the graduation is a state, not an event.
+`metric-authoring-time-p50 ≤ 45 min` remains the floor across all stages (memory-free baseline). As L1+ memory fills, the actual median time drops well below this ceiling; the floor acts as a backstop.
 
-### 6.3 `workshop/` graduation — the coverage-and-batting-average gate
+**Graduation fires** when the post-Step-10 row sustains for four weeks. This is the state at which `product/` becomes installable as a standalone npm package: a customer (or internal sibling team) can consume `product/` without taking on `workshop/` or `dashboard/` infrastructure.
 
-`workshop/` graduates when its active role is complete:
+**Un-graduation is allowed and expected occasionally.** If the floor slips below the stage's row, customer shipping pauses; the team investigates with `workshop/`'s receipts and metric history; hypothesis-gated changes land; the floor re-rises. There is no archive tag to revert to and no codebase to roll back; graduation is a state, not an event.
 
-- **Probe coverage = 100%.** Every manifest-declared verb × facet-kind × error-family combination has at least one probe that exercises it.
-- **`metric-hypothesis-confirmation-rate ≥ 0.70`** sustained for a rolling 30-receipt window — the agent and team are predicting what helps, not guessing.
+### 6.3 `workshop/` graduation — coverage, batting average, AND calibration
 
-When both conditions sustain, `workshop/` degrades to a passive alarm. The same probes still run on schedule; the same scorecard still appends; the trust policy still enforces. What stops is the proposal of new measurements against a steady-state product surface — coverage cannot grow because it is already complete, so the workshop becomes a watchdog rather than an explorer.
+Earlier drafts used a two-clause gate (`probe coverage = 100%` + `metric-hypothesis-confirmation-rate ≥ 0.70`). That gate is gameable. A workshop author can hit both by (a) adding fixtures for easy verbs only (keeping hard verbs out of the manifest scope) and (b) authoring hypotheses with trivially-predicted deltas (keeping the batting average mechanically high). Both preserve the letter of the gate while abandoning its spirit.
+
+**Graduation gate (three clauses, all must sustain):**
+
+1. **Probe coverage = 100%** against the **current release's frozen manifest**. "Current release" matters: each release's manifest freeze is the target for that release's graduation check. A new verb at the next release drops coverage temporarily; that's expected and not a graduation failure.
+2. **`metric-hypothesis-confirmation-rate ≥ 0.70`** sustained across a rolling 30-receipt window, **stratified by predicted-delta magnitude**. The graduation check passes only if the material-delta stratum (predicted delta ≥ some threshold of meaningful impact, e.g., ≥ 0.05 on a normalized scale) holds at ≥ 0.70. A workshop that keeps its batting average up by proposing trivial deltas fails this check.
+3. **Calibration test passes.** A deliberately-planted regression is introduced at a rolling interval (monthly, quarterly, etc.); the workshop must detect it via its existing metric visitors and surface it through proposal review within N days (N to be calibrated — likely 7–14). A workshop that misses a planted regression fails this check regardless of coverage and batting average.
+
+When all three sustain, `workshop/` degrades to a passive alarm. The same probes still run on schedule; the same scorecard still appends; the trust policy still enforces; calibration regressions continue at the agreed cadence. What stops is the proposal of new measurements against a steady-state product surface. Coverage cannot grow because it is already complete, so the workshop becomes a watchdog rather than an explorer.
 
 If `product/` adds a verb (or changes a signature, or extends an error family), workshop's coverage drops below 100% automatically — new probes appear from the manifest extension — and workshop re-engages. Graduation is reversible by structural design: the workshop knows when it is needed because the manifest tells it.
+
+**The calibration test is deferrable in detail but committed in principle.** §8 names the specifics (frequency, regression types, detection window) as deferred-to-execution; the commitment here is that the gate has three clauses, not two.
 
 ### 6.4 What lives on after graduation
 
@@ -591,32 +737,53 @@ There is no "we have shipped" event to celebrate. There is "we have shipped toda
 
 ## 7. Definition of done
 
-Three layers under the continuous-graduation framing (§6). Each is a state the team can verify per release; none is a single event.
+Five states under the continuous-graduation framing (§6) — one per phase plus two graduation milestones plus a cultural end-state. Each is a state the team can verify; none is a single event.
 
-### 7.1 "Compartmentalization is complete" — the structural milestone
+### 7.1 "Phase 1 is complete" — the reshape milestone
 
-- All eleven construction steps from `v2-direction.md §6` (Steps 0–10) have landed.
+- Steps 0, 1, 1.5, 2, 3 all landed.
 - The three folders (`product/`, `workshop/`, `dashboard/`) exist with their declared internal layout; no v1 file remains under `lib/` outside the new structure.
 - The architecture test enforcing the import seam (no `workshop/` or `dashboard/` import of `product/` except through manifest-declared verbs and the shared log set) runs green.
 - `npm run build:product`, `npm run build:workshop`, `npm run build:dashboard`, and `npm test` all succeed.
-- The reference-canon retirement (Step 1) is complete: `PhaseOutputSource` has five variants, the dogfood content tree is gone, the demotion sweep returns an empty proposal set.
-- The four subsidiary v2 docs (`v2-substrate.md`, `feature-ontology-v2.md`, `v2-delta-audit.md`, `v2-direction.md`) are internally consistent with the three-folder framing; this document has its 2026-04-17 transition banner removed.
+- `PhaseOutputSource` has five variants; the dogfood content tree is gone; the demotion sweep returns an empty proposal set.
+- The transitional probe set exists under `workshop/probe-derivation/transitional.ts` and drives the workshop's measurement input; the scorecard history shows a labeled shift at the Step-1 boundary but continues producing values against the transitional input.
+- One customer-reality observation memo under `workshop/observations/customer-probe-01/` informs (or explicitly does not constrain) Phase 2 design decisions.
+- Vocabulary manifest emitted at build time; fluency harness green; facet schema committed with memory-verb signatures frozen.
 
-### 7.2 "`product/` has graduated" — the shipping-claim milestone
+### 7.2 "Phase 2 is complete" — the unstitching milestone
 
-- `metric-test-acceptance-rate ≥ 0.85` sustained for two consecutive weeks of customer-backlog work.
-- `metric-authoring-time-p50 ≤ 45 min` at L0 stage across the same window.
+- Steps 4a, 4b, 4c, 5, 6 all landed.
+- Five monoliths split along named internal seams under their destination sub-folders; existing test surfaces pass.
+- L0 shape adjustments live and measurably improving extraction-ratio / handshake-density against the transitional probe set; Reasoning port unified; `dashboard/mcp/` routes through manifest-declared verbs.
+- Probe IR spike verdict committed (pass / partial pass with gap list / fail-with-deferred-fixture-grammar); the workshop's measurement input has shifted from transitional probes to manifest-derived probes (with or without named hand-lifted exceptions).
+- First 5–10 customer work items authored by the agent; QA review verdicts recorded; Stage α cost baseline captured; `metric-test-acceptance-rate` ≥ 0.50 on the first batch.
+
+### 7.3 "Phase 3 is underway — L1–L4 landing on their hypotheses" — the compounding milestone
+
+Phase 3 has no single DoD; it's continuous. But per-release checks:
+
+- Each L-level step (7, 8, 9, 10) ships with a hypothesis receipt confirming its claim against the workshop.
+- The product acceptance curve (§6.2) sustains or improves at each L-level's stage row.
+- `metric-hypothesis-confirmation-rate ≥ 0.70` sustains in the material-delta stratum across the last 30 receipts.
+- New probes land for each new verb; probe coverage trends toward 100% against the current-release manifest.
+
+### 7.4 "`product/` has graduated" — the shipping-claim milestone
+
+- Step 10 landed; the full L0–L4 level spine is in place.
+- The product acceptance curve's post-Step-10 row (`metric-test-acceptance-rate ≥ 0.85`) sustains for four weeks.
+- `metric-authoring-time-p50 ≤ 45 min` across the same window.
 - `product/` is packageable as a standalone npm artifact; an external installer (or sibling team) can consume it without taking on `workshop/` or `dashboard/` dependencies.
 - Customer QA acceptance pattern is steady (no recurring rejection categories that map to a specific product gap).
 
-### 7.3 "`workshop/` has graduated" — the coverage-and-confidence milestone
+### 7.5 "`workshop/` has graduated" — the coverage-and-confidence milestone
 
-- Probe coverage = 100% against the manifest (every declared verb × facet-kind × error-family combination has at least one probe).
-- `metric-hypothesis-confirmation-rate ≥ 0.70` sustained across the rolling 30-receipt window.
+- Probe coverage = 100% against the current-release frozen manifest.
+- `metric-hypothesis-confirmation-rate ≥ 0.70` sustained across the rolling 30-receipt window in the material-delta stratum.
+- The calibration test (§6.3) has passed at least twice at its agreed cadence — the workshop has demonstrably caught planted regressions within the detection window.
 - The workshop has degraded to passive-alarm mode: no proposed new measurements against the steady-state product surface, only watch-and-flag against existing probes.
 - The seven-visitor metric tree (post-audit per `v2-substrate.md §8a`) continues producing scorecard updates without new metric proposals.
 
-### 7.4 "The transmogrification is past" — the cultural milestone
+### 7.6 "The transmogrification is past" — the cultural milestone
 
 - Six months after both graduations (or whenever the team agrees).
 - New contributors and agents open the codebase, read CLAUDE.md, and orient through the three folders without needing the v1-reference docs at all for their first task.
@@ -634,6 +801,8 @@ The plan commits to what it needs to commit to. A number of decisions are explic
 - **Confidence-derivation rule from the evidence log.** Aging half-life, corroboration weight, decay shape — all deferred to Step 7 and made proposal-gated at that time.
 - **Drift classification thresholds.** What counts as `ambiguous` vs. a concrete mismatch; per-mismatch-kind confidence adjustments. Deferred to Step 9.
 - **Probe fixture-specification grammar beyond the spike's three verbs.** Step 5 commits fixtures for three representative verbs. The fixture grammar may need extensions for verbs with unusually variable input shapes; those extensions land verb-by-verb as new probes are needed.
+- **Calibration-test specifics** (§6.3). The workshop's graduation gate includes a calibration clause — the workshop must catch deliberately-planted regressions. Calibrated during Phase 3: cadence (monthly? quarterly?), regression types (visitor denominator drift, probe coverage dip, receipt-rate change, catalog-write anomaly), detection window (7 days? 14?), scoring (binary pass/fail per test, or scored across multiple simultaneous regressions). First calibration test lands no later than Step 10 so graduation's third clause can be verified.
+- **Material-delta threshold for batting-average stratification** (§6.3). The batting average stratifies by predicted-delta magnitude; graduation requires ≥0.70 in the material-delta stratum. The threshold between "material" and "trivial" is deferred — proposed value in the 0.03–0.08 range on a normalized scale, calibrated against observed delta distributions in the first 30 receipts at Step 6.
 - **Operator review UI.** JSONL queue plus a CLI is sufficient through Step 10 per `feature-ontology-v2.md §9.14`. Richer surfaces, if needed, emerge under customer pressure during graduation cycles.
 - **The specific L2 document parser.** Markdown is the first format; richer formats (PDF, Confluence exports, images) defer to Step 8 shipping pressure against real customer material.
 - **Who (or what) triggers the per-release graduation review.** Could be a scheduled CI job, an operator ritual, a chat bot; decided during the steps approaching graduation when the floors become load-bearing for the per-release decision.
