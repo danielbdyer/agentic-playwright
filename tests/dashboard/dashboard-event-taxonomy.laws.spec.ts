@@ -15,7 +15,7 @@ import type {
   KnowledgeActivatedEvent,
   ConvergenceEvaluatedEvent,
   IterationSummaryEvent,
-} from '../../lib/domain/observation/dashboard';
+} from '../../product/domain/observation/dashboard';
 import { ALL_DASHBOARD_EVENT_KINDS, type DashboardEventMap } from '../../dashboard/src/types/events';
 
 // ─── Type-level payload laws ───

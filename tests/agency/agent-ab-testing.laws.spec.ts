@@ -22,11 +22,11 @@ import {
   mergeABTestSummaries,
   recordResult,
   summarizeABTest,
-} from '../../lib/application/agency/agent-ab-testing';
+} from '../../product/application/agency/agent-ab-testing';
 import type {
   ABTestConfig,
   ABTestResult,
-} from '../../lib/application/agency/agent-ab-testing';
+} from '../../product/application/agency/agent-ab-testing';
 import { mulberry32 , LAW_SEED_COUNT } from '../support/random';
 
 // ─── Helpers ───

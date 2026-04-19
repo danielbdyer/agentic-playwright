@@ -1,7 +1,7 @@
 /**
  * Auto-Approval Policy -- Law Tests (W4.5)
  *
- * Verifies the auto-approval decision logic from lib/application/auto-approval.ts
+ * Verifies the auto-approval decision logic from product/application/auto-approval.ts
  * using 20 mulberry32 seeds per law.
  *
  * Laws:
@@ -23,12 +23,12 @@ import {
   defaultAutoApprovalPolicy,
   isWithinAutoApprovalLimit,
   type AutoApprovalPolicy,
-} from '../../lib/application/governance/auto-approval';
+} from '../../workshop/policy/auto-approval';
 import type {
   ProposedChangeMetadata,
   TrustPolicy,
   TrustPolicyArtifactType,
-} from '../../lib/domain/governance/workflow-types';
+} from '../../product/domain/governance/workflow-types';
 import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from '../support/random';
 
 // --- Constants ---

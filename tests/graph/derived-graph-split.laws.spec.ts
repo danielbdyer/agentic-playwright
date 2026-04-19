@@ -5,9 +5,9 @@ import {
   resolveConditionalEdges,
   type ConditionalEdge,
   deriveGraph,
-} from '../../lib/domain/graph/derived-graph';
-import { createNode, createEdge } from '../../lib/domain/graph/derived/primitives';
-import { basename, bestAliasMatches } from '../../lib/domain/graph/derived/utilities';
+} from '../../product/domain/graph/derived-graph';
+import { createNode, createEdge } from '../../product/domain/graph/derived/primitives';
+import { basename, bestAliasMatches } from '../../product/domain/graph/derived/utilities';
 
 test.describe('derived graph split invariants', () => {
   test('accumulator merge and conditional resolution stay deterministic', () => {

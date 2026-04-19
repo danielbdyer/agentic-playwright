@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { commandRegistry } from '../../lib/application/cli/commands/index';
-import { commandNames, type CommandName } from '../../lib/application/cli/shared';
-import { parseCliInvocation } from '../../lib/application/cli/registry';
+import { commandRegistry } from '../../product/cli/commands/index';
+import { commandNames, type CommandName } from '../../product/cli/shared';
+import { parseCliInvocation } from '../../product/cli/registry';
 
 const EXPECTED_COMMAND_COUNT = 30;
 

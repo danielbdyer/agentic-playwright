@@ -7,17 +7,17 @@ import {
   rungDistributionVisitor,
   interventionCostVisitor,
   compoundingEconomicsVisitor,
-} from '../../lib/domain/fitness/metric/visitors';
+} from '../../workshop/metrics/metric/visitors';
 import {
   PIPELINE_METRIC_KINDS,
-} from '../../lib/domain/fitness/metric/catalogue';
+} from '../../workshop/metrics/metric/catalogue';
 import {
   flattenMetricTree,
   findMetricNode,
   countMetricNodes,
-} from '../../lib/domain/fitness/metric/tree';
-import { diffMetricTrees, deltaVerdict } from '../../lib/domain/fitness/metric/delta';
-import type { PipelineFitnessMetrics, LogicalProofObligation } from '../../lib/domain/fitness/types';
+} from '../../workshop/metrics/metric/tree';
+import { diffMetricTrees, deltaVerdict } from '../../workshop/metrics/metric/delta';
+import type { PipelineFitnessMetrics, LogicalProofObligation } from '../../workshop/metrics/types';
 
 // ─── Synthetic fitness metrics fixture ──────────────────────────
 

@@ -4,7 +4,7 @@ import {
   normalizeScreenPostures,
   resolveEffectTargetKind,
   validatePostureContract,
-} from '../../lib/domain/governance/posture-contract';
+} from '../../product/domain/governance/posture-contract';
 import {
   createElementId,
   createPostureId,
@@ -12,14 +12,14 @@ import {
   createSectionId,
   createSurfaceId,
   createWidgetId,
-} from '../../lib/domain/kernel/identity';
+} from '../../product/domain/kernel/identity';
 import type {
   PostureEffect,
   ScreenElements,
   ScreenPostures,
   SurfaceGraph,
-} from '../../lib/domain/knowledge/types';
-import { validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../../lib/domain/validation';
+} from '../../product/domain/knowledge/types';
+import { validateScreenElements, validateScreenPostures, validateSurfaceGraph } from '../../product/domain/validation';
 import { maybe, mulberry32, pick, randomInt } from '../support/random';
 
 const policySearchScreenId = createScreenId('policy-search');

@@ -28,15 +28,15 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { Effect } from 'effect';
 import { expect, test } from '@playwright/test';
-import { loadWorkspaceCatalog } from '../../lib/application/catalog';
-import { buildFitnessReport, type FitnessInputData } from '../../lib/application/improvement/fitness';
-import { projectMemoryMaturityCounts } from '../../lib/application/improvement/memory-maturity-projection';
-import { runDogfoodLoop } from '../../lib/application/improvement/dogfood';
-import { refreshScenario } from '../../lib/application/resolution/refresh';
-import { runWithLocalServices } from '../../lib/composition/local-services';
-import { createAdoId } from '../../lib/domain/kernel/identity';
-import type { PipelineFitnessReport } from '../../lib/domain/fitness/types';
-import type { MemoryMaturityCounts } from '../../lib/domain/fitness/memory-maturity';
+import { loadWorkspaceCatalog } from '../../product/application/catalog';
+import { buildFitnessReport, type FitnessInputData } from '../../workshop/orchestration/fitness';
+import { projectMemoryMaturityCounts } from '../../workshop/orchestration/memory-maturity-projection';
+import { runDogfoodLoop } from '../../workshop/orchestration/dogfood';
+import { refreshScenario } from '../../product/application/resolution/refresh';
+import { runWithLocalServices } from '../../product/composition/local-services';
+import { createAdoId } from '../../product/domain/kernel/identity';
+import type { PipelineFitnessReport } from '../../workshop/metrics/types';
+import type { MemoryMaturityCounts } from '../../workshop/metrics/memory-maturity';
 import { createTestWorkspace } from '../support/workspace';
 
 test('scorecard exists and has honest baseline after first dogfood run', async () => {
@@ -51,7 +51,7 @@ test('scorecard exists and has honest baseline after first dogfood run', async (
 
     // Note: `runDogfoodLoop` writes the improvement-loop ledger but does not
     // itself emit a benchmark scorecard — scorecards come from the speedrun
-    // pipeline (`lib/application/improvement/speedrun.ts`) or the benchmark
+    // pipeline (`workshop/orchestration/speedrun.ts`) or the benchmark
     // projection. We assert on the ledger + projection shape instead, which
     // is the producer contract for the scorecard machinery.
     const ledgerPath = path.join(ws.rootDir, '.tesseract', 'runs', 'improvement-loop-ledger.json');

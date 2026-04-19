@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
-import type { AutoApprovalPolicy, TrustPolicy } from '../../lib/domain/governance/workflow-types';
-import type { InterventionReceipt, Participant } from '../../lib/domain/handshake/intervention';
-import type { AgentEvent } from '../../lib/domain/handshake/session';
-import type { DogfoodLedgerProjection, ImprovementLoopIteration } from '../../lib/domain/improvement/types';
-import { evaluateAutoApproval, DEFAULT_AUTO_APPROVAL_POLICY } from '../../lib/domain/governance/trust-policy';
+import type { AutoApprovalPolicy, TrustPolicy } from '../../product/domain/governance/workflow-types';
+import type { InterventionReceipt, Participant } from '../../product/domain/handshake/intervention';
+import type { AgentEvent } from '../../product/domain/handshake/session';
+import type { DogfoodLedgerProjection, ImprovementLoopIteration } from '../../product/domain/improvement/types';
+import { evaluateAutoApproval, DEFAULT_AUTO_APPROVAL_POLICY } from '../../product/domain/governance/trust-policy';
 import {
   createAgentSessionAdapterRegistry,
   resolveAgentSessionAdapter,
-} from '../../lib/application/agency/agent-session-adapter';
+} from '../../product/application/agency/agent-session-adapter';
 
 // ─── Fixtures ───
 

@@ -18,9 +18,9 @@
  */
 
 import { expect, test } from '@playwright/test';
-import type { LocatorStrategy, LocatorStrategyKind } from '../lib/domain/governance/workflow-types';
-import type { SelectorProbe, SelectorCanonEntry } from '../lib/domain/target/interface-graph';
-import type { CanonicalTargetRef, SelectorRef } from '../lib/domain/kernel/identity';
+import type { LocatorStrategy, LocatorStrategyKind } from '../product/domain/governance/workflow-types';
+import type { SelectorProbe, SelectorCanonEntry } from '../product/domain/target/interface-graph';
+import type { CanonicalTargetRef, SelectorRef } from '../product/domain/kernel/identity';
 import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Specificity order ───

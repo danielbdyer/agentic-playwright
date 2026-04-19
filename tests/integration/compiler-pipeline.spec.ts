@@ -1,26 +1,26 @@
 import { mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { buildDerivedGraph } from '../../lib/application/graph/graph';
-import { impactNode } from '../../lib/application/graph/impact';
-import { emitOperatorInbox } from '../../lib/application/agency/inbox';
-import { describeScenarioPaths } from '../../lib/application/projections/inspect';
-import { buildImprovementRun, improvementLedgerPath } from '../../lib/application/improvement/improvement';
-import { emitScenario } from '../../lib/application/commitment/emit';
-import { loadWorkspaceCatalog } from '../../lib/application/catalog';
-import { emitManifestPath } from '../../lib/application/paths';
-import { refreshScenario } from '../../lib/application/resolution/refresh';
-import { runScenario } from '../../lib/application/commitment/run';
-import { replayInterpretation } from '../../lib/application/commitment/replay/replay-interpretation';
-import { inspectSurface } from '../../lib/application/projections/surface';
-import { traceScenario } from '../../lib/application/projections/trace';
-import { generateTypes } from '../../lib/application/types';
-import { inspectWorkflow } from '../../lib/application/projections/workflow';
-import { runWithLocalServices } from '../../lib/composition/local-services';
-import { createAdoId } from '../../lib/domain/kernel/identity';
-import { graphIds } from '../../lib/domain/kernel/ids';
-import { DEFAULT_PIPELINE_CONFIG } from '../../lib/domain/attention/pipeline-config';
-import { PipelineFitnessReport } from '../../lib/domain/fitness/types';
+import { buildDerivedGraph } from '../../product/application/graph/graph';
+import { impactNode } from '../../product/application/graph/impact';
+import { emitOperatorInbox } from '../../product/application/agency/inbox';
+import { describeScenarioPaths } from '../../product/application/projections/inspect';
+import { buildImprovementRun, improvementLedgerPath } from '../../workshop/orchestration/improvement';
+import { emitScenario } from '../../product/application/commitment/emit';
+import { loadWorkspaceCatalog } from '../../product/application/catalog';
+import { emitManifestPath } from '../../product/application/paths';
+import { refreshScenario } from '../../product/application/resolution/refresh';
+import { runScenario } from '../../product/application/commitment/run';
+import { replayInterpretation } from '../../product/application/commitment/replay/replay-interpretation';
+import { inspectSurface } from '../../product/application/projections/surface';
+import { traceScenario } from '../../product/application/projections/trace';
+import { generateTypes } from '../../product/application/types';
+import { inspectWorkflow } from '../../product/application/projections/workflow';
+import { runWithLocalServices } from '../../product/composition/local-services';
+import { createAdoId } from '../../product/domain/kernel/identity';
+import { graphIds } from '../../product/domain/kernel/ids';
+import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
+import { PipelineFitnessReport } from '../../workshop/metrics/types';
 import { createTestWorkspace } from '../support/workspace';
 import {
   policySearchScreenId,
@@ -108,7 +108,7 @@ test('refresh recompiles the seeded scenario through graph, types, and program e
     expect(graph.nodes.some((node: { id: string }) => node.id === graphIds.generatedReview(adoId))).toBeTruthy();
     expect(graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.provenanceKind).toBe('unresolved');
     expect(graph.nodes.find((node: { id: string; payload?: Record<string, unknown> }) => node.id === graphIds.step(adoId, 2))?.payload?.runtimeStatus).toBe('pending');
-    expect(projectPath(result.compile.generatedTypes.outputPath)).toContain('lib/generated/tesseract-knowledge.ts');
+    expect(projectPath(result.compile.generatedTypes.outputPath)).toContain('product/generated/tesseract-knowledge.ts');
   } finally {
     workspace.cleanup();
   }
@@ -763,8 +763,8 @@ test('types regenerate when manifest is present but generated output is deleted 
 
     const rebuiltMissingOutputIncremental = expectCacheMiss(rebuiltMissingOutput.incremental);
     expect(rebuiltMissingOutputIncremental.cacheInvalidationReason).toBe('missing-output');
-    expect(rebuiltMissingOutputIncremental.rewritten).toContain('lib/generated/tesseract-knowledge.ts');
-    expect(rebuiltMissingOutputIncremental.rewritten).toContain('lib/generated/tesseract-knowledge.metadata.json');
+    expect(rebuiltMissingOutputIncremental.rewritten).toContain('product/generated/tesseract-knowledge.ts');
+    expect(rebuiltMissingOutputIncremental.rewritten).toContain('product/generated/tesseract-knowledge.metadata.json');
     expect(manifestAfterMissingOutput.outputFingerprint).toBe(rebuiltMissingOutputIncremental.outputFingerprint);
 
     writeFileSync(rebuiltMissingOutput.outputPath, `export const corrupted = true;\n`, 'utf8');
@@ -774,8 +774,8 @@ test('types regenerate when manifest is present but generated output is deleted 
 
     const rebuiltCorruptedOutputIncremental = expectCacheMiss(rebuiltCorruptedOutput.incremental);
     expect(rebuiltCorruptedOutputIncremental.cacheInvalidationReason).toBe('invalid-output');
-    expect(rebuiltCorruptedOutputIncremental.rewritten).toContain('lib/generated/tesseract-knowledge.ts');
-    expect(rebuiltCorruptedOutputIncremental.rewritten).toContain('lib/generated/tesseract-knowledge.metadata.json');
+    expect(rebuiltCorruptedOutputIncremental.rewritten).toContain('product/generated/tesseract-knowledge.ts');
+    expect(rebuiltCorruptedOutputIncremental.rewritten).toContain('product/generated/tesseract-knowledge.metadata.json');
     expect(manifestAfterCorruption.outputFingerprint).toBe(rebuiltCorruptedOutputIncremental.outputFingerprint);
     expect(firstManifest.inputSetFingerprint).toBe(manifestAfterMissingOutput.inputSetFingerprint);
     expect(firstManifest.inputSetFingerprint).toBe(manifestAfterCorruption.inputSetFingerprint);

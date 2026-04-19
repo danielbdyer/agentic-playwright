@@ -24,7 +24,7 @@ import {
   createHarArtifactRef,
   DEFAULT_HAR_NETWORK_CONFIG,
   type HarManifest,
-} from '../lib/application/runtime-support/har-network';
+} from '../product/application/runtime-support/har-network';
 
 // ─── Law 1 ──────────────────────────────────────────────────────────────────
 

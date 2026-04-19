@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   REFERENCE_COHORTS,
   REFERENCE_COHORT_TOTAL,
-} from '../lib/domain/synthesis/reference-cohorts';
+} from '../product/domain/synthesis/reference-cohorts';
 
 // ─── Doctrinal partition: demo IDs vs reference cohort IDs ─────────
 //

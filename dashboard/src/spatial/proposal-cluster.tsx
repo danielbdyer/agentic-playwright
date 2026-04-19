@@ -8,7 +8,7 @@
  *   - Pulses based on governance prediction
  *   - Interacts with glass (pass/reflect/shatter)
  *
- * Consumes pure domain logic from lib/domain/proposal-cluster.ts.
+ * Consumes pure domain logic from product/domain/proposal-cluster.ts.
  *
  * @see docs/first-day-flywheel-visualization.md Part I (Act 6), Part VIII
  */
@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import {
   ARTIFACT_COLORS,
   type ProposalCluster as ProposalClusterData,
-} from '../../../lib/domain/proposal/cluster';
+} from '../../../product/domain/proposal/cluster';
 
 // ─── Types ───
 

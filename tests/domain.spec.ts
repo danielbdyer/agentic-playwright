@@ -2,7 +2,7 @@
 import path from 'path';
 import YAML from 'yaml';
 import { expect, test } from '@playwright/test';
-import { bindScenarioStep } from '../lib/domain/governance/binding';
+import { bindScenarioStep } from '../product/domain/governance/binding';
 import {
   deriveGraph,
   mergeAccumulators,
@@ -11,9 +11,9 @@ import {
   type GraphBuildInput,
   type GraphAccumulator,
   type ConditionalEdge,
-} from '../lib/domain/graph/derived-graph';
-import { deriveCapabilities, findCapability } from '../lib/domain/commitment/grammar';
-import { computeAdoContentHash, computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../lib/domain/kernel/hash';
+} from '../product/domain/graph/derived-graph';
+import { deriveCapabilities, findCapability } from '../product/domain/commitment/grammar';
+import { computeAdoContentHash, computeNormalizedSnapshotHash, normalizeAriaSnapshot } from '../product/domain/kernel/hash';
 import {
   createAdoId,
   createElementId,
@@ -22,14 +22,14 @@ import {
   createSnapshotTemplateId,
   createSurfaceId,
   createWidgetId,
-} from '../lib/domain/kernel/identity';
-import { graphIds } from '../lib/domain/kernel/ids';
-import { mergePatternDocuments } from '../lib/domain/knowledge/patterns';
-import { compileStepProgram, traceStepProgram } from '../lib/domain/commitment/program';
-import { parseEffectTargetRef } from '../lib/domain/governance/effect-target';
-import { validatePostureContract } from '../lib/domain/governance/posture-contract';
-import { createRefPath, formatRefPath, parseRefPath } from '../lib/domain/kernel/ref-path';
-import { renderGeneratedKnowledgeModule } from '../lib/domain/codegen/typegen';
+} from '../product/domain/kernel/identity';
+import { graphIds } from '../product/domain/kernel/ids';
+import { mergePatternDocuments } from '../product/domain/knowledge/patterns';
+import { compileStepProgram, traceStepProgram } from '../product/domain/commitment/program';
+import { parseEffectTargetRef } from '../product/domain/governance/effect-target';
+import { validatePostureContract } from '../product/domain/governance/posture-contract';
+import { createRefPath, formatRefPath, parseRefPath } from '../product/domain/kernel/ref-path';
+import { renderGeneratedKnowledgeModule } from '../product/instruments/codegen/typegen';
 import {
   validateAdoSnapshot,
   validatePatternDocument,
@@ -38,7 +38,7 @@ import {
   validateScreenHints,
   validateScreenPostures,
   validateSurfaceGraph,
-} from '../lib/domain/validation';
+} from '../product/domain/validation';
 
 const rootDir = process.cwd();
 const policySearchScreenId = createScreenId('policy-search');

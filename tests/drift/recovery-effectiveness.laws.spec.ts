@@ -22,9 +22,9 @@ import {
   rankStrategiesForFamily,
   computeRecoveryEfficiency,
   type RecoveryEffectivenessIndex,
-} from '../../lib/application/drift/recovery-effectiveness';
-import type { RecoveryAttempt } from '../../lib/domain/commitment/recovery-policy';
-import type { StepExecutionReceipt } from '../../lib/domain/execution/types';
+} from '../../product/application/drift/recovery-effectiveness';
+import type { RecoveryAttempt } from '../../product/domain/commitment/recovery-policy';
+import type { StepExecutionReceipt } from '../../product/domain/execution/types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test';
 import {
   buildProposalIntelligence,
   extractUncoveredGaps,
-} from '../../lib/application/improvement/proposal-intelligence';
-import type { ProposalBundle } from '../../lib/domain/execution/types';
-import type { GroundedSpecFragment, TrainingCorpusManifest } from '../../lib/domain/learning/types';
+} from '../../workshop/orchestration/proposal-intelligence';
+import type { ProposalBundle } from '../../product/domain/execution/types';
+import type { GroundedSpecFragment, TrainingCorpusManifest } from '../../product/domain/learning/types';
 
 function makeManifest(): TrainingCorpusManifest {
   return {
@@ -22,7 +22,7 @@ function makeManifest(): TrainingCorpusManifest {
   };
 }
 
-import type { StepAction } from '../../lib/domain/governance/workflow-types';
+import type { StepAction } from '../../product/domain/governance/workflow-types';
 
 function makeFragment(overrides: Partial<{
   id: string;

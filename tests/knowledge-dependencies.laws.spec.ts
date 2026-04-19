@@ -4,7 +4,7 @@ import {
   extractHighRiskKnowledge,
   scenariosAffectedBy,
   type BoundScenarioSummary,
-} from '../lib/application/knowledge/knowledge-dependencies';
+} from '../product/application/knowledge/knowledge-dependencies';
 
 function makeScenario(overrides: Partial<{
   adoId: string;

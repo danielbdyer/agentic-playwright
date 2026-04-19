@@ -17,14 +17,14 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { evaluateTrustPolicy } from '../lib/domain/governance/trust-policy';
+import { evaluateTrustPolicy } from '../product/domain/governance/trust-policy';
 import type {
   TrustPolicy,
   TrustPolicyArtifactType,
   EvidenceDescriptor,
   ProposedChangeMetadata,
   CertificationStatus,
-} from '../lib/domain/governance/workflow-types';
+} from '../product/domain/governance/workflow-types';
 import { mulberry32, pick, randomInt, randomWord , LAW_SEED_COUNT } from './support/random';
 
 // ─── Fixtures ───

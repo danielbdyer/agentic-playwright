@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test';
 import {
   buildInterpretationCoherence,
   extractIncoherentIntents,
-} from '../../lib/application/drift/interpretation-coherence';
-import type { RungHistoryIndex } from '../../lib/application/drift/rung-drift';
-import type { InterpretationDriftRecord } from '../../lib/domain/execution/types';
+} from '../../product/application/drift/interpretation-coherence';
+import type { RungHistoryIndex } from '../../product/application/drift/rung-drift';
+import type { InterpretationDriftRecord } from '../../product/domain/execution/types';
 
 function makeRungIndex(entries: Array<{
   intentRef: string;

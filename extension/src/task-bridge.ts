@@ -1,14 +1,14 @@
 /**
  * Task Bridge — maps domain task-provider output to real VSCode tasks.
  *
- * The pure domain layer (lib/infrastructure/vscode/task-provider.ts) produces
+ * The pure domain layer (product/instruments/vscode/task-provider.ts) produces
  * VSCodeTask value objects. This bridge registers a real vscode.TaskProvider
  * and maps those values to vscode.Task instances.
  */
 
 import * as vscode from 'vscode';
-import { createTaskProvider } from '../../lib/infrastructure/vscode/task-provider';
-import type { VSCodeTask, VSCodeTaskGroup } from '../../lib/infrastructure/vscode/types';
+import { createTaskProvider } from '../../product/instruments/vscode/task-provider';
+import type { VSCodeTask, VSCodeTaskGroup } from '../../product/instruments/vscode/types';
 import type { ArtifactSnapshot } from './artifact-loader';
 
 const GROUP_MAP: Readonly<Record<VSCodeTaskGroup, vscode.TaskGroup | undefined>> = {

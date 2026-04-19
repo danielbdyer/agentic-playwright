@@ -1,4 +1,4 @@
-import type { BoundingBox } from '../../../../lib/domain/observation/dashboard';
+import type { BoundingBox } from '../../../../product/domain/observation/dashboard';
 
 export interface ViewportDimensions {
   readonly width: number;

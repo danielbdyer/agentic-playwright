@@ -24,9 +24,9 @@ import {
   createPipelineBuffer,
   readEventCount,
   readSlot,
-} from '../lib/infrastructure/dashboard/pipeline-event-bus';
-import type { PipelineBuffer } from '../lib/infrastructure/dashboard/pipeline-event-bus';
-import type { DashboardEvent, DashboardEventKind } from '../lib/domain/observation/dashboard';
+} from '../dashboard/bridges/pipeline-event-bus';
+import type { PipelineBuffer } from '../dashboard/bridges/pipeline-event-bus';
+import type { DashboardEvent, DashboardEventKind } from '../product/domain/observation/dashboard';
 import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Constants (mirrored from pipeline-event-bus.ts) ───

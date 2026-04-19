@@ -4,11 +4,11 @@ import {
   compareToScorecard,
   updateScorecard,
   type FitnessInputData,
-} from '../../lib/application/improvement/fitness';
-import type { ProposalBundle, StepExecutionReceipt } from '../../lib/domain/execution/types';
-import type { PipelineScorecard } from '../../lib/domain/fitness/types';
-import type { ResolutionReceipt } from '../../lib/domain/resolution/types';
-import type { DogfoodIterationResult, DogfoodLedger } from '../../lib/application/improvement/dogfood';
+} from '../../workshop/orchestration/fitness';
+import type { ProposalBundle, StepExecutionReceipt } from '../../product/domain/execution/types';
+import type { PipelineScorecard } from '../../workshop/metrics/types';
+import type { ResolutionReceipt } from '../../product/domain/resolution/types';
+import type { DogfoodIterationResult, DogfoodLedger } from '../../workshop/orchestration/dogfood';
 
 // ─── Test Fixtures ───
 

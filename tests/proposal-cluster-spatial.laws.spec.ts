@@ -4,7 +4,7 @@ import {
 } from '../dashboard/src/spatial/proposal-cluster';
 import {
   ARTIFACT_COLORS,
-} from '../lib/domain/proposal/cluster';
+} from '../product/domain/proposal/cluster';
 
 test.describe('ProposalCluster R3F laws', () => {
   test('Law 1: pulseScale oscillates around 1.0', () => {

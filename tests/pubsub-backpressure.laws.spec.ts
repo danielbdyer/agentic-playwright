@@ -21,9 +21,9 @@ import {
   readSlot,
   createStringChannel,
   createPipelineEventBus,
-} from '../lib/infrastructure/dashboard/pipeline-event-bus';
-import type { PipelineBuffer } from '../lib/infrastructure/dashboard/pipeline-event-bus';
-import type { DashboardEvent } from '../lib/domain/observation/dashboard';
+} from '../dashboard/bridges/pipeline-event-bus';
+import type { PipelineBuffer } from '../dashboard/bridges/pipeline-event-bus';
+import type { DashboardEvent } from '../product/domain/observation/dashboard';
 
 // ─── Helpers ───
 

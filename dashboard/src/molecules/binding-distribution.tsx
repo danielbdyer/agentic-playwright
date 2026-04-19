@@ -7,7 +7,7 @@
  *   │   72%                │ (amber)20% │(red)8%│
  *   └──────────────────────┴────────────┴──────┘
  *
- * Consumes pure domain logic from lib/domain/binding-distribution.ts.
+ * Consumes pure domain logic from product/domain/binding-distribution.ts.
  *
  * @see docs/first-day-flywheel-visualization.md Part I (Act 4), Part VIII
  */
@@ -20,7 +20,7 @@ import {
   trendColor,
   type DistributionBreakdown,
   type BindingTrend,
-} from '../../../lib/domain/projection/binding-distribution';
+} from '../../../product/domain/projection/binding-distribution';
 
 // ─── Component Props ───
 

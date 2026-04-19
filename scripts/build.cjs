@@ -9,7 +9,7 @@ const CONFIG_PATH = path.join(ROOT_DIR, 'tsconfig.build.json');
 const GENERATED_KNOWLEDGE_PATH = path.join(ROOT_DIR, 'lib', 'generated', 'tesseract-knowledge.ts');
 
 /**
- * Ensure lib/generated/tesseract-knowledge.ts exists so the build can bootstrap.
+ * Ensure product/generated/tesseract-knowledge.ts exists so the build can bootstrap.
  * The real generator (via `npm run types`) overwrites this stub with full content.
  * Without this stub, a fresh clone cannot compile because workflow-facade.ts imports it.
  */

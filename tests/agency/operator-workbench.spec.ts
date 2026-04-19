@@ -1,15 +1,15 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { approveProposal } from '../../lib/application/governance/approve';
-import { projectBenchmarkScorecard } from '../../lib/application/improvement/benchmark';
-import { emitOperatorInbox } from '../../lib/application/agency/inbox';
-import { generatedProposalsPath } from '../../lib/application/paths';
-import { refreshScenario } from '../../lib/application/resolution/refresh';
-import { proposalIdForEntry } from '../../lib/application/agency/operator';
-import { runWithLocalServices, runWithLocalServicesDetailed } from '../../lib/composition/local-services';
-import { createAdoId } from '../../lib/domain/kernel/identity';
-import type { ProposalBundle } from '../../lib/domain/execution/types';
+import { approveProposal } from '../../workshop/policy/approve';
+import { projectBenchmarkScorecard } from '../../workshop/orchestration/benchmark';
+import { emitOperatorInbox } from '../../product/application/agency/inbox';
+import { generatedProposalsPath } from '../../product/application/paths';
+import { refreshScenario } from '../../product/application/resolution/refresh';
+import { proposalIdForEntry } from '../../product/application/agency/operator';
+import { runWithLocalServices, runWithLocalServicesDetailed } from '../../product/composition/local-services';
+import { createAdoId } from '../../product/domain/kernel/identity';
+import type { ProposalBundle } from '../../product/domain/execution/types';
 import { createTestWorkspace } from '../support/workspace';
 
 function projectPath(value: string): string {

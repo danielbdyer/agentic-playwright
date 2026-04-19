@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { createResolutionEngineRegistry, resolveResolutionEngine, type ResolutionEngine } from '../../lib/application/resolution/resolution-engine';
-import { validateStepResults } from '../../lib/application/commitment/validate-step-results';
-import { runResolutionPipeline } from '../../lib/runtime/resolution';
-import type { RuntimeStepAgentContext } from '../../lib/runtime/resolution/types';
-import type { StepExecutionReceipt } from '../../lib/domain/execution/types';
+import { createResolutionEngineRegistry, resolveResolutionEngine, type ResolutionEngine } from '../../product/application/resolution/resolution-engine';
+import { validateStepResults } from '../../product/application/commitment/validate-step-results';
+import { runResolutionPipeline } from '../../product/runtime/resolution';
+import type { RuntimeStepAgentContext } from '../../product/runtime/resolution/types';
+import type { StepExecutionReceipt } from '../../product/domain/execution/types';
 import { createAgentContext, createInterfaceResolutionContext, createGroundedStep } from '../support/interface-fixtures';
-import { asFingerprint } from '../../lib/domain/kernel/hash';
+import { asFingerprint } from '../../product/domain/kernel/hash';
 
 function baseFixture(explicit = false) {
   const resolutionContext = createInterfaceResolutionContext();

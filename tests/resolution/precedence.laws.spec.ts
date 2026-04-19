@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { rankActionCandidates } from '../../lib/runtime/resolution/candidate-lattice';
-import { selectedControlResolution } from '../../lib/runtime/resolution/select-controls';
-import { runResolutionPipeline } from '../../lib/runtime/resolution';
-import { chooseByPrecedence, routeSelectionPrecedenceLaw } from '../../lib/domain/resolution/precedence';
+import { rankActionCandidates } from '../../product/runtime/resolution/candidate-lattice';
+import { selectedControlResolution } from '../../product/runtime/resolution/select-controls';
+import { runResolutionPipeline } from '../../product/runtime/resolution';
+import { chooseByPrecedence, routeSelectionPrecedenceLaw } from '../../product/domain/resolution/precedence';
 import { cloneJson, createAgentContext, createInterfaceResolutionContext, createGroundedStep } from '../support/interface-fixtures';
 
 function buildContextWithControls() {

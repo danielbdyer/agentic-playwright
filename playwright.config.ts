@@ -1,5 +1,5 @@
 import { defineConfig } from '@playwright/test';
-import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './lib/infrastructure/tooling/browser-options';
+import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './product/instruments/tooling/browser-options';
 
 const defaultWorkers = parseInt(process.env.TESSERACT_TEST_WORKERS ?? '', 10);
 

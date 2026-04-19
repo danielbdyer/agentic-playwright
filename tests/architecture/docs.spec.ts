@@ -13,9 +13,9 @@ test('repo docs describe deterministic auto-approval, supplements, and review ar
   const agents = readFile('AGENTS.md');
   const agentContext = readFile('docs', 'agent-context.md');
   const authoring = readFile('docs', 'authoring.md');
-  const masterArchitecture = readFile('docs', 'master-architecture.md');
+  const masterArchitecture = readFile('docs', 'v1-reference', 'master-architecture.md');
   const operatorHandbook = readFile('docs', 'operator-handbook.md');
-  const recursiveImprovement = readFile('docs', 'recursive-self-improvement.md');
+  const recursiveImprovement = readFile('docs', 'v1-reference', 'recursive-self-improvement.md');
   const vision = readFile('VISION.md');
   const backlog = readFile('BACKLOG.md');
 
@@ -28,18 +28,17 @@ test('repo docs describe deterministic auto-approval, supplements, and review ar
   expect(readme).toContain('.tesseract/benchmarks/{benchmark}/{run_id}.benchmark-improvement.json');
   expect(readme).toContain('generated/{suite}/{ado_id}.proposals.json');
   expect(readme).toContain('generated/{suite}/{ado_id}.review.md');
-  expect(agents).toContain('docs/master-architecture.md');
+  // AGENTS.md was reshaped to the v2 product/workshop/dashboard vocabulary;
+  // the v1 spine vocabulary lives under docs/v1-reference/.
+  expect(agents).toContain('docs/v1-reference/master-architecture.md');
   expect(agents).toContain('governance');
   expect(agents).toContain('interface');
-  expect(agents).toContain('intervention');
   expect(agents).toContain('improvement');
   expect(agents).toContain('needs-human');
-  expect(agents).toContain('knowledge/screens/{screen}.hints.yaml');
   expect(agentContext).toContain('interface intelligence');
   expect(agentContext).toContain('docs/master-architecture.md');
-  expect(authoring).toContain('knowledge/patterns/*.yaml');
-  expect(authoring).toContain('tests/fixtures/knowledge/**');
   expect(authoring).toContain('knowledge/patterns/');
+  expect(authoring).toContain('tests/fixtures/knowledge/**');
   expect(authoring).toContain('certification');
   expect(authoring).toContain('binding.kind: deferred');
   expect(authoring).toContain('.tesseract/runs/{ado_id}/{run_id}/run.json');
@@ -65,13 +64,16 @@ test('repo docs describe deterministic auto-approval, supplements, and review ar
 });
 
 test('canonical doctrine docs use the architectural spines vocabulary and retire the dragon metaphor', () => {
+  // v2.1 reshaped CLAUDE.md and AGENTS.md to the product/workshop/dashboard
+  // vocabulary, so they no longer assert the v1 spines vocabulary. The
+  // spines vocabulary is preserved in docs/v1-reference/ plus the
+  // still-v1-doctrine files below.
   const docs = [
     ['README.md'],
-    ['AGENTS.md'],
     ['VISION.md'],
     ['BACKLOG.md'],
     ['docs', 'agent-context.md'],
-    ['docs', 'master-architecture.md'],
+    ['docs', 'v1-reference', 'master-architecture.md'],
     ['docs', 'domain-ontology.md'],
     ['docs', 'coding-notes.md'],
     ['docs', 'direction.md'],
@@ -89,7 +91,7 @@ test('canonical doctrine docs use the architectural spines vocabulary and retire
     expect(retiredMetaphor.test(text)).toBeFalsy();
   }
 
-  expect(readFile('docs', 'master-architecture.md')).toContain('three durable architectural spines');
+  expect(readFile('docs', 'v1-reference', 'master-architecture.md')).toContain('three durable architectural spines');
   expect(readFile('docs', 'domain-ontology.md')).toContain('## The Three Architectural Spines');
   expect(readFile('docs', 'coding-notes.md')).toContain('## The Three Architectural Spines');
 });

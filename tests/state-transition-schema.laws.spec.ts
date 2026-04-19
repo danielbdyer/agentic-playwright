@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { validateStateTransitionGraph } from '../lib/domain/validation/interface';
-import { validateResolutionControl } from '../lib/domain/validation/core';
+import { validateStateTransitionGraph } from '../product/domain/validation/interface';
+import { validateResolutionControl } from '../product/domain/validation/core';
 
 const validStateTransitionGraph = () => ({
   kind: 'state-transition-graph' as const,

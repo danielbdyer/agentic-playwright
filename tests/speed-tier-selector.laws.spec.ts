@@ -3,7 +3,7 @@ import {
   formatSpeed,
   nearestTier,
 } from '../dashboard/src/molecules/speed-tier-selector';
-import { SPEED_TIERS } from '../lib/domain/projection/speed-tier-batcher';
+import { SPEED_TIERS } from '../product/domain/projection/speed-tier-batcher';
 
 test.describe('SpeedTierSelector laws', () => {
   test('Law 1: formatSpeed includes × suffix', () => {

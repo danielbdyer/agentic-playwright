@@ -5,7 +5,7 @@ import {
   scenarioStabilityScore,
   sssObligation,
   type OutcomeHistoryEntry,
-} from '../../lib/domain/fitness/outcome-metrics';
+} from '../../workshop/metrics/outcome-metrics';
 
 function history(entries: readonly Partial<OutcomeHistoryEntry>[]): readonly OutcomeHistoryEntry[] {
   return entries.map((e, i) => ({

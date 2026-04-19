@@ -4,9 +4,9 @@ import {
   createScenarioRunState,
   inferTransitionObservations,
   type ScenarioRunState,
-} from '../lib/domain/aggregates/runtime-scenario-run';
-import type { GroundedStep, ResolutionReceipt } from '../lib/domain/resolution/types';
-import { createScreenId, createStateNodeRef, createTransitionRef } from '../lib/domain/kernel/identity';
+} from '../product/domain/aggregates/runtime-scenario-run';
+import type { GroundedStep, ResolutionReceipt } from '../product/domain/resolution/types';
+import { createScreenId, createStateNodeRef, createTransitionRef } from '../product/domain/kernel/identity';
 
 function groundedStep(overrides: Partial<GroundedStep> = {}): GroundedStep {
   return {

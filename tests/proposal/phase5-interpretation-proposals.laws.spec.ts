@@ -5,9 +5,9 @@ import {
   createPolicySearchScreen,
   createPolicySearchElement,
 } from '../support/interface-fixtures';
-import { proposalsFromInterpretation, proposalForSupplementGap } from '../../lib/runtime/resolution/proposals';
-import type { IntentInterpretation } from '../../lib/runtime/resolution/types';
-import { createScreenId, createElementId } from '../../lib/domain/kernel/identity';
+import { proposalsFromInterpretation, proposalForSupplementGap } from '../../product/runtime/resolution/proposals';
+import type { IntentInterpretation } from '../../product/runtime/resolution/types';
+import { createScreenId, createElementId } from '../../product/domain/kernel/identity';
 
 // ─── Fixtures ───
 

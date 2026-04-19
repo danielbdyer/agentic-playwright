@@ -6,7 +6,7 @@
  *   → flat (amber) — hit rate stable
  *   ↓ regressing (red) — hit rate decreasing
  *
- * Consumes pure domain logic from lib/domain/iteration-timeline.ts.
+ * Consumes pure domain logic from product/domain/iteration-timeline.ts.
  *
  * @see docs/first-day-flywheel-visualization.md Part VIII: Molecule Components
  */
@@ -16,7 +16,7 @@ import {
   directionArrow,
   directionColor,
   type ConvergenceDirection,
-} from '../../../lib/domain/projection/iteration-timeline';
+} from '../../../product/domain/projection/iteration-timeline';
 
 // ─── Component Props ───
 

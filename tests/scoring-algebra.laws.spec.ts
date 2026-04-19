@@ -23,16 +23,16 @@ import {
   combineScoringRules,
   weightedScoringRule,
   contramapScoringRule,
-} from '../lib/application/learning/learning-shared';
-import type { ScoringRule } from '../lib/application/learning/learning-shared';
+} from '../workshop/learning/learning-shared';
+import type { ScoringRule } from '../workshop/learning/learning-shared';
 import {
   identityScoringRule,
   annihilatorScoringRule,
   boundedScoringRule,
   scoringRuleSemigroup,
   scoringRuleMonoid,
-} from '../lib/domain/algebra/scoring';
-import { concatAll, foldMap } from '../lib/domain/algebra/monoid';
+} from '../product/domain/algebra/scoring';
+import { concatAll, foldMap } from '../product/domain/algebra/monoid';
 import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───

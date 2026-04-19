@@ -31,18 +31,18 @@ import { expect, test } from '@playwright/test';
 import {
   createTaskProvider,
   createTaskFromInboxItem,
-} from '../lib/infrastructure/vscode/task-provider';
+} from '../product/instruments/vscode/task-provider';
 import {
   createProblemMatcher,
   createDiagnosticsFromBundle,
-} from '../lib/infrastructure/vscode/problem-matcher';
+} from '../product/instruments/vscode/problem-matcher';
 import {
   createCopilotParticipant,
   dispatchCopilotRequest,
-} from '../lib/infrastructure/vscode/copilot-participant';
-import type { OperatorInboxItem } from '../lib/domain/resolution/types';
-import type { ProposalBundle, ProposalEntry } from '../lib/domain/execution/types';
-import type { VSCodeDiagnosticSeverity } from '../lib/infrastructure/vscode/types';
+} from '../product/instruments/vscode/copilot-participant';
+import type { OperatorInboxItem } from '../product/domain/resolution/types';
+import type { ProposalBundle, ProposalEntry } from '../product/domain/execution/types';
+import type { VSCodeDiagnosticSeverity } from '../product/instruments/vscode/types';
 import { mulberry32, pick, randomInt, randomWord , LAW_SEED_COUNT } from './support/random';
 
 // ─── Constants ───

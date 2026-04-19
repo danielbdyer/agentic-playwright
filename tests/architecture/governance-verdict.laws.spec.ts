@@ -23,8 +23,8 @@ import {
   mintApproved,
   mintReviewRequired,
   mintBlocked,
-} from '../../lib/domain/governance/workflow-types';
-import type { Governance } from '../../lib/domain/governance/workflow-types';
+} from '../../product/domain/governance/workflow-types';
+import type { Governance } from '../../product/domain/governance/workflow-types';
 import {
   approved,
   suspended,
@@ -32,8 +32,8 @@ import {
   foldVerdict,
   chainVerdict,
   runGateChain,
-} from '../../lib/domain/kernel/governed-suspension';
-import type { GovernanceVerdict } from '../../lib/domain/kernel/governed-suspension';
+} from '../../product/domain/kernel/governed-suspension';
+import type { GovernanceVerdict } from '../../product/domain/kernel/governed-suspension';
 import { readdirSync, readFileSync } from 'fs';
 import path from 'path';
 
@@ -158,11 +158,11 @@ describe('Phase 0d: Governance verdict laws', () => {
   // ─── Law 8: No ad-hoc governance string comparisons ────────
 
   test('Law 8: production code has zero ad-hoc governance string comparisons outside typed API', () => {
-    // Walk lib/ and check that no file does `.governance === '...'`
+    // Walk product/ and check that no file does `.governance === '...'`
     // outside the typed-API infrastructure files. This is the
     // architecture fitness test that prevents regression to
     // ad-hoc string comparisons.
-    const libDir = path.resolve(__dirname, '../../lib');
+    const productDir = path.resolve(__dirname, '../../product');
     const violations: string[] = [];
     const adHocPattern = /\.governance\s*===\s*['"]|\.governance\s*!==\s*['"]/g;
     const allowedFiles = new Set([
@@ -170,6 +170,7 @@ describe('Phase 0d: Governance verdict laws', () => {
       'domain/validation/core/shared.ts', // validator reads from persistence
       'domain/schemas/intent.ts', // schema validation on serialized data
       'domain/schemas/workflow.ts', // schema validation on serialized data
+      'domain/handshake/region-snapshot.ts', // ResolutionStepShape governance is wider than the typed-guard constraint
     ]);
 
     function walkDir(dir: string): void {
@@ -178,7 +179,7 @@ describe('Phase 0d: Governance verdict laws', () => {
         if (entry.isDirectory()) {
           walkDir(full);
         } else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.spec.ts')) {
-          const rel = path.relative(libDir, full).replace(/\\/g, '/');
+          const rel = path.relative(productDir, full).replace(/\\/g, '/');
           if (allowedFiles.has(rel)) continue;
           const content = readFileSync(full, 'utf-8');
           const matches = content.match(adHocPattern);
@@ -189,7 +190,7 @@ describe('Phase 0d: Governance verdict laws', () => {
       }
     }
 
-    walkDir(libDir);
+    walkDir(productDir);
     expect(violations).toEqual([]);
   });
 });

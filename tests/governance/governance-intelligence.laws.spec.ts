@@ -3,10 +3,10 @@ import {
   buildGovernanceIntelligence,
   extractHighFrictionTypes,
   isGovernanceHealthy,
-} from '../../lib/application/governance/governance-intelligence';
-import type { ContradictionReport } from '../../lib/domain/knowledge/contradiction-types';
-import type { ArchitectureFitnessReport } from '../../lib/domain/fitness/architecture-fitness';
-import type { ProposalBundle } from '../../lib/domain/execution/types';
+} from '../../workshop/policy/governance-intelligence';
+import type { ContradictionReport } from '../../product/domain/knowledge/contradiction-types';
+import type { ArchitectureFitnessReport } from '../../workshop/metrics/architecture-fitness';
+import type { ProposalBundle } from '../../product/domain/execution/types';
 
 function makeContradictionReport(overrides?: Partial<{
   contradictions: ContradictionReport['contradictions'];

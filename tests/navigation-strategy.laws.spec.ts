@@ -16,7 +16,7 @@ import {
   navigationOptionsForRoute,
   navigationOptionsForUrl,
   needsPostNavigationCheck,
-} from '../lib/runtime/adapters/navigation-strategy';
+} from '../product/runtime/adapters/navigation-strategy';
 
 test.describe('classifyRoute', () => {
   test('classifies hash-based routing as SPA', () => {

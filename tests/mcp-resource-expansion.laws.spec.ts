@@ -30,9 +30,9 @@ import {
   type McpResourceUri,
   type ResourceArtifactReader,
   type McpResourceKind,
-} from '../lib/infrastructure/mcp/resource-provider';
-import { dashboardMcpTools } from '../lib/domain/observation/dashboard';
-import { createDashboardMcpServer, type DashboardMcpServerOptions } from '../lib/infrastructure/mcp/dashboard-mcp-server';
+} from '../dashboard/mcp/resource-provider';
+import { dashboardMcpTools } from '../product/domain/observation/dashboard';
+import { createDashboardMcpServer, type DashboardMcpServerOptions } from '../dashboard/mcp/dashboard-mcp-server';
 import { Effect } from 'effect';
 
 // ─── Test Fixtures ───

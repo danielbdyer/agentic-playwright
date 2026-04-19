@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   journalWriterConfig,
   deriveAct,
-} from '../lib/infrastructure/dashboard/journal-writer';
+} from '../dashboard/bridges/journal-writer';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -61,13 +61,14 @@ test.describe('Journal writer server integration laws', () => {
     expect(serverSource).toContain('journalWriterConfig');
   });
 
-  test('Law 5: server.ts has --journal CLI flag handling', () => {
-    const serverSource = fs.readFileSync(
-      path.join(__dirname, '..', 'dashboard', 'server.ts'),
+  test('Law 5: server config has --journal CLI flag handling', () => {
+    // Flag parsing moved to dashboard/server/config.ts in the 2026 refactor.
+    const configSource = fs.readFileSync(
+      path.join(__dirname, '..', 'dashboard', 'server', 'config.ts'),
       'utf-8',
     );
-    expect(serverSource).toContain("'--journal'");
-    expect(serverSource).toContain('JOURNAL');
+    expect(configSource).toContain("'--journal'");
+    expect(configSource).toContain('journalEnabled');
   });
 
   test('Law 6: server.ts wires journal writer to PubSub event bus', () => {
@@ -80,12 +81,13 @@ test.describe('Journal writer server integration laws', () => {
   });
 
   test('Law 7: journal is auto-enabled when --speedrun is active', () => {
-    const serverSource = fs.readFileSync(
-      path.join(__dirname, '..', 'dashboard', 'server.ts'),
+    // Auto-enable logic moved to dashboard/server/config.ts.
+    const configSource = fs.readFileSync(
+      path.join(__dirname, '..', 'dashboard', 'server', 'config.ts'),
       'utf-8',
     );
-    // JOURNAL should be true when SPEEDRUN is true
-    expect(serverSource).toMatch(/JOURNAL.*=.*SPEEDRUN/);
+    // journalEnabled should be true when speedrun is true
+    expect(configSource).toMatch(/journalEnabled:\s*journalFlag\s*\|\|\s*speedrun/);
   });
 
   test('Law 8: journal writer config has 50MB file size limit in server', () => {
@@ -106,12 +108,13 @@ test.describe('Journal writer server integration laws', () => {
   });
 
   test('Law 10: existing playback API endpoints remain intact', () => {
-    const serverSource = fs.readFileSync(
-      path.join(__dirname, '..', 'dashboard', 'server.ts'),
+    // Routing moved to dashboard/server/http-router.ts.
+    const routerSource = fs.readFileSync(
+      path.join(__dirname, '..', 'dashboard', 'server', 'http-router.ts'),
       'utf-8',
     );
-    expect(serverSource).toContain("'/api/runs'");
-    expect(serverSource).toContain('/journal');
-    expect(serverSource).toContain('/journal/index');
+    expect(routerSource).toContain("'/api/runs'");
+    expect(routerSource).toContain('/journal');
+    expect(routerSource).toContain('/journal/index');
   });
 });

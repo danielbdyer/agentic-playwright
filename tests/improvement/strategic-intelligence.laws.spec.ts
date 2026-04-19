@@ -3,10 +3,10 @@ import {
   buildStrategicIntelligence,
   extractStrategicGaps,
   computeStrategicEfficiency,
-} from '../../lib/application/improvement/strategic-intelligence';
-import type { ProposalBundle } from '../../lib/domain/execution/types';
-import type { PipelineFitnessReport } from '../../lib/domain/fitness/types';
-import type { GroundedSpecFragment, TrainingCorpusManifest } from '../../lib/domain/learning/types';
+} from '../../workshop/orchestration/strategic-intelligence';
+import type { ProposalBundle } from '../../product/domain/execution/types';
+import type { PipelineFitnessReport } from '../../workshop/metrics/types';
+import type { GroundedSpecFragment, TrainingCorpusManifest } from '../../product/domain/learning/types';
 
 function makeManifest(): TrainingCorpusManifest {
   return {

@@ -6,7 +6,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { taggedFingerprintFor } from '../lib/domain/kernel/hash';
+import { taggedFingerprintFor } from '../product/domain/kernel/hash';
 
 function findScenarioFiles(dir: string): string[] {
   const results: string[] = [];

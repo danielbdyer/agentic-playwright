@@ -1,5 +1,5 @@
 import { defineConfig } from '@playwright/test';
-import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './lib/infrastructure/tooling/browser-options';
+import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './product/instruments/tooling/browser-options';
 
 export default defineConfig({
   testDir: 'generated',

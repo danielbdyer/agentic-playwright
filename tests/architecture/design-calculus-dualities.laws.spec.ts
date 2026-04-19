@@ -14,14 +14,14 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { runFold, productFold, productFold3, contramapFold, filterFold } from '../../lib/domain/algebra/product-fold';
-import type { Fold } from '../../lib/domain/algebra/product-fold';
-import { runHylo, traceHylo } from '../../lib/domain/algebra/hylomorphism';
-import type { Hylomorphism } from '../../lib/domain/algebra/hylomorphism';
-import { freeSearch, forget, trailCoverage } from '../../lib/domain/algebra/free-forgetful';
-import { verifyNaturality, findNaturalityViolations } from '../../lib/domain/algebra/slice-projection';
-import { GovernanceLattice, meetAll, joinAll } from '../../lib/domain/algebra/lattice';
-import type { Governance } from '../../lib/domain/governance/workflow-types';
+import { runFold, productFold, productFold3, contramapFold, filterFold } from '../../product/domain/algebra/product-fold';
+import type { Fold } from '../../product/domain/algebra/product-fold';
+import { runHylo, traceHylo } from '../../product/domain/algebra/hylomorphism';
+import type { Hylomorphism } from '../../product/domain/algebra/hylomorphism';
+import { freeSearch, forget, trailCoverage } from '../../product/domain/algebra/free-forgetful';
+import { verifyNaturality, findNaturalityViolations } from '../../product/domain/algebra/slice-projection';
+import { GovernanceLattice, meetAll, joinAll } from '../../product/domain/algebra/lattice';
+import type { Governance } from '../../product/domain/governance/workflow-types';
 
 // ═══════════════════════════════════════════════════════════
 // Collapse 4: Product Fold Fusion Law

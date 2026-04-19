@@ -14,18 +14,18 @@
 
 import { expect, test } from '@playwright/test';
 import YAML from 'yaml';
-import { activateProposalBundle } from '../../lib/application/knowledge/activate-proposals';
+import { activateProposalBundle } from '../../product/application/knowledge/activate-proposals';
 import {
   createProposalBundleEnvelope,
   createScenarioEnvelopeFingerprints,
   createScenarioEnvelopeIds,
-} from '../../lib/application/catalog/envelope';
-import { runWithLocalServices } from '../../lib/composition/local-services';
-import { createAdoId, createElementId, createScreenId } from '../../lib/domain/kernel/identity';
-import type { ProposalBundle, ProposalEntry } from '../../lib/domain/execution/types';
-import type { StepAction } from '../../lib/domain/governance/workflow-types';
-import type { ResolutionReceipt, TranslationReceipt } from '../../lib/domain/resolution/types';
-import { runResolutionPipeline, type RuntimeStepAgentContext } from '../../lib/runtime/resolution';
+} from '../../product/application/catalog/envelope';
+import { runWithLocalServices } from '../../product/composition/local-services';
+import { createAdoId, createElementId, createScreenId } from '../../product/domain/kernel/identity';
+import type { ProposalBundle, ProposalEntry } from '../../product/domain/execution/types';
+import type { StepAction } from '../../product/domain/governance/workflow-types';
+import type { ResolutionReceipt, TranslationReceipt } from '../../product/domain/resolution/types';
+import { runResolutionPipeline, type RuntimeStepAgentContext } from '../../product/runtime/resolution';
 import { createTestWorkspace } from '../support/workspace';
 import {
   createAgentContext,

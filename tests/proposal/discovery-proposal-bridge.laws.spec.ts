@@ -16,10 +16,10 @@ import {
   generateProposalsFromDiscovery,
   type ProposalBundle,
   type DiscoveryProposal,
-} from '../../lib/application/knowledge/discovery-proposal-bridge';
-import type { DiscoveryRun, DiscoveryObservedElement, DiscoveryObservedSurface } from '../../lib/domain/target/interface-graph';
-import type { CanonicalTargetRef, ElementId, ScreenId, SectionId, SurfaceId } from '../../lib/domain/kernel/identity';
-import { createScreenId, createElementId, createSurfaceId, createSectionId, createCanonicalTargetRef } from '../../lib/domain/kernel/identity';
+} from '../../product/application/knowledge/discovery-proposal-bridge';
+import type { DiscoveryRun, DiscoveryObservedElement, DiscoveryObservedSurface } from '../../product/domain/target/interface-graph';
+import type { CanonicalTargetRef, ElementId, ScreenId, SectionId, SurfaceId } from '../../product/domain/kernel/identity';
+import { createScreenId, createElementId, createSurfaceId, createSectionId, createCanonicalTargetRef } from '../../product/domain/kernel/identity';
 import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from '../support/random';
 
 // ─── Helpers ───

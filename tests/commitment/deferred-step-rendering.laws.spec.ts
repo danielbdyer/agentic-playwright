@@ -7,10 +7,10 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { renderReadableSpecModule } from '../../lib/domain/codegen/spec-codegen';
-import type { GroundedFlowStep, GroundedSpecFlow } from '../../lib/domain/intent/types';
-import type { Confidence, StepBindingKind } from '../../lib/domain/governance/workflow-types';
-import { createAdoId, createScreenId, createElementId } from '../../lib/domain/kernel/identity';
+import { renderReadableSpecModule } from '../../product/instruments/codegen/spec-codegen';
+import type { GroundedFlowStep, GroundedSpecFlow } from '../../product/domain/intent/types';
+import type { Confidence, StepBindingKind } from '../../product/domain/governance/workflow-types';
+import { createAdoId, createScreenId, createElementId } from '../../product/domain/kernel/identity';
 import { mulberry32 } from '../support/random';
 
 // ─── Helpers ───
@@ -63,7 +63,7 @@ function makeFlow(steps: ReadonlyArray<GroundedFlowStep>): GroundedSpecFlow {
 const DEFAULT_OPTIONS = {
   imports: {
     fixtures: '../fixtures/index',
-    scenarioContext: '../lib/composition/scenario-context',
+    scenarioContext: '../product/composition/scenario-context',
   },
 };
 

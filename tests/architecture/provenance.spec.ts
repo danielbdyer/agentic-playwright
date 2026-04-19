@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { summarizeProvenanceKinds, summarizeUnresolvedReasons, provenanceKindForBoundStep } from '../../lib/domain/governance/provenance';
-import { createElementId, createScreenId } from '../../lib/domain/kernel/identity';
-import type { BoundStep } from '../../lib/domain/intent/types';
+import { summarizeProvenanceKinds, summarizeUnresolvedReasons, provenanceKindForBoundStep } from '../../product/domain/governance/provenance';
+import { createElementId, createScreenId } from '../../product/domain/kernel/identity';
+import type { BoundStep } from '../../product/domain/intent/types';
 
 const screenId = createScreenId('policy-search');
 const elementId = createElementId('searchButton');

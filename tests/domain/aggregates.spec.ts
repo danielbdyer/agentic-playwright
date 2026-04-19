@@ -3,15 +3,15 @@ import {
   createApplicationInterfaceGraph,
   graphInvariants,
   recordTransition,
-} from '../../lib/domain/aggregates/application-interface-graph';
+} from '../../product/domain/aggregates/application-interface-graph';
 import {
   appendEvent,
   createInterventionLedger,
   interventionLedgerInvariants,
-} from '../../lib/domain/aggregates/intervention-ledger';
-import { checkpointRun, improvementRunInvariants } from '../../lib/domain/aggregates/improvement-run';
-import type { AgentEvent, AgentSession } from '../../lib/domain/handshake/session';
-import type { ImprovementRun } from '../../lib/domain/improvement/types';
+} from '../../product/domain/aggregates/intervention-ledger';
+import { checkpointRun, improvementRunInvariants } from '../../product/domain/aggregates/improvement-run';
+import type { AgentEvent, AgentSession } from '../../product/domain/handshake/session';
+import type { ImprovementRun } from '../../product/domain/improvement/types';
 
 const baseSession = {
   kind: 'agent-session',

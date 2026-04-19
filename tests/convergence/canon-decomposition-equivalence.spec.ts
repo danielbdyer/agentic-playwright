@@ -17,10 +17,10 @@ import { describe, test, expect, beforeAll } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Effect } from 'effect';
-import { createProjectPaths, type ProjectPaths } from '../../lib/application/paths';
-import { loadWorkspaceCatalog } from '../../lib/application/catalog/workspace-catalog';
-import type { WorkspaceCatalog } from '../../lib/application/catalog/types';
-import { runWithLocalServices } from '../../lib/composition/local-services';
+import { createProjectPaths, type ProjectPaths } from '../../product/application/paths';
+import { loadWorkspaceCatalog } from '../../product/application/catalog/workspace-catalog';
+import type { WorkspaceCatalog } from '../../product/application/catalog/types';
+import { runWithLocalServices } from '../../product/composition/local-services';
 
 const SUITE_ROOT = path.resolve('dogfood');
 const CANONICAL_ARTIFACTS_DIR = path.join(SUITE_ROOT, '.canonical-artifacts');

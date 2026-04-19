@@ -7,8 +7,8 @@
  * @see docs/cold-start-convergence-plan.md § 4.B item 8
  */
 import { describe, test, expect } from 'vitest';
-import { computeMemoryMaturity, ZERO_MATURITY } from '../../lib/domain/fitness/memory-maturity';
-import type { MemoryMaturityCounts } from '../../lib/domain/fitness/memory-maturity';
+import { computeMemoryMaturity, ZERO_MATURITY } from '../../workshop/metrics/memory-maturity';
+import type { MemoryMaturityCounts } from '../../workshop/metrics/memory-maturity';
 import {
   EMPTY_TRAJECTORY,
   appendPoint,
@@ -20,7 +20,7 @@ import {
   latestMaturity,
   latestHitRate,
   type MemoryMaturityPoint,
-} from '../../lib/domain/fitness/memory-maturity-trajectory';
+} from '../../workshop/metrics/memory-maturity-trajectory';
 
 function makePoint(overrides: Partial<MemoryMaturityPoint> & { effectiveHitRate: number }): MemoryMaturityPoint {
   const counts: MemoryMaturityCounts = {

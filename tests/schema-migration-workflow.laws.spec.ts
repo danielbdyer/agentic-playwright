@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { SchemaError } from '../lib/domain/kernel/errors';
-import { validateBoundStep } from '../lib/domain/validation/intent';
-import { validateTrustPolicy } from '../lib/domain/validation/trust-policy';
-import { decodeWorkflowEnvelope } from '../lib/domain/validation/schema-validators';
+import { SchemaError } from '../product/domain/kernel/errors';
+import { validateBoundStep } from '../product/domain/validation/intent';
+import { validateTrustPolicy } from '../product/domain/validation/trust-policy';
+import { decodeWorkflowEnvelope } from '../product/domain/validation/schema-validators';
 
 const validBoundStep = {
   index: 0,

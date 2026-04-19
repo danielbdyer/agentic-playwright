@@ -3,18 +3,18 @@ import { Effect } from 'effect';
 import { promises as nodeFs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { createProjectPaths } from '../../lib/application/paths';
-import { FileSystem } from '../../lib/application/ports';
-import { LocalFileSystem } from '../../lib/infrastructure/fs/local-fs';
+import { createProjectPaths } from '../../product/application/paths';
+import { FileSystem } from '../../product/application/ports';
+import { LocalFileSystem } from '../../product/instruments/fs/local-fs';
 import {
   captureBaseline,
   loadBaseline,
   listBaselines,
   findLatestBaseline,
-} from '../../lib/application/measurement/baseline-store';
-import { score, findLatestFitnessReport } from '../../lib/application/measurement/score';
-import { buildPipelineMetricTree } from '../../lib/domain/fitness/metric/visitors';
-import type { PipelineFitnessReport, PipelineFitnessMetrics } from '../../lib/domain/fitness/types';
+} from '../../workshop/measurement/baseline-store';
+import { score, findLatestFitnessReport } from '../../workshop/measurement/score';
+import { buildPipelineMetricTree } from '../../workshop/metrics/metric/visitors';
+import type { PipelineFitnessReport, PipelineFitnessMetrics } from '../../workshop/metrics/types';
 
 function withFileSystem<A, E>(program: Effect.Effect<A, E, FileSystem>): Promise<A> {
   return Effect.runPromise(program.pipe(Effect.provideService(FileSystem, LocalFileSystem)) as Effect.Effect<A, E, never>);

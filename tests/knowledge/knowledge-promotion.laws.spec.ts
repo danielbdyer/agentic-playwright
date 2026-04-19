@@ -10,8 +10,8 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { evaluateTrustPolicy } from '../../lib/domain/governance/trust-policy';
-import type { ProposalEntry } from '../../lib/domain/execution/types';
+import { evaluateTrustPolicy } from '../../product/domain/governance/trust-policy';
+import type { ProposalEntry } from '../../product/domain/execution/types';
 import type {
   CertificationStatus,
   Governance,
@@ -20,7 +20,7 @@ import type {
   TrustPolicy,
   TrustPolicyArtifactType,
   TrustPolicyEvaluation,
-} from '../../lib/domain/governance/workflow-types';
+} from '../../product/domain/governance/workflow-types';
 import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from '../support/random';
 
 // ─── Factories ───

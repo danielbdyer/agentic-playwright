@@ -10,15 +10,15 @@ import {
   createSurfaceId,
   createTransitionRef,
   createWidgetId,
-} from '../../lib/domain/kernel/identity';
-import type { StateTransitionGraph } from '../../lib/domain/target/interface-graph';
+} from '../../product/domain/kernel/identity';
+import type { StateTransitionGraph } from '../../product/domain/target/interface-graph';
 import {
   observeStateRefsOnPage,
   observeTransitionOnPage,
   performSafeActiveEvent,
   primeRequiredStatesOnPage,
   type PlaywrightStateObservationContext,
-} from '../../lib/playwright/state-topology';
+} from '../../product/instruments/observation/state-topology';
 
 const chromiumExecutablePath = chromium.executablePath();
 const hasChromiumInstalled = existsSync(chromiumExecutablePath);

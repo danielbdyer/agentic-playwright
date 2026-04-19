@@ -11,8 +11,8 @@ import {
   mintInformational,
   mintInterpreted,
   mintObserved,
-} from '../../lib/domain/handshake/epistemic-brand';
-import type { InterventionEpistemicStatus } from '../../lib/domain/handshake/intervention';
+} from '../../product/domain/handshake/epistemic-brand';
+import type { InterventionEpistemicStatus } from '../../product/domain/handshake/intervention';
 
 interface Carrier {
   readonly epistemicStatus: InterventionEpistemicStatus;

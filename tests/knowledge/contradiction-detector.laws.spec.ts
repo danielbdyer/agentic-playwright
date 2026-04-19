@@ -4,9 +4,9 @@ import {
   detectRouteContradictions,
   detectPatternContradictions,
   buildContradictionReport,
-} from '../../lib/domain/governance/contradiction-detector';
-import type { HintEntry, RouteEntry, PatternEntry } from '../../lib/domain/governance/contradiction-detector';
-import type { KnowledgeContradiction } from '../../lib/domain/knowledge/contradiction-types';
+} from '../../product/domain/governance/contradiction-detector';
+import type { HintEntry, RouteEntry, PatternEntry } from '../../product/domain/governance/contradiction-detector';
+import type { KnowledgeContradiction } from '../../product/domain/knowledge/contradiction-types';
 
 // ─── Law: empty inputs produce no contradictions ───
 

@@ -11,7 +11,7 @@
  *   - Determinism: same initial state + same events = same final state
  *   - Convergence: the identity trace (no events) starts at initial
  *
- * @see lib/domain/kernel/finite-state-machine.ts
+ * @see product/domain/kernel/finite-state-machine.ts
  * @see docs/design-calculus.md § Collapse 1
  */
 
@@ -22,11 +22,11 @@ import {
   traceFSM,
   isMonotoneTrace,
   verifyAbsorption,
-} from '../lib/domain/kernel/finite-state-machine';
+} from '../product/domain/kernel/finite-state-machine';
 import {
   convergenceFSMDefinition,
-} from '../lib/domain/projection/convergence-fsm';
-import type { ConvergenceState, ConvergenceEvent } from '../lib/domain/projection/convergence-fsm';
+} from '../product/domain/projection/convergence-fsm';
+import type { ConvergenceState, ConvergenceEvent } from '../product/domain/projection/convergence-fsm';
 
 const def = convergenceFSMDefinition;
 

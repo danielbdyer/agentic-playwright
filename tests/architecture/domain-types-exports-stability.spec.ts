@@ -7,7 +7,7 @@ import type {
   RunRecord,
   ScenarioRunStep,
   StepExecutionReceipt,
-} from '../../lib/domain/execution/types';
+} from '../../product/domain/execution/types';
 import type {
   AssertionKind,
   CapabilityName,
@@ -56,7 +56,7 @@ import type {
   WorkflowStage,
   WriteJournalEntry,
   WriteMode,
-} from '../../lib/domain/governance/workflow-types';
+} from '../../product/domain/governance/workflow-types';
 import type {
   InterventionEffect,
   InterventionEffectKind,
@@ -70,7 +70,7 @@ import type {
   ParticipantCapability,
   ParticipantKind,
   ParticipantRef,
-} from '../../lib/domain/handshake/intervention';
+} from '../../product/domain/handshake/intervention';
 import type {
   AcceptanceDecision,
   AcceptanceVerdict,
@@ -91,7 +91,7 @@ import type {
   ImprovementSignalKind,
   ObjectiveVector,
   SubstrateContext,
-} from '../../lib/domain/improvement/types';
+} from '../../product/domain/improvement/types';
 import type {
   AdoParameter,
   AdoSnapshot,
@@ -117,7 +117,7 @@ import type {
   ValueRefLiteral,
   ValueRefParameterRow,
   ValueRefPostureSample,
-} from '../../lib/domain/intent/types';
+} from '../../product/domain/intent/types';
 import type {
   ApprovalEquivalenceStatus,
   ArtifactConfidenceRecord,
@@ -139,7 +139,7 @@ import type {
   SurfaceDefinition,
   SurfaceGraph,
   SurfaceSection,
-} from '../../lib/domain/knowledge/types';
+} from '../../product/domain/knowledge/types';
 import type {
   WidgetAction,
   WidgetActionSemantics,
@@ -147,7 +147,7 @@ import type {
   WidgetEffectCategory,
   WidgetInteractionContext,
   WidgetPrecondition,
-} from '../../lib/domain/knowledge/widget-types';
+} from '../../product/domain/knowledge/widget-types';
 import type {
   BenchmarkContext,
   BenchmarkDriftEvent,
@@ -167,7 +167,7 @@ import type {
   ScenarioExplanation,
   ScenarioExplanationStep,
   ScenarioExplanationSummary,
-} from '../../lib/domain/projection/types';
+} from '../../product/domain/projection/types';
 import type {
   ApprovalReceipt,
   DatasetControl,
@@ -194,7 +194,7 @@ import type {
   TranslationCandidate,
   TranslationReceipt,
   TranslationRequest,
-} from '../../lib/domain/resolution/types';
+} from '../../product/domain/resolution/types';
 
 // Verify every type listed above is importable — the union forces TypeScript
 // to resolve each symbol at compile time while keeping the lint rule happy.
@@ -378,6 +378,6 @@ type _AssertExported =
   | ScenarioExplanationStep
   | ScenarioExplanation;
 
-test('keeps legacy lib/domain/types exports available', () => {
+test('keeps legacy product/domain/types exports available', () => {
   expect(true).toBe(true);
 });

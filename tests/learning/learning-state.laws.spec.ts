@@ -4,8 +4,8 @@ import {
   computeLearningDelta,
   summarizeLearningSignals,
   extractComponentEvidence,
-} from '../../lib/application/learning/learning-state';
-import type { StepExecutionReceipt } from '../../lib/domain/execution/types';
+} from '../../workshop/learning/learning-state';
+import type { StepExecutionReceipt } from '../../product/domain/execution/types';
 
 function makeStep(overrides: Partial<{
   stepIndex: number;

@@ -11,9 +11,9 @@ import {
   DEFAULT_PIPELINE_CONFIG,
   mergePipelineConfig,
   validatePipelineConfig,
-} from '../../lib/domain/attention/pipeline-config';
-import { calibrateWeightsFromCorrelations } from '../../lib/application/learning/learning-bottlenecks';
-import type { BottleneckWeightCorrelation } from '../../lib/domain/fitness/types';
+} from '../../product/domain/attention/pipeline-config';
+import { calibrateWeightsFromCorrelations } from '../../workshop/learning/learning-bottlenecks';
+import type { BottleneckWeightCorrelation } from '../../workshop/metrics/types';
 
 // ─── Helpers ───
 

@@ -1,16 +1,16 @@
 import { expect, test } from '@playwright/test';
-import type { ProposalBundle } from '../../lib/domain/execution/types';
+import type { ProposalBundle } from '../../product/domain/execution/types';
 import type {
   GroundedSpecFragment,
   ReplayEvaluationResult,
   ReplayExample,
   TrainingCorpusManifest,
-} from '../../lib/domain/learning/types';
-import type { ResolutionReceipt } from '../../lib/domain/resolution/types';
-import { projectCorpusHealth } from '../../lib/application/learning/learning-health';
-import { evaluateReplayExample, buildReplayEvaluationSummary } from '../../lib/application/commitment/replay/replay-evaluation';
-import { projectBottlenecks } from '../../lib/application/learning/learning-bottlenecks';
-import { rankProposals } from '../../lib/application/learning/learning-rankings';
+} from '../../product/domain/learning/types';
+import type { ResolutionReceipt } from '../../product/domain/resolution/types';
+import { projectCorpusHealth } from '../../workshop/learning/learning-health';
+import { evaluateReplayExample, buildReplayEvaluationSummary } from '../../product/application/commitment/replay/replay-evaluation';
+import { projectBottlenecks } from '../../workshop/learning/learning-bottlenecks';
+import { rankProposals } from '../../workshop/learning/learning-rankings';
 
 // ─── Fixtures ───
 

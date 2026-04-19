@@ -9,16 +9,16 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { bindScenarioStep, type StepBindingContext } from '../../lib/domain/governance/binding';
+import { bindScenarioStep, type StepBindingContext } from '../../product/domain/governance/binding';
 import {
   createElementId,
   createPostureId,
   createScreenId,
   createSnapshotTemplateId,
   createSurfaceId,
-} from '../../lib/domain/kernel/identity';
-import type { BoundStep, ScenarioStep } from '../../lib/domain/intent/types';
-import type { ScreenElements, ScreenPostures, SurfaceGraph } from '../../lib/domain/knowledge/types';
+} from '../../product/domain/kernel/identity';
+import type { BoundStep, ScenarioStep } from '../../product/domain/intent/types';
+import type { ScreenElements, ScreenPostures, SurfaceGraph } from '../../product/domain/knowledge/types';
 import { mulberry32, pick, randomWord , LAW_SEED_COUNT } from '../support/random';
 
 // ─── Factories ───

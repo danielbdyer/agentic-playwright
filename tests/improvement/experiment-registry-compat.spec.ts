@@ -2,12 +2,12 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 import { expect, test } from '@playwright/test';
-import { loadExperimentRegistry } from '../../lib/application/improvement/experiment-registry';
-import { buildImprovementRun, improvementLedgerPath } from '../../lib/application/improvement/improvement';
-import { createProjectPaths } from '../../lib/application/paths';
-import { runWithLocalServices } from '../../lib/composition/local-services';
-import { DEFAULT_PIPELINE_CONFIG } from '../../lib/domain/attention/pipeline-config';
-import { PipelineFitnessReport } from '../../lib/domain/fitness/types';
+import { loadExperimentRegistry } from '../../workshop/orchestration/experiment-registry';
+import { buildImprovementRun, improvementLedgerPath } from '../../workshop/orchestration/improvement';
+import { createProjectPaths } from '../../product/application/paths';
+import { runWithLocalServices } from '../../product/composition/local-services';
+import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
+import { PipelineFitnessReport } from '../../workshop/metrics/types';
 
 function sampleFitnessReport(): PipelineFitnessReport {
   return {

@@ -1,7 +1,7 @@
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { createProjectPaths } from '../../lib/application/paths';
-import { parseCliInvocation, resolveExecutionPosture } from '../../lib/application/cli/registry';
+import { createProjectPaths } from '../../product/application/paths';
+import { parseCliInvocation, resolveExecutionPosture } from '../../product/cli/registry';
 
 const cwd = process.cwd();
 const dogfoodPaths = createProjectPaths(cwd, path.join(cwd, 'dogfood'));

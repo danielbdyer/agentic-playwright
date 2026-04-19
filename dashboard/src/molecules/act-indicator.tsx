@@ -7,7 +7,7 @@
  *   - Iteration counter
  *   - Slide + cross-fade transition between acts
  *
- * Consumes pure domain logic from lib/domain/act-indicator.ts.
+ * Consumes pure domain logic from product/domain/act-indicator.ts.
  *
  * @see docs/first-day-flywheel-visualization.md Part VIII: Molecule Components
  */
@@ -22,7 +22,7 @@ import {
   outgoingOpacity,
   incomingOpacity,
   type ActBadgeState,
-} from '../../../lib/domain/projection/act-indicator';
+} from '../../../product/domain/projection/act-indicator';
 
 // ─── Component Props ───
 

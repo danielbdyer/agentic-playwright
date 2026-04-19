@@ -5,8 +5,8 @@ import {
   buildCostBaselines,
   detectCostAnomalies,
   computeCostEfficiency,
-} from '../../lib/application/drift/execution-cost';
-import type { StepExecutionReceipt } from '../../lib/domain/execution/types';
+} from '../../product/application/drift/execution-cost';
+import type { StepExecutionReceipt } from '../../product/domain/execution/types';
 
 function makeStep(overrides: Partial<{
   widgetContract: string;

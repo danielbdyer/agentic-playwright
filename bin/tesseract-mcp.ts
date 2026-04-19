@@ -24,13 +24,13 @@ import {
   type DashboardMcpServerOptions,
   type SpeedrunStartConfig,
   type LoopStatus,
-} from '../lib/infrastructure/mcp/dashboard-mcp-server';
-import type { McpToolDefinition } from '../lib/domain/observation/dashboard';
-import type { WorkItemDecision } from '../lib/domain/observation/dashboard';
-import type { ScreenCapturedEvent } from '../lib/domain/observation/dashboard';
-import { createProjectPaths } from '../lib/application/paths';
-import { iteratePhase } from '../lib/application/improvement/speedrun';
-import type { ImprovementLoopLedger } from '../lib/domain/improvement/types';
+} from '../dashboard/mcp/dashboard-mcp-server';
+import type { McpToolDefinition } from '../product/domain/observation/dashboard';
+import type { WorkItemDecision } from '../product/domain/observation/dashboard';
+import type { ScreenCapturedEvent } from '../product/domain/observation/dashboard';
+import { createProjectPaths } from '../product/application/paths';
+import { iteratePhase } from '../workshop/orchestration/speedrun';
+import type { ImprovementLoopLedger } from '../product/domain/improvement/types';
 
 /** Result type for the MCP-hosted iterate phase. Mirrors what
  *  `iteratePhase()` returns; named locally so HostState retains a
@@ -39,16 +39,16 @@ interface IterateHostResult {
   readonly ledger: ImprovementLoopLedger;
   readonly durationMs: number;
 }
-import { createLocalServiceContext, type LocalServiceOptions } from '../lib/composition/local-services';
-import { createPlaywrightBrowserPool } from '../lib/infrastructure/runtime/playwright-browser-pool';
-import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/tooling/fixture-server';
-import { createHintsWriter } from '../lib/infrastructure/knowledge/hints-writer';
-import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/attention/pipeline-config';
-import type { BrowserPoolPort } from '../lib/application/runtime-support/browser-pool';
-import type { DashboardPort } from '../lib/application/ports';
-import type { PipelineConfig } from '../lib/domain/attention/pipeline-config';
-import type { KnowledgePosture } from '../lib/domain/governance/workflow-types';
-import type { SpeedrunProgressEvent } from '../lib/domain/improvement/types';
+import { createLocalServiceContext, type LocalServiceOptions } from '../product/composition/local-services';
+import { createPlaywrightBrowserPool } from '../product/instruments/runtime/playwright-browser-pool';
+import { startFixtureServer, type FixtureServer } from '../product/instruments/tooling/fixture-server';
+import { createHintsWriter } from '../product/instruments/catalog/hints-writer';
+import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../product/domain/attention/pipeline-config';
+import type { BrowserPoolPort } from '../product/application/runtime-support/browser-pool';
+import type { DashboardPort } from '../product/application/ports';
+import type { PipelineConfig } from '../product/domain/attention/pipeline-config';
+import type { KnowledgePosture } from '../product/domain/governance/workflow-types';
+import type { SpeedrunProgressEvent } from '../product/domain/improvement/types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';

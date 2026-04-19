@@ -6,7 +6,7 @@ import {
   CAPTION_FACTORIES,
   type CaptionContext,
 } from '../dashboard/src/narration-catalog';
-import type { DashboardEventKind } from '../lib/domain/observation/dashboard';
+import type { DashboardEventKind } from '../product/domain/observation/dashboard';
 
 // ─── Helpers ───
 

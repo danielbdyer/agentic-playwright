@@ -1,14 +1,14 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { projectBenchmarkScorecard } from '../../lib/application/improvement/benchmark';
-import { buildImprovementRun, improvementLedgerPath } from '../../lib/application/improvement/improvement';
-import { benchmarkDogfoodRunPath, benchmarkImprovementProjectionPath } from '../../lib/application/paths';
-import { runWithLocalServices } from '../../lib/composition/local-services';
-import { createAdoId } from '../../lib/domain/kernel/identity';
-import { DEFAULT_PIPELINE_CONFIG } from '../../lib/domain/attention/pipeline-config';
-import { PipelineFitnessReport } from '../../lib/domain/fitness/types';
-import { validateBenchmarkImprovementProjection, validateDogfoodRun } from '../../lib/domain/validation/execution';
+import { projectBenchmarkScorecard } from '../../workshop/orchestration/benchmark';
+import { buildImprovementRun, improvementLedgerPath } from '../../workshop/orchestration/improvement';
+import { benchmarkDogfoodRunPath, benchmarkImprovementProjectionPath } from '../../product/application/paths';
+import { runWithLocalServices } from '../../product/composition/local-services';
+import { createAdoId } from '../../product/domain/kernel/identity';
+import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
+import { PipelineFitnessReport } from '../../workshop/metrics/types';
+import { validateBenchmarkImprovementProjection, validateDogfoodRun } from '../../product/domain/validation/execution';
 import { createTestWorkspace } from '../support/workspace';
 
 function sampleFitnessReport(): PipelineFitnessReport {

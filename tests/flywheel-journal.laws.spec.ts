@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { deriveAct, type FlywheelAct } from '../lib/infrastructure/dashboard/journal-writer';
-import type { DashboardEventKind } from '../lib/domain/observation/dashboard';
+import { deriveAct, type FlywheelAct } from '../dashboard/bridges/journal-writer';
+import type { DashboardEventKind } from '../product/domain/observation/dashboard';
 
 const FLYWHEEL_EVENTS: readonly DashboardEventKind[] = [
   'surface-discovered', 'route-navigated', 'aria-tree-captured',

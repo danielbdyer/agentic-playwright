@@ -6,7 +6,7 @@ import {
   maturityDelta,
   memoryMaturityEntryCount,
   ZERO_MATURITY,
-} from '../../lib/domain/fitness/memory-maturity';
+} from '../../workshop/metrics/memory-maturity';
 
 // ─── Identity / baseline ───────────────────────────────────────────
 

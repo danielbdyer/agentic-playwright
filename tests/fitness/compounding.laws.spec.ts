@@ -8,7 +8,7 @@ import {
   trajectoryMeasurementClass,
   trajectoryRisk,
   type CompoundingTrajectory,
-} from '../../lib/domain/fitness/compounding';
+} from '../../workshop/metrics/compounding';
 
 const ascending: CompoundingTrajectory = {
   samples: [

@@ -13,14 +13,14 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { createElementId, createScreenId } from '../../lib/domain/kernel/identity';
+import { createElementId, createScreenId } from '../../product/domain/kernel/identity';
 import type {
   SemanticDictionaryAccrualInput,
   SemanticDictionaryCatalog,
   SemanticDictionaryEntry,
   SemanticDictionaryTarget,
-} from '../../lib/domain/knowledge/semantic-dictionary-types';
-import type { SemanticRetrievalContext } from '../../lib/domain/knowledge/semantic-dictionary-types';
+} from '../../product/domain/knowledge/semantic-dictionary-types';
+import type { SemanticRetrievalContext } from '../../product/domain/knowledge/semantic-dictionary-types';
 import {
   accrueSemanticEntry,
   emptyCatalog,
@@ -31,7 +31,7 @@ import {
   pruneSemanticDictionary,
   recordSemanticFailure,
   recordSemanticSuccess,
-} from '../../lib/application/resolution/translation/semantic-translation-dictionary';
+} from '../../product/reasoning/semantic-translation-dictionary';
 import {
   charShingles,
   shingleTermFrequencies,
@@ -40,16 +40,16 @@ import {
   blendedSimilarity,
   buildShingleIndex,
   queryShingleIndex,
-} from '../../lib/domain/knowledge/shingles';
-import { trySemanticDictionaryResolution } from '../../lib/runtime/resolution/resolution-stages';
+} from '../../product/domain/knowledge/shingles';
+import { trySemanticDictionaryResolution } from '../../product/runtime/resolution/resolution-stages';
 import {
   createAgentContext,
   createGroundedStep,
   createInterfaceResolutionContext,
   createPolicySearchScreen,
 } from '../support/interface-fixtures';
-import type { ResolutionAccumulator } from '../../lib/runtime/resolution/resolution-stages';
-import type { RuntimeAgentStageContext } from '../../lib/runtime/resolution/types';
+import type { ResolutionAccumulator } from '../../product/runtime/resolution/resolution-stages';
+import type { RuntimeAgentStageContext } from '../../product/runtime/resolution/types';
 
 // ─── Helpers ───
 
@@ -723,7 +723,7 @@ import {
   serializeShingleIndex,
   deserializeShingleIndex,
   addEntryToShingleIndex,
-} from '../../lib/domain/knowledge/shingles';
+} from '../../product/domain/knowledge/shingles';
 
 test('shingle index round-trips through JSON serialization', () => {
   const index = buildShingleIndex([

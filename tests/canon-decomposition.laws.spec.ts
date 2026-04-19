@@ -41,37 +41,37 @@ import { expect, test } from '@playwright/test';
 import {
   decomposeScreenElements,
   type DecomposeScreenElementsInput,
-} from '../lib/application/canon/decompose-screen-elements';
+} from '../product/application/canon/decompose-screen-elements';
 import {
   decomposeScreenHints,
   fingerprintableHintContent,
   type DecomposeScreenHintsInput,
-} from '../lib/application/canon/decompose-screen-hints';
+} from '../product/application/canon/decompose-screen-hints';
 import {
   decomposeScreenPostures,
   type DecomposeScreenPosturesInput,
-} from '../lib/application/canon/decompose-screen-postures';
+} from '../product/application/canon/decompose-screen-postures';
 import {
   decomposeRouteKnowledge,
   type DecomposeRouteKnowledgeInput,
   type RouteAtomContent,
-} from '../lib/application/canon/decompose-route-knowledge';
+} from '../product/application/canon/decompose-route-knowledge';
 import {
   decomposeScreenSurfaces,
   type DecomposeScreenSurfacesInput,
   type SurfaceCompositionContent,
-} from '../lib/application/canon/decompose-screen-surfaces';
+} from '../product/application/canon/decompose-screen-surfaces';
 import {
   decomposePatterns,
   type DecomposePatternsInput,
   type PatternAtomContent,
-} from '../lib/application/canon/decompose-patterns';
+} from '../product/application/canon/decompose-patterns';
 import {
   decomposeSnapshots,
   type DecomposeSnapshotsInput,
   type SnapshotRecord,
   type SnapshotAtomContent,
-} from '../lib/application/canon/decompose-snapshots';
+} from '../product/application/canon/decompose-snapshots';
 import type {
   ScreenElements,
   ElementSig,
@@ -85,14 +85,14 @@ import type {
   SurfaceSection,
   PatternDocument,
   PatternAliasSet,
-} from '../lib/domain/knowledge/types';
+} from '../product/domain/knowledge/types';
 import type {
   RouteKnowledgeManifest,
   RouteKnowledgeRoute,
   RouteKnowledgeVariant,
-} from '../lib/domain/intent/routes';
-import type { PhaseOutputSource } from '../lib/domain/pipeline/source';
-import { brandString } from '../lib/domain/kernel/brand';
+} from '../product/domain/intent/routes';
+import type { PhaseOutputSource } from '../product/domain/pipeline/source';
+import { brandString } from '../product/domain/kernel/brand';
 
 // ─── Fixture ─────────────────────────────────────────────────────
 

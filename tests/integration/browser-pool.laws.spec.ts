@@ -13,7 +13,7 @@ import {
   determineResetStrategy,
   extractWarmUpUrls,
   createNoOpBrowserPool,
-} from '../../lib/application/runtime-support/browser-pool';
+} from '../../product/application/runtime-support/browser-pool';
 
 test.describe('determineResetStrategy', () => {
   test('same-origin URLs get light reset', () => {

@@ -4,7 +4,7 @@
  * During Act 2, discovered surface regions are highlighted on the screen plane.
  * Each region gets a translucent colored overlay based on its ARIA role.
  *
- * Consumes pure domain logic from lib/domain/surface-overlay.ts for:
+ * Consumes pure domain logic from product/domain/surface-overlay.ts for:
  *   - Region management (add/remove/dim/activate)
  *   - Color mapping by role
  *   - Stagger delay computation
@@ -22,7 +22,7 @@ import {
   staggerDelay,
   STAGGER_DELAY_MS,
   type SurfaceRegion,
-} from '../../../lib/domain/projection/surface-overlay';
+} from '../../../product/domain/projection/surface-overlay';
 
 // ─── Types ───
 

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { createWidgetId } from '../../lib/domain/kernel/identity';
-import { widgetCapabilityContracts } from '../../lib/domain/widgets/contracts';
+import { createWidgetId } from '../../product/domain/kernel/identity';
+import { widgetCapabilityContracts } from '../../product/domain/widgets/contracts';
 import {
   deriveRoleFromSignature,
   primaryAffordanceForRole,
@@ -8,7 +8,7 @@ import {
   roleSupportsAction,
   supportedStepActionsForRole,
   widgetForRole,
-} from '../../lib/domain/widgets/role-affordances';
+} from '../../product/domain/widgets/role-affordances';
 
 test('explicit role beats implicit signature derivation', () => {
   expect(deriveRoleFromSignature({

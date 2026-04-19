@@ -20,8 +20,8 @@ import {
   rejectionCount,
   filterRecentlyRejected,
   latestDecision,
-} from '../lib/application/improvement/iteration-journal';
-import type { IterationJournal, IterationJournalEntry } from '../lib/application/improvement/iteration-journal';
+} from '../workshop/orchestration/iteration-journal';
+import type { IterationJournal, IterationJournalEntry } from '../workshop/orchestration/iteration-journal';
 import { mulberry32, pick, randomWord , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───

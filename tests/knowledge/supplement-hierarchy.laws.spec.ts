@@ -21,15 +21,15 @@ import {
   precedenceWeight,
   resolutionPrecedenceLaw,
   type ResolutionPrecedenceRung,
-} from '../../lib/domain/resolution/precedence';
-import { mergeScreenElementsWithHints } from '../../lib/domain/knowledge/screen-bundle';
+} from '../../product/domain/resolution/precedence';
+import { mergeScreenElementsWithHints } from '../../product/domain/knowledge/screen-bundle';
 import type {
   ElementSig,
   ScreenElementHint,
   ScreenElements,
   ScreenHints,
-} from '../../lib/domain/knowledge/types';
-import { createScreenId, createSurfaceId, createWidgetId } from '../../lib/domain/kernel/identity';
+} from '../../product/domain/knowledge/types';
+import { createScreenId, createSurfaceId, createWidgetId } from '../../product/domain/kernel/identity';
 import { mulberry32, pick, randomWord , LAW_SEED_COUNT } from '../support/random';
 
 // ─── Supplement hierarchy rungs ───

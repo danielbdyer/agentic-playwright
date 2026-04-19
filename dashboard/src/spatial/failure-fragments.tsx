@@ -5,7 +5,7 @@
  * that scatter radially, then drift toward the glass pane under attraction
  * forces. Near the glass boundary, fragments coalesce into proposal clusters.
  *
- * Consumes pure domain logic from lib/domain/failure-fragments.ts for:
+ * Consumes pure domain logic from product/domain/failure-fragments.ts for:
  *   - Fragment physics (gravity, drag, attraction)
  *   - Shatter generation
  *   - Coalescing detection
@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import {
   stepFragmentPhysics,
   type FragmentSystemState,
-} from '../../../lib/domain/proposal/failure-fragments';
+} from '../../../product/domain/proposal/failure-fragments';
 
 // ─── Types ───
 

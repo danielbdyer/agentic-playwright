@@ -15,9 +15,9 @@ import {
   findIndependentSteps,
   isAssertionOnly,
   buildParallelPlan,
-} from '../lib/runtime/execute/parallel-steps';
-import type { BoundStep } from '../lib/domain/intent/types';
-import type { StepAction, Confidence, Governance, StepBindingKind } from '../lib/domain/governance/workflow-types';
+} from '../product/runtime/execute/parallel-steps';
+import type { BoundStep } from '../product/domain/intent/types';
+import type { StepAction, Confidence, Governance, StepBindingKind } from '../product/domain/governance/workflow-types';
 
 // ─── Generators ───
 

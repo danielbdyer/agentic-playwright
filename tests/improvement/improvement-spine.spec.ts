@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
-import { buildImprovementRun, toExperimentRecord } from '../../lib/application/improvement/improvement';
-import { createProjectPaths } from '../../lib/application/paths';
-import { DEFAULT_PIPELINE_CONFIG } from '../../lib/domain/attention/pipeline-config';
-import { PipelineFitnessReport } from '../../lib/domain/fitness/types';
+import { buildImprovementRun, toExperimentRecord } from '../../workshop/orchestration/improvement';
+import { createProjectPaths } from '../../product/application/paths';
+import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
+import { PipelineFitnessReport } from '../../workshop/metrics/types';
 import {
   DogfoodLedgerProjection,
   acceptedImprovementRuns,
   appendImprovementRun,
   emptyImprovementLedger,
-} from '../../lib/domain/improvement/types';
+} from '../../product/domain/improvement/types';
 
 function sampleLedger(): DogfoodLedgerProjection {
   return {

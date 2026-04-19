@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { planSyntheticScenarios, resolvePerturbation } from '../lib/domain/synthesis/scenario-plan';
+import { planSyntheticScenarios, resolvePerturbation } from '../product/domain/synthesis/scenario-plan';
 
 const CATALOG = {
   screens: [

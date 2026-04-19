@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { buildReasonChain, summarizeReasonChain } from '../lib/domain/resolution/reason-chain';
-import type { ResolutionExhaustionEntry } from '../lib/domain/resolution/types';
+import { buildReasonChain, summarizeReasonChain } from '../product/domain/resolution/reason-chain';
+import type { ResolutionExhaustionEntry } from '../product/domain/resolution/types';
 
 // ─── Law: reason chain length equals exhaustion length ───
 

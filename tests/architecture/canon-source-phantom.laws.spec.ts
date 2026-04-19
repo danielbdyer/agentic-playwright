@@ -14,19 +14,19 @@
  * @see docs/envelope-axis-refactor-plan.md § 5 (Phase 0b)
  */
 import { describe, test, expect } from 'vitest';
-import type { Atom } from '../../lib/domain/pipeline/atom';
-import { atom } from '../../lib/domain/pipeline/atom';
-import type { Composition } from '../../lib/domain/pipeline/composition';
-import { composition } from '../../lib/domain/pipeline/composition';
-import type { Projection } from '../../lib/domain/pipeline/projection';
-import { projection } from '../../lib/domain/pipeline/projection';
-import type { PhaseOutputSource } from '../../lib/domain/pipeline/source';
-import type { ElementAtomAddress } from '../../lib/domain/pipeline/atom-address';
-import type { RouteGraphId } from '../../lib/domain/pipeline/composition-address';
-import type { RoleId } from '../../lib/domain/pipeline/projection-address';
-import type { CanonProvenance } from '../../lib/domain/pipeline/provenance';
-import { createElementId, createScreenId } from '../../lib/domain/kernel/identity';
-import { asFingerprint } from '../../lib/domain/kernel/hash';
+import type { Atom } from '../../product/domain/pipeline/atom';
+import { atom } from '../../product/domain/pipeline/atom';
+import type { Composition } from '../../product/domain/pipeline/composition';
+import { composition } from '../../product/domain/pipeline/composition';
+import type { Projection } from '../../product/domain/pipeline/projection';
+import { projection } from '../../product/domain/pipeline/projection';
+import type { PhaseOutputSource } from '../../product/domain/pipeline/source';
+import type { ElementAtomAddress } from '../../product/domain/pipeline/atom-address';
+import type { RouteGraphId } from '../../product/domain/pipeline/composition-address';
+import type { RoleId } from '../../product/domain/pipeline/projection-address';
+import type { CanonProvenance } from '../../product/domain/pipeline/provenance';
+import { createElementId, createScreenId } from '../../product/domain/kernel/identity';
+import { asFingerprint } from '../../product/domain/kernel/hash';
 
 function makeProvenance(): CanonProvenance {
   return {

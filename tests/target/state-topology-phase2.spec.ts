@@ -1,10 +1,10 @@
 import { mkdirSync, writeFileSync } from 'fs';
 import { expect, test } from '@playwright/test';
-import { loadWorkspaceCatalog } from '../../lib/application/catalog';
-import { projectInterfaceIntelligence } from '../../lib/application/observation/interface-intelligence';
-import { SchemaError } from '../../lib/domain/kernel/errors';
-import { validateBehaviorPatternDocument } from '../../lib/domain/validation';
-import { runWithLocalServices } from '../../lib/composition/local-services';
+import { loadWorkspaceCatalog } from '../../product/application/catalog';
+import { projectInterfaceIntelligence } from '../../product/application/observation/interface-intelligence';
+import { SchemaError } from '../../product/domain/kernel/errors';
+import { validateBehaviorPatternDocument } from '../../product/domain/validation';
+import { runWithLocalServices } from '../../product/composition/local-services';
 import { createTestWorkspace } from '../support/workspace';
 
 test('behavior pattern validation requires effect assertions', () => {

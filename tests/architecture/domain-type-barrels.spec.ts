@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const ROOT = path.resolve(__dirname, '../..');
-const DOMAIN_DIR = path.join(ROOT, 'lib', 'domain');
+const DOMAIN_DIR = path.join(ROOT, 'product', 'domain');
 
 /** Bounded contexts that must have an index.ts barrel. */
 const EXPECTED_BARRELS = [
@@ -28,7 +28,7 @@ test('bounded barrels stay below max re-export count', () => {
 });
 
 test('no deep ad-hoc type imports from application/runtime/infrastructure into old domain/types/', () => {
-  const targetDirs = ['lib/application', 'lib/runtime', 'lib/infrastructure'] as const;
+  const targetDirs = ['product/application', 'product/runtime', 'product/instruments'] as const;
 
   const walkTs = (dir: string): readonly string[] =>
     fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -50,7 +50,7 @@ test('no deep ad-hoc type imports from application/runtime/infrastructure into o
 });
 
 test('all leaf type modules are owned by a bounded context', () => {
-  // After decomposition, every .ts file under lib/domain/ must live inside a
+  // After decomposition, every .ts file under product/domain/ must live inside a
   // bounded-context subdirectory — no orphan files at the domain root.
   const topLevelFiles = fs
     .readdirSync(DOMAIN_DIR, { withFileTypes: true })

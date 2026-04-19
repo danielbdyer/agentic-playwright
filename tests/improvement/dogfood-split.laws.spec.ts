@@ -3,13 +3,13 @@ import {
   consecutivePairs as fromFacadePairs,
   deriveIterationCorrelations as fromFacadeCorrelations,
   iterationSignalStrengths as fromFacadeSignals,
-} from '../../lib/application/improvement/dogfood';
+} from '../../workshop/orchestration/dogfood';
 import {
   consecutivePairs,
   deriveIterationCorrelations,
   iterationSignalStrengths,
-} from '../../lib/application/improvement/dogfood/metrics';
-import type { ImprovementLoopIteration } from '../../lib/domain/improvement/types';
+} from '../../workshop/orchestration/dogfood/metrics';
+import type { ImprovementLoopIteration } from '../../product/domain/improvement/types';
 
 const iteration = (overrides: Partial<ImprovementLoopIteration> = {}): ImprovementLoopIteration => ({
   iteration: 1,

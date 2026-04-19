@@ -4,15 +4,15 @@
  * Usage: npx tsx scripts/evolve.ts [--max-epochs N] [--seed S] [--count N]
  *        [--max-iterations N] [--substrate S]
  *
- * All orchestration lives in lib/application/evolve.ts. This script is a thin
+ * All orchestration lives in product/application/evolve.ts. This script is a thin
  * CLI wrapper: parse args → call Effect program → print results.
  */
 
 import * as path from 'path';
-import { createProjectPaths } from '../lib/application/paths';
-import { evolveProgram, type EvolveResult } from '../lib/application/improvement/evolve';
-import { runWithLocalServices } from '../lib/composition/local-services';
-import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/attention/pipeline-config';
+import { createProjectPaths } from '../product/application/paths';
+import { evolveProgram, type EvolveResult } from '../workshop/orchestration/evolve';
+import { runWithLocalServices } from '../product/composition/local-services';
+import { DEFAULT_PIPELINE_CONFIG } from '../product/domain/attention/pipeline-config';
 
 // ─── CLI argument parsing ───
 

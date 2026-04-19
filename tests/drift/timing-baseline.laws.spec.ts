@@ -27,8 +27,8 @@ import {
   DEFAULT_TIMING_BASELINE_CONFIG,
   type TimingBaselineIndex,
   type TimingPhase,
-} from '../../lib/application/drift/timing-baseline';
-import type { StepExecutionReceipt } from '../../lib/domain/execution/types';
+} from '../../product/application/drift/timing-baseline';
+import type { StepExecutionReceipt } from '../../product/domain/execution/types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

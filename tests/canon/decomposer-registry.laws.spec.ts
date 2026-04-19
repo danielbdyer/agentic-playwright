@@ -7,13 +7,13 @@
  * @see docs/cold-start-convergence-plan.md § 4.A item 4
  */
 import { describe, test, expect } from 'vitest';
-import { ATOM_CLASSES, type AtomClass } from '../../lib/domain/pipeline/atom-address';
+import { ATOM_CLASSES, type AtomClass } from '../../product/domain/pipeline/atom-address';
 import {
   CANON_DECOMPOSERS,
   IMPLEMENTED_DECOMPOSER_CLASSES,
   hasDecomposer,
   type CanonDecomposerRegistry,
-} from '../../lib/application/canon/decomposer-registry';
+} from '../../product/application/canon/decomposer-registry';
 
 describe('Canon decomposer registry laws', () => {
   // ─── Law 1: Every AtomClass has a registry entry ────────────

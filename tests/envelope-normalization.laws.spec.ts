@@ -17,9 +17,9 @@ import {
   liftToEnvelope,
   mapPayload,
   verifyEnvelopeReceiptAdjunction,
-} from '../lib/domain/governance/workflow-types';
-import type { WorkflowEnvelope, WorkflowMetadata } from '../lib/domain/governance/workflow-types';
-import { asFingerprint } from '../lib/domain/kernel/hash';
+} from '../product/domain/governance/workflow-types';
+import type { WorkflowEnvelope, WorkflowMetadata } from '../product/domain/governance/workflow-types';
+import { asFingerprint } from '../product/domain/kernel/hash';
 
 // ─── Fixtures ───
 

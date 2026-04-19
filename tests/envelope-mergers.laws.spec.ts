@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { concatAll } from '../lib/domain/algebra/monoid';
+import { concatAll } from '../product/domain/algebra/monoid';
 import {
   numberRecordSumMonoid,
   sortedReadonlyArrayMonoid,
   structMonoid,
   sumMonoid,
-} from '../lib/domain/algebra/envelope-mergers';
+} from '../product/domain/algebra/envelope-mergers';
 
 test.describe('sumMonoid laws', () => {
   test('associativity', () => {

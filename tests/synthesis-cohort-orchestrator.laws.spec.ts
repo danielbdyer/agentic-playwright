@@ -2,13 +2,13 @@ import { expect, test } from '@playwright/test';
 import {
   orchestrateCohorts,
   findCohortIdOverlaps,
-} from '../lib/domain/synthesis/cohort-orchestrator';
+} from '../product/domain/synthesis/cohort-orchestrator';
 import {
   REFERENCE_COHORTS,
   REFERENCE_COHORT_TOTAL,
-} from '../lib/domain/synthesis/reference-cohorts';
-import type { CohortDefinition } from '../lib/domain/synthesis/cohort-plan';
-import type { SyntheticCatalogPlanInput } from '../lib/domain/synthesis/scenario-plan';
+} from '../product/domain/synthesis/reference-cohorts';
+import type { CohortDefinition } from '../product/domain/synthesis/cohort-plan';
+import type { SyntheticCatalogPlanInput } from '../product/domain/synthesis/scenario-plan';
 
 // ─── Catalog fixture (mirrors synthesis-scenario-plan) ─────────────
 

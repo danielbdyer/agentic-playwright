@@ -1,18 +1,18 @@
 import { expect, test } from '@playwright/test';
 import { writeFileSync } from 'fs';
-import { loadWorkspaceCatalog } from '../../lib/application/catalog';
+import { loadWorkspaceCatalog } from '../../product/application/catalog';
 import {
   controlResolutionForStep,
   resolveRunSelection,
   runtimeControlsForScenario,
-} from '../../lib/application/resolution/controls';
-import { runWithLocalServices } from '../../lib/composition/local-services';
+} from '../../product/application/resolution/controls';
+import { runWithLocalServices } from '../../product/composition/local-services';
 import {
   createElementId,
   createScreenId,
-} from '../../lib/domain/kernel/identity';
-import type { TranslationRequest } from '../../lib/domain/resolution/types';
-import { deterministicRuntimeStepAgent } from '../../lib/runtime/resolution';
+} from '../../product/domain/kernel/identity';
+import type { TranslationRequest } from '../../product/domain/resolution/types';
+import { deterministicRuntimeStepAgent } from '../../product/runtime/resolution';
 import { createTestWorkspace } from '../support/workspace';
 import {
   cloneJson,

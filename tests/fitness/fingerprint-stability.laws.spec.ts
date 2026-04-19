@@ -3,7 +3,7 @@ import {
   compareArtifactFingerprints,
   fingerprintStabilityObligation,
   type ArtifactFingerprintMap,
-} from '../../lib/domain/fitness/fingerprint-stability';
+} from '../../workshop/metrics/fingerprint-stability';
 
 const a: ArtifactFingerprintMap = {
   'generated/demo/10001.spec.ts': 'sha-A',

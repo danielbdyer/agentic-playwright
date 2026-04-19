@@ -8,9 +8,9 @@ import {
   computeBeforeAfterComparison,
   assembleSummaryView,
   type IterationSnapshot,
-} from '../lib/domain/projection/summary-view';
-import type { SceneMetrics } from '../lib/domain/projection/scene-state-accumulator';
-import type { ConvergenceMetrics } from '../lib/domain/projection/convergence-finale';
+} from '../product/domain/projection/summary-view';
+import type { SceneMetrics } from '../product/domain/projection/scene-state-accumulator';
+import type { ConvergenceMetrics } from '../product/domain/projection/convergence-finale';
 
 const SNAPSHOTS: readonly IterationSnapshot[] = [
   { iteration: 1, knowledgeHitRate: 0.3, passRate: 0.2, proposalsActivated: 5 },

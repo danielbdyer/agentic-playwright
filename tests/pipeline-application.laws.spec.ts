@@ -20,19 +20,19 @@ import { promises as nodeFs } from 'fs';
 import os from 'os';
 import path from 'path';
 
-import { createProjectPaths } from '../lib/application/paths';
-import { runWithLocalServices } from '../lib/composition/local-services';
-import { loadWorkspaceCatalog } from '../lib/application/catalog/workspace-catalog';
-import type { WorkspaceCatalog } from '../lib/application/catalog/types';
-import { createCatalogLookupChain } from '../lib/application/pipeline/lookup-chain-impl';
+import { createProjectPaths } from '../product/application/paths';
+import { runWithLocalServices } from '../product/composition/local-services';
+import { loadWorkspaceCatalog } from '../product/application/catalog/workspace-catalog';
+import type { WorkspaceCatalog } from '../product/application/catalog/types';
+import { createCatalogLookupChain } from '../product/application/pipeline/lookup-chain-impl';
 
-import { atom } from '../lib/domain/pipeline/atom';
-import type { ArtifactEnvelope } from '../lib/application/catalog/types';
-import type { Atom } from '../lib/domain/pipeline/atom';
-import type { AtomClass } from '../lib/domain/pipeline/atom-address';
-import type { PhaseOutputSource } from '../lib/domain/pipeline/source';
-import { asFingerprint } from '../lib/domain/kernel/hash';
-import { brandString } from '../lib/domain/kernel/brand';
+import { atom } from '../product/domain/pipeline/atom';
+import type { ArtifactEnvelope } from '../product/application/catalog/types';
+import type { Atom } from '../product/domain/pipeline/atom';
+import type { AtomClass } from '../product/domain/pipeline/atom-address';
+import type { PhaseOutputSource } from '../product/domain/pipeline/source';
+import { asFingerprint } from '../product/domain/kernel/hash';
+import { brandString } from '../product/domain/kernel/brand';
 
 // ─── Helpers ─────────────────────────────────────────────────────
 

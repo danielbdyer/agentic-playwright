@@ -22,7 +22,7 @@ import {
   isFixedPoint,
   estimateRateOfDecrease,
   type StabilityMetrics,
-} from '../../lib/domain/projection/convergence-bounds';
+} from '../../product/domain/projection/convergence-bounds';
 
 // ─── Fixtures ───
 

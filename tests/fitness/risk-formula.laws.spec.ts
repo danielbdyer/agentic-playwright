@@ -7,7 +7,7 @@ import {
   signalExtractorToScoringRule,
   type RiskFormula,
   type RiskSignal,
-} from '../../lib/domain/fitness/risk-formula';
+} from '../../workshop/metrics/risk-formula';
 
 interface DemoInput {
   readonly ambiguity: number;

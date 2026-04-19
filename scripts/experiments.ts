@@ -8,11 +8,11 @@
  */
 
 import path from 'path';
-import { createProjectPaths } from '../lib/application/paths';
-import { loadImprovementLedger, toExperimentRecord } from '../lib/application/improvement/improvement';
-import { runWithLocalServices } from '../lib/composition/local-services';
-import type { ExperimentRecord } from '../lib/domain/improvement/experiment';
-import type { ExperimentSubstrate, ImprovementRun } from '../lib/domain/improvement/types';
+import { createProjectPaths } from '../product/application/paths';
+import { loadImprovementLedger, toExperimentRecord } from '../workshop/orchestration/improvement';
+import { runWithLocalServices } from '../product/composition/local-services';
+import type { ExperimentRecord } from '../product/domain/improvement/experiment';
+import type { ExperimentSubstrate, ImprovementRun } from '../product/domain/improvement/types';
 
 const args = process.argv.slice(2);
 

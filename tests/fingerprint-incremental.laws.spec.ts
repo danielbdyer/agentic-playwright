@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { sha256, stableStringify } from '../lib/domain/kernel/hash';
+import { sha256, stableStringify } from '../product/domain/kernel/hash';
 import {
   computeProjectionInputSetFingerprint,
   diffProjectionInputs,
@@ -7,7 +7,7 @@ import {
   fingerprintProjectionOutput,
   type ProjectionBuildManifest,
   type ProjectionInputFingerprint,
-} from '../lib/application/projections/cache';
+} from '../product/application/projections/cache';
 import { mulberry32, randomWord , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───

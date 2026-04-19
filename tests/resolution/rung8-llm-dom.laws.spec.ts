@@ -23,7 +23,7 @@ import {
   isRung8Applicable,
   attemptRung8Resolution,
   defaultRung8Config,
-} from '../../lib/runtime/resolution/rung8-llm-dom';
+} from '../../product/runtime/resolution/rung8-llm-dom';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

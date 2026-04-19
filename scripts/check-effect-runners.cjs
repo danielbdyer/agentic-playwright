@@ -30,7 +30,7 @@ function main() {
     const relativePath = path.relative(LIB_DIR, file).replace(/\\/g, '/');
     return isAllowed(relativePath)
       ? []
-      : [`${relativePath}: Effect.runPromise / Effect.runSync must remain in lib/composition (or approved adapters).`];
+      : [`${relativePath}: Effect.runPromise / Effect.runSync must remain in product/composition (or approved adapters).`];
   });
 
   if (violations.length > 0) {

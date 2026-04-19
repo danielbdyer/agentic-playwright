@@ -20,8 +20,8 @@ import {
   mintReviewRequired,
   requireApproved,
   type Governance,
-} from '../lib/domain/governance/workflow-types';
-import { GovernanceLattice } from '../lib/domain/algebra/lattice';
+} from '../product/domain/governance/workflow-types';
+import { GovernanceLattice } from '../product/domain/algebra/lattice';
 import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 
 const ALL_GOVERNANCE: readonly Governance[] = ['approved', 'review-required', 'blocked'];

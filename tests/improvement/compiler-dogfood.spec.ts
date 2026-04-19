@@ -1,12 +1,12 @@
 import { readFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { applyDriftEvents, type VarianceManifest } from '../../lib/application/drift/drift';
-import { runDogfoodLoop } from '../../lib/application/improvement/dogfood';
-import { refreshScenario } from '../../lib/application/resolution/refresh';
-import { runWithLocalServices } from '../../lib/composition/local-services';
-import { createAdoId } from '../../lib/domain/kernel/identity';
-import type { DogfoodLedgerProjection, ImprovementLoopLedger } from '../../lib/domain/improvement/types';
+import { applyDriftEvents, type VarianceManifest } from '../../product/application/drift/drift';
+import { runDogfoodLoop } from '../../workshop/orchestration/dogfood';
+import { refreshScenario } from '../../product/application/resolution/refresh';
+import { runWithLocalServices } from '../../product/composition/local-services';
+import { createAdoId } from '../../product/domain/kernel/identity';
+import type { DogfoodLedgerProjection, ImprovementLoopLedger } from '../../product/domain/improvement/types';
 import { createTestWorkspace } from '../support/workspace';
 
 test('dogfood loop completes two iterations and produces a legible ledger', async () => {

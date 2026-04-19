@@ -29,16 +29,16 @@ import {
   tfidfCosineSimilarity,
   shingleTermFrequencies,
   type ShingleIndex,
-} from '../../lib/domain/knowledge/shingles';
+} from '../../product/domain/knowledge/shingles';
 import {
   accrueSemanticEntry,
   emptyCatalog,
   ensureShingleIndex,
   pruneSemanticDictionary,
-} from '../../lib/application/resolution/translation/semantic-translation-dictionary';
-import { uniqueSorted } from '../../lib/domain/kernel/collections';
-import { createElementId, createScreenId } from '../../lib/domain/kernel/identity';
-import type { SemanticDictionaryAccrualInput, SemanticDictionaryTarget } from '../../lib/domain/knowledge/semantic-dictionary-types';
+} from '../../product/reasoning/semantic-translation-dictionary';
+import { uniqueSorted } from '../../product/domain/kernel/collections';
+import { createElementId, createScreenId } from '../../product/domain/kernel/identity';
+import type { SemanticDictionaryAccrualInput, SemanticDictionaryTarget } from '../../product/domain/knowledge/semantic-dictionary-types';
 
 // ─── Fixtures ───
 

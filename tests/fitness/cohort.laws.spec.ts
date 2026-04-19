@@ -5,7 +5,7 @@ import {
   comparable,
   DEFAULT_JACCARD_THRESHOLD,
   jaccard,
-} from '../../lib/domain/fitness/cohort';
+} from '../../workshop/metrics/cohort';
 
 const policySearchA = cohortKey({
   substrate: 'demo',

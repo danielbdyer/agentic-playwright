@@ -1,7 +1,7 @@
 import { cpSync, mkdtempSync, readFileSync, rmSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
-import { createProjectPaths, type ProjectPaths } from '../../lib/application/paths';
+import { createProjectPaths, type ProjectPaths } from '../../product/application/paths';
 
 /** Seeds that live under dogfood/ in the repo but are copied into the workspace's dogfood/ subtree. */
 const suiteSeeds = [

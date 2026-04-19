@@ -8,7 +8,7 @@
  *   - Governance summary (counts by status)
  *   - Timeout progress bar
  *
- * Consumes pure domain logic from lib/domain/batch-decision.ts.
+ * Consumes pure domain logic from product/domain/batch-decision.ts.
  *
  * @see docs/first-day-flywheel-visualization.md Part I (Act 6), Part VIII
  */
@@ -23,7 +23,7 @@ import {
   STATUS_COLORS,
   type BatchDecisionState,
   type DecisionItem,
-} from '../../../lib/domain/proposal/batch-decision';
+} from '../../../product/domain/proposal/batch-decision';
 
 // ─── Component Props ───
 

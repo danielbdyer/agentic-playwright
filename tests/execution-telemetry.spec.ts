@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { evaluateExecutionBudget, normalizeFailureFamily } from '../lib/domain/commitment/telemetry';
-import { defaultRecoveryPolicy, recoveryFamilyConfig } from '../lib/domain/commitment/recovery-policy';
+import { evaluateExecutionBudget, normalizeFailureFamily } from '../product/domain/commitment/telemetry';
+import { defaultRecoveryPolicy, recoveryFamilyConfig } from '../product/domain/commitment/recovery-policy';
 
 test('normalizeFailureFamily maps failures into canonical families', () => {
   expect(normalizeFailureFamily({ status: 'ok', degraded: false, diagnostics: [] }).family).toBe('none');
