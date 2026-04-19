@@ -74,7 +74,6 @@ import type {
 import {
   modeRespectsOverrides,
   modeConsultsDeterministicObservations,
-  modeConsultsReferenceCanon,
   modeConsultsLiveCache,
 } from '../../domain/pipeline/lookup-chain';
 import type { QualifierBag, AtomApplicability } from '../../domain/pipeline/qualifier';
@@ -93,7 +92,6 @@ export interface CatalogLookupChain {
     readonly class: C;
     readonly address: AtomAddressOf<C>;
     readonly mode?: LookupMode;
-    readonly skipReferenceCanon?: boolean;
     readonly qualifiers?: QualifierBag;
   }): LookupResult<Atom<C, unknown, PhaseOutputSource>>;
 
@@ -101,14 +99,12 @@ export interface CatalogLookupChain {
     readonly subType: S;
     readonly address: CompositionAddressOf<S>;
     readonly mode?: LookupMode;
-    readonly skipReferenceCanon?: boolean;
   }): LookupResult<Composition<S, unknown, PhaseOutputSource>>;
 
   lookupProjection<S extends ProjectionSubType>(input: {
     readonly subType: S;
     readonly address: ProjectionAddressOf<S>;
     readonly mode?: LookupMode;
-    readonly skipReferenceCanon?: boolean;
   }): LookupResult<Projection<S, PhaseOutputSource>>;
 }
 
@@ -190,7 +186,6 @@ const SOURCE_PRECEDENCE_ORDER: readonly PhaseOutputSource[] = [
   'operator-override',
   'agentic-override',
   'deterministic-observation',
-  'reference-canon',
   'live-derivation',
   'cold-derivation',
 ];
@@ -207,20 +202,14 @@ const sourcePrecedenceOf = (source: PhaseOutputSource): number =>
 const modeAllowsSource = (
   mode: LookupMode,
   source: PhaseOutputSource,
-  skipReferenceCanon: boolean,
 ): boolean => {
   if (mode === 'no-overrides' && (source === 'operator-override' || source === 'agentic-override')) {
     return false;
   }
   if (
     mode === 'cold' &&
-    (source === 'deterministic-observation' ||
-      source === 'reference-canon' ||
-      source === 'live-derivation')
+    (source === 'deterministic-observation' || source === 'live-derivation')
   ) {
-    return false;
-  }
-  if (source === 'reference-canon' && !modeConsultsReferenceCanon(mode, skipReferenceCanon)) {
     return false;
   }
   return true;
@@ -230,12 +219,8 @@ const modeAllowsSource = (
 
 const slotsConsultedFor = (
   mode: LookupMode,
-  skipReferenceCanon: boolean,
 ): readonly PhaseOutputSource[] => [
   ...(modeRespectsOverrides(mode) ? (['operator-override'] as const) : []),
-  ...(modeConsultsReferenceCanon(mode, skipReferenceCanon)
-    ? (['reference-canon'] as const)
-    : []),
   ...(modeConsultsLiveCache(mode) ? (['live-derivation'] as const) : []),
 ];
 
@@ -260,17 +245,15 @@ const pickHighestPrecedence = <A extends { readonly source: PhaseOutputSource }>
 
 // ─── Generic tier resolution (pure) ──────────────────────────────
 
-/** Resolve a tier (slots 2-4) for an address by intersecting the
- *  candidates with the mode-allowed set (including the
- *  skipReferenceCanon flag) and picking the highest-precedence
+/** Resolve a tier for an address by intersecting the candidates
+ *  with the mode-allowed set and picking the highest-precedence
  *  survivor. Pure. */
 const resolveFromTier = <A extends { readonly source: PhaseOutputSource }>(
   candidates: readonly A[],
   mode: LookupMode,
-  skipReferenceCanon: boolean,
 ): A | null =>
   pickHighestPrecedence(
-    candidates.filter((c) => modeAllowsSource(mode, c.source, skipReferenceCanon)),
+    candidates.filter((c) => modeAllowsSource(mode, c.source)),
   );
 
 // ─── Atom lookup ─────────────────────────────────────────────────
@@ -282,13 +265,11 @@ function lookupAtomImpl<C extends AtomClass>(
     readonly class: C;
     readonly address: AtomAddressOf<C>;
     readonly mode?: LookupMode;
-    readonly skipReferenceCanon?: boolean;
     readonly qualifiers?: QualifierBag;
   },
 ): LookupResult<Atom<C, unknown, PhaseOutputSource>> {
   const mode: LookupMode = input.mode ?? 'warm';
-  const skipReferenceCanon = input.skipReferenceCanon === true;
-  const baseSlots = slotsConsultedFor(mode, skipReferenceCanon);
+  const baseSlots = slotsConsultedFor(mode);
 
   // O(1) index lookup. Filter to ensure address-path collisions
   // (which shouldn't happen but defend against) don't surface
@@ -299,13 +280,13 @@ function lookupAtomImpl<C extends AtomClass>(
   const winner =
     modeRespectsOverrides(mode) ||
     modeConsultsDeterministicObservations(mode) ||
-    modeConsultsReferenceCanon(mode, skipReferenceCanon)
-      ? resolveFromTier(candidates, mode, skipReferenceCanon)
+    modeConsultsLiveCache(mode)
+      ? resolveFromTier(candidates, mode)
       : null;
 
   const qualifiedApplicability =
     winner !== null && hasQualifiers(input.qualifiers)
-      ? applyProjections(projectionIndex, input.address, input.qualifiers!, skipReferenceCanon)
+      ? applyProjections(projectionIndex, input.address, input.qualifiers!)
       : null;
 
   return {
@@ -324,12 +305,10 @@ function lookupCompositionImpl<S extends CompositionSubType>(
     readonly subType: S;
     readonly address: CompositionAddressOf<S>;
     readonly mode?: LookupMode;
-    readonly skipReferenceCanon?: boolean;
   },
 ): LookupResult<Composition<S, unknown, PhaseOutputSource>> {
   const mode: LookupMode = input.mode ?? 'warm';
-  const skipReferenceCanon = input.skipReferenceCanon === true;
-  const baseSlots = slotsConsultedFor(mode, skipReferenceCanon);
+  const baseSlots = slotsConsultedFor(mode);
 
   const candidates =
     compositionIndex
@@ -339,8 +318,8 @@ function lookupCompositionImpl<S extends CompositionSubType>(
   const winner =
     modeRespectsOverrides(mode) ||
     modeConsultsDeterministicObservations(mode) ||
-    modeConsultsReferenceCanon(mode, skipReferenceCanon)
-      ? resolveFromTier(candidates, mode, skipReferenceCanon)
+    modeConsultsLiveCache(mode)
+      ? resolveFromTier(candidates, mode)
       : null;
 
   return {
@@ -358,12 +337,10 @@ function lookupProjectionImpl<S extends ProjectionSubType>(
     readonly subType: S;
     readonly address: ProjectionAddressOf<S>;
     readonly mode?: LookupMode;
-    readonly skipReferenceCanon?: boolean;
   },
 ): LookupResult<Projection<S, PhaseOutputSource>> {
   const mode: LookupMode = input.mode ?? 'warm';
-  const skipReferenceCanon = input.skipReferenceCanon === true;
-  const baseSlots = slotsConsultedFor(mode, skipReferenceCanon);
+  const baseSlots = slotsConsultedFor(mode);
 
   const candidates =
     projectionIndex
@@ -373,8 +350,8 @@ function lookupProjectionImpl<S extends ProjectionSubType>(
   const winner =
     modeRespectsOverrides(mode) ||
     modeConsultsDeterministicObservations(mode) ||
-    modeConsultsReferenceCanon(mode, skipReferenceCanon)
-      ? resolveFromTier(candidates, mode, skipReferenceCanon)
+    modeConsultsLiveCache(mode)
+      ? resolveFromTier(candidates, mode)
       : null;
 
   return {
@@ -443,17 +420,11 @@ const projectionAddressesFromBag = (
 /** Apply every projection from the catalog matching the qualifier
  *  bag to the given atom address via O(1) index lookups. Returns
  *  the intersection of all applicable bindings via the monoid
- *  `intersectApplicability` whose identity is `'interactive'`.
- *
- *  The `skipReferenceCanon` flag propagates from the caller: when
- *  true, projections sourced from reference canon are filtered out
- *  before precedence picking, so the qualifier pass mirrors the
- *  atom pass in respecting the migration-debt measurement mode. */
+ *  `intersectApplicability` whose identity is `'interactive'`. */
 function applyProjections(
   projectionIndex: ProjectionIndex,
   atomAddress: AtomAddress,
   qualifiers: QualifierBag,
-  skipReferenceCanon: boolean,
 ): AtomApplicability {
   const wantedAddresses = projectionAddressesFromBag(qualifiers);
 
@@ -463,10 +434,7 @@ function applyProjections(
   const matchedProjections = wantedAddresses
     .map((addr) => {
       const entries = projectionIndex.get(projectionAddressToPath(addr)) ?? [];
-      const filtered = skipReferenceCanon
-        ? entries.filter((p) => p.source !== 'reference-canon')
-        : entries;
-      return pickHighestPrecedence(filtered);
+      return pickHighestPrecedence(entries);
     })
     .filter((p): p is Projection<ProjectionSubType, PhaseOutputSource> => p !== null);
 

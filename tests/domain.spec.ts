@@ -54,13 +54,25 @@ const sharedTargetId = createElementId('sharedTarget');
 const resultsWithPolicySnapshotId = createSnapshotTemplateId('snapshots/policy-search/results-with-policy.yaml');
 
 const suiteRoot = path.join(rootDir, 'dogfood');
+const testFixturesRoot = path.join(rootDir, 'tests', 'fixtures');
+
+function resolveFixtureRoot(segments: readonly string[]): string {
+  // Step 1 moved the former dogfood/knowledge and dogfood/benchmarks trees
+  // into tests/fixtures/ as test-only content. The rest of dogfood/ still
+  // lives at its original path.
+  const first = segments[0];
+  if (first === 'knowledge' || first === 'benchmarks') return testFixturesRoot;
+  return suiteRoot;
+}
 
 function readJsonFixture<T>(...segments: string[]): T {
-  return JSON.parse(readFileSync(path.join(suiteRoot, ...segments), 'utf8').replace(/^\uFEFF/, '')) as T;
+  const base = resolveFixtureRoot(segments);
+  return JSON.parse(readFileSync(path.join(base, ...segments), 'utf8').replace(/^\uFEFF/, '')) as T;
 }
 
 function readYamlFixture(...segments: string[]) {
-  return YAML.parse(readFileSync(path.join(suiteRoot, ...segments), 'utf8').replace(/^\uFEFF/, ''));
+  const base = resolveFixtureRoot(segments);
+  return YAML.parse(readFileSync(path.join(base, ...segments), 'utf8').replace(/^\uFEFF/, ''));
 }
 
 function readMergedPatterns() {
@@ -80,7 +92,7 @@ test('computeAdoContentHash stays stable for the seeded fixture', () => {
 
 test('normalizeAriaSnapshot canonicalizes browser-specific accessibility tree variants', () => {
   const approved = readFileSync(
-    path.join(suiteRoot, 'knowledge', 'snapshots', 'policy-search', 'results-with-policy.yaml'),
+    path.join(testFixturesRoot, 'knowledge', 'snapshots', 'policy-search', 'results-with-policy.yaml'),
     'utf8',
   ).replace(/^\uFEFF/, '');
   const currentBrowserVariant = `

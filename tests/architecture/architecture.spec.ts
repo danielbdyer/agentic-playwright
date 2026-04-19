@@ -231,11 +231,11 @@ test('bounded workflow packages expose explicit seam files instead of hidden lan
 });
 
 test('canonical control surfaces are present as first-class repo seams', () => {
+  // Step 1 retired the pre-gate reference-canon surfaces (benchmarks/,
+  // knowledge/, controls/datasets, controls/resolution, controls/variance).
+  // Only the pure-intent runbooks surface survives under dogfood/.
   const suiteRoot = path.join(rootDir, 'dogfood');
   const expectedPaths = [
-    'benchmarks',
-    'controls/datasets',
-    'controls/resolution',
     'controls/runbooks',
   ];
   const missing = expectedPaths

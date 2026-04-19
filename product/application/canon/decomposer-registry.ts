@@ -15,15 +15,15 @@
  *   - the discovery engine, when it needs to convert fat observation
  *     surfaces (e.g. a discovered screen's raw element list) into
  *     per-atom envelopes
- *   - the catalog loader, when it tags reference-canon entries with
- *     their canonical atom addresses during load
+ *   - the catalog loader, when it tags canonical-artifact entries
+ *     with their atom addresses during load
  *
- * NOTE (2026-04-10): An earlier version of this comment pointed at
- * `scripts/decompose-canon.ts` as a consumer. That script was
- * deprecated and deleted as part of the reference-canon reframe;
- * see `docs/canon-and-derivation.md` §§ 3.2a and 11.1 for the
- * reasoning. The decomposer functions themselves are kept because
- * they are useful independent of the retired migration script.
+ * HISTORY: Before the Step 1 reference-canon retirement (2026-04-19),
+ * the catalog loader also tagged pre-gate dogfood entries with
+ * `source: 'reference-canon'`. Both the script
+ * `scripts/decompose-canon.ts` and the reference-canon slot retired
+ * together; the decomposer functions survive because they are useful
+ * for the canonical-artifact loaders independently.
  *
  * Pure domain vocabulary — no Effect, no IO.
  *
