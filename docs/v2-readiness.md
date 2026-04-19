@@ -764,6 +764,34 @@ Each commit has green tests before the next starts. If any commit fails CI, reve
 
 Concrete diff example for `local-runtime-scenario-runner.ts` migration is in the audit output; the PR author can lift it directly.
 
+### 9.6 Provider choice and design principles
+
+Set by the project owner 2026-04-19. The Reasoning port supports multiple adapters; the ordering below is the expected provisioning priority, not a constraint on what the port can hold.
+
+**Primary adapter: VSCode GitHub Copilot (VSCode extension surface).** Strong preference. Most agent cognition flows through Copilot when v2 runs inside the editor. The `copilot-live` adapter under `product/reasoning/adapters/` is the first-citizen implementation. Its ergonomics (in-editor interaction, no separate process, no API-key management in production usage) are what the agent experience optimizes for.
+
+**Secondary adapter: Azure AI Foundry → OpenAI models (o3, GPT-4o).** Medium confidence. Serves the programmatic and synchronous integration lane — batch evaluations, CI-driven probe runs, the workshop's metric-compute passes, anything that needs deterministic provider invocation outside a live editor session. The `openai-live` adapter wraps Azure Foundry's chat-completions endpoint; `o3` for harder reasoning, `4o` for faster/cheaper paths.
+
+**Secondary considerations (lower priority, keep the port shape open for):** direct Anthropic API (useful for comparison runs), MCP-brokered adapters (useful for future providers the team hasn't committed to), local-model adapters (useful for offline development).
+
+**Design principles binding on every adapter:**
+
+- **Token-conscientiousness is a first-class concern.** Every `ReasoningReceipt<Op>` carries `tokens: { prompt, completion, total }` and `estimatedCostUsd` (where derivable). The workshop's metrics catalog gains a `metric-reasoning-token-consumption-p50` derivation in Step 4b's commit sequence so token usage is a tracked metric from the moment the port is consolidated.
+- **Batching over per-call invocation.** Where the operation admits it (especially `Reasoning.interpret` against multiple structurally-similar work items), adapters expose a batched variant that submits multiple inputs in one API call with structured separators. The unified `Reasoning.Tag` declares both `select(request)` and `selectBatch(requests)` (same for `interpret` and `synthesize`); saga code picks the right shape based on whether it's processing one item or N.
+- **Structured output is non-negotiable.** Every adapter enforces structured output on the provider side (tool-use / function-calling / JSON-schema) and validates the response with `Schema.decode` before returning to the saga. Free-text responses that can't decode fail fast with `ReasoningError.malformed-response`; the saga branches on the typed error, not on parse heuristics.
+- **Prompts are fingerprinted.** The `ReasoningReceipt` carries `promptFingerprint = sha256(stableStringify(promptStructure))` so the receipt log is queryable by prompt shape. This feeds prompt-optimization experiments (later phases) and lets the batting-average metric stratify by prompt version.
+
+**What this implies for Step 4b's commit sequence:**
+
+- Commit 4b.3 (adapter extraction) lands the `copilot-live` adapter first, `openai-live` second (same commit), and stubs or TODOs the others. Test adapter (`test-live`) also lands at 4b.3 for integration-test use.
+- Commit 4b.3 also adds the token-accounting and prompt-fingerprint fields to `ReasoningReceipt<Op>` (these are types, not adapter logic, but they're needed before adapters can populate them).
+- The `workshop/metrics/` additions for token consumption land alongside 4b.3 as part of the same PR (estimated +40 LOC on top of the §9.2 total, raising Step 4b to ~555 LOC).
+
+**Risk that follows from provider choice:**
+
+- Copilot's rate limits and availability are external; the adapter needs a graceful degradation path to `openai-live` when Copilot is unavailable. The composite/hybrid adapter pattern (already in v1) handles this; Step 4b's test surface includes a Copilot-unavailable scenario.
+- VSCode Copilot operates through an editor-extension protocol that may require v2 sessions to run inside VSCode. Non-editor sessions (CI, command-line) default to the Azure OpenAI adapter. The composition layer (`product/composition/app-layer.ts`) reads an env var or config flag to pick the default provider per invocation context.
+
 ---
 
 ## 10. M5 cohort re-key plan
