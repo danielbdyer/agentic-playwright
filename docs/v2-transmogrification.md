@@ -178,6 +178,7 @@ All five land together; the TypeScript compiler surfaces every consumer needing 
 - One customer work item authored in a single session; session transcript + run record + agent handoff log committed to `workshop/observations/customer-probe-01/`.
 - A team-reviewed **observation memo** committed at the same path, listing 3–5 named design constraints the probe surfaced (if any) or explicitly stating "no material surprises" (valuable on its own).
 - The memo references the specific Step 4 sub-steps (4a / 4b / 4c) its constraints apply to.
+- **Memo top-lines measured widget coverage** — v1 empirical: widget coverage is the load-bearing bottleneck; no amount of proposal enrichment escapes the ceiling. Memo reports "of N step types observed, M are covered by the current role-affordance dispatch table" as its first data line, so Phase 2 design sees the ceiling before designing against it. (v1 harvest top-3 finding; `v2-readiness.md §12.6`.)
 
 **What this step does not do:** it does not ship a test to the customer's suite. It does not commit any product code. v1's pipeline does the authoring; v2's Phase 2 learns from the observation.
 
@@ -225,6 +226,8 @@ After this step, invariant 1 (stable verb signatures) and invariant 10 (cheap in
 - Two concurrent writes to different facets do not corrupt each other.
 - Manifest declares the four memory verbs with frozen signatures.
 - The schema-adequacy hypothesis above either confirms or names the specific gaps as fixture-schema follow-ups.
+- **Selector canonicality is enforced at the type level** — `CanonicalTargetRef` identity is a type invariant; scenarios/tests cannot inline duplicate selectors. Architecture law (new) forbids raw selector strings in test-compose output. (v1 harvest finding; see `v2-readiness.md §12.1`.)
+- **Facet confidence carries `evidenceStreams: number`** field per v1's L2s (strong-target observability) finding. Single-stream facets gate DOM-less authoring more conservatively at Step 9.
 
 This step is a *forcing function* (see §5). A late schema change forces catalog rewrites.
 
@@ -363,6 +366,10 @@ This step is the second inflection point (§5).
 - Workshop probes for repeat-authoring exercise the memory query path; their run records flow into `metric-memory-hit-rate` and `metric-memory-corroboration-rate`.
 - At least one real customer work item authored after Step 7 reuses ≥1 facet without live re-observation; the run record carries the `memory-backed: true` flag.
 - The hypothesis receipt for the L1 claim is appended to the receipt log.
+- **K5 monotonicity law green** — `workshop/convergence/` law asserts the `metric-memory-hit-rate` slope across a rolling window does not descend for more than two consecutive windows. First empirical failure of this law triggers a review. (v1 harvest finding.)
+- **A3 continuation integrity in evidence schema** — per-facet evidence log carries `attempt_count` and `last_blockage_kind` fields so resumed sessions don't re-tread. (v1 harvest finding.)
+- **M5 ≥ 0.8** sustained across ≥3 probe-surface cohort points (once accumulated). Floor set per `v2-readiness.md §12.4` deferred item; calibrated against early L1 runs.
+- **Intervention-receipt handoff schema carries enriched fields** — `locatorHints`, `widgetAffordance`, `inferredAction`, `semanticCore`, `evidenceSlice` required, not optional. Architecture law forbids alias-only handoff construction. (v1 harvest "bare proposals stall" finding.)
 
 ### Step 8 — L2 operator-supplied semantics
 
@@ -403,6 +410,8 @@ This step is the second inflection point (§5).
 - `metric-convergence-delta-p50` computes over perturbation probe outcomes and returns a sensible value.
 - At least one real customer work item authored after Step 9 is authored DOM-less for at least one step; the run record flags which steps were memory-only.
 - A deliberately-injected drift (a fixture with a changed `name` attribute) emits a drift event and surfaces to operator review.
+- **Drift events carry a three-tier `driftClass` discriminator** per v1's R2/R3 finding: `expression-only` (locator changed, affordance stable), `affordance-shift` (interaction changed, concept stable), `semantic-redesign` (concept changed). Only `semantic-redesign` triggers confidence decay on referenced facets; `expression-only` emits a locator-health hint instead. (v1 harvest finding; see `v2-readiness.md §12.1`.)
+- **Confidence-derivation formula for DOM-less gating is proposal-gated and committed** before Step 9 ships. Pre-step spike validates against customer Step 6–8 runs; no DOM-less authoring fires without an approved formula. (v1 harvest risk D1.)
 
 This step is the third inflection point (§5).
 
@@ -664,6 +673,14 @@ Choices that, if wrong, force rework across multiple steps. Severity reflects ho
 | **Agent fluency regression undetected across steps** | Medium | 2, 4b, 5, 6, 7, 8, 9, 10 | Embed fluency checks in the build at Step 2, not as optional tests. Any PR that touches manifest, verb implementation, or handshake signatures must pass fluency checks to merge. Fluency regression is treated at the same severity as a broken product test. |
 | **Test suite breakage invisible at Step 0** | Medium | 0, 1, 2, 3 | Moving 550+ files in `lib/` breaks every `import` in the test suite. Step 0's definition of done names `npm test` green — which is substantive work, not a tautology. Estimate: test-import rewrite is 30–40% of Step 0's effort. Budget time for it; treat `npm test` green as a shipping gate. |
 | **Dogfood-retired-but-probe-not-ready** (the input gap earlier drafts carried) | Medium | 1, 2, 3, 4a, 4b, 4c, 5 | The Step 1 transitional probe set closes this gap. Encoded inline in `workshop/probe-derivation/transitional.ts` pre-manifest; re-keys M5's cohort from scenario-ID to probe-surface cohort. Retires at Step 5 when the manifest-derived IR takes over. Without this, the workshop's scorecard history continuity evaporates at Step 1. |
+| **Alias-only handoffs stall** (v1 empirical: bare `{screen, element, alias}` proposals "resolve" at rung 3 but cost is unchanged because downstream still falls to DOM) | High | 7, 8, 9, 10 | Step 7 intervention-receipt schema ships with `locatorHints`, `widgetAffordance`, `inferredAction`, `semanticCore`, and `evidenceSlice` as required fields (not optional). Workshop adds a law test: any handoff with only alias content fails construction. See `v2-readiness.md §12.1` ENRICH table for the full field list. |
+| **Confidence-overlay derivation formula not specified at Step 9** (the confidence-gated authoring policy needs a formula the plan doesn't name) | High | 9, 10 | Pre-Step-9 spike: author the confidence-derivation formula against real customer runs from Step 6–8, land it as a named proposal, gate L3 shipping on operator approval of the rule. See `v2-readiness.md §12.4` — inherited from v1 risk surface. |
+| **Facet relation grammar unspecified at Step 3** (how to express "this affordance belongs to this screen's vocabulary" and "this role sees these states") | Medium | 3, 7, 8, 9, 10 | Step 3 schema spike validates the relation grammar against at least one customer-reality probe observation (Step 1.5 memo); gate Step 3 DoD on "no required-field retrofit expected downstream." |
+| **Operator input attribution and revocability unspecified at Step 8** (L2 ingest needs protocol for attribution, review, revocation, consent location) | Medium | 8 | Step 8 ships with a written protocol (committed under `workshop/observations/step-8-operator-protocol.md`) before any dialog-capture or document-ingest code lands. |
+| **Five runtime error-families ↔ eight pipeline failure-classes mapping undefined** | Medium | 4b, 5, 6, 7, 8, 9, 10 | Step 4b commits an explicit mapping table under `product/domain/handshake/error-family-map.ts` so improvement proposals route correctly between runtime errors and failure classes without losing signal. |
+| **Reasoning port batching policy undefined** (`selectBatch`/`interpretBatch` exposed but which sagas must use them and what per-request-failure semantics apply is unspecified) | Medium | 4b, 7, 8, 9, 10 | Step 4b includes the batching policy in the commit: saga-by-saga decision table; per-request-failure returns partial results plus typed errors (not all-or-nothing). See `v2-readiness.md §9.6`. |
+| **Premature convergence-FSM termination** (v1 empirical: system hit `max-iterations` before true plateau, declared converged) | Medium | 10 | Step 10 convergence-proof logic measures plateau (rolling-window delta → zero) separately from budget exhaustion. Workshop graduation's calibration-test third clause (§6.3) is the second safeguard. |
+| **Memory-carry stale references across screen transitions** (v1 parameter `stalenessTtl=5` needs dynamic override on complex journeys) | Medium | 9 | Step 9 runtime context inherits v1's dynamic formula `min(10, max(3, round(stepCount * 0.3)))`. Full multi-step memory carry defers until runtime-family recognition (v1 Phase E, carried forward) lands. |
 
 ### 5.4 Measurement-already-running discipline
 
@@ -834,6 +851,10 @@ The plan commits to what it needs to commit to. A number of decisions are explic
 - **Operator review UI.** JSONL queue plus a CLI is sufficient through Step 10 per `feature-ontology-v2.md §9.14`. Richer surfaces, if needed, emerge under customer pressure during graduation cycles.
 - **The specific L2 document parser.** Markdown is the first format; richer formats (PDF, Confluence exports, images) defer to Step 8 shipping pressure against real customer material.
 - **Who (or what) triggers the per-release graduation review.** Could be a scheduled CI job, an operator ritual, a chat bot; decided during the steps approaching graduation when the floors become load-bearing for the per-release decision.
+- **M5 floor at Step 7 acceptance.** v1 locked M5 ≥ 1.0 as the 2026-Q2 target; v2.1 has no explicit floor for M5 until Step 7 ships. Proposed: add `M5 ≥ 0.8` to Step 7 DoD after the repeat-authoring probes accumulate ≥3 cohort points per `v2-readiness.md §10`. Calibrated against the first L1-era probe runs.
+- **C6 window size.** v1 locked the window at N=1 loop iteration; v2.1's equivalent (hypothesis-to-receipt latency window) is TBD. Deferred until Step 6 surfaces real customer impact data — then calibrated against observed latency distributions.
+- **`metric-source-distribution` visitor.** Optional workshop visitor tracking catalog composition (agentic-override vs deterministic-observation vs operator-override proportions) as a drift signal. Useful when the catalog gets large enough that composition shifts reveal system health; deferred until Phase 3 memory layers accumulate enough catalog mass to warrant the measurement.
+- **Failure-classification threshold derivation.** v1 used hand-authored bounds (e.g., `0.15 < score < 0.34` for translation-threshold-miss). v2.1 should derive thresholds from observation counts using Wilson score or Beta posteriors; deferred to the Phase-D-equivalent work under Step 8 when enough observation volume exists to derive statistically.
 
 These deferrals are not gaps in the plan. They are decisions whose right time is when the plan's execution has produced the evidence to inform them. Committing them earlier would be choosing in ignorance; committing them later is what the anti-scaffolding gate calls for.
 

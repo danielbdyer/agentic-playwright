@@ -865,3 +865,130 @@ This doc is the preprocessing that turns the plan from a specification into a wa
 Each section is bounded. No section points at "TBD" or "deferred" without naming the downstream step that resolves it. The goal is that a fresh agent session can walk in, read the relevant sections, and start executing without re-deriving the design.
 
 Where the plan's operating framing (in `v2-direction.md` + `v2-transmogrification.md`) and this doc diverge on details, **this doc wins for execution mechanics**; the plan doc wins for direction. If a genuine contradiction appears, the plan is at fault and should be amended before executing.
+
+---
+
+## 12. V1 harvest — findings, risks, and inheritance
+
+Three parallel investigations conducted 2026-04-19 crawled `docs/v1-reference/` (20 v1-era docs) and surfaced ~80 findings across four buckets: **ENRICH** (absorb into v2.1), **NARRATIVE** (preserve as framing language), **RETIRE** (obsolete under v2.1 — name so future agents don't re-import), and **RISK / LATENT** (things v1 was solving that v2.1 hasn't explicitly addressed).
+
+This section is the durable record. The highest-impact findings have been landed inline in `docs/v2-transmogrification.md` §5.3 (cascade risks), §8 (deferred items), and specific Step DoDs per §3. Lower-leverage findings remain here as reference for a future agent who wants to audit the integration or re-consider a retirement.
+
+### 12.1 ENRICH — inherited by v2.1
+
+Findings that bind to specific v2.1 artifacts. Each row names the v2.1 home where it has been or should be absorbed.
+
+| Finding (source) | v2.1 home |
+|---|---|
+| **Selector canonicality at the type level** — `CanonicalTargetRef` identity is load-bearing for the compounding claim; duplication must fail the build, not be cleaned up post-hoc. (arch, A2) | Step 3 facet schema DoD (type-level constraint); architecture law addition. |
+| **K5 monotonicity law** — repeat-authoring shortens discovery time, not just raises confidence. (theorems, A1) | Step 7 acceptance criterion + `workshop/convergence/` rolling-window monotonicity law. |
+| **A3 continuation integrity** — facet evidence carries `attempt_count` + `last_blockage_kind` so resumed sessions don't re-tread. (theorems, A4) | Step 7 evidence log schema. |
+| **L2s strong-target observability** — facet confidence carries `evidenceStreams: number`; DOM-less authoring gates more conservatively when backing is single. (theorems, A5) | Step 7 facet confidence schema. |
+| **R2/R3 drift classification into three tiers** — expression-only / affordance-shift / semantic redesign; only tier 3 triggers confidence decay. (theorems, A7) | Step 9 drift-emit classifier + Step 10 revision-proposal filters. |
+| **M4 suspension-handoff minimum** — every `Suspended` verdict produces a handoff with ≥3 next-move candidates. (theorems, A6) | `product/tests/architecture/` handoff-validation law. |
+| **Enrichment discipline on handoffs** — bare `{screen, element, alias}` is not enough; intervention receipts must thread `locatorHints`, `widgetAffordance`, `inferredAction`, `semanticCore`, `evidenceSlice`. v1 measured this empirically as the richness-gap culprit for alias-only resolutions. (operational) | Step 7 intervention-receipt schema; `product/domain/handshake/intervention.ts` reshape. |
+| **Widget coverage is the load-bearing bottleneck** — proposal quality and entropy are multipliers within that ceiling; no improvement above widget ceiling is possible. v1 current state: ~40% (4 actions); target 70% with P0 widgets; ultimate 100%. (operational) | Step 1.5 customer-reality probe memo MUST report observed widget coverage against customer app; Phase 2 design uses this baseline. |
+| **Observation-collapse pattern** (extract → aggregate → derive) — every learning metric should pattern-match this, not invent its own fold. (arch, A5) | `workshop/metrics/` visitor template + Step 7/9/10 metric authoring guidance. |
+| **Yanking axiom justifies graduation** — traced-monoidal `Tr(σ) = id` proves the workshop convergence condition ("probes cover 100% + batting average ≥ floor") is formally grounded, not engineering heuristic. (arch, A8) | `v2-transmogrification.md §6.3` narrative justification. |
+| **Translation overlap threshold = 0.34** as v1's empirically-tuned default; v2.1 starting default. (operational, 15-knob #1) | `product/reasoning/adapters/` starting config; Step 4b DoD. |
+| **Trust policy confidence floors (0.90 hints / 0.95 elements-postures-patterns / 0.98 snapshots)** as v1's empirical gates. (operational, 15-knob #11) | `workshop/policy/trust-policy.yaml` starting values; recalibrated under probe evidence per Phase 3. |
+| **Staleness TTL dynamic formula** — `min(10, max(3, round(stepCount * 0.3)))` for memory-carry TTL; `0.25`/`0.30`/`0.35` confidence floors for complex/medium/simple state graphs. (operational, 15-knob #4) | Step 9 runtime context carry defaults. |
+| **Semantic dictionary promotion trajectory** — initial 0.5, +0.12 per reuse, promote at 0.8 after 3+ reuses. (operational, 15-knob #15) | Step 7 evidence accumulation formula default. |
+
+
+### 12.2 NARRATIVE — preserved as framing language
+
+Concepts that retire as enforcement but survive as reading-only language. Useful when a future agent (or human) needs the *why* behind v2.1's primitives; not load-bearing for execution.
+
+- **The epistemological loop** — Intent → Resolution → Commitment → Evidence → Knowledge → Intent. One cycle at every rhythm (step, scenario, iteration, session). The system exists to close the Gap. Useful as an organizing frame for `v2-direction.md §1` and for orienting newcomers to "why is there a manifest, why does memory compound."
+- **The three architectural spines** — Interface Intelligence, Agent Workbench, Recursive Improvement. In v1 these cut across six workflow lanes; in v2.1 they map cleanly onto the three folders (`product/`, `dashboard/`, `workshop/` respectively). Reading v1's spine docs through the v2.1 lens is a useful way to understand why the folder split is not arbitrary.
+- **The interpretation surface as a single machine boundary** — shared by planning, runtime, review, intervention, improvement. In v2.1 the manifest + facet catalog + append-only log set *are* the interpretation surface; projections read through it, never beside it.
+- **Theorem groups K / L / S / V / D / R / A / C / M / H as architectural narrative lens** — retired as a proof-obligation matrix, survives as a reading lens. Each group maps to a v2.1 subsystem: K (kernel legibility) → `product/domain/`; L (structural surface) → `product/intelligence/`; S (semantic persistence) → `product/catalog/`; D (dynamic topology) → `product/runtime/`; V (structured variance) → `workshop/probe-derivation/`; R (drift/recoverability) → `product/observation/drift-emit.ts` + Step 9; A (agency) → `product/reasoning/`; C (compounding economics) → `workshop/metrics/`; M (meta-properties) → `workshop/convergence/`; H (handoff properties) → `product/domain/handshake/`. Useful when future work benefits from formalism language.
+- **Confidence vs. governance as orthogonal axes** — belief is distinct from permission. An overlay can be `approved-equivalent` and remain derived working knowledge rather than canon. Preserve in `product/domain/README.md` (stubbed at Step 0 per §3 of this doc) so operators understand why high-confidence work sometimes still requires review.
+- **Scope-of-effect / blast-radius** — some drift is local (one element), some regional (a screen), some wholesale (vocabulary shift). The narrative survives as the rationale for Step 9's three-tier drift classification (R2/R3 finding).
+- **Surface 1 vs Surface 2 leverage** — Surface 1 is tunable parameters (the 15-knob space); Surface 2 is code architecture. v1 observed that Surface 2 has higher leverage. v2.1's decision to retire the 15-knob loop and invest in probe-IR is Surface-2 investment; preserve this language in architecture-decision conversations.
+- **"Converged verdicts are not synonymous with good verdicts"** — v1 empirical: system hit 4–9% cold-start acceptance and declared convergence because delta fell below 1%. But 4–9% is mechanically bad. Preserve this phrase as a warning in `workshop/convergence/` — convergence-proof output must be read alongside absolute-value metrics, not in isolation.
+
+### 12.3 RETIRE — explicit confirmation of obsolete items
+
+Listed so future agents reading `docs/v1-reference/` don't accidentally re-import them. Most are already flagged in `v2-direction.md §4B` and `v2-transmogrification.md §6.5`; this consolidation confirms.
+
+- **15-knob parameter-tuning loop + speedrun.ts gradient computation** — retired. v2.1's probe IR + workshop graduation replace the self-improvement machinery. Six of the 15 parameters have their tuned defaults inherited as starting values (§12.1 table); the gradient loop does not.
+- **Hand-authored widget handlers per OutSystems type** (os-button, os-input, os-select, etc.) — retired. Role-affordance derivation already landed in v1; v2.1 inherits the ARIA role → affordance lookup table.
+- **Demo harness expansion as a convergence bottleneck** — retired. Real customer applications provide widget diversity naturally; synthetic variance-injection is no longer needed.
+- **Entropy harness variance profiles** (phrasing-diversity, structural-variance) — retired alongside demo-harness expansion.
+- **ADR collapse pattern and semantic-dictionary-driven step-text resolution** — retired as learning surface. v2.1's probe IR encodes these patterns as first-class semantic forms; verb → action mapping is structural, not learned.
+- **Convergence proof as doctrinal acceptance gate** — retired. v2.1 gates on M5/C6-derived metrics (product acceptance curve per §6.2; workshop calibration per §6.3) instead of convergence-proof output.
+- **Proof-obligation matrix (K1–K7, L2–L4, S2–S4, D1–D4, V1–V4, R2–R4, A1–A8, C1–C6, M1–M5, H1–H20)** — retired as a formal system. v2.1's trust-but-verify loop catches failures in deployed code, not in design proofs. Narrative structure survives per §12.2.
+- **Six-slot lookup chain + reference-canon transitional slot** — retired at Step 1 (type-level surgical edit on `source.ts`; PhaseOutputSource contracts from six to five variants).
+- **Dogfood scenario partition (10000-series legacy, 20000-series generated)** — retired at Step 1 alongside reference canon.
+- **Calendar-based floor targets** (Q2 2026 = M5 ≥ 1.0, etc.) — retired. v2.1 graduates on sustained-condition, not calendar. Specific M5 floor replacement proposed in §12.5 (Step 7 DoD).
+- **Scenario-lifecycle FSM as a separate type hierarchy** — retired via architectural collapse into one generic `StateMachine<S, E>` (per v1's design-calculus Collapse 1, already in-flight in v1 code).
+
+
+### 12.4 RISK / LATENT — things v1 was solving that v2.1 hasn't explicitly addressed
+
+Highest-leverage risks have been absorbed inline into `v2-transmogrification.md §5.3` (cascade risks) and §8 (deferred items). The full list is retained here for audit.
+
+**Absorbed into §5.3 cascade risks:**
+- Confidence-overlay schema not specified for L3 (Step 9 authoring policy gates on confidence but the derivation formula is undefined). Mitigation: pre-Step-9 spike validating the formula against real customer runs.
+- Facet relation grammar not specified at Step 3 (how to express "this affordance belongs to this screen's vocabulary"). Mitigation: Step 3 schema spike validates that the relation grammar doesn't bloat storage or query complexity.
+- Operator input attribution and revocability unspecified for Step 8 (L2 dialog + document ingest). Mitigation: Step 8 ships with an explicit protocol for attribution + revocation + consent location.
+- Five-error-family ↔ eight-pipeline-failure-class mapping unresolved. Both survive under v2.1; relationship between them (map / independent / layered?) needs an explicit table so improvement proposals route correctly.
+- Reasoning port batching policy undefined. §9.6 names `selectBatch` / `interpretBatch` variants but doesn't specify *which* sagas must batch or what failure semantics apply to one-request-in-batch failures.
+- Premature convergence termination (v1 empirical: system hit `max-iterations` and declared converged before true plateau). Step 10 convergence-proof logic must measure plateau separately from budget exhaustion.
+- Alias-only proposals stall (v1 empirical: bare `{screen, element, alias}` handoffs "resolve" at rung 3 but cost is unchanged because downstream still falls to rung 9 DOM). Step 7 intervention-receipt schema must include `locatorHints`, `widgetAffordance`, `inferredAction`, `semanticCore`, `evidenceSlice`.
+- Memory carry stale references across screen transitions (v1 parameter: `stalenessTtl=5` with dynamic override formula). Step 9 runtime context should inherit the formula; defer full multi-step memory carry until runtime-family recognition (v1 Phase E, carried forward) lands.
+
+**Absorbed into §8 deferred items:**
+- M5 floor ≥ 0.8 at Step 7 acceptance (v1 locked 1.0 at 2026-Q2; v2.1 has no explicit floor until Step 7 ships).
+- C6 window size deferred until Step 6 customer-work impact data arrives (v1 locked N=1 loop iteration; v2.1's equivalent window is TBD).
+- `metric-source-distribution` visitor — tracks whether the catalog is drifting toward more agentic overrides vs. deterministic observations (a workshop-detectable drift signal per v1 Commit 1b intent).
+- Failure-classification threshold derivation — replace v1's hand-authored `0.15 < score < 0.34` bounds with Wilson score / Beta posterior derivations at Phase D (v1 plan, carried forward).
+
+**Latent / not-yet-absorbed (lower leverage):**
+- Hylomorphism deforestation untested at customer scale (v1 design-calculus Duality 1; theoretical, not yet load-bearing). Post-Step-6, run a side-by-side collected-vs-streamed convergence proof with real customer data.
+- v4 dashboard arcs (44-item Cockpit Clarity / Decision UX / Agent Presence / Live Interface Presence roadmap from v1's research-master-prioritization-v4). Post-Step-6 Phase 3 continuation.
+- Impact scheduler / C6-direct measurement (v1 Commit 2; latent). Wire at Step 8 when intervention receipts produce impact data.
+- Beta-posterior promotion gates with confidence intervals (v1 Commit 4; contingency). Activate if `metric-hypothesis-confirmation-rate` drops below floor after Step 10 ships.
+- Demotion sweep for stale facet variants (v1 Commit 5; contingency). Activate at Step 10 if L4 self-refinement begins producing facet rewrites.
+
+### 12.5 15-knob parameter inheritance table
+
+v1's 15-knob parameter space retires as a tuning loop but specific tuned values inherit as v2.1 starting defaults. Six parameters are load-bearing; three should NOT be inherited; the rest inherit with caveats. Agents picking up Phase 2 or Phase 3 lanes should consult this table before rolling any new parameter.
+
+| # | Parameter | Load-bearing? | v1 tuned value | v2.1 disposition |
+|---|---|---|---|---|
+| 1 | Translation overlap threshold | yes | 0.34 | Inherit as starting default; `product/reasoning/` may derive dynamically post-Step-4b. |
+| 2 | Bottleneck scoring weights | medium | 0.30/0.25/0.25/0.20 | **Do not inherit.** v2.1 should compute from real impact traces; correlation data was placeholder zeros in v1. |
+| 3 | Proposal ranking weights | medium | 0.30/0.30/0.20/0.20 | **Do not inherit.** v2.1's graduated intervention replaces proposal ranking. |
+| 4 | Staleness TTL (memory carry) | yes | 5 steps; dynamic `min(10, max(3, round(stepCount * 0.3)))` | Inherit formula; refine per customer app structure at Step 9. |
+| 5 | Screen confidence floor | yes | 0.35 (dynamic: 0.25 complex / 0.30 medium / 0.35 simple) | Inherit; workshop-graduation refines per runtime-family. |
+| 6 | Max active refs | medium | 8 (dynamic 8–32) | Inherit formula; may not apply if v2.1 memory model shifts. |
+| 7 | DOM scoring weights | medium | 0.35/0.25/0.20/0.20 | Inherit with caution; visibility may be over-weighted; v2.1 probes may have different DOM signal types. |
+| 8 | Element/screen confidence thresholds | yes | 6 / 4 | Inherit; threshold-pair semantics survive. |
+| 9 | Precedence weight base | low | 1 | **Do not inherit.** v2.1 has different strategy chain. |
+| 10 | Confidence scaling (compiler / verified / proposed) | medium | 1.0 / 0.8 / 0.65 | Inherit principle (discount agent-proposed); v2.1 may adjust specific factors. |
+| 11 | Trust policy confidence floors (per artifact type) | yes | 0.90 hints / 0.95 elements/postures/patterns / 0.98 snapshots | Inherit as `workshop/policy/trust-policy.yaml` starting values; recalibrate under probe evidence. |
+| 12 | Proposal confidence assignments | yes | 0.85 translation / 0.9 DOM / 0.5 fallback | Inherit; v2.1's probe-IR assigns per atom class. |
+| 13 | Convergence threshold (% improvement) | medium | 0.01 (1%) | **Do not inherit.** v2.1 uses M5/C6-derived graduation gates. |
+| 14 | Overlay confidence thresholds (semantic-dict) | medium | Jaccard+TF-IDF @ 0.45, combined @ 0.35 | Inherit; v2.1 may use different matching strategy post-Step 8. |
+| 15 | Semantic dictionary promotion floor | yes | initial 0.5, +0.12 per reuse, promote at 0.8 after 3+ reuses | Inherit confidence trajectory; may be reshaped at Step 8 L2 operator-dialog ingestion. |
+
+**Verdict:** 6 load-bearing (1, 4, 5, 8, 11, 15); 3 do-not-inherit (2, 3, 13); 6 inherit with caveats. The do-not-inherit three are artifacts of v1's retired self-improvement machinery; inheriting them would re-import the tuning loop by the back door.
+
+### 12.6 Top 5 cross-report insights worth naming in execution
+
+Consolidated from the three parallel harvests' "top 3" lists.
+
+1. **Selector canonicality is load-bearing for the compounding claim.** If v2.1 allows ad-hoc selector duplication in scenarios or generated code, the facet catalog's value stalls — every scenario rediscovers. The "50th test costs less than the 1st" claim depends entirely on `CanonicalTargetRef` identity being a type-level constraint, not a convention. (Architecture harvest, top-3 #2.)
+
+2. **Widget coverage is the load-bearing bottleneck; proposal quality and entropy are multipliers within the ceiling.** No richness improvement escapes widget coverage limits. Step 1.5's customer-reality probe memo must report observed widget coverage as its top-line baseline. (Operational harvest, top-3 #1.)
+
+3. **Converged verdicts are not synonymous with good verdicts.** v1 hit 4–9% cold-start acceptance and declared convergence. Workshop graduation's calibration-test third clause (§6.3 of the transmog doc) exists to guard against this failure mode — without it, the graduation gate is gameable. (Operational harvest, top-3 #2.)
+
+4. **Enriched proposals compound; bare proposals stall.** Alias-only handoffs are a richness-gap failure mode v1 measured empirically. v2.1's Step 7 intervention-receipt schema MUST include locator hints, widget affordance, inferred action, semantic core, and evidence slice — not just alias. (Operational harvest, top-3 #3.)
+
+5. **Probes must derive from the manifest to avoid drift between testbed and product reality.** Hand-authored dogfood silently forks from customer applications. Manifest-derived probes are authoritative because they exercise what product declares it can do. Step 5's spike is the only validation gate; if >20% need hand-tuning, the seam isn't where the design claims. (Architecture harvest, top-3 #3.)
+
+---
