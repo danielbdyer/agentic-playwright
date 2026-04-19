@@ -137,8 +137,8 @@ test('CLAUDE.md documents knowledge posture tiers', () => {
   const claudePath = path.resolve(__dirname, '../..', 'CLAUDE.md');
   const content = fs.readFileSync(claudePath, 'utf-8');
 
-  expect(content).toContain('Tier 1');
-  expect(content).toContain('Tier 2');
+  // Tier 1/Tier 2 vocabulary retired in the 2026-04-19 v2.1 CLAUDE.md
+  // rewrite; the three postures remain the authoritative contract.
   expect(content).toContain('cold-start');
   expect(content).toContain('warm-start');
   expect(content).toContain('production');
@@ -147,7 +147,7 @@ test('CLAUDE.md documents knowledge posture tiers', () => {
 // ─── Law: Clean room protocol documents posture ───
 
 test('recursive-self-improvement.md documents knowledge posture', () => {
-  const docPath = path.resolve(__dirname, '../..', 'docs', 'recursive-self-improvement.md');
+  const docPath = path.resolve(__dirname, '../..', 'docs', 'v1-reference', 'recursive-self-improvement.md');
   const content = fs.readFileSync(docPath, 'utf-8');
 
   expect(content).toContain('### Knowledge Posture');

@@ -18,6 +18,7 @@
 import type { ScreenId, ElementId } from '../kernel/identity';
 import type { InterventionAttachmentRegion } from './intervention';
 import type { RegionMetricSnapshot } from './intervention-impact';
+import { isReviewRequired, isBlocked } from '../governance/workflow-types';
 
 // ─── Resolution step shape ──────────────────────────────────────
 
@@ -85,7 +86,7 @@ export function captureRegionSnapshot(input: {
 
   // Suspension: steps with non-approved governance
   const suspendedCount = matchingSteps.filter(
-    (s) => s.governance === 'review-required' || s.governance === 'blocked',
+    (s) => isReviewRequired(s) || isBlocked(s),
   ).length;
 
   // Mean rung index: collect unique winning sources, sort
