@@ -2,7 +2,7 @@
 
 > Status: the execution plan for reshaping v1 into v2 via in-place compartmentalization. Reads alongside `v2-direction.md` (primary direction), `v2-substrate.md` (primitives and invariants), `feature-ontology-v2.md` (handshakes and technical paths), and `v2-delta-audit.md` (per-handshake v1→v2 verdicts). This document is the route; the others name the destination.
 
-The 2026-04-17 reconciliation completed: §§1–8 carry the current plan (three-folder structure, eleven steps, four parallel tracks, three inflection points, continuous graduation per §6); §§9–12 carry the architectural framing (cathedral, highway map, runtime composition, descent protocol) with paths updated to `product/` / `workshop/` / `dashboard/`; §13.0 is the authoritative per-folder destination audit, with §§13.1–13.7 retained as the original lane-track audit (paths now updated). Where this document references "Phase N" historically, those references are now "Step N" mapped per the construction order; the underlying eleven-step sequence lives canonically at `v2-direction.md §6`.
+As of v2.1 (2026-04-18): §§1–8 carry the current plan (three-folder structure, thirteen steps in three phases per §3, four parallel tracks, three inflection points, continuous graduation per §6). §9 is the saga gallery — the fifteen Effect programs that compose the product's runtime behavior. §10 is the runtime composition — Layer cake, entry point, CLI, fiber tree. §11 is self-governance — the descent protocol and the parallelizable feature backlog (lanes). §12 is the per-folder + per-lane salvage audit. Architectural apologetics (cathedral, highway map) earlier drafts carried retired in v2.1 as reading overhead without operational payoff; the operational content survived (saga gallery, truth + reasoning catalogs, lighting-up matrix at §4.6).
 
 ## 1. The shape
 
@@ -16,7 +16,7 @@ There are eleven construction steps (Steps 0–10, named in `v2-direction.md §6
 
 **The shape in one paragraph:**
 
-Step 0 is the compartmentalization commit — an atomic tree reshape that moves every v1 file into `product/`, `workshop/`, or `dashboard/` per the destinations in `v2-direction.md §3` and the per-file table in §13.0 of this document. Step 1 retires the reference-canon transitional slot via a type-level surgical edit on `source.ts` plus the demotion sweep. Steps 2–4 land the vocabulary manifest + fluency harness, the unified facet schema, and the L0 data-flow chain with the named shape adjustments and the five monolith splits. Step 5 is the probe IR spike (substrate §6a) — three representative verbs, fixture specifications, a go/no-go verdict on whether manifest-derived probes can stand as workshop's testbed. Step 6 is the first customer shipping inflection; the workshop is watching via probes already. Steps 7–10 expand L1 through L4 under the trust-but-verify loop the workshop is already running.
+Step 0 is the compartmentalization commit — an atomic tree reshape that moves every v1 file into `product/`, `workshop/`, or `dashboard/` per the destinations in `v2-direction.md §3` and the per-file table in §12.0 of this document. Step 1 retires the reference-canon transitional slot via a type-level surgical edit on `source.ts` plus the demotion sweep. Steps 2–4 land the vocabulary manifest + fluency harness, the unified facet schema, and the L0 data-flow chain with the named shape adjustments and the five monolith splits. Step 5 is the probe IR spike (substrate §6a) — three representative verbs, fixture specifications, a go/no-go verdict on whether manifest-derived probes can stand as workshop's testbed. Step 6 is the first customer shipping inflection; the workshop is watching via probes already. Steps 7–10 expand L1 through L4 under the trust-but-verify loop the workshop is already running.
 
 **The discipline in one paragraph:**
 
@@ -56,7 +56,7 @@ Four decisions frame how the transmogrification executes. Each is named once; ea
 
 ### 2.3 File movement mechanics — one atomic reshape at Step 0
 
-**Decision:** every file in `lib/` moves to its destination folder in a single atomic commit (Step 0 per `v2-direction.md §6`). The per-file destinations come from §13.0 of this document — the authoritative per-folder destination audit.
+**Decision:** every file in `lib/` moves to its destination folder in a single atomic commit (Step 0 per `v2-direction.md §6`). The per-file destinations come from §12.0 of this document — the authoritative per-folder destination audit.
 
 **Mechanism:**
 
@@ -102,7 +102,7 @@ Thirteen steps grouped into three phases. Each phase has a coherent risk profile
 
 **Before Phase 1 begins**, the following preparatory work can happen at zero cost without touching the critical path:
 
-- Per-folder destination dry-run against `§13.0`: validate that every v1 file has an unambiguous home.
+- Per-folder destination dry-run against `§12.0`: validate that every v1 file has an unambiguous home.
 - Build-harness prototyping (per-folder `tsconfig` references, per-folder `npm` scripts).
 - Manifest schema sketching (verb entry shape — though the freeze happens at Step 2).
 - Facet schema mockups (the consolidated record shape — freeze at Step 3).
@@ -115,14 +115,14 @@ Thirteen steps grouped into three phases. Each phase has a coherent risk profile
 
 ### Step 0 — Compartmentalization commit
 
-**What ships:** the atomic tree reshape per `v2-direction.md §6` Step 0. Three folders exist; every v1 file moves to its destination per `§13.0`; the seam-enforcement architecture test runs in CI; `npm run build:product`, `build:workshop`, `build:dashboard` all succeed.
+**What ships:** the atomic tree reshape per `v2-direction.md §6` Step 0. Three folders exist; every v1 file moves to its destination per `§12.0`; the seam-enforcement architecture test runs in CI; `npm run build:product`, `build:workshop`, `build:dashboard` all succeed.
 
 **Hard dependencies:** none. This is the starting line.
 
 **Parallel work streams within the step:**
 - (a) Per-folder `tsconfig` and project-references setup.
 - (b) Per-folder `npm` script wiring; CI config.
-- (c) The tree reshape itself — `git mv` for every file per the §13.0 destination map.
+- (c) The tree reshape itself — `git mv` for every file per the §12.0 destination map.
 - (d) Architecture-law-style import-seam test in `product/tests/architecture/`.
 
 All four can run concurrently. (c) is the bulk of the diff; (a), (b), (d) are small and independent.
@@ -236,7 +236,7 @@ This step is a *forcing function* (see §5). A late schema change forces catalog
 
 ### Step 4a — Monolith splits (internal reshape, no behavior change)
 
-**What ships:** per `v2-direction.md §6` Step 4 — the five monolith splits per §13.0.2 and §13.0.3: `interface-intelligence.ts`, `derived-graph.ts`, `resolution-stages.ts`, `scenario.ts`, `dashboard-mcp-server.ts`. Each splits along its natural internal seam; existing test surfaces stay green; no behavior changes.
+**What ships:** per `v2-direction.md §6` Step 4 — the five monolith splits per §12.0.2 and §12.0.3: `interface-intelligence.ts`, `derived-graph.ts`, `resolution-stages.ts`, `scenario.ts`, `dashboard-mcp-server.ts`. Each splits along its natural internal seam; existing test surfaces stay green; no behavior changes.
 
 **Why before 4b:** the L0 shape adjustments (Step 4b) touch `locator-ladder.ts`, `interact.ts`, `navigation/strategy.ts`, `spec-codegen.ts`. Some of these are inside the `resolution-stages.ts` / `scenario.ts` monoliths today. Splitting the monoliths first means 4b's shape adjustments land in bounded modules rather than in 900-line monolith bodies.
 
@@ -525,7 +525,7 @@ Step 5 lands the spike against three representative verbs. Steps 7–10 each add
 
 **Track D — Pre-Phase-1 zero-cost exploration.**
 Work that can happen before Step 0 begins and feeds directly into the early steps:
-- Per-folder destination dry-run against `§13.0`.
+- Per-folder destination dry-run against `§12.0`.
 - Build-harness prototyping (per-folder tsconfig + npm script combinations).
 - Manifest schema sketching (verb entry shape).
 - Facet schema mockups (consolidated record shape).
@@ -550,6 +550,34 @@ The critical path is mostly linear; the only escape is within-step parallelism a
 
 The plan is feasible for a small team (2–4 people) plus the agent sustained across Phases 1 and 3; Phase 2 rewards a temporary widening to 4–6 for its parallelizable interior reshape. Scaling the team beyond that does not linearly collapse the critical path because most of the transitions between steps are hard.
 
+### 4.6 The lighting-up sequence — what goes live per step
+
+The DAG says when each step depends on the next. The matrix below says what capability each step adds to the running system, grouped by the five domains of concern that traverse `product/` + `workshop/`. Cells are empty where the step adds nothing to that domain.
+
+| Step | Verb surface (manifest) | Intent sources | World-reach (SUT-facing) | Memory (catalog + evidence) | Truth (run records + metrics) |
+|---|---|---|---|---|---|
+| **0** — compartmentalization | (substrate foundations in place) | (ADO source moves into `product/instruments/intent/`) | (Playwright adapters move into `product/instruments/observation/` and `product/instruments/action/`) | (catalog code moves into `product/catalog/`) | (run-record log, scorecard, trust policy, convergence-proof harness all move to `workshop/` — already producing values) |
+| **1** — reference-canon retirement + transitional probes | — | — | — | (reference-canon content deleted; source union contracts; transitional probe set pre-manifest) | (workshop visitors recalibrate denominators; M5 re-keys to probe-surface cohort) |
+| **1.5** — customer-reality probe | — | (one real customer ADO item via v1 pipeline — observational) | — | (observation memo banked at `workshop/observations/customer-probe-01/`) | — |
+| **2** — manifest + fluency | Manifest Schema · Manifest Generator · Sync Check · Fluency Harness · `kind: hypothesis` discriminator | — | — | — | (hypothesis-receipt discipline live from this step forward) |
+| **3** — facet schema | — | — | — | Facet Schema · Facet Store · manifest declarations for memory verbs | — |
+| **4a** — monolith splits | — | (intent splits land under `product/instruments/intent/`) | (observation + action splits land) | (catalog + graph monolith splits land) | — |
+| **4b** — L0 shape + Reasoning port | (new L0 verb declarations land) | ADO Source (wired to verb) · Intent Fetch · Intent Parse | Navigation (with idempotence) · Locator Ladder (role-first) · Interact (four-family) · ARIA Snapshot · State Probes | (catalog populates organically via compose-time minting) | Test Compose · Test Execute · Run Record Log (shape-adjusted) · `Reasoning.Tag` receipts |
+| **4c** — dashboard reshape | — | — | — | — | (`dashboard/mcp/` tool handlers route through manifest verbs) |
+| **5** — probe IR spike | (probe-related metric verbs declared) | `workshop/probe-derivation/` + per-verb fixture specs | — | — | (probe run records flow into existing metric visitors; transitional probe set retires) |
+| **6** — ship L0 to customer | — | — | — | (organic population continues with real customer facets) | `metric-test-acceptance-rate` populates with customer evidence |
+| **7** — L1 memory | — | — | — | Evidence Log · Confidence · Locator Health live feed · Facet Query · Facade Regenerator | `metric-memory-hit-rate` · `metric-memory-corroboration-rate` |
+| **8** — L2 operator | — | Dialog Capture · Document Ingest | — | Candidate Review | `metric-operator-wording-survival-rate` · `metric-vocabulary-alignment-score` |
+| **9** — L3 drift + DOM-less | — | — | — | Drift Emit · Confidence Gate | `metric-drift-event-rate` · `metric-dom-less-authoring-share` · `metric-convergence-delta-p50` |
+| **10** — L4 self-refinement | — | — | — | Confidence Age · Corroborate · Revision Propose | `metric-hypothesis-confirmation-rate` |
+
+Observations this matrix makes visible that the step-indexed view of §3 does not:
+
+- **The Verb surface lights up once and then stays static in shape.** All four manifest towns land in Step 2; every subsequent step adds verb *declarations* but never verb *infrastructure*.
+- **The World-reach surface lights up at Step 4b with shape adjustments** (the splits at 4a are behavior-preserving). Step 9 adds a policy that consumes World outputs (the Confidence Gate) but does not extend the surface itself.
+- **The Memory surface is the most phased.** Schema at Step 3; L0 minting at Step 4b; live-feed + derivation towns at Step 7; operator-candidate town at Step 8; gate town at Step 9; maintenance towns at Step 10. Each step adds a sub-carriageway.
+- **The Truth surface is the one surface already running at Step 0.** Scorecard history, convergence-proof harness, trust-policy gate, speedrun orchestration — all move into `workshop/` at Step 0 without interruption. New metric verbs add at Steps 5–10 as product surfaces grow; this surface is never "lit up" from scratch because it has been producing values continuously since v1.
+
 ## 5. Forcing functions, inflection points, cascade risks
 
 Four classes of named concern. Each has a mitigation handle. None are optional to read; the plan's survival depends on the team tracking each class explicitly.
@@ -565,7 +593,7 @@ Decisions whose early form constrains everything downstream. Once committed, lat
 | **Transitional probe set shape** (5–10 probes against v1 surfaces, encoded inline pre-manifest) | Step 1 | What the workshop measures against between Step 1 and Step 5; whether the seven-visitor scorecard stays continuous | Encode probes inline in `workshop/probe-derivation/transitional.ts` (pre-manifest, so no dependency on Step 2). Re-key M5's cohort identity from scenario-ID to probe-surface cohort in the same commit. Probe set retires at Step 5 when the manifest-derived IR takes over. |
 | **Vocabulary manifest format** (verb entry shape, signature schema) | Step 2 | Every verb declaration in Steps 2–10; invariant 1 (stable verb signatures) is materialized here | Finalize format before any verb is published. Once a verb with a given signature ships in `manifest.json`, treat that signature as immutable: deprecate-and-replace, never change in place. `sinceVersion` field on every entry to enable deprecation tracking. |
 | **Facet schema shape** (ID format, required fields, provenance block) | Step 3 | Every memory read and write in Steps 4a, 4b, 4c, 7, 8, 9, 10 | Commit schema before Step 4a integration begins. Build-time schema validator forbids unsigned shape changes. Treat schema additions as new fields (backward-compatible); forbid field removal during the construction period. The customer-reality probe at Step 1.5 may surface constraints that inform schema fields before the Step 3 freeze. |
-| **Monolith split boundaries** (where each of the five monoliths cuts internally) | Step 4a | Where subsequent shape adjustments (Step 4b) land; where dashboard reshape (Step 4c) reads from | Use the customer-reality probe observation memo (Step 1.5) plus §13.0.3 to inform cut boundaries. Each split's test surface is preserved at Step 4a; re-splitting is allowed but expensive, so prefer conservative cuts that leave room for 4b shape work. |
+| **Monolith split boundaries** (where each of the five monoliths cuts internally) | Step 4a | Where subsequent shape adjustments (Step 4b) land; where dashboard reshape (Step 4c) reads from | Use the customer-reality probe observation memo (Step 1.5) plus §12.0.3 to inform cut boundaries. Each split's test surface is preserved at Step 4a; re-splitting is allowed but expensive, so prefer conservative cuts that leave room for 4b shape work. |
 | **Probe IR fixture-specification format** (per-verb YAML alongside the verb declaration) | Step 5 | The shape of every `Probe` workshop derives from the manifest; what verbs the workshop can mechanically exercise | Land the spike protocol per `v2-substrate.md §6a` before fixture specifications proliferate. The spike's pass condition (≥80% of probes derive without hand-tuning) gates whether the IR becomes authoritative or stays a partial supplement. |
 | **Envelope-axis phantom type shape** (already Phase-0a/b/c/d complete in v1) | Step 0 | The compile-time invariants that hold across all thirteen steps | Port Class A as-is at Step 0; do not modify during the move. Phases B–E of the in-flight envelope-axis refactor elaborate in `product/` post-Step 0 as needed. Cross-module integration tests confirm shape consistency across the three folders. |
 
@@ -624,7 +652,7 @@ Choices that, if wrong, force rework across multiple steps. Severity reflects ho
 
 | Risk | Severity | Affected steps | Mitigation handle |
 |---|---|---|---|
-| **Compartmentalization import map proves wrong** | High | 0, all subsequent | Step 0's per-folder destinations are spelled out in `v2-transmogrification.md §13.0`. Before the Step 0 commit lands, dry-run the seam-enforcement test against a sample import-rewrite to verify the destinations hold. Late corrections require moving files between folders, not changing logic. |
+| **Compartmentalization import map proves wrong** | High | 0, all subsequent | Step 0's per-folder destinations are spelled out in `v2-transmogrification.md §12.0`. Before the Step 0 commit lands, dry-run the seam-enforcement test against a sample import-rewrite to verify the destinations hold. Late corrections require moving files between folders, not changing logic. |
 | **Facet schema proves inadequate when customer complexity arrives** | High | 3, 4a, 4b, 6, 7 | Step 1.5's customer-reality probe surfaces design constraints before Step 3 freeze. Step 6 authoring runs an explicit "expected facet shape" assertion per real work item. Before Step 7 (L1) ships, conduct a facet-shape adequacy review against actual L0 output. Gate L1 shipping on zero required-field retrofits. |
 | **Verb signature proves wrong after real usage** | High | 2, 4b, 5, 6, 7, 8, 9, 10 | Step 6 real-world authoring logs "verbs that failed to classify real errors" as a separate handoff category. The workshop's existing receipt log surfaces these from Day 1. Before any later step extends the manifest, review the handoff log and proposal-gate any verb deprecations discovered. |
 | **Probe IR fails the spike** | High | 5, 6, 7, 8, 9, 10 | Step 5 is the spike (`v2-substrate.md §6a`). The spike has three possible outcomes: **pass** (≥80% synthesize mechanically — IR becomes authoritative), **partial pass** (50–80% synthesize — IR proceeds with a named exception list of verbs needing hand-lifted schemas), **fail** (<50% — IR concept deferred; probes author against hand-lifted schemas until the fixture grammar matures). Step 6 can ship under any of the three outcomes; the difference is how much of the workshop's probe coverage is mechanically derived. |
@@ -787,7 +815,7 @@ Phase 3 has no single DoD; it's continuous. But per-release checks:
 
 - Six months after both graduations (or whenever the team agrees).
 - New contributors and agents open the codebase, read CLAUDE.md, and orient through the three folders without needing the v1-reference docs at all for their first task.
-- New capabilities ship under the proposal-gated hypothesis discipline; no PR claims to "rewrite a subsystem" without descending through the cohesion laws (§12.3).
+- New capabilities ship under the proposal-gated hypothesis discipline; no PR claims to "rewrite a subsystem" without descending through the cohesion laws (§11.3).
 - The team stops using "v2" as a distinguishing label — there is just the codebase, the three folders, and the shipping cadence each one supports.
 
 At this point, transmogrification is no longer a word the team uses for itself. It is a thing that happened once; the system now measures its own evolution through the substrate the three folders ship with.
@@ -813,187 +841,23 @@ These deferrals are not gaps in the plan. They are decisions whose right time is
 
 v1 reshapes into v2 through eleven steps, four parallel tracks, three inflection points, a handful of forcing functions named and gated, and two continuous graduation gates. The plan is the route. The discipline is trust-but-verify. The end state is a codebase whose three folders cleanly separate what ships, what measures shipping, and what observes both — producing tests a real customer accepts, measured by a workshop that puts itself out of a job. Execute.
 
-## 9. The cathedral — the architecture as a unified whole
+## 9. Saga gallery — how Effect composes the product's work
 
-What follows is not a plan section. The plan ends with §8. What follows is the view from the finished cathedral, looking at its own structure.
+This section is operational detail that readers of §3–§8 will want when implementing: the fifteen sagas that compose every action v2 takes, written as Effect programs that span `product/` and `workshop/`. Earlier drafts framed this section as the back half of an architectural "highway map"; the architectural exposition has been retired (it added reading volume without operational clarity), and the remaining saga gallery is what survives. Read this when you need to know *how* a feature composes at runtime; use §3 for *when* it ships and §13 for *where* its files live.
 
-Many patterns and disciplines converge in v2 — Effect's composition calculus, functional programming's purity discipline, hexagonal architecture's ports and adapters, clean architecture's dependency direction, domain-driven design's bounded contexts and ubiquitous language, the Gang-of-Four visitor and strategy patterns, event sourcing's append-only logs. None of them is arbitrary; none of them is v2's primary frame. They are the same structure viewed from different angles, and v2 sits at their intersection because v2's primitives are the common ground they all arrive at.
+<!-- §§10.1-10.4 retired in v2.1. The six-highways + macro-map + substrate-foundations + per-highway-town catalogs were architectural exposition that duplicated §3 (the step plan), §4.6 (the lighting-up matrix), and §12.0 (the per-folder destination audit). Retained operational content: §9 saga gallery below; §4.6 lighting-up matrix; §12.0 per-folder destinations. -->
 
-The parallel work streams named throughout §3 compose cleanly because the architecture has this property. A work stream is independent when the primitive it operates on is bounded, the port it crosses is narrow, the Effect program it contributes is typed, and the invariants it depends on are compile-enforced. Parallelism is an emergent property of discipline, not a scheduling trick. This section names the discipline.
+### 9.1 Ports, handshakes, and the five patterns
 
-### 9.1 One vocabulary, many angles
+The highways are data routes. Effect is the composition calculus that moves data along them. The parallel work streams named throughout §3 become *compile-time guarantees* rather than scheduling wishes because `Effect.all` types them, `yield*` sequences them, `Context.Tag`s port them, `catchTag` discriminates their failures, and `Stream` threads their events through time. This section names the arterial patterns — the ones v2 uses at every handshake and relies on at every interchange — and then shows one end-to-end saga braided through all five highways.
 
-The five primitives — agent, intent source, world, instruments, memory — are DDD bounded contexts. Each owns its ubiquitous language. Each publishes its verbs through the manifest. Each is implemented as a hexagonal module with a pure domain core and a layer of adapters around it. Clean architecture's dependency rule holds: the domain depends on nothing; the application orchestrates through Effect; the infrastructure adapters implement the ports the domain declares.
+> **Note on terminology in the sagas below.** The code examples and saga descriptions use "testbed" as the conceptual label for the workshop's evaluation input (source-string `testbed:v<N>:<id>`, saga names like `evaluateTestbed`). Under the current framing (`v2-direction.md §5.1`, `v2-substrate.md §6a`), the testbed is *manifest-derived probes*, not a hand-authored YAML corpus. Treat every occurrence of "testbed" below as "probe set" and every occurrence of `testbed:v<N>:<id>` as `probe:<verb>:<fixture>` — the saga shapes and composition patterns are identical. Saga names like `evaluateTestbed` and `verifyHypothesis` stay because they describe the runtime verb, not the content shape.
 
-These are the same commitment, worded four ways. DDD says: name the bounded contexts so the language is shared. Hexagonal architecture says: push the domain to the center so the adapters are replaceable. Clean architecture says: depend inward so the outer rings can change without disturbing the core. Functional programming says: make the domain pure so reasoning is compositional. Each vocabulary captures the same truth from its own angle. v2 commits to the truth, not to the angle.
+**Intent, World, Memory, Verb, Reasoning, Truth.** The sagas below traffic in six implicit concerns of the running system: inbound intent, two-way SUT reach, memory catalog + evidence, the verb manifest, the Reasoning port, and the measurement-and-proposal loop. The six concerns compose naturally across `product/` and `workshop/` via the Effect service-tag pattern; saga code yields from whichever tags it needs, and the `AppLayer` provides them once at the composition root (see the runtime composition section later in this document).
 
-The manifest is the visible artifact of this convergence. When a verb lands in `manifest.json`, it enters the ubiquitous language of the whole system. The agent can call it. The tests can exercise it. The team can reason about it without reading implementation. One entry in one file is DDD's vocabulary, hexagonal architecture's public port, clean architecture's use case boundary, and Effect's typed operation all at once. The economy is not coincidence; it is what happens when vocabularies align on the same underlying shape.
+### 9.2 Substrate foundations — the bedrock beneath every saga
 
-The facet catalog is the other visible artifact. It is DDD's aggregate root (the memory context's durable identity layer); it is hexagonal architecture's domain entity (sitting in the center, referenced by every adapter); it is clean architecture's domain model (innermost, owned by no outer layer). The operator edits it; the agent queries it; the runtime resolves against it. One catalog, many relationships, one identity discipline — stable `<screen>:<element>` IDs threaded with provenance from mint.
-
-### 9.2 The laws — what the compiler enforces
-
-v2's invariants are not runtime assertions. They are compile-time constraints where possible and test-enforced constraints where not. This is the difference between a well-intentioned codebase and a well-structured one: the structure does the reminding.
-
-The envelope-axis phantom types (Stage × Source × Verdict × Fingerprint) are the primary law. Any artifact crossing a seam is tagged with its stage literal, its source slot, its governance verdict, and its fingerprint tag. A function that expects a `WorkflowEnvelope<'execution'>` will not accept a `WorkflowEnvelope<'proposal'>`; the compiler refuses. A `Fingerprint<'content'>` cannot be passed where a `Fingerprint<'knowledge'>` is expected. Misuse is a type error, not a runtime bug; the refactor that broke the invariant never compiles.
-
-The fold family — `foldGovernance`, `foldEpistemicStatus`, `foldPhaseOutputSource` — enforces exhaustivity. This is the Gang-of-Four visitor pattern with the property the original lacked: forgetting to handle a new case is not optional. Add a state to the governance union and every call site that folds across it becomes a compile error until the new case is handled. The visitor becomes a type-system law.
-
-Architecture law 8 forbids ad-hoc governance string comparisons in a test that runs alongside the build. Combined with the phantom brands (`Approved<T>`, `ReviewRequired<T>`, `Blocked<T>`), the law makes policy dispatch compile-checkable. A line that reads a governance field as a string and branches on its value is rejected by the tests; a line that routes through `foldGovernance` is accepted. Policy cannot drift because policy cannot be written ad hoc.
-
-Invariant 1 (stable verb signatures) is enforced by the manifest-generator build check: if the emitted manifest diverges from the committed one in a non-additive way, the build fails. Invariant 3 (append-only history) is enforced by write adapters that refuse in-place updates on log files. Invariant 10 (structured fallthrough) is enforced by the handoff-shape requirement on every agentic decision — the fold over decision states cannot be shortened by throwing instead of emitting.
-
-The laws hold because the code cannot compile or pass tests if they are broken. Discipline is delegated to the compiler and the test suite. The team's attention is free for what only humans can decide.
-
-### 9.3 Effect as the composition calculus
-
-Effect is v2's composition calculus. The application layer is Effect programs all the way down. `Effect.gen` with `yield*` composes small programs into larger ones; `Effect.all` parallelizes independent branches (this is where §3's "parallel work streams within the step" become compile-time guarantees rather than scheduling wishes); `Effect.catchTag` discriminates errors by their typed tag without runtime `if (error instanceof ...)` gymnastics.
-
-Every handshake in §7 of the feature ontology is a small Effect program. `intent-fetch` is a program that takes a work-item ID and yields a parsed work item. `facet-query` is a program that takes an intent phrase and yields ranked facets. `test-compose` is a program that takes intent plus facets and yields a test file. Authoring a test against a real work item is the composition of these programs; each `yield*` is a handoff across a bounded-context boundary; each composition is associative; each failure carries a typed tag the next combinator can route.
-
-The measurement substrate is the same composition aimed at a different intent source. Testbed runs compose the same Effect programs the customer-backlog runs do. One code path, two audiences. No parallel runner — the runner is Effect itself, invoked against a different leaf in the intent-source dispatch.
-
-The ports — hexagonal architecture's narrow seams — become Effect service tags. `AdoSource.Tag`, `PlaywrightAria.Tag`, `FacetStore.Tag`. The domain code requires the tag; the composition layer provides the implementation. Testing replaces the implementation without touching the domain. Clean architecture's dependency rule, hexagonal architecture's port/adapter split, and Effect's service pattern are three names for the same mechanism, and the mechanism holds because all three agree on what shape it has.
-
-### 9.4 Motion — sagas, streams, and the flow of time
-
-A handshake is the smallest saga. Authoring a test from one work item is a medium saga. The measurement loop — propose, land, evaluate, receipt, read, propose again — is the longest saga. Each is expressible as an Effect program; each program is a composition of smaller programs; the whole is a composition of Effect programs that interleave in deterministic ways.
-
-Time in v2 flows through event streams. The evidence log is an event stream: every facet observation appends a record; confidence is a fold over the stream read on demand. The drift log is an event stream. The receipt log is an event stream. The run-record log is an event stream that feeds all three. Metrics are structured folds over streams; the metric catalog is a set of fold functions declared in the manifest.
-
-Append-only is the temporal discipline. Nothing overwrites; nothing rewrites history. Confidence changes by appending new evidence. Drift fires by appending an event. Hypotheses resolve by appending verification receipts. The past is a record of what happened; the present is a derivation over the past; the future is a hypothesis appended to the present. This is event sourcing's structural commitment, and in v2 it arises because the constraints demand it — invariant 3 combined with derivable confidence combined with manifest-declared metric verbs yields event sourcing by accumulation, not by decree.
-
-Sagas compose without orchestration. An authoring saga that hits a drift event flows naturally into a drift-emit saga; a drift-emit saga feeds the receipt log that a future self-refinement saga will read. The programs are small; the composition is deep; the system handles its own choreography because the primitives agree on their event shape. Orchestration frameworks exist to compensate for systems that disagree. v2 does not need them because v2 does not disagree.
-
-### 9.5 The mirror — v2 measures itself with its own primitives
-
-The measurement substrate is the cathedral catching its own reflection. The testbed is an intent-source variant; evaluation is authoring against the testbed; metrics are derivations over the run-record log declared as manifest verbs; hypotheses are proposals under the same proposal-gated reversibility memory uses. No new primitives. No parallel apparatus.
-
-The aesthetic pays off here most visibly. A system that requires a separate scorecard with its own schema, its own storage, its own runner, its own review workflow has doubled its surface for no structural reason. A system whose measurement reuses every primitive it already has — and composes them behind a synthetic intent source — is structurally thinner and operationally more coherent. The measurement layer in v2 is a testament to the primitives above it: if measurement required new primitives, the primitives were wrong.
-
-The loop closes. The agent reads the receipt log, proposes a code change with a predicted metric delta, the operator reviews the proposal, the code lands, the next evaluation produces run records, the metric verb computes the actual delta, the verification receipt appends, the agent reads the receipt log. `metric-hypothesis-confirmation-rate` is itself a manifest verb — the batting average is a derivation over the receipt log the agent can query at any time. The agent's feedback loop is a derivation over its own history. Trust, but verify, is not a slogan; it is an Effect program composed of manifest verbs operating on append-only logs gated by proposal-review.
-
-### 9.6 The view from outside
-
-Three views on v2, each simple in its own way because the substrate is consistent.
-
-The customer's QA engineer sees Playwright test files that read like professionally-authored work. Named screen facades. Business-vocabulary step titles. Facets referenced by name, not by selector. Tests that run, pass, and are extensible by editing the intent or the memory layer. The QA engineer never sees the manifest, the facet catalog's YAML, or the receipt log; they see the tests and the HTML report, and the tests read well because the vocabulary comes from the catalog the agent populated with care.
-
-The operator sees a catalog of facets with provenance, a queue of candidate proposals awaiting review, a log of receipts pairing hypotheses with outcomes, a view of metrics trending over probe-coverage growth and code versions. Review surfaces are lightweight; decisions propagate through logs; nothing they approve can be silently undone. The operator's muscle memory works on CLI verbs that map to manifest entries; their authority is typed by the phantom brands that gate proposal-activation.
-
-The agent sees a vocabulary manifest read once per session; typed verbs to call; structured decision handoffs when determinism exhausts; a receipt log to learn from. Fluency is the default, not an optimization. The agent spends its reasoning budget on genuine ambiguities, not on rediscovering contracts each session. The agent's session begins with a single `fs.readFile` and ends with a closeout receipt; everything in between is v2 serving the agent serving the customer.
-
-Each view is simple because the substrate is consistent. The complexity lives in the *composition*, where it belongs. The parts are small, named, typed, and few; the composition is deep and does v2's work; and the composition is itself a structure the reader can reason about because each level of abstraction shares vocabulary with the levels above and below it.
-
-### 9.7 Why this is a cathedral
-
-A cathedral is structural commitment at every scale. The vault holds because every arch pushes against the next. The foundation holds because every stone is placed to distribute the load. Pull a stone and the cathedral does not collapse — but neither does it become simpler. Every part is where it is because the whole depends on it.
-
-v2's architecture has this property. The five primitives hold because the envelope axes encode their invariants at compile time. The envelope axes hold because the folds demand exhaustivity. The folds hold because Effect programs carry their error types. Effect programs hold because the handshakes are small. The handshakes are small because the primitives are bounded. The bounded contexts hold because the manifest names them. The manifest holds because invariant 1 forbids silent mutation. Invariant 1 holds because the build check enforces it. The build check holds because architecture law 8 is runnable.
-
-Pull any of these and another breaks. Effect without phantom types gives you composability without compile-time law. Phantom types without Effect give you law without orchestration. DDD without ports gives you contexts without extensibility. Ports without clean dependencies give you extensibility without discipline. Clean architecture without purity gives you discipline without reasoning. Purity without event sourcing gives you reasoning without history. Event sourcing without the manifest gives you history without vocabulary.
-
-The cathedral holds because each stone carries weight the others need. Remove any pattern named in this section and another pattern named in this section becomes unable to discharge its role. The patterns are not stacked; they are interlocked.
-
-What v2 ships, as product, is three surfaces: a manifest, a catalog, tests. What v2 is, as architecture, is a cathedral whose structure makes those three surfaces simple to write, simple to read, and simple to verify. The transmogrification plan is the act of raising that cathedral on the ground v1 prepared. When the compartmentalization lands and the agent works inside the three folders, every part is there for a reason and every reason serves the shipping claim. That is what the plan ships, and that is where it ends.
-
-## 10. The highway map — how everything connects
-
-§9 named the stones. This section draws the highways. Six major arteries move information through v2; they meet at five interchanges; the whole flows as one loop over append-only time. This is the map you put on the wall — the macro view that tells you where any piece of the system sits and how anything you do ripples through the rest.
-
-### 10.1 The six highways
-
-**Intent highway.** From an intent source to the agent's workbench. Sources are polymorphic — Azure DevOps work items, synthetic testbed work items, operator dialog turns, operator-shared documents. They all arrive at the agent through `intent-fetch` and `intent-parse`, shaped identically, tagged with `source`. The highway runs one-way: inbound.
-
-**World highway.** Between the agent and the system under test. Runs both directions. Outbound are navigation, observation, and interaction requests mediated by Playwright; inbound are snapshots, state probes, and action outcomes. The only two-way highway in the map.
-
-**Memory highway.** Between the agent and the facet catalog plus the evidence log. Outbound are queries (by intent phrase) and writes (mints, enrichments, health updates). Inbound are ranked facets, derived confidence, drift classifications. The highway carries no raw data — just facet identifiers, structured records, and derivations.
-
-**Verb highway.** From the vocabulary manifest to every call site in the codebase. A single file, read once per session by the agent, declares every verb with a frozen signature. No code writes to this highway at runtime; it is published at build time and consumed at session start. It is the shortest and most-used highway in the system.
-
-**Reasoning highway.** From every decision point in v2 to the LLM service that answers it. This is the agent's inner voice — the cognition behind every "agent chooses," every "agent interprets," every "agent synthesizes" referenced throughout the sagas. Like the Verb highway, it runs many-to-one: every saga that needs disambiguation, candidate extraction, step phrasing, drift classification (when rule-based classification is inconclusive), or hypothesis synthesis calls into this port; a single Reasoning adapter serves them all. The specific provider — direct Anthropic or OpenAI API, MCP-brokered, VSCode Copilot, or a local model — is a `Layer.succeed` choice at runtime composition (§11), not a saga concern. Every saga site that yields from `Reasoning.Tag` is abstraction-safe over the provider; swapping providers is a configuration change, not a saga rewrite.
-
-**Truth highway.** The measurement loop. Run records feed metric derivations; metric derivations plus drift events plus evidence accumulation feed proposals; proposals feed operator review; approved changes land in code or memory; the next evaluation produces new run records; verification receipts append; the agent reads the receipt log to propose the next change. This highway is circular — it closes back on itself, and the cycle is how v2 learns.
-
-### 10.2 The macro map
-
-```
-                        ┌──────────────────────────┐
-                        │   VOCABULARY MANIFEST    │
-                        │   (verbs + signatures    │
-                        │    + error families)     │
-                        └────────────┬─────────────┘
-                                     │
-                                     │ read once
-                                     │ per session
-                                     ▼
- ┌──────────────┐           ╔════════════════════╗           ┌──────────────┐
- │   INTENT     │           ║                    ║           │              │
- │   SOURCE     │──fetch───▶║       AGENT        ║◀─observe──│    WORLD     │
- │              │   parse   ║                    ║  interact │              │
- │  ADO       ──│           ║  (authoring,       ║           │  Playwright  │
- │  Testbed   ──│           ║   decision         ║           │  + SUT       │
- │  Dialog    ──│           ║   handoffs,        ║           │              │
- │  Document  ──│           ║   receipts)        ║           │              │
- └──────────────┘           ╚══╤══════════╤══════╝           └──────────────┘
-                               │          │
-                    decisions  │          │  query / mint / enrich
-                               │          │
-                         ▲     │          │
-                         │choices         ▼
-                         │rationale   ╔═══════════════════════════╗
-                ┌────────┴─────────┐  ║         MEMORY            ║
-                │   REASONING      │  ║                           ║
-                │   (LLM service)  │  ║   facet catalog           ║
-                │                  │  ║   evidence log            ║  ◀── append-only
-                │  • Anthropic API │  ║   drift log               ║      (invariant 3)
-                │  • OpenAI API    │  ║   proposal log            ║
-                │  • MCP broker    │  ║   receipt log             ║
-                │  • VSCode        │  ║   run-record log          ║
-                │    Copilot       │  ╚═══════════╤═══════════════╝
-                │  • Local model   │              │
-                └──────────────────┘              │  metric verbs
-                                                  │  (manifest-declared
-                                                  │   derivations)
-                                                  ▼
-                                      ┌───────────────────────────┐
-                                      │   EVALUATION OUTPUTS      │
-                                      │                           │
-                                      │   batch summary           │
-                                      │   metric values           │
-                                      │   batting average         │
-                                      └───────────┬───────────────┘
-                                                  │
-                                        proposals │ (kind: revision |
-                                                  │   hypothesis | candidate)
-                                                  ▼
-                                      ┌───────────────────────────┐
-                                      │     OPERATOR REVIEW       │
-                                      │                           │
-                                      │     accept / reject       │
-                                      │     (proposal-gated       │
-                                      │      reversibility)       │
-                                      └───────────┬───────────────┘
-                                                  │
-                                                  │ approved changes land:
-                                                  │   • memory revisions → catalog/evidence
-                                                  │   • code hypotheses  → next build
-                                                  │   • candidate facets → catalog
-                                                  │
-                                                  └──▶ next authoring run generates new
-                                                       run records; verification receipts
-                                                       append; agent reads; loop closes
-```
-
-Legend:
-- Double borders `╔═══╗` mark the three primitives that hold state (Agent, Memory).
-- Single borders `┌───┐` mark stateless inputs and outputs.
-- Arrows with labels are the highways named in §10.1.
-- Every edge respects the ten invariants; every node honors its bounded-context discipline.
-
-### 10.3 Substrate foundations — the bedrock beneath every highway
-
-Before any highway can carry traffic, the substrate must hold. The modules below do not sit on one highway; they underpin all five. Every envelope crossing a seam carries `WorkflowMetadata`; every governance dispatch routes through `foldGovernance`; every content-addressed reference uses `Fingerprint<Tag>`; every agentic decision produces an `InterventionHandoff`. These are the load-bearing stones §9 named; §10 shows where they sit.
+Before any saga can run, the substrate must hold. The modules below do not sit on one surface; they underpin every handshake. Every envelope crossing a seam carries `WorkflowMetadata`; every governance dispatch routes through `foldGovernance`; every content-addressed reference uses `Fingerprint<Tag>`; every agentic decision produces an `InterventionHandoff`. These are the load-bearing stones; the sagas below rely on them without ceremony.
 
 | Stone | Path | Role | Lights up |
 |---|---|---|---|
@@ -1009,166 +873,9 @@ Before any highway can carry traffic, the substrate must hold. The modules below
 
 The substrate is invisible on the macro map but present at every interchange. The highways rest on it; pull any stone and the relevant highway loses its discipline.
 
-### 10.4 Highway town catalogs
+### 9.3 The truth surface — run records, metrics, proposals, receipts
 
-Each highway from §10.1 runs through a sequence of towns — the specific modules and verbs that give it its traffic. These are the "parallel work streams" of §3 reorganized by highway rather than by step. The same modules, viewed along their second axis.
-
-For each highway: the arc it traces, the towns along it, the role each town plays, the shape as ASCII when that adds clarity.
-
-> **Note on the "Phase" column in the tables below.** The tables retain a "Phase" column from an earlier revision where phases were numbered 0–9. The numeric values in that column are the *old* phase numbers; for the authoritative step-indexed lighting-up view, consult §10.7 (which has been rewritten to the current Step 0–10 numbering). Both views are kept because the per-highway tables also serve as per-module catalogs independent of the lighting-up question.
-
-#### 10.4.1 Verb highway towns
-
-The shortest highway in the map. Manifest is published at build time, read once per session, consulted implicitly by every other highway at every interchange. Four towns — all at Step 2 — plus the fluency checks that keep them honest.
-
-| Town | Path | Role | Phase |
-|---|---|---|---|
-| Manifest Schema | `product/manifest/manifest-schema.ts` | TypeScript types for verb entries: `{ name, category, inputs, outputs, errorFamilies, sinceVersion }` | 1 |
-| Manifest Generator | build step in `product/manifest/` | Scans verb-declaring code; emits `manifest.json` at build time | 1 |
-| Sync Check | build step | Fails build if emitted manifest diverges from committed manifest in a non-additive way | 1 |
-| Fluency Harness | `product/composition/fluency-harness.ts` | Canonical agent-task fixtures, one per declared verb, asserting correct dispatch | 1 |
-
-```
-   ┌────────────┐     ┌────────────┐     ┌────────────┐
-   │ Schema     │───▶ │ Generator  │───▶ │ Sync Check │
-   └────────────┘     └─────┬──────┘     └─────┬──────┘
-                            │                  │
-                            ▼                  ▼
-                      manifest.json       build passes
-                            │                  │
-                            ▼                  │
-                   ┌────────────────┐          │
-                   │ Fluency Harness│◀─────────┘
-                   └────────────────┘
-                            │
-                   asserts dispatch on
-                  canonical agent tasks
-```
-
-Every verb-declaring town on every other highway (below) contributes entries to this manifest. The verb highway is not a *path* as much as a *channel*: one direction, one consumer (the agent, at session start), one refresh cadence (per build).
-
-*Composition.* Verb definitions live as `Context.Tag` declarations at each bounded-context edge. At build time, the manifest generator walks every declared tag, extracts its `Schema`-typed inputs and outputs, and emits the manifest. At session start the agent reads the manifest once via `Effect.sync(() => fs.readFileSync('manifest.json'))` and parses it through `Schema.decode` into a typed verb table. The fluency harness composes canonical tasks as `Effect<Success, FluencyError, VerbTable>`; running them under the declared verb table either proves dispatch or fails the build. No runtime reflection; no per-call lookup cost beyond a typed table read.
-
-#### 10.4.2 Intent highway towns
-
-One-way inbound. Four source towns funnel into two handshake towns; a typed `ParsedIntent` artifact emerges at the agent's end.
-
-**Source towns (polymorphic branches of `intent-fetch`):**
-
-| Town | Path | Role | Phase |
-|---|---|---|---|
-| ADO Source | `product/instruments/intent/ado-source.ts` | Azure DevOps REST v7.1 + WIQL adapter; PAT auth; field extraction | 3 |
-| Testbed Adapter | `workshop/testbed-adapter.ts` | Reads `testbed/v<N>/*.yaml` when `source: testbed:v<N>` | 5 |
-| Dialog Capture | `product/instruments/operator/dialog-capture.ts` | Extracts candidate facets from chat transcripts (contributes to Memory highway too) | 7 |
-| Document Ingest | `product/instruments/operator/document-ingest.ts` | Extracts candidate facets from operator-shared documents (Markdown → PDF later) | 7 |
-
-**Handshake towns:**
-
-| Town | Path | Role | Phase |
-|---|---|---|---|
-| Intent Fetch | `product/application/intent/fetch.ts` | Polymorphic dispatch over `source` field; returns uniform work-item shape | 3 |
-| Intent Parse | within ADO source at Step 4; generalized later | XML step extraction, entity decoding, preconditions/actions/expected outcomes with source-text provenance | 3 |
-
-```
-   ADO Source   ─┐
-   Testbed Adapter ─┤
-   Dialog Capture   ─┼─▶ Intent Fetch ──▶ Intent Parse ──▶ ParsedIntent
-   Document Ingest  ─┘                                       (to agent)
-```
-
-By Step 8 the highway carries four source types through one handshake shape. Downstream of Intent Parse, no handshake can distinguish where the work item came from — every source is equivalent to the agent's workbench. This is the polymorphism that lets v2 measure itself with the same code it ships.
-
-*Composition.* `IntentFetch` is a `Context.Tag` whose contract is `(sourceRef: SourceRef) => Effect<WorkItem, IntentError>`. The four source towns contribute implementations via `Layer.succeed(IntentFetch, adoImpl) | Layer.succeed(IntentFetch, testbedImpl) | ...` — polymorphism is typed and dispatch is by layer provision. Errors are tagged (`AdoTransientError`, `AdoAuthError`, `TestbedNotFoundError`, `DialogMalformedError`); `Effect.catchTag` routes them without `instanceof` gymnastics.
-
-#### 10.4.3 World highway towns
-
-Two-way. Outbound requests (navigation, element resolution, interaction); inbound observations (accessibility tree, state probes). The only highway where v2 reaches past its own borders.
-
-**Outbound (request) towns:**
-
-| Town | Path | Role | Phase |
-|---|---|---|---|
-| Navigation Strategy | `product/instruments/navigation/strategy.ts` | `page.goto` with `waitUntil` per URL pattern; `page.url()` idempotence check; discrete `{ reachedUrl, status, timingMs }` envelope | 3 |
-| Locator Ladder | `product/instruments/observation/locator-ladder.ts` | Ordered strategy ladder: role → label → placeholder → text → test-id → css; first match wins; rung recorded | 3 |
-| Interact | `product/instruments/action/interact.ts` | Role-keyed action dispatch (`click`, `fill`, `selectOption`, `check`, `press`, `hover`); pre-action state validation; four-family error classification | 3 |
-
-**Inbound (observation) towns:**
-
-| Town | Path | Role | Phase |
-|---|---|---|---|
-| ARIA Snapshot | `product/instruments/observation/aria.ts` | `page.accessibility.snapshot({ root, interestingOnly: false })`; yields the canonical ARIA tree for facet minting | 3 |
-| State Probes | `product/instruments/observation/state-probes.ts` | `isVisible`, `isEnabled`, `textContent`, `inputValue`, `getAttribute`, `count`; non-ARIA supplementary observation | 3 |
-
-```
-                           outbound ─▶ Navigation Strategy ──┐
-                                    ─▶ Locator Ladder       ─┼─▶ (Playwright + SUT)
-                                    ─▶ Interact              ─┘
-                                                                     │
-                           inbound  ◀─ ARIA Snapshot        ◀────────┤
-                                    ◀─ State Probes         ◀────────┘
-```
-
-*Composition.* `Page` is an `Effect.Resource` (`Effect.acquireUseRelease`) acquired once per session. Every world operation is an effect requiring `Page` from context. Parallel probes compose via `Effect.all(probes, { concurrency: 4 })` — bounded because hammering the SUT with unbounded parallelism is itself a failure mode. Pre-action state probes run as `Effect.filterOrFail` guards *before* the action effect, so `NotVisibleError` or `NotEnabledError` fires before the action does, rather than as a post-attempt classification of Playwright's own timeout.
-
-#### 10.4.4 Memory highway towns
-
-Longest and densest highway. v2's compounding asset lives here, so the highway branches into four sub-carriageways: *storage* (where facets and evidence live), *derivation* (how confidence and health are read), *gates* (how proposals and drift surface), and *maintenance* (how memory tends itself).
-
-**Storage towns:**
-
-| Town | Path | Role | Phase |
-|---|---|---|---|
-| Facet Schema | `product/catalog/facet-schema.ts` | Unified facet record types with kind-specific extensions for element, state, vocabulary, route | 2 |
-| Facet Store | `product/catalog/facet-store.ts` | Per-screen YAML with atomic temp-rename writes; in-memory index on load, keyed by `<screen>:<element>` IDs | 2 |
-| Evidence Log | `product/catalog/evidence-log.ts` | Per-facet append-only JSONL; each entry `{ timestamp, runId, instrument, outcome, context }` | 6 |
-| Candidate Review | `product/catalog/candidate-review.ts` | Operator-facing queue for L2 candidate facets; accept/edit/reject with rationale preserved | 7 |
-
-**Derivation towns:**
-
-| Town | Path | Role | Phase |
-|---|---|---|---|
-| Confidence | `product/catalog/confidence.ts` | Pure function from evidence log → confidence scalar; cached summary invalidated on new evidence | 6 |
-| Facet Query | `product/catalog/query.ts` | Intent phrase → parsed constraints → ranked facets via structured-field matching; confidence is primary key, health is tiebreaker | 6 |
-| Locator Health Track | `product/catalog/health-track.ts` | Per-strategy `{ successCount, failureCount, lastSuccessAt, lastFailureAt }` co-located on the facet's `locatorStrategies` array | 6 |
-| Facade Regenerator | `product/instruments/codegen/facade-regenerator.ts` | Derives per-screen facade TypeScript modules from the catalog on every authoring pass | 6 |
-
-**Gate towns:**
-
-| Town | Path | Role | Phase |
-|---|---|---|---|
-| Drift Emit | `product/observation/drift-emit.ts` | Appends classified drift events to `drift-events.jsonl`; mismatch kinds `not-found | role-changed | name-changed | state-mismatch | ambiguous` | 8 |
-| Confidence Gate | `product/instruments/codegen/confidence-gate.ts` | DOM-less authoring policy: skips live observation when memory confidence ≥ threshold for that surface | 8 |
-
-**Maintenance towns:**
-
-| Town | Path | Role | Phase |
-|---|---|---|---|
-| Confidence Age | `product/catalog/confidence-age.ts` | Idempotent maintenance pass applying decay to uncorroborated evidence logs | 9 |
-| Corroborate | `product/catalog/corroborate.ts` | Post-execution hook: passing test runs append positive evidence to every referenced facet | 9 |
-| Revision Propose | `product/catalog/revision-propose.ts` | Aggregates drift events + decay + corroboration into revision proposals for operator review | 9 |
-
-```
-                         ┌── Storage ──┐    ┌── Derivation ──┐
-    agent ◀──query──▶   │  Facet      │──▶│ Confidence      │
-                         │  Store      │    │ Facet Query     │
-                         │  Evidence   │    │ Locator Health  │
-                         │  Log        │    │ Facade Regen    │
-                         └─────────────┘    └─────────────────┘
-                                │                    │
-                                ▼                    ▼
-                         ┌── Maintenance ─┐    ┌── Gates ──────┐
-                         │ Confidence Age │    │ Drift Emit    │──▶ drift-events.jsonl
-                         │ Corroborate    │    │ Confidence    │──▶ DOM-less policy
-                         │ Revision       │    │ Gate          │
-                         │ Propose        │    └───────────────┘
-                         └────────────────┘
-```
-
-*Composition.* `FacetStore`, `EvidenceLog`, `DriftLog` are `Context.Tag`s over file-system adapters. Writes go through `Effect.sync` wrapping the atomic temp-rename protocol; a crash mid-write leaves prior state intact. `facet-query` is `Effect.gen` yielding from `FacetStore.Tag`, parsing the intent phrase via `Schema.decode`, filtering the index, returning ranked facets — pure except for the initial read. Confidence derivation is a fold over the evidence log: `Stream.runFold(stream, zeroSummary, applyEvent)`, with summary cached behind a `Ref` and invalidated on new evidence. Maintenance passes (`Confidence Age`, `Corroborate`) are `Effect.schedule`d; they run on a cadence the application layer configures and append their outcomes back to the evidence log like any other event.
-
-#### 10.4.5 Truth highway towns
-
-Cyclical. Starts with the emitted test; flows through execution, run records, metrics, proposals, review, approved changes; closes back onto the agent as verification receipts.
+Cyclical. Starts with the emitted test; flows through execution, run records, metrics, proposals, review, approved changes; closes back onto the agent as verification receipts. The metric catalog below is the authoritative list of named metric verbs under `workshop/metrics.ts` — each is a manifest-declared pure derivation over the run-record log.
 
 **Run and record towns:**
 
@@ -1237,9 +944,9 @@ Cyclical. Starts with the emitted test; flows through execution, run records, me
 
 *Composition.* The truth highway is the longest saga. One evaluation run is `Effect.gen` composing testbed fetch → authoring → execution → run-record append → metric computation in sequence; independent metric derivations are parallelized via `Effect.all`. The proposal lifecycle is a state machine expressed as `Stream` transforms — `pending → approved → landed → verified` or `pending → rejected`. Operator review is a suspended `Fiber` that resumes on the decision bridge's atomic-rename signal. The closure — agent reads receipt, proposes next — is a long-running `Fiber.daemon` scoped to the session's lifecycle.
 
-#### 10.4.6 Reasoning highway towns
+### 9.4 The Reasoning surface — port and operation catalog
 
-The agent's inner voice. Every saga contains decision points — interpret this ambiguous step, extract candidates from this transcript, phrase this step title in QA vocabulary, classify this drift event, synthesize this revision proposal. In every case, the agent is calling an LLM. The Reasoning highway is where those calls happen, abstracted behind a single port so the provider can change without touching the sagas.
+The agent's inner voice. Every saga contains decision points — interpret this ambiguous step, extract candidates from this transcript, phrase this step title in QA vocabulary, classify this drift event, synthesize this revision proposal. In every case, the agent is calling an LLM. The Reasoning port is where those calls happen, abstracted so the provider can change without touching the sagas.
 
 **Service tag (the port):**
 
@@ -1295,17 +1002,15 @@ The agent's inner voice. Every saga contains decision points — interpret this 
         Live       Live        Live      Live       Live
 ```
 
-*Composition.* `Reasoning` is a `Context.Tag` whose methods return `Effect<Output, ReasoningError, Reasoning>`. Each method is typed at the domain edge — the saga cannot see *how* the LLM is reached, only what shape it expects back. Provider selection happens once at `AppLayer` composition time (§11.1): `Layer.succeed(Reasoning, AnthropicLive)` or `Layer.succeed(Reasoning, McpLive)` or the test adapter for integration testing. Structured output is enforced by `Schema.decode` on the adapter side — the LLM's JSON response becomes a typed domain value before it reaches the saga, or the operation fails with `ReasoningShapeError`. Retries for transient provider failures compose via `Effect.retry(Schedule.exponential("200 millis") /* ... */)` inside the adapter, invisible to sagas.
+*Composition.* `Reasoning` is a `Context.Tag` whose methods return `Effect<Output, ReasoningError, Reasoning>`. Each method is typed at the domain edge — the saga cannot see *how* the LLM is reached, only what shape it expects back. Provider selection happens once at `AppLayer` composition time (§10.1): `Layer.succeed(Reasoning, AnthropicLive)` or `Layer.succeed(Reasoning, McpLive)` or the test adapter for integration testing. Structured output is enforced by `Schema.decode` on the adapter side — the LLM's JSON response becomes a typed domain value before it reaches the saga, or the operation fails with `ReasoningShapeError`. Retries for transient provider failures compose via `Effect.retry(Schedule.exponential("200 millis") /* ... */)` inside the adapter, invisible to sagas.
 
 *Why Reasoning is a highway, not just a service.* It's many-to-one like Verb — every decision site consults it. It has named *operations*, not just opaque invocations — each operation has a named input, output, and error shape, making reasoning calls first-class in the type system. It has *multiple adapter implementations* that are swappable per invocation via Layer composition — which is precisely what hexagonal architecture demands for external services that may be exchanged. And sagas cross it explicitly via `yield* Reasoning.classifyDrift(...)` or similar; the yield is visible in the code as a handoff to the agent's inner voice. If it weren't a highway, the LLM would be invisible in the architecture — and in v2 the LLM is how the agent thinks.
 
 *One provider-agnostic property worth calling out.* The Reasoning highway is where MCP integration lives as an adapter. When v2 is invoked with the MCP adapter provisioned, the LLM runs in another process (Claude Desktop, or an IDE plugin, or a remote service); v2 exposes its own verbs as MCP tools the LLM can call back into, *in addition* to v2 calling the LLM via `Reasoning.*`. The two directions of MCP — v2 as MCP client (calling the LLM) and v2 as MCP server (exposing tools to the LLM) — coexist inside the MCP adapter. The rest of v2 doesn't know which direction is active; it just yields from `Reasoning.Tag` and gets typed responses.
 
-### 10.5 Composition and braiding — how Effect holds the highways together
+### 9.5 The fifteen sagas — how Effect composes the product's work
 
-The highways are data routes. Effect is the composition calculus that moves data along them. The parallel work streams named throughout §3 become *compile-time guarantees* rather than scheduling wishes because `Effect.all` types them, `yield*` sequences them, `Context.Tag`s port them, `catchTag` discriminates their failures, and `Stream` threads their events through time. This section names the arterial patterns — the ones v2 uses at every handshake and relies on at every interchange — and then shows one end-to-end saga braided through all five highways.
-
-> **Note on terminology in the sagas below.** The §§10.5 code examples and saga descriptions use "testbed" as the conceptual label for the workshop's evaluation input (source-string `testbed:v<N>:<id>`, saga names like `evaluateTestbed`). Under the current framing (`v2-direction.md §5.1`, `v2-substrate.md §6a`), the testbed is *manifest-derived probes*, not a hand-authored YAML corpus. Treat every occurrence of "testbed" below as "probe set" and every occurrence of `testbed:v<N>:<id>` as `probe:<verb>:<fixture>` — the saga shapes and composition patterns are identical. Saga names like `evaluateTestbed` and `verifyHypothesis` stay because they describe the runtime verb, not the content shape.
+The sagas are the product's actual runtime behavior: every action v2 takes composes from this set. Each saga is a small `Effect.gen` program that yields from the service tags it needs and returns a typed result. Five composition patterns recur below.
 
 **Pattern 1 — Ports as service tags.** Every bounded context exposes its operations as `Context.Tag`s. `IntentFetch.Tag`, `PlaywrightPage.Tag`, `FacetStore.Tag`, `EvidenceLog.Tag`, `ManifestRegistry.Tag`, `ReceiptLog.Tag`. Domain code *requires* the tag; the composition layer *provides* the implementation via `Layer.succeed(Tag, impl)` or `Layer.effect(Tag, constructor)`. Hexagonal architecture's port/adapter mechanic is Effect's service-layer mechanic; one pattern, two vocabularies.
 
@@ -1609,7 +1314,7 @@ const absorbOperatorInput = (input: OperatorInput) =>
   );
 ```
 
-Candidates are proposal-gated, not memory-written. The saga enqueues; the operator review saga (§10.5 Saga 6) disposes. Invariant 8 (source vocabulary preserved) binds at the extraction boundary: `candidate.sourceText` is verbatim operator wording — the LLM parsed but did not paraphrase. The `reasoningProvider` field on provenance is the audit trail: every candidate carries which adapter (Anthropic, OpenAI, MCP, local) produced it, so a provider change is observable in the catalog's history.
+Candidates are proposal-gated, not memory-written. The saga enqueues; the operator review saga (§9.5 Saga 6) disposes. Invariant 8 (source vocabulary preserved) binds at the extraction boundary: `candidate.sourceText` is verbatim operator wording — the LLM parsed but did not paraphrase. The `reasoningProvider` field on provenance is the audit trail: every candidate carries which adapter (Anthropic, OpenAI, MCP, local) produced it, so a provider change is observable in the catalog's history.
 
 **Saga 4 — `respondToDrift`.** Fires when a memory-authored step fails at runtime in a mismatch pattern. Memory highway (classify + log) + Truth highway (may surface to handoff). Composed inside `authorTest`'s post-execution branch when `runRecord.pass === false` and the failure looks like drift rather than product failure.
 
@@ -2115,7 +1820,7 @@ Three uses of the snapshot, all by external consumers:
 
 - **Static dashboard UI.** The snapshot file (`./.v2/dashboard-snapshot.json`) is read by an HTML page or an editor extension; the page renders metric trends, pending counts, and the active-session list.
 - **Polling refresh.** A dashboard scheduling a `v2 dashboard-snapshot` invocation every 30 seconds keeps a near-real-time view without v2 hosting any HTTP server.
-- **Real-time push (advanced).** A dashboard process can subscribe to v2's append-only logs directly via `Stream` (per the §10.5 patterns); the snapshot is then a backstop for first-paint and for clients that don't subscribe.
+- **Real-time push (advanced).** A dashboard process can subscribe to v2's append-only logs directly via `Stream` (per the §9.5 patterns); the snapshot is then a backstop for first-paint and for clients that don't subscribe.
 
 The saga doesn't include UI rendering, server logic, or transport. v2 produces; the dashboard consumes; the boundary between them is the snapshot artifact. Any dashboard implementation — terminal-based, web-based, embedded in an IDE, posted to a Slack channel — composes from the same snapshot.
 
@@ -2182,101 +1887,23 @@ What this set does *not* contain is also a claim — v2 does not have:
 
 Each absence is a deliberate constraint. Adding any of them would expand the surface; the gallery's closure is what keeps v2 small enough to be a cathedral and not a sprawl.
 
-### 10.6 The interchanges
 
-The highways meet at five places. Each interchange is where one primitive's output becomes another primitive's input, and each carries a specific discipline.
+## 10. The runtime composition — how v2 actually runs
 
-**The fluency interchange** — where the verb highway meets the agent. Read on session start; never read again during the session. The agent's capability is fixed at the moment of reading; new verbs require a new session. This interchange is where agent fluency is made cheap (one file read) and agent capability is made stable (no mid-session discovery).
-
-**The mint interchange** — where the world highway meets the memory highway. When an observation produces a new facet, provenance is threaded at this moment: instrument, session, run, timestamp. No later write can retrofit provenance; invariant 2 binds here. This is the most structurally load-bearing interchange in the map; every downstream claim about the facet rests on what is committed at mint.
-
-**The query interchange** — where the agent meets memory in the read direction. Intent phrases become parsed constraints; constraints become ranked facets; ranking is by confidence (a derivation) with health as tiebreaker. This is where memory *earns its way* — a query that returns nothing above threshold falls through to live observation, and the memory highway hands off to the world highway.
-
-**The proposal interchange** — where evaluation outputs meet operator review. Three kinds of proposal converge here: revision (change a facet), hypothesis (change code, predict a metric delta), candidate (new facet from operator input). All three follow the same proposal-gated reversibility; the operator sees them in a single queue; accept/reject is a typed decision; rejection is preserved with rationale. This is where human judgment sits in the loop by design.
-
-**The receipt interchange** — where code changes meet the next evaluation. The loop's closing joint: a hypothesis lands, the next evaluation runs, the metric verb computes the actual delta, the verification receipt appends, the agent reads it. The batting average is a derivation over what happens here. This is the single joint the entire trust-but-verify discipline hangs from.
-
-### 10.7 The lighting-up sequence — which towns come online at each step
-
-The highways are built gradually. A step-indexed view of the town catalogs answers "what's live after Step K?" The matrix below traces which highway's towns light up at each step; empty cells indicate nothing is added to that highway in that step. Substrate foundations (§10.3) are implicitly Step 0 across all rows.
-
-| Step | Verb highway | Intent highway | World highway | Memory highway | Truth highway |
-|---|---|---|---|---|---|
-| **0** — compartmentalization | (substrate foundations in place) | (ADO source moves into `product/instruments/intent/`) | (Playwright adapters move into `product/instruments/observation/` and `product/instruments/action/`) | (catalog code moves into `product/catalog/`) | (run-record log, scorecard, trust policy, convergence-proof harness all move to `workshop/` — already producing values) |
-| **1** — reference-canon retirement | — | — | — | (reference-canon content deleted; source union contracts) | (workshop visitors recalibrate denominators) |
-| **2** — manifest + fluency | Manifest Schema · Manifest Generator · Sync Check · Fluency Harness · `kind: hypothesis` discriminator | — | — | — | (hypothesis-receipt discipline live from this step forward) |
-| **3** — facet schema | — | — | — | Facet Schema · Facet Store · manifest declarations for memory verbs | — |
-| **4** — L0 chain + monolith splits + Reasoning port | (new L0 verb declarations land) | ADO Source (wired to verb) · Intent Fetch · Intent Parse | Navigation (with idempotence) · Locator Ladder (role-first) · Interact (four-family) · ARIA Snapshot · State Probes | (catalog populates organically via compose-time minting) | Test Compose · Test Execute · Run Record Log (shape-adjusted) |
-| **5** — probe IR spike | (probe-related metric verbs declared) | `workshop/probe-derivation/` + per-verb fixture specs | — | — | (probe run records flow into existing metric visitors) |
-| **6** — ship L0 to customer | — | — | — | (organic population continues with real customer facets) | `metric-test-acceptance-rate` populates with customer evidence |
-| **7** — L1 memory | — | — | — | Evidence Log · Confidence · Locator Health live feed · Facet Query · Facade Regenerator | `metric-memory-hit-rate` · `metric-memory-corroboration-rate` |
-| **8** — L2 operator | — | Dialog Capture · Document Ingest | — | Candidate Review | `metric-operator-wording-survival-rate` · `metric-vocabulary-alignment-score` |
-| **9** — L3 drift + DOM-less | — | — | — | Drift Emit · Confidence Gate | `metric-drift-event-rate` · `metric-dom-less-authoring-share` · `metric-convergence-delta-p50` |
-| **10** — L4 self-refinement | — | — | — | Confidence Age · Corroborate · Revision Propose | `metric-hypothesis-confirmation-rate` |
-
-Read horizontally for "what step lit up which highway"; read vertically for "when did this highway gain its towns." Some observations this matrix makes visible that the step-indexed view of §3 does not:
-
-- **The Verb highway lights up once and then stays static in shape.** All four of its towns land in Step 2; every subsequent step adds verb *declarations* but never verb *infrastructure*.
-- **The World highway lights up at Step 4 with shape adjustments.** Step 9 adds a policy that consumes World highway outputs (the Confidence Gate) but does not extend the highway itself.
-- **The Memory highway is the most phased.** Schema town at Step 3; live-feed + derivation towns at Step 7; operator-candidate town at Step 8; gate town at Step 9; maintenance towns at Step 10. Each step adds a sub-carriageway to a highway that grew along with v2's capability.
-- **The Truth highway is the one highway already running at Step 0.** Scorecard history, convergence-proof harness, trust-policy gate, speedrun orchestration — all move into `workshop/` at Step 0 without interruption. New metric verbs add at Steps 5–10 as product surfaces grow; this highway is never "lit up" from scratch because it has been producing values continuously since v1.
-
-The matrix is the staging plan for a v2 build that wants to preview a single highway at a time. A team could, for example, land Steps 0–3 plus Step 4's World-highway work without waiting for the full L0 chain, and have a working interface to the SUT before authoring is wired. Such staging orderings are *permitted* (they don't violate hard dependencies from §4.1) but *not recommended*: the step order is backward-chained from graduation as the destination, not from any individual highway's completeness.
-
-### 10.8 The map in motion — one session traced
-
-Open the map and trace a single authoring session.
-
-**(1)** The agent starts. `fs.readFile('manifest.json')` — the verb highway delivers the full verb set. The agent is fluent before any action.
-
-**(2)** The agent picks a work item. `intent-fetch` with `source: ado:12345` — the intent highway brings the work item inbound. `intent-parse` shapes it into ordered preconditions, actions, expected outcomes, with source-text provenance per step.
-
-**(3)** For each step, the agent queries memory. `facet-query` with intent phrase — the memory highway outbound. If the query returns above-threshold facets, the agent has what it needs. If not, the query interchange hands off: the world highway lights up. `navigate` + `observe` produce snapshots; at the mint interchange, `facet-mint` writes new entries with full provenance.
-
-**(4)** With facets in hand, the agent composes the test. `test-compose` produces a Playwright test file that references facets by name — no inline selectors, no inline data. The facade regenerator updates per-screen facade modules from the catalog.
-
-**(5)** `test-execute` runs the test. Run records append to the run-record log. Step-level evidence, outcomes, facets-referenced — all captured, all structured, all append-only.
-
-**(6)** If the test fails in a memory-mismatch pattern, `drift-emit` fires. The drift log receives a classified event; the offending facet's confidence drops. If the test passes, `corroborate` fires; positive evidence appends to the referenced facets' evidence logs.
-
-**(7)** Metrics recompute. `metric-test-acceptance-rate`, `metric-authoring-time-p50`, `metric-memory-hit-rate` — each is a pure derivation over the relevant log. The evaluation outputs show what moved.
-
-**(8)** If the session's authoring carried a hypothesis ("moving the ladder order will improve match rate by 10%"), the evaluation produces a verification receipt: `{ hypothesis, predictedDelta, actualDelta, confirmed }`. The receipt appends to the receipt log. The agent, at the start of its next session, reads this log.
-
-**(9)** If the drift log or metrics indicate a pattern the agent can propose a response to, the agent emits a proposal. The proposal interchange routes it to operator review. Accepted proposals land — as code changes, memory revisions, or approved candidates. The next evaluation verifies.
-
-**(10)** The session closes. A closeout receipt captures what was touched, what was minted, what was proposed. The receipt log has one more entry. The agent has one more piece of its own history to learn from. The loop has turned once.
-
-Every step above travels a highway; every handoff between steps is an interchange. The map is the session. The session is the map in motion.
-
-### 10.9 What this map is for
-
-Three uses.
-
-**For orientation.** A new engineer or a new agent session can find itself on the map in seconds. Every primitive is visible; every flow is named; every interchange has a discipline attached. No hidden paths.
-
-**For impact analysis.** When a change is proposed — a new verb, a new metric, a shape adjustment to a facet — its blast radius is traceable on the map. Follow the highways from the change point; every interchange it touches is a place where discipline must hold. The architecture's cascade risks (§5) are visible as walks across the map.
-
-**For the agent's reasoning.** The agent at session start reads the manifest; it can also, metaphorically, read this map. The agent's own actions are traces through the highways; the agent's own receipts sit at the receipt interchange; the agent's own proposals route through the proposal interchange. When the agent asks "what should I do next?" it is asking where on the map it currently sits.
-
-The cathedral of §9 holds because every stone carries weight the others need. The highway map of §10 is the routing that makes the cathedral a place you can move through — not just admire, but *use*. Together they are the whole: the structural commitment and the navigational poster. v2 is both at once, which is why the plan is executable and the execution has somewhere to go.
-
-## 11. The runtime composition — how v2 actually runs
-
-§10 showed what v2 *is* when it's running. This section shows how v2 *starts running*: how every port gets wired once, how sagas get dispatched at invocation time, how the fiber tree scopes the run, how shutdown collects its children, and how observability makes the whole thing visible. This is the single `main` that makes everything compose. If §9 was the cathedral and §10 was the map, §11 is the ignition.
+§9 showed what v2 *is* when it's running (the fifteen sagas). This section shows how v2 *starts running*: how every port gets wired once, how sagas get dispatched at invocation time, how the fiber tree scopes the run, how shutdown collects its children, and how observability makes the whole thing visible. This is the single `main` that makes everything compose — the ignition that turns the sagas into a running process.
 
 Seven subsections:
-- **§11.1** the Layer cake — every port wired once.
-- **§11.2** the entry point — `main` as saga dispatcher.
-- **§11.3** invocation modes — what the CLI accepts.
-- **§11.4** the fiber tree — session scope, daemons, shutdown.
-- **§11.5** observability — every saga is its own span.
-- **§11.6** the shape of an actual run — one CLI invocation traced.
-- **§11.7** the harvesting flywheel — iterative hardening across sessions.
+- **§10.1** the Layer cake — every port wired once.
+- **§10.2** the entry point — `main` as saga dispatcher.
+- **§10.3** invocation modes — what the CLI accepts.
+- **§10.4** the fiber tree — session scope, daemons, shutdown.
+- **§10.5** observability — every saga is its own span.
+- **§10.6** the shape of an actual run — one CLI invocation traced.
+- **§10.7** the harvesting flywheel — iterative hardening across sessions.
 
 And a short closing stanza.
 
-### 11.1 The Layer cake — every port, wired once
+### 10.1 The Layer cake — every port, wired once
 
 Every service v2 uses is a `Context.Tag`; every tag needs a `Layer` to implement it at runtime. The composition layer — a single file under `product/composition/app-layer.ts` — wires them all, once, into an `AppLayer` the entry point provides to every saga. This is the hexagonal architecture's composition root made concrete; the clean architecture's "main" module; the Effect application's service provision point. One name, one location, one commit.
 
@@ -2366,7 +1993,7 @@ Provider swap scenarios this supports out of the box:
 
 One configuration flag. Zero code changes. Every saga, every handshake, every metric, every receipt is provider-agnostic from the inside.
 
-### 11.2 The entry point — `main` as saga dispatcher
+### 10.2 The entry point — `main` as saga dispatcher
 
 Every v2 invocation — authoring one work item, evaluating a testbed version, verifying a hypothesis, absorbing an operator document, running a maintenance cycle — starts at one function. `main` parses the CLI, opens a session, dispatches to the right saga, and closes the session with a receipt. It is the only place where sagas become running fibers, and it is the only place where the `AppLayer` is provided.
 
@@ -2449,7 +2076,7 @@ Four properties make `main` more than a dispatcher:
 
 One last property, subtle but load-bearing: `NodeRuntime.runMain` is the *only* place in v2 that runs an Effect. Every saga, every handshake, every utility returns an `Effect<A, E, R>` value that does nothing until the runtime evaluates it. This means every non-entry-point code path is inspectable, composable, and substitutable without side effects occurring. The production code and the test code both produce Effect values; the difference is which runtime reads them. v2's side-effect surface area is exactly one function call wide.
 
-### 11.3 Invocation modes — what the CLI accepts
+### 10.3 Invocation modes — what the CLI accepts
 
 Nine CLI verbs, each parsing into one `RuntimeRequest`, each dispatching to one saga (or, in the `maintain` case, sitting alive to host the daemon). The whole CLI is declared once in `product/cli/parse.ts`; the parser is a pure function over `process.argv`; every combination that passes the parser has a corresponding saga and cannot slip through.
 
@@ -2563,7 +2190,7 @@ Two observations about this surface:
 
 **Why MCP is not its own verb.** When v2 runs with `REASONING_PROVIDER=mcp`, the MCP server aspect of the adapter exposes v2's verbs as MCP tools the LLM can call. An LLM driving v2 via MCP sees the same six verbs the CLI user sees — the MCP adapter simply routes the tool call through `main`. No parallel code path; no second dispatcher. The MCP-exposed surface and the human-exposed surface are the same surface.
 
-### 11.4 The fiber tree — session scope, daemons, shutdown
+### 10.4 The fiber tree — session scope, daemons, shutdown
 
 Every v2 invocation is one top-level fiber. That fiber spawns children; those children spawn children. The tree is a structured hierarchy Effect maintains for free — nothing in v2's code explicitly manages concurrency; the runtime manages it from the shape of `Effect.gen`, `Effect.all`, and `Effect.forkDaemon` calls.
 
@@ -2613,9 +2240,9 @@ Two concrete consequences of this structure worth calling out:
 
 **No interleaved log writes.** Atomic temp-rename on every append means a killed session either completes its write or leaves an abandoned temp file. Appends from parallel fibers serialize at the OS-level rename; Effect's `Ref`-based in-memory summaries reconcile on next session start. The append-only logs remain consistent regardless of how ungracefully a session exits.
 
-### 11.5 Observability — every saga is its own span
+### 10.5 Observability — every saga is its own span
 
-Every saga in §10.5 closes its `pipe` with `Effect.withSpan("saga-name", { attributes })`. This isn't decoration; it's the substrate for v2's observability. The `TracerLive` Layer in `AppLayer` collects spans into an OpenTelemetry-compatible exporter; the trace tree mirrors the fiber tree exactly. When the team or the agent debugs a session, they read the trace and see the saga gallery executed in real time.
+Every saga in §9.5 closes its `pipe` with `Effect.withSpan("saga-name", { attributes })`. This isn't decoration; it's the substrate for v2's observability. The `TracerLive` Layer in `AppLayer` collects spans into an OpenTelemetry-compatible exporter; the trace tree mirrors the fiber tree exactly. When the team or the agent debugs a session, they read the trace and see the saga gallery executed in real time.
 
 ```ts
 // Already shown in many saga code blocks above; the pattern recurs:
@@ -2646,9 +2273,9 @@ Two complementary surfaces over the same span data:
 - **Real-time:** the OpenTelemetry exporter ships spans live to a collector (Tempo, Jaeger, Honeycomb — choice is configuration, not code). During customer authoring, an operator can watch sessions complete in seconds.
 - **Persistent:** every span's attributes plus its parent reference are also written to the run-record log. `metric-authoring-time-p50` is a fold over those run-record entries (specifically, the duration attribute on the `authorTest` spans). Metrics and traces share one source of truth; what the dashboard shows in real time is exactly what the metric verb computes after the fact.
 
-The spans have one more job: they are the receipt of *what happened* that the agent reads when proposing the next change. The agent doesn't need a separate "what happened" log; the spans already describe every yield* that ran, every failure that was caught, every duration that was measured. The agent's "read the receipt log" step in §10.4 is, mechanically, "read the spans plus the verification receipts." The observability surface and the agent's epistemic surface are the same surface.
+The spans have one more job: they are the receipt of *what happened* that the agent reads when proposing the next change. The agent doesn't need a separate "what happened" log; the spans already describe every yield* that ran, every failure that was caught, every duration that was measured. The agent's "read the receipt log" step in §9.5 is, mechanically, "read the spans plus the verification receipts." The observability surface and the agent's epistemic surface are the same surface.
 
-### 11.6 The shape of an actual run — one CLI invocation traced
+### 10.6 The shape of an actual run — one CLI invocation traced
 
 Concretely: a developer runs `v2 author --source=ado:12345 --hypothesis=hyp-17.json` from the command line. Walk through what happens, end to end.
 
@@ -2688,9 +2315,9 @@ The end-to-end shape: 14.2 seconds to author, execute, corroborate, and verify-h
 
 A reader watching the trace in real time sees v2's behavior as a literal walk through the highway map: Verb (manifest read in onboard) → Intent (ADO fetch + parse) → Memory (query, mint for the missed step) → World (resolve, observe, interact) → Reasoning (phrase steps) → Truth (compose, execute, run record) → Memory again (corroborate) → Truth again (hypothesis verification, receipt). Six highways crossed in 14 seconds. One sustained execution of the trust-but-verify loop.
 
-### 11.7 The harvesting flywheel — iterative hardening across sessions
+### 10.7 The harvesting flywheel — iterative hardening across sessions
 
-§11.6 traced one session. This subsection traces the cycle the team and the agent execute *across many sessions* — the workshop's iterative-hardening loop, where each turn produces evidence that hardens v2's outcome over time. It is not a single Effect program; it is a multi-session composition in which existing sagas play their parts at different moments.
+§10.6 traced one session. This subsection traces the cycle the team and the agent execute *across many sessions* — the workshop's iterative-hardening loop, where each turn produces evidence that hardens v2's outcome over time. It is not a single Effect program; it is a multi-session composition in which existing sagas play their parts at different moments.
 
 The flywheel has six turns, each producing a specific kind of hardening. Read each turn as "what happened?" plus "which saga did it?" plus "what's now harder than it was before?"
 
@@ -2743,7 +2370,7 @@ The cycle returns to Turn 1: if the operator approves the hypothesis, a code cha
 
 The flywheel is closed in the sense that all fifteen sagas have a place in it, and it does not require any additional sagas to operate. New sagas (if they were ever added) would either belong to one of the existing turns or would extend the cycle with a seventh turn — which is itself a kind of structural change the flywheel's metric layer would be asked to verify is worth making.
 
-### 11.8 The closing stanza
+### 10.8 The closing stanza
 
 Eleven sections. Begun with §1's one-page shape; closing here with the runtime that makes everything in those sections actually run.
 
@@ -2757,21 +2384,21 @@ When `NodeRuntime.runMain(main(parseCli(process.argv)))` runs, all of this — t
 
 The plan is the route. The architecture is what you build along it. The runtime is what makes the architecture run. The destination is where the customer's QA team accepts the tests. **Execute.**
 
-## 12. Self-governance — how features descend from the map to the towns
+## 11. Self-governance — how features descend from the plan to the code
 
 §11 closed the architecture with a running process. This section opens it back up, from the perspective of a future agent (or engineer) picking up work without having read the whole plan. The question it answers: *I have a feature idea. What does it take to land it correctly?*
 
 The answer is the descent protocol. Every feature is a vertical slice through the cathedral. It starts at the map and descends through five levels until it lands as executable code. At each level, invariants bind. The author's job is to verify each as they descend, not re-derive them. This section names the levels, the obligations at each, the cohesion laws that govern descent, and the parallelizable feature lanes a team (of agents or humans) can pick up without coordination overhead.
 
-### 12.1 The descent principle
+### 11.1 The descent principle
 
 A feature is not a PR. A feature is a commitment at every level of the cathedral. The PR is the last level's artifact. If the upper levels weren't walked, the PR is landing work on sand — the code compiles, but the doctrine drifts.
 
 The principle: **invariants propagate downward; evidence propagates upward**. A decision at the map level (which highway? which interchange?) constrains what can happen at the town level (which module? which verb?). A decision at the town level constrains the saga shape. A decision at the saga shape constrains the runtime composition. At every level, evidence — receipts, tests, metrics — flows back upward to validate or contradict the original map-level decision.
 
-Skipping levels produces the same kind of rot in every system: implementation that satisfies local tests but violates substrate invariants. v2 resists this by making the descent visible. The cohesion laws (§12.3) are what you check at each level before descending further.
+Skipping levels produces the same kind of rot in every system: implementation that satisfies local tests but violates substrate invariants. v2 resists this by making the descent visible. The cohesion laws (§11.3) are what you check at each level before descending further.
 
-### 12.2 The five levels of descent
+### 11.2 The five levels of descent
 
 Every feature descends through five levels. Each level has its own vocabulary, its own questions, its own evidence.
 
@@ -2779,15 +2406,15 @@ Every feature descends through five levels. Each level has its own vocabulary, i
 |---|---|---|---|---|
 | 1. Substrate | `v2-substrate.md` | Primitives, levels, invariants | Which primitive does this touch? Which level's claim does it help ship? Does it pass the anti-scaffolding gate? | A one-sentence mapping: *(level, primitive, claim)* |
 | 2. Feature ontology | `feature-ontology-v2.md` §7 + §9 | Handshakes, technical paths | Which handshake surface does this operate on? Does it fit an existing §9 path, or does it need a new one? | Named handshake + primary-path sketch |
-| 3. Town | `v2-transmogrification.md` §10.4 | Modules, verbs, highways | Which town on which highway? Does it add a new verb or compose existing ones? Which invariants at that town still hold? | Named module path + manifest verb name with frozen signature |
-| 4. Saga | `v2-transmogrification.md` §10.5 | Effect programs, phantom types | Which saga calls this? Does it need a new saga or extend a composition? Does every yield write a receipt? | Saga sequence written out; receipt discipline verified at each yield |
+| 3. Town | `v2-transmogrification.md` §9.5 | Modules, verbs, highways | Which town on which highway? Does it add a new verb or compose existing ones? Which invariants at that town still hold? | Named module path + manifest verb name with frozen signature |
+| 4. Saga | `v2-transmogrification.md` §9.5 | Effect programs, phantom types | Which saga calls this? Does it need a new saga or extend a composition? Does every yield write a receipt? | Saga sequence written out; receipt discipline verified at each yield |
 | 5. Runtime | `v2-transmogrification.md` §11 | Layers, fibers, CLI verbs | Which Layer provides the required service? Does the entry point reach this saga from the CLI? How does it surface in the fiber tree? | Composition added; CLI invocation documented; test passes end-to-end |
 
 The levels are not optional. A feature whose author stopped at Level 3 produces code that works but drifts from the saga shape the runtime expects. A feature whose author jumped from Level 1 to Level 5 produces runtime wiring for a primitive that doesn't yet have a handshake.
 
 **The one-page test.** At the end of the descent, the feature should fit on one page: *(level, primitive, claim)* + *named handshake* + *town + verb name* + *saga sequence* + *Layer + CLI surface*. If it doesn't fit on one page, either the feature is too large (decompose) or the author skipped a level (descend again).
 
-### 12.3 The cohesion laws
+### 11.3 The cohesion laws
 
 Twelve laws descend automatically from the substrate's ten invariants into concrete implementation requirements. An author who follows the descent protocol without checking the laws will still break the substrate; the laws are the per-level translation of the invariants into things the code must look like.
 
@@ -2806,7 +2433,7 @@ Twelve laws descend automatically from the substrate's ten invariants into concr
 
 The laws are not twelve separate concerns. They are twelve views of the same commitment: **the doctrine descends, and descent makes governance automatic**. An author who checks the laws at each descent level ships features that slot into the cathedral without rework.
 
-### 12.4 The pre-flight checklist
+### 11.4 The pre-flight checklist
 
 Before committing a feature, the author runs this checklist. It is short because the descent did the heavy lifting. Each question has a one-place-to-check answer; none requires re-reading the cathedral.
 
@@ -2836,7 +2463,7 @@ Before committing a feature, the author runs this checklist. It is short because
 - [ ] End-to-end test passes against the testbed?
 
 **Cohesion laws:**
-- [ ] All twelve laws (§12.3) hold for this feature's code?
+- [ ] All twelve laws (§11.3) hold for this feature's code?
 
 **Measurement substrate:**
 - [ ] Testbed increment committed (new YAML under `testbed/v<N>/`)?
@@ -2845,13 +2472,13 @@ Before committing a feature, the author runs this checklist. It is short because
 
 If any checkbox is unchecked, the feature is not ready to commit. The checklist is not a bureaucracy; it is the descent protocol written out.
 
-### 12.5 The parallelizable feature backlog
+### 11.5 The parallelizable feature backlog
 
 §4 named four parallel tracks across the eleven steps. This section names the finer-grained lanes within and across those tracks — lanes a future agent can pick up with clear handoff contracts. Every lane is a sub-feature of its parent track; every lane has explicit dependencies, an explicit deliverable, and an explicit post-condition that unblocks downstream work.
 
 The backlog is living. As steps complete, lanes retire. As steps open, lanes light up. The lanes below are the *current* parallelizable work; future maintainers should extend this section, not replace it.
 
-#### 12.5.1 Lane shape
+#### 11.5.1 Lane shape
 
 Every lane has the same six-field shape:
 
@@ -2867,7 +2494,7 @@ Handoff contract: <what downstream lanes can assume true when this lane finishes
 
 Lanes are pickable independently — a new agent starting a session can read the lane card and know what to ship and what to leave alone.
 
-#### 12.5.2 Step 0–3 lanes (structural setup)
+#### 11.5.2 Step 0–3 lanes (structural setup)
 
 **Lane A1 — Envelope substrate port.**
 - Track: A. Step window: 0. Depends on: none. Soft-depends on: nothing.
@@ -2889,7 +2516,7 @@ Lanes are pickable independently — a new agent starting a session can read the
 - Deliverable: unified facet record types; kind-specific extensions; per-screen YAML storage with atomic temp-rename writes; in-memory index on load.
 - Handoff: L0 data-flow chain lanes (B1–B7) can mint and query facets via the typed interface without knowing storage details.
 
-#### 12.5.3 Step 4 lanes (L0 instruments, the largest parallelization win)
+#### 11.5.3 Step 4 lanes (L0 instruments, the largest parallelization win)
 
 The seven L0 instruments can each be picked up by a separate agent with minimal coordination once Lanes A1–A4 land. This is the single largest wall-time win in the construction order.
 
@@ -2930,7 +2557,7 @@ The seven L0 instruments can each be picked up by a separate agent with minimal 
 
 Lanes B1 through B7 (six L0 instruments plus one Reasoning adapter) are concurrent. A seven-engineer (or seven-agent) team collapses Step 4's wall time to the longest single instrument's implementation. The five monolith splits from `v2-direction.md §3.7` layer on top of the B-track as additional bounded sub-tracks, each on one source file plus its destination subfolder.
 
-#### 12.5.4 Step 2 + Step 5 + Step 6 lanes (measurement seam)
+#### 11.5.4 Step 2 + Step 5 + Step 6 lanes (measurement seam)
 
 **Lane D1 — Probe-derivation module + fixture specifications.**
 - Track: D. Step window: 5. Depends on: B1 (IntentSource shape), A3 (manifest generator).
@@ -2947,7 +2574,7 @@ Lanes B1 through B7 (six L0 instruments plus one Reasoning adapter) are concurre
 - Deliverable: `kind: "hypothesis"` variant on proposals; verification-receipt log append shape; `metric-hypothesis-confirmation-rate` declared for later computation at Step 10.
 - Handoff: trust-but-verify cycle is live from Step 2 onward; every subsequent feature carries a hypothesis; the batting average is a derivation the agent can query.
 
-#### 12.5.5 Step 7–10 lanes (memory layers)
+#### 11.5.5 Step 7–10 lanes (memory layers)
 
 **Lane E1 — Per-facet evidence log.**
 - Track: B/D hybrid. Step window: 7. Depends on: A4.
@@ -2984,7 +2611,7 @@ Lanes B1 through B7 (six L0 instruments plus one Reasoning adapter) are concurre
 - Deliverable: confidence aging over the evidence log; corroboration hook on passing runs; revision-proposal aggregation; `maintenanceCycle` saga running as a daemon.
 - Handoff: memory refines between explicit authoring work; proposals flow to operator review under review-gated reversibility.
 
-#### 12.5.6 Cross-step lanes
+#### 11.5.6 Cross-step lanes
 
 **Lane F1 — Testbed growth.**
 - Track: D. Step window: spans 5–10. Depends on: D1.
@@ -3006,7 +2633,7 @@ Lanes B1 through B7 (six L0 instruments plus one Reasoning adapter) are concurre
 - Deliverable: read-only consumer of run-record, receipt, drift, and proposal logs via manifest verbs; writes nothing to the substrate.
 - Handoff: independent of all other lanes because it writes nothing; a dashboard that cannot be rebuilt from the logs is the dashboard's fault, not the substrate's.
 
-#### 12.5.7 Lane internals — the micro-cathedral inside each lane
+#### 11.5.7 Lane internals — the micro-cathedral inside each lane
 
 Every lane is a micro-cathedral. It has its own primary highway, its own internal towns, its own interchanges where traffic changes direction, and a specific set of outbound connections to the six main highways of the full cathedral. This subsection draws that internal map for each major lane. It is what gives the backlog its texture: a lane is not a task, it is a small structured thing that produces structured things.
 
@@ -3014,10 +2641,10 @@ Every lane-internal map follows the same shape:
 
 - **Primary highway.** Which of the six main highways (§10.1) this lane principally builds.
 - **Secondary highways.** Other highways this lane's work touches as a by-product.
-- **Internal towns.** The sub-modules inside the lane's own bounded area. These are smaller than the §10.4 town catalog; they are the internal structure of a single lane's deliverable.
+- **Internal towns.** The sub-modules inside the lane's own bounded area. These are smaller than the §9.5 town catalog; they are the internal structure of a single lane's deliverable.
 - **Internal interchanges.** Where inside the lane one flow hands off to another — error classifications, receipt emissions, fingerprint generation, envelope construction.
 - **Manifest exposures.** Which verbs this lane publishes into the vocabulary manifest. These are the lane's public API; everything else is lane-internal and free to refactor.
-- **Saga connections.** Which sagas (§10.5) will consume this lane's verbs once the lane ships, and at what step of each saga.
+- **Saga connections.** Which sagas (§9.5) will consume this lane's verbs once the lane ships, and at what step of each saga.
 - **Failure topology.** The named error families the lane emits, in order of how common they are in practice. A lane without a failure topology is under-designed.
 
 Read a lane-internal map in any order. The order below is one recommended scan: primary highway first (context), internal towns (structure), manifest exposures (API), saga connections (integration), failure topology (what goes wrong). Internal interchanges are the connective tissue you return to when you want to know *how* data flows from one internal town to another.
@@ -3878,7 +3505,7 @@ Lane B3 handoff:
 
 Handoff contracts descend from the cohesion laws and are therefore already half-written. The author's job is to name the specific invariants their lane establishes, not to invent the shape of the claim. A lane without a valid handoff contract cannot be parallelized — downstream work will discover the contract by running into it, which is what coordination-overhead looks like.
 
-### 12.7 Common temptations and their antidotes
+### 11.7 Common temptations and their antidotes
 
 The descent is designed to resist common failures. These are the ones that still get past it; name them to make resistance automatic.
 
@@ -3918,7 +3545,7 @@ The descent is designed to resist common failures. These are the ones that still
 **Temptation:** Let a daemon saga (e.g. `maintenanceCycle`) write memory directly to "save a round-trip."
 **Antidote:** Daemons produce proposals, same as interactive sagas. Review-gated reversibility applies regardless of who triggered the saga.
 
-### 12.8 When a feature genuinely doesn't fit
+### 11.8 When a feature genuinely doesn't fit
 
 Sometimes a feature descends and the descent doesn't close. No handshake fits; no saga composes cleanly; no cohesion law can be satisfied without bending. This is the signal that the substrate needs amendment, not that the feature needs forcing.
 
@@ -3931,7 +3558,7 @@ The path for such features:
 
 This path is rare and should stay rare. A feature that breaks descent is either (a) evidence the substrate was wrong in a specific and now-falsifiable way, or (b) a poorly-scoped feature that wants to sneak around the doctrine. The proposal review gate distinguishes. If ten features in a row request the same substrate amendment, the substrate is indeed wrong; if no single feature can make the case, the doctrine is holding. Either outcome is valuable signal.
 
-### 12.9 Closing: the agent's own descent
+### 11.9 Closing: the agent's own descent
 
 This section is a letter to future agents.
 
@@ -3941,7 +3568,7 @@ Your first move: run the descent. Name the primitive. Name the level. Name the h
 
 Your second move: check the cohesion laws. Run the pre-flight checklist. If anything is unchecked, either the descent missed a level or the feature is malformed.
 
-Your third move: pick a lane from §12.5 or name a new lane with the same six-field shape. Commit the handoff contract before you commit the implementation — other lanes depend on the shape of your deliverable, not on its code.
+Your third move: pick a lane from §11.5 or name a new lane with the same six-field shape. Commit the handoff contract before you commit the implementation — other lanes depend on the shape of your deliverable, not on its code.
 
 Your fourth move: write the testbed increment and the hypothesis receipt. Your code must be a falsifiable claim about a metric you named before the code ran. Everything else is taste.
 
@@ -3951,15 +3578,15 @@ The substrate holds because every feature descends through the same five levels,
 
 Execute with discipline. The doctrine descends; the evidence ascends. v2 grows one well-descended feature at a time.
 
-## 13. Per-file salvage audit — destinations in the three-folder compartmentalization
+## 12. Per-file salvage audit — destinations in the three-folder compartmentalization
 
-> §13.0 below is the authoritative per-folder destination audit. §§13.1–13.7 are the lane-track audit retained for per-lane context — they were originally written against a `lib-v2/` sibling plan and have been path-rewritten to the three-folder layout (`product/` / `workshop/` / `dashboard/`); the lane labels (A1–A4, B1–B7, D1–D3, E1–E7, F1–F4) and per-lane port/change/fresh classifications stay valid under the in-place reshape.
+> §12.0 below is the authoritative per-folder destination audit. §§§12.1–12.7 are the lane-track audit retained for per-lane context — they were originally written against a `lib-v2/` sibling plan and have been path-rewritten to the three-folder layout (`product/` / `workshop/` / `dashboard/`); the lane labels (A1–A4, B1–B7, D1–D3, E1–E7, F1–F4) and per-lane port/change/fresh classifications stay valid under the in-place reshape.
 
-### 13.0 Per-folder destination summary
+### 12.0 Per-folder destination summary
 
 Every v1 file lands in exactly one of three folders. Most ports clean — the work is an import-path rewrite. A smaller set ports with named shape adjustments. A still-smaller set is fresh code that v1 never had. And a small group of files retire with the reference-canon slot, the dogfood tree, and the scenario partition.
 
-#### 13.0.1 `product/domain/` — the envelope-axis substrate, brands, and shared types
+#### 12.0.1 `product/domain/` — the envelope-axis substrate, brands, and shared types
 
 Clean port (no logic changes):
 - `lib/domain/governance/workflow-types.ts` → `product/domain/governance/workflow-types.ts` — `WorkflowMetadata<S>`, `WorkflowEnvelope<T, S>`, the governance phantom brands (`Approved<T>`, `ReviewRequired<T>`, `Blocked<T>`), `foldGovernance`, the Envelope ⊣ Receipt adjunction helpers, the closed `WorkflowStage` / `WorkflowLane` / `WorkflowScope` / `ResolutionMode` / `StepWinningSource` / etc. enums, and the `KnowledgePosture` + `foldKnowledgePosture` helper.
@@ -3970,7 +3597,7 @@ Clean port (no logic changes):
 Port with changes:
 - `lib/domain/pipeline/source.ts` → `product/domain/pipeline/source.ts` — Step 0 moves the file; Step 1 retires the `reference-canon` variant. After Step 1, `PhaseOutputSource` contracts to five variants, `foldPhaseOutputSource` loses the `referenceCanon:` arm, `PostureSourceBound<'warm-start'>` loses `'reference-canon'`, and `isReferenceCanon` / `isDemotable` simplify (`isDemotable` becomes identical to `isCanonicalArtifact`).
 
-#### 13.0.2 `product/instruments/` and `product/runtime/` — the L0 data-flow chain and runtime resolution
+#### 12.0.2 `product/instruments/` and `product/runtime/` — the L0 data-flow chain and runtime resolution
 
 Clean port:
 - `lib/infrastructure/ado/live-ado-source.ts` → `product/instruments/intent/ado-source.ts`.
@@ -3986,12 +3613,12 @@ Monolith splits (§3.7):
 - `lib/runtime/resolution/resolution-stages.ts` (~875 LOC) → `product/runtime/resolution/` — split into `lattice/` (RankedLattice + candidate ranking), `stages/` (per-rung stage functions), `exhaustion/` (trail recording), and `accumulator/` (ResolutionAccumulator). The rung count contracts where the probe IR and Reasoning port consolidation allow it.
 - `lib/runtime/scenario.ts` (~882 LOC) → `product/runtime/scenario/` — split into `environment/` (RuntimeScenarioEnvironment), `route/` (route-variant ranking + pre-navigation), `execution/` (step interpretation + console sentinel), `recovery/` (recovery envelope + strategy iteration), and `accrual/` (semantic accrual — conditional on whether the dictionary layer stays).
 
-#### 13.0.3 `product/intelligence/` and `product/graph/` — the discovery-engine monoliths split
+#### 12.0.3 `product/intelligence/` and `product/graph/` — the discovery-engine monoliths split
 
 - `lib/application/observation/interface-intelligence.ts` (~1600 LOC) → `product/intelligence/` — split into `index/` (CatalogScreenIndex + pre-indexing strategies), `target/` (TargetDescriptor), `selector-canon/` (SelectorProbe + SelectorCanon), `state-graph/` (state/event/transition graph builder). The O(1) pre-indexing lessons, state identity key composition, and confidence-record keying are the non-negotiable preserves.
 - `lib/domain/graph/derived-graph.ts` (~1515 LOC) → `product/graph/` — split into `phases/` (PhaseResult + per-phase builders), `conditional/` (ConditionalEdge composition), `scenario-binding/` (step-binding pre-indexing, `StepGraphContext`), `evidence-lineage/` (overlays + pattern nodes). The conditional-edge pattern is the reusable abstraction.
 
-#### 13.0.4 `product/reasoning/` — the ~320-LOC Reasoning port consolidation (§3.6)
+#### 12.0.4 `product/reasoning/` — the ~320-LOC Reasoning port consolidation (§3.6)
 
 Port with changes:
 - `lib/application/resolution/translation/translation-provider.ts` — the Translation port surface collapses into `product/reasoning/` under the unified `Reasoning.Tag` with operations `select` / `interpret` / `synthesize`.
@@ -4002,7 +3629,7 @@ Write fresh:
 - `product/reasoning/error-union.ts` — the unified `ReasoningError` with five families (`rate-limited`, `context-exceeded`, `malformed-response`, `unavailable`, `unclassified`) and `foldReasoningError`.
 - `product/reasoning/prompt-fingerprint.ts` — stable cache keys via `stableStringify` → `sha256` over prompt structure.
 
-#### 13.0.5 `product/catalog/` and `product/logs/` — facet catalog + append-only log set
+#### 12.0.5 `product/catalog/` and `product/logs/` — facet catalog + append-only log set
 
 Port with changes:
 - `lib/application/canon/minting.ts` and `lib/application/canon/decompose-screen-elements.ts` / `decompose-screen-hints.ts` → `product/catalog/` — collapse the split-across-two-files pattern (elements.yaml + hints.yaml) into one `FacetRecord` per facet.
@@ -4012,7 +3639,7 @@ Write fresh:
 - `product/catalog/facet-record.ts` — the unified record with id / kind / displayName / aliases / role / scope / locatorStrategies+health / confidence / provenance / evidence-log reference.
 - `product/logs/evidence/` and `product/logs/drift/` — append-only JSONL per facet (evidence) and append-only stream (drift events).
 
-#### 13.0.6 `workshop/` — measurement infrastructure (§3.5)
+#### 12.0.6 `workshop/` — measurement infrastructure (§3.5)
 
 Clean port (with import-path rewrites only):
 - `lib/application/improvement/speedrun.ts` → `workshop/orchestration/speedrun.ts` — the `corpus` / `iterate` / `fitness` / `score` / `baseline` four-verb orchestration.
@@ -4032,13 +3659,13 @@ Write fresh:
 - `workshop/probe-derivation/` — walks `product/manifest/manifest.json` + per-verb fixture specifications, produces `Probe[]`.
 - `workshop/metrics/receipts/` — the hypothesis-receipt log reader (feeds `metric-hypothesis-confirmation-rate`).
 
-#### 13.0.7 `dashboard/` — the MCP surface and view layer
+#### 12.0.7 `dashboard/` — the MCP surface and view layer
 
 Port with changes:
 - `lib/infrastructure/mcp/dashboard-mcp-server.ts` (~1815 LOC) → `dashboard/mcp/` — split into `handlers/` (the ToolHandler registry, one file per tool), `context/` (decision-context enrichment), `actions/` (suggested-action scoring). **The tool implementations rewire to read through manifest-declared verbs** instead of importing `product/` domain types directly — that's the seam enforcement applied to the dashboard's read side.
 - `lib/infrastructure/dashboard/file-decision-bridge.ts` writer → `product/instruments/handshake/decision-bridge.ts`; watcher → `dashboard/bridges/decision-watcher.ts`. The atomic temp-rename protocol is a shared file-system contract between the writer and watcher; neither imports the other.
 
-#### 13.0.8 What retires (no destination)
+#### 12.0.8 What retires (no destination)
 
 - `dogfood/knowledge/**`, `dogfood/benchmarks/**`, pre-gate `dogfood/controls/**` — reference-canon content, deleted at Step 1.
 - `dogfood/scenarios/` — the 10000/20000 scenario partition; probes replace it.
@@ -4046,7 +3673,7 @@ Port with changes:
 - `scripts/decompose-canon.ts` if still present (already deleted per CLAUDE.md's 2026-04-10 reframe).
 - `.tesseract/*` runtime scratch directory shape — collapses into named append-only logs under `product/logs/` and `workshop/logs/`.
 
-#### 13.0.9 Bottom-line counts (indicative)
+#### 12.0.9 Bottom-line counts (indicative)
 
 Based on the per-folder summary above, the rough compartmentalization shape is:
 
@@ -4055,9 +3682,9 @@ Based on the per-folder summary above, the rough compartmentalization shape is:
 - `dashboard/` takes the MCP server (split) and the decision-bridge watcher.
 - What retires is narrower than earlier drafts implied: no v1 file is archived wholesale because it was "v1 doctrine"; what retires is content (reference-canon, scenario corpus) and the transitional-slot type variant.
 
-The legacy lane-track audit below (§§13.1–13.7) provides per-lane detail compatible with this summary. Where the two disagree, §13.0 is authoritative.
+The legacy lane-track audit below (§§§12.1–12.7) provides per-lane detail compatible with this summary. Where the two disagree, §12.0 is authoritative.
 
-### 13.1 A-track — structural setup
+### 12.1 A-track — structural setup
 
 #### Lane A1 — Envelope substrate port
 
@@ -4148,7 +3775,7 @@ The legacy lane-track audit below (§§13.1–13.7) provides per-lane detail com
 - A4 evidence-log reference is the insertion point E1 extends.
 - A4 health fields receive feeds from B3 (ladder-health), B4 (interact outcome), B6 (referenced-facet tracker).
 
-### 13.2 B-track — L0 instruments
+### 12.2 B-track — L0 instruments
 
 #### Lane B1 — ADO intent-fetch + intent-parse
 
@@ -4287,7 +3914,7 @@ The legacy lane-track audit below (§§13.1–13.7) provides per-lane detail com
 - D2 — future cost/latency metric verbs consume the reasoning-receipt log.
 - E3 / E4 / E5 / E7 — every saga that yields Reasoning binds against the adapter chosen at composition.
 
-### 13.3 D-track — measurement substrate
+### 12.3 D-track — measurement substrate
 
 #### Lane D1 — Testbed adapter (testbed:v0)
 
@@ -4344,7 +3971,7 @@ The legacy lane-track audit below (§§13.1–13.7) provides per-lane detail com
 - B6 — D3 reads run records post-execution, filtering by `source` to match the testbed version the hypothesis targeted.
 - E1 — hypotheses that propose memory changes (L2+) read per-facet evidence logs to measure memory-corroboration-rate delta; deferred to Step 7 shipping.
 
-### 13.4 E-track — memory layers
+### 12.4 E-track — memory layers
 
 #### Lane E1 — Per-facet evidence log
 
@@ -4481,7 +4108,7 @@ The legacy lane-track audit below (§§13.1–13.7) provides per-lane detail com
 - F3 — revision proposals enter the shared review queue.
 - D3 — hypothesis-receipts scaffold verification of revision impact over time.
 
-### 13.5 F-track — cross-step lanes
+### 12.5 F-track — cross-step lanes
 
 #### Lane F1 — Testbed growth
 
@@ -4529,7 +4156,7 @@ The legacy lane-track audit below (§§13.1–13.7) provides per-lane detail com
 **Write fresh:**
 - `product/application/memory/candidate-review.ts` — reason: the unified review queue for proposals. v1 has no explicit queue; v2 makes it first-class.
 - `product/composition/decision-intake.ts` — reason: fiber-resumption logic for decisions picked up from the file bridge. v1 embeds this in the MCP server; v2 lifts to a composable layer.
-- `product/cli/review.ts` — reason: `review list / review show / review approve|reject|edit` verbs. JSONL queue + CLI is sufficient for construction; richer surfaces emerge only under customer pressure (per §12.5.5 Lane F3 spec).
+- `product/cli/review.ts` — reason: `review list / review show / review approve|reject|edit` verbs. JSONL queue + CLI is sufficient for construction; richer surfaces emerge only under customer pressure (per §11.5.5 Lane F3 spec).
 
 **Cross-lane dependencies:**
 - The v1 file bridge (CLEAN PORT above) is the transport F3 watches.
@@ -4558,7 +4185,7 @@ The legacy lane-track audit below (§§13.1–13.7) provides per-lane detail com
 - D1 — F4 filters by `source` field to distinguish testbed runs from production.
 - B7 — F4 may delegate LLM-assisted summarization to Reasoning; read-only discipline holds (reasoning calls emit receipts via B7, which is their side effect, not F4's).
 
-### 13.6 Salvage summary — how much of v2 is fresh
+### 12.6 Salvage summary — how much of v2 is fresh
 
 | Track | Lanes | Clean-port files | Port-with-changes files | Fresh modules | Character |
 |---|---|---:|---:|---:|---|
@@ -4571,7 +4198,7 @@ The legacy lane-track audit below (§§13.1–13.7) provides per-lane detail com
 
 Counts are nominal and will shift as Step 0 scaffolding resolves concrete file layouts. The shape is what matters: **roughly a third clean port, a third port-with-changes, a third fresh**. That ratio is what `v2-direction.md` §3 leads with ("v2 draws from v1 where v2 needs it and v1 has it in the right shape") and what §4 constrains ("v2 redesigns fresh where the right shape differs").
 
-### 13.7 Three-bucket reading of the audit
+### 12.7 Three-bucket reading of the audit
 
 The 25-lane audit resolves into three strategic buckets future agents can plan against.
 
