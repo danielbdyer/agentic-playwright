@@ -2386,17 +2386,30 @@ The plan is the route. The architecture is what you build along it. The runtime 
 
 ## 11. Self-governance — how features descend from the plan to the code
 
-§11 closed the architecture with a running process. This section opens it back up, from the perspective of a future agent (or engineer) picking up work without having read the whole plan. The question it answers: *I have a feature idea. What does it take to land it correctly?*
+§10 closed the architecture with a running process. This section opens it back up, from the perspective of a future agent (or engineer) picking up work without having read the whole plan. The question it answers: *I have a feature idea. What does it take to land it correctly?*
 
-The answer is the descent protocol. Every feature is a vertical slice through the cathedral. It starts at the map and descends through five levels until it lands as executable code. At each level, invariants bind. The author's job is to verify each as they descend, not re-derive them. This section names the levels, the obligations at each, the cohesion laws that govern descent, and the parallelizable feature lanes a team (of agents or humans) can pick up without coordination overhead.
+The answer is the descent protocol — but **applied at the right scope**. Not every code change descends through all five levels. A bug fix in `product/instruments/interact.ts` doesn't need to re-derive the substrate invariants; a cohesion-law drift in a new verb declaration does. This section names two tracks of discipline:
 
-### 11.1 The descent principle
+- **Full descent** — for new verbs, new handshakes, new levels, new primitives, anything that touches the substrate or the manifest surface. The five levels (§11.2), all twelve cohesion laws (§11.3), and the full pre-flight checklist (§11.4).
+- **Light discipline** — for local changes inside an existing verb's implementation, bug fixes, refactors, tests. The five compile-enforced laws (the subset of §11.3 that are caught by the type system or architecture tests) plus the hypothesis discipline from §6 (every change still carries a predicted metric delta where applicable).
 
-A feature is not a PR. A feature is a commitment at every level of the cathedral. The PR is the last level's artifact. If the upper levels weren't walked, the PR is landing work on sand — the code compiles, but the doctrine drifts.
+The difference is scope, not rigor. Full descent is for code that shapes the substrate; light discipline is for code that operates within an already-descended shape. The pre-flight checklist at §11.4 has both tracks — full for new-verb work, light for everything else.
 
-The principle: **invariants propagate downward; evidence propagates upward**. A decision at the map level (which highway? which interchange?) constrains what can happen at the town level (which module? which verb?). A decision at the town level constrains the saga shape. A decision at the saga shape constrains the runtime composition. At every level, evidence — receipts, tests, metrics — flows back upward to validate or contradict the original map-level decision.
+### 11.1 The descent principle (for substrate-touching work)
 
-Skipping levels produces the same kind of rot in every system: implementation that satisfies local tests but violates substrate invariants. v2 resists this by making the descent visible. The cohesion laws (§11.3) are what you check at each level before descending further.
+For new verbs, new handshakes, new levels, or anything that shapes the substrate: the descent is mandatory.
+
+A feature is not a PR. A feature is a commitment at every level. The PR is the last level's artifact. If the upper levels weren't walked, the PR is landing work on sand — the code compiles, but the doctrine drifts.
+
+The principle: **invariants propagate downward; evidence propagates upward**. A decision at the substrate level (which primitive? which invariant?) constrains what can happen at the town level (which module? which verb?). A decision at the town level constrains the saga shape. A decision at the saga shape constrains the runtime composition. At every level, evidence — receipts, tests, metrics — flows back upward to validate or contradict the original substrate-level decision.
+
+Skipping levels produces the same kind of rot in every system: implementation that satisfies local tests but violates substrate invariants. v2 resists this by making the descent visible.
+
+**When to apply full descent:** a PR adds a verb declaration, changes a handshake shape, extends a primitive, declares a new metric, or introduces a new saga. The descent's scope matches the work's scope.
+
+**When to apply light discipline instead:** a PR fixes a bug, refactors an internal helper, extends test coverage, updates a fixture, or otherwise operates inside a shape the substrate already sanctioned. See §11.4a for the light-discipline checklist.
+
+The cohesion laws (§11.3) are what you check at each descent level before descending further. Five of the twelve laws are compile-enforced (laws 1, 2, 5, 8, 10); those are the ones that bind even under light discipline.
 
 ### 11.2 The five levels of descent
 
@@ -2465,6 +2478,25 @@ Before committing a feature, the author runs this checklist. It is short because
 **Cohesion laws:**
 - [ ] All twelve laws (§11.3) hold for this feature's code?
 
+### 11.4a Light discipline — for changes that don't shape the substrate
+
+Most PRs don't add new verbs or change handshakes. For those, the full descent is over-disciplined — it slows velocity without catching real risk. Apply the **light discipline** instead:
+
+**Five compile-enforced laws (the ones the type system catches):**
+- [ ] Law 1 — If the PR adds a capability, it adds a new verb (not a boolean flag on an existing verb). [If no capability addition, skip.]
+- [ ] Law 2 — If the PR touches a published manifest verb, its signature is unchanged (or deprecate-and-replace).
+- [ ] Law 5 — Cross-seam artifacts carry envelopes with the four phantom axes. (The compiler catches violations.)
+- [ ] Law 8 — Any log write goes through the append-only adapter. (No in-place file writes.)
+- [ ] Law 10 — Governance verdict dispatch routes through `foldGovernance`. (Architecture law 8 catches violations.)
+
+**Hypothesis discipline:**
+- [ ] If the change is expected to move a metric, a predicted delta is named; the next workshop run will produce a verification receipt.
+- [ ] If the change is not metric-moving (bug fix, refactor, test-only, doc-only), the PR description notes that — a one-line "no predicted metric delta; scope is [bug fix / refactor / test / doc]" is sufficient.
+
+**That's it.** The full descent (§11.2) and the remaining seven cohesion laws (§11.3) are not required for light-discipline PRs. The author still reads the v2 docs to stay oriented; they don't walk five levels for a bug fix.
+
+**How to tell which track you're on.** Ask: does this PR add a manifest verb, change a handshake shape, extend the substrate, or introduce a new saga? If yes → full descent. If no → light discipline. When in doubt, ask a reviewer; the cost of over-disciplining a bug fix is slower merge; the cost of under-disciplining a new verb is a substrate drift. The asymmetry prefers occasional over-discipline.
+
 **Measurement substrate:**
 - [ ] Testbed increment committed (new YAML under `testbed/v<N>/`)?
 - [ ] Hypothesis receipt logged (predicted delta named against a metric verb)?
@@ -2472,11 +2504,22 @@ Before committing a feature, the author runs this checklist. It is short because
 
 If any checkbox is unchecked, the feature is not ready to commit. The checklist is not a bureaucracy; it is the descent protocol written out.
 
-### 11.5 The parallelizable feature backlog
+### 11.5 The parallelizable feature backlog — lanes are the unit of work
 
-§4 named four parallel tracks across the eleven steps. This section names the finer-grained lanes within and across those tracks — lanes a future agent can pick up with clear handoff contracts. Every lane is a sub-feature of its parent track; every lane has explicit dependencies, an explicit deliverable, and an explicit post-condition that unblocks downstream work.
+**Lanes are the primary unit of work.** A fresh agent or engineer picking up a session doesn't ask "which step are we on?" — they ask "which lane is unclaimed that I can pick up?" The step grouping (§3) is the shipping calendar; the lane grouping (this section) is the work calendar.
 
-The backlog is living. As steps complete, lanes retire. As steps open, lanes light up. The lanes below are the *current* parallelizable work; future maintainers should extend this section, not replace it.
+**The relationship to steps is metadata on the lane.** Every lane has a "step window" field that names which step(s) its work lands in, for shipping-calendar alignment. But the operational fact is: a lane can be picked up as soon as its hard dependencies are satisfied, whether that's mid-step or at step boundaries. A contributor who lands Lane B2 (Playwright navigate) during Step 4b doesn't need to wait for Lane B1 (ADO intent-fetch) to finish; they have independent dependencies on Lanes A1 and A3.
+
+§4 named four parallel tracks across the thirteen steps. This section names the finer-grained lanes within and across those tracks. Every lane has explicit dependencies, an explicit deliverable, and an explicit post-condition that unblocks downstream work.
+
+The backlog is living. As lanes complete, they retire from the board. As new product verbs land, new lanes appear (probe-fixture lanes especially, per F1). The lanes below are the *current* parallelizable work; future maintainers should extend this section, not replace it.
+
+**How an agent picks up a lane:**
+1. Read this section's list; find a lane with no unsatisfied dependencies.
+2. Read the lane card (six-field shape below).
+3. Read the linked §12 per-lane salvage audit entry for port/change/fresh classification.
+4. Commit the handoff contract first (the shape of what the lane will deliver) before committing implementation — downstream lanes depend on the shape, not the implementation.
+5. Execute the lane; land its deliverable; mark the lane complete.
 
 #### 11.5.1 Lane shape
 
