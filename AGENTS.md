@@ -1,175 +1,128 @@
 # Tesseract Agent Guide
 
-This repository is an interface intelligence and agent workbench system built around a deterministic preparation pipeline, typed intervention receipts, and a governed recursive-improvement loop. Treat it that way.
+This repository is a QA-automation codebase that lets a single agent author a Playwright test suite against a customer's OutSystems application from a backlog of ADO test cases. It is currently reshaping from v1 (a single `lib/` tree with tightly-coupled product and workshop concerns) into v2 (three top-level folders with a manifest-mediated seam). **The v2 reshape is in active doc-revision phase; the compartmentalization commit has not yet landed in code. Until it does, the code lives under `lib/` as described in v1 docs; the v2 direction is authoritative for what's next.**
 
 ## North star in one sentence
 
-**Make the deterministic discovery engine grok the application under test as fast as possible, and let the agentic intervention engine slide receipt-backed overrides in next to deterministic observations so that the pipeline reconciles both lanes into the best computed understanding of the SUT — then measure whether every accepted intervention actually moved the needle.**
+**Build a product that lets an agent author QA-legible Playwright tests against a real customer backlog, with a workshop that consumes the product's own manifest to derive probes measuring whether the product is actually improving, and put the workshop out of a job as probe coverage saturates against a steady-state product surface.**
 
-The scoreboard for "is it working?" is [`docs/alignment-targets.md`](docs/alignment-targets.md):
-- **M5** (Memory Worthiness Ratio) tracks the deterministic engine — is remembering worth more than forgetting across cohort trajectories?
-- **C6** (Intervention-Adjusted Economics) tracks the agentic engine — does accepting an override reduce ambiguity/suspension/rung-score in its attachment region within one loop iteration?
+The three things v2's `product/` ships (details in `docs/v2-direction.md §1`):
+- A **vocabulary manifest** the agent reads once per session.
+- A **facet catalog** — memory of the SUT's semantic surfaces, provenance-threaded, queryable by intent phrase.
+- **QA-legible tests** in Playwright that reference facets by name, not selectors.
 
-Everything else in the codebase exists to serve M5 and C6 moving up.
+The workshop's job (details in `docs/v2-direction.md §5` and `docs/v2-substrate.md §7`):
+- Derive **probes** from the manifest, run them through the product's normal authoring flow, derive metrics over run records, gate proposal activation against the trust policy, and append hypothesis receipts to the workshop's log. Graduate when probe coverage = 100% and `metric-hypothesis-confirmation-rate` sustains above floor.
+
+## If you're a fresh agent session, your next action is Step 0
+
+The v2.1 plan is doc-complete and execution-ready as of 2026-04-19. The next concrete action is **Step 0 — the compartmentalization commit** (atomic in-place reshape of `lib/` into `product/` + `workshop/` + `dashboard/`, no behavior changes).
+
+1. Read `docs/v2-direction.md §§1–2` (the three-folder shape and seam discipline). ~5 minutes.
+2. Read `docs/v2-readiness.md §1` (the day-by-day Step 0 playbook) and `§8` (the test-import rewrite audit). ~15 minutes.
+3. Verify preconditions in §1.1 of the readiness doc.
+4. Create the feature branch `claude/step-0-compartmentalization` off `main`.
+5. Execute §1.2 of the readiness doc in order. Expected duration: 6–8 hours for one engineer (or agent).
+
+If Step 0 has already landed (check `git log --oneline | grep "Step 0"` on `main`), your next action is Step 1 (reference-canon retirement + transitional probe set) per `v2-direction.md §6` and `v2-readiness.md §10`.
+
+If Step 1 has already landed, consult the construction order in `v2-direction.md §6` to find the next unfinished step; check `v2-readiness.md` for any section matching your step (most forcing-function steps have a named preprocessing section).
+
+If the plan itself has changed materially since 2026-04-19, read `v2-direction.md §§1–2` first and then this doc; reconcile any contradictions before acting.
 
 ## New-session orientation (read in this order)
 
 If you've just opened the repo, read this exact sequence before touching any code:
 
-1. [`docs/current-state.md`](docs/current-state.md) — what's implemented vs. planned *right now*. Keeps you from re-implementing something that landed last week.
-2. [`VISION.md`](VISION.md) — the product bet, the four-axis envelope upper ontology, and what "synthetic feature completion" means. The one-stop "why does this exist?" doc.
-3. [`docs/canon-and-derivation.md`](docs/canon-and-derivation.md) §§ 1–3.2a, § 6, § 11 — the trichotomy (canonical sources / canonical artifacts / derived output), the **reference-canon transitional population**, the six-slot lookup chain, and the classification table for what's in `dogfood/` today. This is the doctrine skeleton.
-4. [`docs/alignment-targets.md`](docs/alignment-targets.md) — M5 and C6 definitions, including the operational definitions locked 2026-04-10 (M5 denominator = wall clock + agentic-override maintenance; C6 N = 1 loop iteration; cohort-comparable = same scenario IDs).
-5. [`docs/synthetic-feature-completion-plan.md`](docs/synthetic-feature-completion-plan.md) — the executable 5-commit sequence for driving the synthetic workload to feature completion: Source-axis extension + 4 scoreboard closures (C6 direct, M5 direct, promotion CIs, demotion sweep). This is what's next.
-6. [`docs/cold-start-convergence-plan.md`](docs/cold-start-convergence-plan.md) §§ 1–4 — the six-phase sequence (A: reference-canon slot + greenfield canon tree; B–D: now subsumed by the feature-completion plan; E: runtime-family recognition, deferred; F: Tier 3 projections, deferred).
-7. [`docs/temporal-epistemic-kernel.md`](docs/temporal-epistemic-kernel.md) — the formal K / L / S / V / D / R / A / C / M / H theorem groups. The alignment-targets floors map onto these directly.
-8. [`docs/envelope-axis-refactor-plan.md`](docs/envelope-axis-refactor-plan.md) — the four-axis envelope refactor. Phase 0 (Stage/Source/Fingerprint/Verdict phantom lifts) is **complete**. Read for context on the structural substrate the feature-completion plan rides on.
+1. [`docs/v2-direction.md`](docs/v2-direction.md) — primary strategy document. §§1–2 name the three folders and the seam discipline; §3 names what ports where; §4 names what reshapes vs. retires; §5 introduces the probe IR; §6 is the in-place construction order — thirteen steps grouped into three phases (Phase 1: Reshape, Phase 2: Unstitching, Phase 3: Compounding).
+2. [`docs/v2-substrate.md`](docs/v2-substrate.md) — primitives, invariants, and measurement stance. §2 the five primitives; §5 the level spine; §6 the anti-scaffolding gate; §6a the probe IR spike protocol; §7 the measurement stance; §8a the per-visitor metric audit.
+3. [`docs/v2-transmogrification.md`](docs/v2-transmogrification.md) §§1–8 — execution plan. §§1–2 the compartmentalization mechanics; §3 the thirteen-step three-phase plan with per-step execution detail; §4 the DAG + parallelization + §4.6 lighting-up matrix; §5 forcing functions + cascade risks; §6 graduation (product curve + workshop calibration); §7 phase-boundary definition of done; §8 deferred items. §§9–10 are operational detail (saga gallery, runtime composition); §11 is the descent protocol with a light-discipline track for local changes; §12.0 is the authoritative per-file destination summary; §§12.1–12.7 the per-lane audit.
+4. [`docs/v2-delta-audit.md`](docs/v2-delta-audit.md) — handshake-by-handshake v1→v2 verdicts. Read when you need to decide whether a specific handshake is Aligned, Partial, Shape-different, or Absent.
+5. [`docs/feature-ontology-v2.md`](docs/feature-ontology-v2.md) — the per-feature contracts: handshakes, technical paths, agent-engagement flows, invariants, reversibility classes. Read when you are about to design or implement a specific handshake.
+6. [`docs/v2-readiness.md`](docs/v2-readiness.md) — **execution preprocessing pack**. Read before Step 0. Contains: the day-by-day Step 0 playbook (§1), seam-enforcement test design (§2), per-folder README stubs (§3), probe IR fixture grammar (§4), transitional probe set scope (§5), customer-reality probe checklist (§6), branch + rollback strategy (§7), test-import rewrite audit (§8), Reasoning port retrofit file plan (§9), M5 cohort re-key plan (§10). If you're picking up Step 0, start here after reading §§1–2 of the direction doc.
 
-**Load-bearing reframe (2026-04-10).** The prior doctrine prescribed a one-shot migration script (`scripts/decompose-canon.ts`) to move dogfood YAMLs into `.canonical-artifacts/`. That script is **deleted**. The dogfood YAMLs are reclassified as **reference canon** — consulted at lookup-chain slot 4, below real canonical artifacts, and demoted one atom at a time as real agentic overrides (backed by intervention receipts) and real deterministic observations (promoted through gates) supplant them. `{suiteRoot}/.canonical-artifacts/` is greenfield. See [`docs/canon-and-derivation.md`](docs/canon-and-derivation.md) § 3.2a and § 11.1 for the full reasoning.
+**The three folders v2 compartmentalizes `lib/` into:**
 
-**The four-axis envelope (2026-04-11 framing).** Every artifact is a point in `Envelope<Stage, Source, Verdict><Payload: Fingerprint<Stage, Source>>` space. The pipeline is a typed path through that space. All four axes are phantom-typed in code (`lib/domain/governance/workflow-types.ts`, `lib/domain/pipeline/source.ts`, `lib/domain/kernel/hash.ts`, `lib/domain/handshake/epistemic-brand.ts`). The structural substrate is ready; what remains is the five scoreboard closures in `docs/synthetic-feature-completion-plan.md`. See [`VISION.md`](VISION.md) § "The four-axis envelope — the upper ontology" for the full framing.
+- **`product/`** — packageable core. Agent-facing surface. Manifest, facet catalog, instruments (intent-fetch, observe, interact, test-compose, test-execute, Reasoning), runtime resolution, facet schema, append-only log set. What ships to customers.
+- **`workshop/`** — measurement consumer. Imports `product/`'s manifest; derives probes; runs them through `product/`'s normal authoring flow; owns the seven-visitor metric tree, scorecard history, convergence-proof harness, trust-policy gate, hypothesis-receipt discipline. Can read `product/`; `product/` cannot read it. Puts itself out of a job when probe coverage = 100%.
+- **`dashboard/`** — read-only observer. Projects both upstreams through manifest-declared verbs. Writes nothing. Replaceable without touching either upstream.
+
+**The seam between folders is a compile error, not a convention.** An architecture test in `product/tests/architecture/` forbids `workshop/` or `dashboard/` from importing `product/` except through manifest-declared verbs and the shared log set. Every saga emits a receipt; workshop reads the receipt; dashboard reads both.
+
+**v1 lifecycle state (as of 2026-04-17).** Last `lib/` commit was 2026-04-11; every commit since is doc revision. v1 is in de facto stabilization awaiting the Step 0 compartmentalization commit. The synthetic feature completion plan (`docs/v1-reference/synthetic-feature-completion-plan.md` after the doc move lands) shipped Commit 1a then stalled; its remaining items (1b, 2, 3, 4, 5) fold into the v2 construction order (reference-canon retirement at Step 1; metric visitor recalibration at Step 0 under workshop/; M5 and C6 reshape per `v2-substrate.md §8a`).
 
 ## Additional docs (read when the task calls for them)
 
-- operational overview: [README.md](README.md)
-- authoritative architecture doctrine: [docs/master-architecture.md](docs/master-architecture.md)
-- **envelope-axis refactor plan** (Phase 0 — structural prerequisite to the convergence plan; lifts `stage`, `source`, `verdict`, and fingerprint addresses into phantom-typed envelope axes): [docs/envelope-axis-refactor-plan.md](docs/envelope-axis-refactor-plan.md)
-- product model and QA workflow: [VISION.md](VISION.md)
-- conceptual domain model — primitives and gravitational wells: [docs/domain-model.md](docs/domain-model.md)
-- domain ontology and invariants: [docs/domain-ontology.md](docs/domain-ontology.md)
-- domain class decomposition — every primitive mapped to its concrete domain types and the dependency topology hubs (consult before inventing parallel content shapes): [docs/domain-class-decomposition.md](docs/domain-class-decomposition.md)
-- authorship and knowledge design: [docs/authoring.md](docs/authoring.md)
-- operator workflow and approvals: [docs/operator-handbook.md](docs/operator-handbook.md)
-- scenario corpus partition (10000-series legacy vs 20000-series survivor): [docs/scenario-partition.md](docs/scenario-partition.md)
-- planned work split by lane: [BACKLOG.md](BACKLOG.md)
-- convergence tactical backlog (subordinate to the cold-start plan AND the synthetic feature completion plan; read the doctrinal drift flags at the top): [docs/convergence-backlog.md](docs/convergence-backlog.md)
-- **synthetic feature completion plan** (the active 5-commit execution sequence): [docs/synthetic-feature-completion-plan.md](docs/synthetic-feature-completion-plan.md)
-- recursive self-improvement Level-1 loop (the 15-knob parameter space; subset of the doctrinal gradient): [docs/recursive-self-improvement.md](docs/recursive-self-improvement.md)
-- implementation coding notes: [docs/coding-notes.md](docs/coding-notes.md)
-- seams, invariants, and verification: [docs/seams-and-invariants.md](docs/seams-and-invariants.md)
-- code navigation (6-layer architecture): [lib/README.md](lib/README.md)
-- auto-generated repo brief: [docs/agent-context.md](docs/agent-context.md) *(skip if you already read this file)*
+Active doctrine (post-reshape):
+- operational overview: [README.md](README.md) *(note: some sections reference v1 paths; cross-reference `v2-direction.md §3` for v2 destinations)*
+- implementation coding notes: [docs/coding-notes.md](docs/coding-notes.md) — FP style, Effect patterns, design patterns, testability conventions. Authoritative for how to write code; unchanged by the v2 reshape.
+- seams, invariants, and verification: [docs/seams-and-invariants.md](docs/seams-and-invariants.md) — the architecture-level seams and their guard tests.
+- auto-generated repo brief: [docs/agent-context.md](docs/agent-context.md) *(skip if you already read CLAUDE.md)*
 - auto-generated module map: [docs/module-map.md](docs/module-map.md) *(or run `npm run map`)*
-- auto-generated doctrine invariants: [docs/doctrine-invariants.md](docs/doctrine-invariants.md) *(consumed by compiler, not for direct reading)*
+
+v1 reference (historical — useful when you need to understand current code under `lib/`):
+- [docs/v1-reference/master-architecture.md](docs/v1-reference/master-architecture.md) — v1's architectural doctrine.
+- [docs/v1-reference/alignment-targets.md](docs/v1-reference/alignment-targets.md) — M5 and C6 definitions in v1's operational terms. The M5 and C6 *concepts* port forward per `v2-substrate.md §8a`; their v1 denominators (scenario-ID cohort key, InterventionTokenImpact ledger) do not.
+- [docs/v1-reference/canon-and-derivation.md](docs/v1-reference/canon-and-derivation.md) — the six-slot lookup chain and reference-canon doctrine. Retires with the Step 1 type-level surgical edit on `source.ts`.
+- [docs/v1-reference/synthetic-feature-completion-plan.md](docs/v1-reference/synthetic-feature-completion-plan.md) — the stalled 5-commit sequence; its remaining work folds into the v2 construction order.
+- [docs/v1-reference/temporal-epistemic-kernel.md](docs/v1-reference/temporal-epistemic-kernel.md) — v1's K/L/S/V/D/R/A/C/M/H theorem groups. Retires as a proof-obligation matrix; the ideas survive as narrative framing.
+- [docs/v1-reference/envelope-axis-refactor-plan.md](docs/v1-reference/envelope-axis-refactor-plan.md) — Phase 0a/b/c/d complete; lives in v1-reference for historical context of how the substrate got to its current state.
+- Other v1 docs (`cold-start-convergence-plan`, `convergence-backlog`, `convergence-roadmap`, `current-state`, `research-master-prioritization-v4`, `recursive-self-improvement`, `scenario-partition`, etc.) live under `docs/v1-reference/` as reference.
 
 Every doc in `docs/` has a `> Status:` line after its heading — use it to decide whether to read or skip.
 Historical research and assessments live in `docs/archive/` and can be ignored on first encounter.
 
-Scoped instructions under `.github/instructions/` still apply for domain, knowledge, generated files, and tests.
+Scoped instructions under `.github/instructions/` still apply per-concern and are updated incrementally as the reshape lands.
 
-The six public lanes remain the operating vocabulary. The deeper architectural spines now cut across them:
+## Non-negotiable model (post-reshape, heading into Step 0)
 
-- `interface`
-- `intervention`
-- `improvement`
+- **The seam is compile-enforced.** `workshop/` and `dashboard/` cannot import `product/` except through manifest-declared verbs and the shared append-only log set. An architecture test fails the build on violations.
+- **The manifest is the contract.** `product/manifest/manifest.json` is generated from code at build time; a build check fails on non-additive drift. Verbs have frozen signatures from the moment they're published.
+- **Every agentic decision produces an `InterventionHandoff`.** The shape is required, not optional. No silent escalation; no `throw` as escape.
+- **Every reasoning call produces a `ReasoningReceipt<Op>`.** Provider-specific errors classify into the five named families (`rate-limited`, `context-exceeded`, `malformed-response`, `unavailable`, `unclassified`).
+- **Every proposal activation passes through the trust-policy gate.** The YAML-authored thresholds in `workshop/policy/trust-policy.yaml` are actively enforced; no receipt = no override; no threshold satisfaction = no activation.
+- **Every log is append-only.** The adapter refuses in-place updates; confidence derives on read from the evidence log; contradictions never overwrite.
+- **Every envelope carries the four phantom axes.** Stage × Source × Verdict × Fingerprint<Tag>; misuse is a compile error.
+- **Provenance is minted at the event, not reconstructed later.**
+- **Generated tests are disposable object code;** the facet catalog is the durable asset.
 
-## Non-negotiable model
+## Lookup chain (contracts to five slots at Step 1)
 
-- Canonical sources (operator intent, the SUT, upstream ADO) and canonical artifacts (real gate-qualified promotions) are the source of truth.
-- Reference canon (the pre-gate YAMLs under `dogfood/knowledge/`, `dogfood/benchmarks/`, `dogfood/controls/`) is fallback only, consulted at lookup-chain slot 4, clearly labeled in every lookup receipt, and shrinking over time.
-- Derived artifacts are projections.
-- Deterministic compiler derivations are auto-approved.
-- Agentic overrides require a typed `InterventionReceipt` that passed the auto-approval gate. No receipt = no override.
-- Certification is a designation on canon, not an execution gate.
-- Generated specs are disposable object code.
-- Provenance is part of correctness.
+The reference-canon transitional slot retires at Step 1 of the construction order (`v2-direction.md §6`). After the retirement sweep runs, `PhaseOutputSource` has five variants:
 
-## The lookup chain (six slots, transitional)
+| Slot | Source | Where |
+|---|---|---|
+| 1 | `operator-override` | `product/catalog/overrides/` (pure-intent fragments) |
+| 2 | `agentic-override` | `product/catalog/agentic/` (receipt-backed) |
+| 3 | `deterministic-observation` | `product/catalog/deterministic/` (gate-promoted) |
+| 4 | `live-derivation` | `.tesseract/cache/` (ephemeral) |
+| 5 | `cold-derivation` | in-process |
 
-| Slot | Source | Where | Consulted in |
-|---|---|---|---|
-| 1 | `operator-override` | `{suiteRoot}/controls/**` (pure-intent fragments only) | all modes |
-| 2 | `agentic-override` | `{suiteRoot}/.canonical-artifacts/agentic/**` (receipt-backed) | warm, compare |
-| 3 | `deterministic-observation` | `{suiteRoot}/.canonical-artifacts/deterministic/**` (gate-promoted) | warm, compare |
-| 4 | `reference-canon` *(transitional)* | `{suiteRoot}/knowledge/**`, `{suiteRoot}/benchmarks/**`, pre-gate `{suiteRoot}/controls/**` | warm (not `--no-reference-canon`) |
-| 5 | `live-derivation` | `.tesseract/cache/**` | warm, cold |
-| 6 | `cold-derivation` | in-process | cold, compare |
+Until Step 1 lands, slot 4 is still `reference-canon` and slots 5–6 are `live-derivation` / `cold-derivation`; consult `docs/v1-reference/canon-and-derivation.md` for the transitional six-slot behavior currently in code.
 
-When slot 4 is empty (every reference canon entry has been superseded by real canonical artifacts or demoted), the chain collapses back to five slots and the `dogfood/` folder can be retired. See [`docs/canon-and-derivation.md`](docs/canon-and-derivation.md) § 14.0 for the graduation condition.
+## Knowledge posture (`--posture` CLI flag)
 
-## Canonical vs reference vs derived (quick reference)
+- `cold-start`: runs against no prior canon; tests the product's ability to discover from scratch.
+- `warm-start`: default; consults all committed canon.
+- `production`: same as warm-start + all output version-controlled.
 
-Canonical inputs (suite-scoped, under `dogfood/` for training or repo root for production):
+## Probe IR — the testbed seam
 
-Tier 1 — Problem statement (always loaded):
+Workshop does not maintain a hand-authored scenario corpus. It derives probes from `product/`'s manifest plus per-verb **fixture specifications** (tiny YAML files alongside each verb declaration). See `v2-substrate.md §6a` for the spike protocol that validates the IR before it becomes authoritative.
 
-- `.ado-sync/`
-- `scenarios/` (the 20000-series reference cohort is the go-forward corpus; see [`docs/scenario-partition.md`](docs/scenario-partition.md))
-- `fixtures/`
-- `.tesseract/evidence/`
-- `.tesseract/policy/`
+**This replaces the v1 dogfood corpus.** The 10000/20000 scenario partition retires with the reference-canon content; `dogfood/scenarios/` does not port forward to any folder.
 
-Tier 2 — Reference canon, pre-gate (gated by knowledge posture):
+## Envelope discipline
 
-- `knowledge/surfaces/`
-- `knowledge/screens/`
-- `knowledge/patterns/`
-- `knowledge/snapshots/`
-- `knowledge/components/`
-- `knowledge/routes/`
-- `benchmarks/`
-- `controls/` (non-intent portions)
+Every cross-seam handoff carries a `WorkflowEnvelope<Payload, Stage>` with the four phantom axes. Envelope types declare their pipeline stage as a narrow literal via `extends WorkflowMetadata<'stage'>` — for example, `RunRecord extends WorkflowMetadata<'execution'>`. Do NOT inline the envelope header fields when declaring a new type; they come from the base.
 
-These files are still consulted at runtime but they live at slot 4 (reference canon) in the lookup chain and they shrink as real canonical artifacts supplant them.
+The four axes:
+- **Stage** — pipeline phase (`preparation` | `resolution` | `execution` | `evidence` | `proposal` | `projection`).
+- **Source** — lookup-chain slot that produced the artifact (see the five-slot table above).
+- **Verdict** — governance outcome (`Approved` | `ReviewRequired` | `Blocked`); dispatch exclusively through `foldGovernance`.
+- **Fingerprint<Tag>** — content-addressed identity with a phantom tag from the closed 30+ tag registry in `product/domain/kernel/hash.ts`.
 
-Tier 2' — Real canonical artifacts (greenfield, populated only by real gates):
-
-- `.canonical-artifacts/agentic/**` — agent overrides backed by `InterventionReceipt`
-- `.canonical-artifacts/deterministic/**` — discovery outputs promoted through gate evaluation
-
-Knowledge posture (`--posture` CLI flag):
-
-- `cold-start`: Tier 1 only — tests the system's ability to discover and learn from scratch.
-- `warm-start`: Tier 1 + Tier 2 (reference canon) + Tier 2' (real canonical artifacts) — the default; consults all committed content.
-- `production`: Same as warm-start + all output version-controlled.
-
-Additional mode flags (`docs/canon-and-derivation.md` § 6.5):
-
-- `--no-reference-canon`: skip slot 4. The migration-debt measurement.
-- `--no-overrides`: skip slots 1 and 2. Extreme cold-start test.
-
-Derived outputs. Do not hand-edit unless the task is specifically about the generator:
-
-- `.tesseract/bound/`
-- `.tesseract/benchmarks/`
-- `.tesseract/inbox/`
-- `.tesseract/interface/`
-- `.tesseract/learning/`
-- `.tesseract/sessions/`
-- `.tesseract/tasks/`
-- `.tesseract/runs/`
-- `.tesseract/graph/`
-- `generated/`
-- `lib/generated/`
-
-## Tracking rule: production vs dogfood
-
-All training data — scenarios, knowledge, fixtures, controls, benchmarks, ADO sync artifacts — lives under a single `dogfood/` directory. This is the suite root.
-
-**On main**: `dogfood/` and `lib/generated/` are gitignored. The recursive-improvement loop regenerates from scratch. Nothing it learns persists across clones.
-
-**On training branches**: Remove or override the `dogfood/` gitignore line so content persists for continuity between runs. Never merge evolvable surfaces (knowledge, fixtures, generated output) back to main — only merge business logic improvements to the engine.
-
-**When production arrives**: Production content lives at the repo root (or a named suite directory like `production/`) and is fully versioned. `lib/generated/` is tracked again. The `createProjectPaths(rootDir, suiteRoot)` function resolves content paths relative to the suite root, so the engine works identically with any suite location.
-
-The `.tesseract/*` runtime engine directory is bulk-gitignored regardless of suite; only governance anchors (`trust-policy.yaml`, `scorecard.json`) survive.
-
-**Ephemeral artifact confusion?** Read the authoritative artifact lifecycle table in [docs/recursive-self-improvement.md § Ephemeral Artifact Management](docs/recursive-self-improvement.md#ephemeral-artifact-management). TL;DR: speedrun outputs are ephemeral — only pipeline code and the scorecard persist. If you see 100+ files in `dogfood/scenarios/synthetic/`, they are safe to delete.
-
-## Six workflow lanes
-
-Use this vocabulary consistently:
-
-- `intent`: `dogfood/.ado-sync/` and `dogfood/scenarios/`
-- `knowledge`: `dogfood/knowledge/surfaces/`, `dogfood/knowledge/screens/`, `dogfood/knowledge/patterns/`, `dogfood/knowledge/snapshots/`
-- `control`: `dogfood/controls/datasets/`, `dogfood/controls/resolution/`, `dogfood/controls/runbooks/`
-- `resolution`: `.tesseract/tasks/` plus interpretation receipts
-- `execution`: execution receipts and run records
-- `governance/projection`: generated outputs, graph surfaces, and trust policy
-
-Every cross-lane handoff should expose the same envelope header: `kind`, `version`, `stage`, `scope`, `ids`, `fingerprints`, `lineage`, `governance`, and `payload`.
-
-Envelope types declare their pipeline stage as a narrow literal via `extends WorkflowMetadata<'stage'>` — for example, `RunRecord extends WorkflowMetadata<'execution'>`. Do NOT inline the envelope header fields when declaring a new type; they come from the base. See `docs/master-architecture.md` § "Envelope Axis Vocabulary" for the full 4-axis model (Stage, Source, Verdict, Fingerprint<Tag>) and `docs/envelope-axis-refactor-plan.md` for the phased refactor that lifts each axis from runtime string to compile-time invariant.
+All four axes are phantom-typed. Misuse is a compile error, not a runtime bug. Architecture law 8 (in `product/tests/architecture/`) forbids ad-hoc governance string comparisons.
 
 ## Governance vocabulary
 
@@ -192,19 +145,19 @@ Keep precedence concern-specific:
 Resolution:
 
 1. explicit scenario fields
-2. `controls/resolution/*.resolution.yaml`
-3. approved screen knowledge and screen hints
+2. operator override (`product/catalog/overrides/`)
+3. approved knowledge (`product/catalog/` facet records)
 4. shared patterns
 5. prior evidence or run history
 6. live DOM exploration and safe degraded resolution
-7. `needs-human`
+7. `needs-human` (emits InterventionHandoff)
 
 Data:
 
 1. explicit scenario override
 2. runbook dataset binding
 3. dataset default
-4. hint default value
+4. facet kind default value
 5. posture sample
 6. generated token
 
@@ -216,47 +169,28 @@ Run selection:
 
 If you change these precedence laws, you are changing compiler semantics. Add or update tests accordingly.
 
-## Supplement hierarchy
+## What belongs where (across the three folders)
 
-Screen-local first:
+Use **data** under `product/catalog/` when the concept is declarative — aliases, locator ladders, default value refs, posture vocabularies, widget affordances, per-screen facet records.
 
-- `knowledge/screens/{screen}.hints.yaml`
+Use **code** when the concept is genuinely procedural:
+- widget choreography in `product/widgets/`
+- runtime orchestration in `product/runtime/`
+- filesystem, ADO, Playwright, and Reasoning adapters in `product/instruments/`
+- AST-backed emitters in `product/instruments/codegen/`
 
-Promoted shared layer second:
+Measurement, tuning, and evaluation code belongs in **`workshop/`** — never in `product/`. Observation-only read surfaces (MCP tools, HTTP bridges, projection views) belong in **`dashboard/`** — never in `product/` or `workshop/`.
 
-- `knowledge/patterns/*.yaml`
+## Architectural guardrails (per folder)
 
-Promotion rule:
+Inside each folder, the layered dependency rule holds:
 
-- prefer local supplements for first discovery
-- promote only after repetition or deliberate generalization
-
-Do not hide novel behavior in runtime code when it can be expressed as reviewed knowledge. Human escalation is last-resort only after the agent has exhausted the non-human path.
-
-## What belongs where
-
-Use data when the concept is declarative:
-
-- aliases
-- locator ladders
-- default value refs
-- snapshot aliases
-- posture vocabularies
-- widget affordances
-
-Use code when the concept is genuinely procedural:
-
-- widget choreography in `knowledge/components/*.ts`
-- interpreter/runtime orchestration
-- filesystem, ADO, and reporting adapters
-- AST-backed emitters
-
-## Architectural guardrails
-
-- `lib/domain` must stay pure and side-effect free.
-- `lib/application` owns orchestration through Effect.
-- `lib/runtime` executes programs and resolves locators/widgets.
-- `lib/infrastructure` owns ports and adapters.
+- `product/domain/` — pure, side-effect free. Imports only other `product/domain/` modules.
+- `product/application/` (if needed for orchestration) — Effect programs. Imports `product/domain/`.
+- `product/runtime/` — executes programs, resolves locators/widgets. Imports `product/domain/` and `product/instruments/`.
+- `product/instruments/` — adapters (ADO, Playwright, Reasoning, facet store). Imports `product/domain/`.
+- `workshop/` — imports `product/domain/` types and reads through the manifest/log seam. Does not import `product/application/` or `product/runtime/` internals.
+- `dashboard/` — imports `product/domain/` types only. Reads through manifest-declared verbs.
 
 When a concept starts to cross those boundaries, model the boundary explicitly instead of leaking strings or side effects.
 
@@ -275,180 +209,137 @@ Key principles (detail and examples in coding-notes.md):
 
 ## Scoped guidance
 
-Lane-specific instructions live in `.github/instructions/`:
+Folder-specific instructions live in `.github/instructions/`:
 
-- `domain.instructions.md` — domain modeling rules and type conventions
-- `knowledge.instructions.md` — knowledge authoring and screen/surface/hint rules
-- `tests.instructions.md` — test structure, naming, and property-based testing patterns
-- `scripts.instructions.md` — CLI scripts, build, and automation
-- `generated.instructions.md` — generated artifact handling
-- `dogfood.instructions.md` — dogfood content and training data
+- `domain.instructions.md` — domain modeling rules and type conventions (applies within `product/domain/`).
+- `knowledge.instructions.md` — facet catalog authoring (applies within `product/catalog/`).
+- `tests.instructions.md` — test structure, naming, and property-based testing patterns (applies across all three folders).
+- `scripts.instructions.md` — CLI scripts, build, and automation.
+- `generated.instructions.md` — generated artifact handling.
+- `dogfood.instructions.md` — retires with the dogfood tree; do not edit under the current reshape.
+
+Per-folder `README.md` stubs land at Step 0 of the reshape and take precedence over this document for anything folder-specific.
 
 ## Review surface contract
 
-Every meaningful change should preserve or improve these outputs:
+Every meaningful change should preserve or improve these outputs. Paths below reflect the post-reshape destinations; the v1 paths currently in use are in the v1-reference docs.
 
-- `generated/{suite}/{ado_id}.spec.ts`
-- `generated/{suite}/{ado_id}.trace.json`
-- `generated/{suite}/{ado_id}.review.md`
-- `generated/{suite}/{ado_id}.proposals.json`
-- `.tesseract/tasks/{ado_id}.resolution.json`
-- `.tesseract/graph/index.json`
+- `product/generated/{suite}/{ado_id}.spec.ts` — the emitted Playwright test.
+- `product/generated/{suite}/{ado_id}.trace.json` — the authoring trace.
+- `product/generated/{suite}/{ado_id}.review.md` — the human-legible review surface.
+- `product/generated/{suite}/{ado_id}.proposals.json` — the proposal bundle for operator review.
+- `product/logs/tasks/{ado_id}.resolution.json` — the task resolution receipt.
+- `workshop/scorecard/scorecard.json` — the loss curve with history + Pareto frontier.
+- `workshop/logs/receipts/` — hypothesis receipts (append-only).
 
 If a new workflow cannot explain itself through those artifacts, it is under-modeled.
 
 ## Agent workflow
 
-Prefer this command sequence when orienting:
+When orienting a fresh session:
 
-```powershell
-npm run context
-npm run workflow
-npm run paths
-npm run trace
-npm run impact
-npm run surface
-npm run graph
-npm run run
-npm run types
-npm test
+1. Read CLAUDE.md (this doc) and `docs/v2-direction.md §§1–2` — that's the three-folder shape and the seam.
+2. Read the `README.md` of the folder your task lives in (landing at Step 0).
+3. Run `npm run map` and `npm run context` for auto-generated navigation.
+4. Read the specific v2 doc section your task references (direction, substrate, transmogrification, delta audit, or feature ontology).
+
+When working in code:
+
+```bash
+npm run build          # full build across all folders
+npm run build:product  # product/ only (after Step 0)
+npm run build:workshop # workshop/ only (after Step 0)
+npm run build:dashboard # dashboard/ only (after Step 0)
+npm test               # full test suite
 ```
 
-An agent should be able to discover:
+Until Step 0 lands, all code lives under `lib/` and the old commands (`npm run workflow`, `npm run paths`, `npm run trace`, etc.) continue to work as v1-documented.
 
-- which files are canonical
-- which controls are active for a scenario or runbook
-- which artifacts were derived
-- which knowledge and prior evidence the runtime agent will receive
-- which supplements were used
-- where certification or operator follow-up is needed
-- where the bottleneck is
+## MCP and workshop CLI
 
-without relying on repo lore.
-
-## MCP tool workflow
-
-When the Tesseract MCP server is connected (via `.mcp.json`), prefer MCP tools over CLI commands:
-
-```
-get_learning_summary          # Orient — first call in any session
-list_proposals                # Review pending/activated proposals
-activate_proposal             # Approve a specific proposal by ID
-get_convergence_proof         # Check if the learning loop converges
-get_fitness_metrics           # Scorecard: hit rate, precision, velocity
-get_suggested_action          # Ranked next actions based on system state
-start_speedrun                # Launch Loop B (iterate) on the checked-in corpus
-get_loop_status               # Monitor running loop
-get_queue_items               # See pending decisions
-get_decision_context          # Rich context for a decision
-approve_work_item             # Approve and resume fiber
-suggest_hint                  # Contribute knowledge directly
-get_contribution_impact       # See if contributions helped
-```
+The MCP server and its read tools land in `dashboard/mcp/` after Step 0 of the reshape. Until then they live at `lib/infrastructure/mcp/`. The observe-side tools (`get_learning_summary`, `list_proposals`, `get_fitness_metrics`, `get_queue_items`, etc.) continue to work unchanged through both phases.
 
 ### MCP fallback: direct tool bridge
 
-If the MCP server fails to connect (common in web sessions or non-desktop environments), use the bridge script as a fallback. It calls the same tool handlers directly, bypassing stdio transport:
+If the MCP server fails to connect, use the bridge script:
 
 ```bash
-# Orient
-npx tsx scripts/mcp-call.ts get_learning_summary
-
-# List tools
-npx tsx scripts/mcp-call.ts
-
-# Call any tool with JSON args
+npx tsx scripts/mcp-call.ts                          # list tools
+npx tsx scripts/mcp-call.ts get_learning_summary     # orient
 npx tsx scripts/mcp-call.ts list_proposals '{"status":"activated"}'
-npx tsx scripts/mcp-call.ts get_convergence_proof
-npx tsx scripts/mcp-call.ts activate_proposal '{"proposalId":"abc123"}'
 npx tsx scripts/mcp-call.ts get_fitness_metrics
-npx tsx scripts/mcp-call.ts list_screens
 npx tsx scripts/mcp-call.ts get_suggested_action
 ```
 
-The bridge script (`scripts/mcp-call.ts`) supports all tools including host-mode tools like `activate_proposal` and `suggest_hint`. It reads from `.tesseract/` artifacts and writes to `dogfood/knowledge/` — the same paths the MCP server uses.
+The bridge calls the same tool handlers directly, bypassing stdio transport. Paths resolve to `.tesseract/` today and to `workshop/` after Step 0.
 
 ### Agent-in-the-loop: real-time proposal approval
 
-Run the speedrun with `--mcp-decisions` so the loop pauses at iteration boundaries waiting for agent decisions. The bridge script writes decision files that the running loop picks up:
+The workshop's speedrun can pause at iteration boundaries waiting for agent decisions:
 
 ```bash
-# Terminal 1: Start speedrun with MCP decision mode (pauses for agent approval)
+# Terminal 1: start the iterate phase in MCP decision mode
 npx tsx scripts/speedrun.ts iterate --mcp-decisions --max-iterations 4 --decision-timeout 300000
 
-# Terminal 2 (agent): List pending work items
+# Terminal 2: agent approves from the bridge
 npx tsx scripts/mcp-call.ts get_queue_items '{"status":"pending"}'
-
-# Terminal 2 (agent): Approve a pending proposal (resumes the paused fiber)
 npx tsx scripts/mcp-call.ts approve_work_item '{"workItemId":"<id>","rationale":"Agent approved"}'
-
-# Terminal 2 (agent): Skip a work item
-npx tsx scripts/mcp-call.ts skip_work_item '{"workItemId":"<id>","rationale":"Low confidence"}'
 ```
 
-The file-backed decision bridge (`lib/infrastructure/dashboard/file-decision-bridge.ts`) uses atomic temp-file + rename writes to `.tesseract/workbench/decisions/`. The running speedrun watches this directory with `fs.watch` and resumes the paused fiber when a decision arrives.
+The file-backed decision bridge uses atomic temp-rename writes to the decision directory; the running speedrun watches with `fs.watch` and resumes the paused fiber when a decision arrives. Writer side moves to `product/instruments/handshake/`; watcher stays with `dashboard/bridges/`.
 
-### Speedrun via CLI (when MCP start_speedrun is unavailable)
-
-The bundled "no-subcommand → multiSeedSpeedrun" mode has been removed.
-Compose the four doctrinal verbs explicitly:
+### Workshop CLI — the four-verb orchestration
 
 ```bash
-# Loop A — produce the frozen reference corpus (run once per workload change)
+# Produce the reference workload (post-reshape: probes derived from manifest replace this step)
 npx tsx scripts/speedrun.ts corpus --seed warm-v1
 
-# Loop B — substrate growth on the checked-in corpus
+# Substrate growth on the current workload
 npx tsx scripts/speedrun.ts iterate --max-iterations 3 --posture warm-start
 
 # Compute the fitness report from run records
 npx tsx scripts/speedrun.ts fitness
 
-# Loop C — project into the L4 metric tree and (optionally) diff a baseline
+# Project into the metric tree and optionally diff a baseline
 npx tsx scripts/speedrun.ts score --baseline latest
 
-# Snapshot the L4 tree as a labeled baseline for future score diffs
+# Snapshot the metric tree as a labeled baseline for future diffs
 npx tsx scripts/speedrun.ts baseline --label pre-edit
 
-# Cold-start convergence proof (wipes knowledge each trial)
+# N-trial convergence proof (hylomorphic statistical harness)
 npx tsx scripts/convergence-proof.ts --trials 2 --count 10 --max-iterations 4
-
-# Diagnostic mode (no Playwright, faster)
-npx tsx scripts/convergence-proof.ts --trials 2 --count 5 --max-iterations 3 --mode diagnostic
 ```
 
-### Learning loop health checks
+### Workshop health checks
 
-After any speedrun, verify the learning chain:
+After any workshop run, verify:
 
-1. `get_convergence_proof` — does the loop converge? Look for `converges: true` and decreasing proposal counts.
-2. `get_fitness_metrics` — is hit rate improving? `resolutionByRung` shows where steps resolve.
-3. `list_proposals` — are proposals being generated AND activated? Both counts should be non-zero.
+1. `get_fitness_metrics` — is the knowledge hit rate / effective hit rate improving? `resolutionByRung` shows where steps resolve.
+2. `list_proposals` — are proposals being generated AND activated? Both counts should be non-zero.
+3. `get_convergence_proof` — does the loop converge? Look for `converges: true`.
 4. `get_learning_summary` — holistic view with `actionRequired` priorities.
 
-If proposals show `generated > 0` but `activated = 0`, the activation pipeline may be broken. Check that `lib/application/activate-proposals.ts` uses `paths.suiteRoot` (not `rootDir`) for knowledge file writes.
+If proposals show `generated > 0` but `activated = 0`, the activation pipeline may be broken.
 
 ## Trust policy boundary
 
-Trust policy evaluates certification for canonical changes such as:
+Trust policy lives in `workshop/policy/` (`workshop/policy/trust-policy.yaml` + `workshop/policy/evaluate.ts`). It evaluates activation of canonical changes — elements, postures, hints, patterns, surfaces, snapshot templates, routes — against confidence thresholds and evidence requirements. Active enforcement: every proposal activation passes through it.
 
-- elements
-- postures
-- hints
-- patterns
-- surfaces
-- snapshot templates
-
-Trust policy does not block compiler output that was derived from existing canon, and it does not prevent activation of schema-valid runtime-acquired canon.
+Trust policy does not block `product/` compiler output derived from existing canon; it does not block runtime-acquired canon that satisfies its thresholds. Numeric thresholds recalibrate as probes derived from the manifest surface real evidence — threshold changes land through the same proposal-gated discipline the policy already enforces on catalog writes.
 
 ## Optimization lane
 
-DSPy, GEPA, and similar tooling are welcome in the offline evaluation lane only.
+DSPy, GEPA, and similar tooling are welcome in `workshop/optimization/` only — the offline evaluation lane.
 
 Use them for:
 
 - ranking proposals
-- tuning agent prompts
+- tuning agent prompts (the `Reasoning` port's prompt structure)
 - measuring trace and evidence quality
-- improving benchmark outcomes
+- improving probe coverage and batting average
 
-Do not route them into the deterministic compiler core.
+Do not route them into `product/` or into runtime-resolution paths.
+
+---
+
+**Where this document is canonical and where it is transitional:** the three-folder compartmentalization, the seam discipline, the probe IR, the metric visitor audit, and the graduation condition are current v2 doctrine. The specific folder paths (`product/runtime/`, `workshop/metrics/`, etc.) are authoritative for *what the code will look like after Step 0 lands*. Today's code still lives at `lib/...` paths; the mapping between `lib/` and `product/` / `workshop/` / `dashboard/` is enumerated in `docs/v2-transmogrification.md §13.0`. When a `lib/...` path and a `product/...` path disagree, the former is where the code currently is; the latter is where it is going.

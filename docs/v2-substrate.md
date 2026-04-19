@@ -1,10 +1,10 @@
 # v2 Substrate
 
-> Status: v2 planning — codebase-agnostic substrate, not a migration plan.
+> Status: v2 planning — the substrate as a set of primitives, invariants, and levels. Read alongside `v2-direction.md` which names the three-folder compartmentalization (`product/` / `workshop/` / `dashboard/`) this substrate lives under.
 
-This document describes what a second version of this system is, stated from first principles without reference to how the present codebase is organized. It is a planning artifact for a rewrite that ships product value against a real customer backlog from day one, and grows only under the pressure of shipping more.
+This document describes what v2 is as a set of primitives, levels, artifacts, and invariants. It is intentionally concise at the primitive level; the `v2-direction.md` and `v2-transmogrification.md` documents name where each primitive lands in the three-folder structure and how v1 compartmentalizes into v2.
 
-It does not describe a migration from the current codebase. It does not map present modules to future ones. It does not defend or indict prior choices. It proposes a substrate; selection of what to salvage happens after v2 has working code.
+Earlier drafts positioned this document as codebase-agnostic and treated v1 as a thing to salvage from after v2 had working code. That framing is retired: v2 is v1 reshaped in place under the three-folder seam, so the primitives described here are already partly implemented in v1. What this document defends is the primitive set — what must be true of the system's spine regardless of which folder a given module lives in.
 
 ## 1) The bet, in one paragraph
 
@@ -136,26 +136,66 @@ What the gate does reject: parallel abstractions, dual-master designs (serving a
 
 Determinism, typing, and architectural hygiene remain valuable tools in v2. They are not the organizing principle. The organizing principle is agent ergonomics in service of shipping tests a real customer QA team uses.
 
+## 6a) Testable surfaces and the probe IR — the spike protocol
+
+Before the probe IR becomes load-bearing in the construction order (see `v2-direction.md §5` Step 5), a **spike** validates whether manifest-derived probes can exercise real verb surfaces meaningfully. The spike is the discipline that keeps the IR honest; if the spike fails for a verb, that verb needs a hand-lifted schema instead, and the gap is named before any downstream step depends on the IR's authority.
+
+**What a probe is.** A `Probe` is a synthetic work item whose shape derives from a `TestableSurface` — a tuple of `(verb, inputShape, outputShape, errorFamilies, compositionPath)`. `TestableSurface[]` is computed by walking the manifest: every declared verb, every declared facet kind, every declared saga composition. Each `TestableSurface` maps to one or more probes through a per-verb **fixture specification** — a tiny YAML living alongside the verb declaration that says "when this verb is probed, here's a minimal valid input."
+
+**The spike protocol.**
+
+1. Pick three representative verbs across the difficulty spectrum: one simple (`observe`), one composite (`test-compose`), one reactive (`drift-emit` or `facet-query`).
+2. Author fixture specifications for each. Aim for ≤ 30 lines of YAML per verb; if a fixture needs more, that's a signal.
+3. Have `workshop/` synthesize probes from those fixtures and run them through `product/`'s normal authoring flow.
+4. Measure: for each (verb, fixture) pair, did the probe complete? Did it produce a run record of the expected shape? Did the expected outcome assert correctly?
+5. Produce a one-page verdict: what fraction of probes derive mechanically; which verbs needed fixture-schema additions; what gaps remain.
+
+**Pass condition.** ≥ 80% of probes derive from fixture + manifest with no hand-tuning; the remaining 20% are named with specific shape gaps that become fixture-schema proposals.
+
+**Fail condition.** > 20% of probes require bespoke handwritten work items, OR the fixture specifications grow past 30 lines for typical verbs, OR the probe set fails to exercise material parts of the verb's error-family surface. In this case, the IR concept stays but the spike's gap list becomes a set of named fixture-schema investments before the IR becomes authoritative.
+
+**Why this matters at the substrate level.** The probe IR is the mechanism by which `workshop/` and `product/` exchange testability without leaking internals. If the IR cannot be validated cheaply against three verbs, the seam is not yet where the design claims it is — and the next steps land on sand. The spike is small by design so the answer arrives fast.
+
 ## 7) Measurement stance
 
-v2 measures itself with its own primitives. A synthetic testbed — a small set of committed work items with known expected outcomes — sits alongside the real intent source. The `intent-fetch` verb is polymorphic over its source, so testbed work items surface through the same handshakes every other work item uses. Evaluation is authoring against the testbed; metrics are derivations over the run-record log, declared as manifest verbs; hypotheses are proposals under the same review discipline memory uses.
+`workshop/` measures `product/` by reading `product/`'s manifest, deriving probes from the declared verb × facet-kind × error-family combinations, running those probes through `product/`'s normal authoring flow, and deriving metrics over the run-record log. No parallel apparatus. No hand-authored testbed corpus. No dual mastery between scoreboard and product. The primitives from §2 do not need extension for measurement; the seam does the work.
 
-The substrate does not prescribe specific metrics. They earn their way in through the proposal-gated mechanism everything else uses (§6). The starting set is deliberately small — test acceptance rate, authoring time, memory corroboration rate at L1+ — and grows only when a proposed metric proves it predicts something actionable.
+The substrate does not prescribe specific metrics. Metrics earn their way in through the proposal-gated mechanism everything else uses (§6). The workshop inherits the seven-visitor metric tree that already exists (`extraction-ratio`, `handshake-density`, `rung-distribution`, `intervention-cost`, `compounding-economics`, `memory-worthiness-ratio`, `intervention-marginal-value`) subject to audit (see `v2-substrate.md §8` and the audit table in `v2-direction.md §3.5`); new product-claim metrics (acceptance rate, authoring time, hypothesis confirmation rate) land alongside.
 
-The testbed itself grows in controlled verisimilitude increments. Version 0 is deliberately simple. Each increment is a committed artifact with a stable identifier; the version history is first-class. Regressions at higher-complexity versions surface cleanly because each version is independently runnable.
+The probe set grows as `product/` declares new verbs. Each new verb carries a fixture specification (a minimal YAML of "when probed, here's valid input") that lets `workshop/` synthesize probes for it automatically. The probe IR replaces the handwritten testbed-version sequence earlier drafts proposed; verisimilitude becomes a coverage metric against the product's declared surface, not a corpus of handwritten scenarios.
 
-Measurement ships with v2's codebase, not to customers. The team and the agent are the audience. The operating frame is **trust, but verify**: every code change carries a hypothesis, the next evaluation either corroborates or contradicts it, the receipt log is append-only, and the batting average is itself a derivation the agent can query. Small bets, reviewed, measured, receipted.
+Measurement ships with the codebase under `workshop/`, not to customers. The team and the agent are the audience. The operating frame is **trust, but verify**: every code change carries a hypothesis, the next evaluation either corroborates or contradicts it, the receipt log is append-only, and the batting average is itself a derivation the agent can query. Small bets, reviewed, measured, receipted.
 
-The aesthetic win is that measurement requires no new primitives. The testbed is an intent-source variant; evaluation is the normal authoring flow; metrics and hypotheses reuse the verb-declare and proposal-gated mechanisms respectively. The substrate is thin because the primitives are good.
+`workshop/` has an explicit graduation condition. When probes cover every manifest-declared verb × facet-kind × error-family combination (coverage = 100%) and the batting average sustains above its floor across a rolling window, the workshop's active role is complete. What remains is a passive alarm that runs the same probes, posts scorecard updates, and flags regressions — but does not propose new measurements against a surface that is already fully measured. This is how the workshop puts itself out of a job, and it is how `product/` eventually packages for customer distribution without carrying the workshop's active cadence.
+
+The aesthetic win is that measurement becomes structural: the seam between `product/` and `workshop/` is the manifest plus the log set, and the probe IR is the mechanical projection that makes the seam measurable. The substrate is thin because the primitives are good; the measurement is thin because the seam does the work.
 
 ## 8) Deliberately deferred
 
-These decisions are out of scope for this document and are expected to resolve as shipping L0 and L1 forces the choices. Each is a committed follow-up, not an open question.
+These decisions are out of scope for this document and are expected to resolve as shipping pressure forces the choices. Each is a committed follow-up, not an open question.
 
-- **Facet schema.** Concrete fields on a facet entry, the facet-type taxonomy, and the relationship grammar between facets. Resolved at L0–L1 by what the agent actually needs to read and write to author working tests.
-- **Verb taxonomy.** The concrete list of agent-facing verbs and their signatures. Resolved at L0 by the minimum agent-to-instrument API sufficient to ship a first test; extended per level as new instruments are added.
-- **Test output format.** Language, framework, file layout of generated tests. Resolved at L0 by what the customer's QA team recognizes as house style for OutSystems testing.
-- **Manifest format.** The concrete shape of the agent fluency manifest and how it stays in sync with the code. Resolved at L0 when the first agent has to read it to do its job.
-- **Drift semantics.** How confidence is computed, what thresholds gate the L3 policy, and how refinement logic works. Resolved at L3 and L4.
-- **Operator interaction model.** The chat, dialog, and document channels; how operator input is attributed, reviewable, and revocable; where consent lives. Resolved incrementally at L2.
-- **Salvage from the previous codebase.** Not decided in this document. If and when salvage happens, it happens after v2 has working code at some level at or above L1, and never in a way that reintroduces v1's organizing principles as v2's default.
+- **Facet schema concrete fields.** Field list, the facet-type taxonomy, and the relationship grammar between facets. Resolved at the compartmentalization Step 3 (`v2-direction.md §6`) by consolidating v1's split-across-two-files pattern into a single record, with the exact kind extensions (element / state / vocabulary / route) finalized as real customer work surfaces the requirements.
+- **Verb taxonomy.** The concrete list of agent-facing verbs and their signatures. Resolved at Step 2 (manifest + fluency harness) by the minimum agent-to-instrument API sufficient to ship a first test; extended per level as new instruments land.
+- **Test output format.** Language, framework, file layout of generated tests. Resolved at Step 6 (L0 ship) by what the customer's QA team recognizes as house style for OutSystems testing.
+- **Manifest format.** The concrete shape of the agent fluency manifest and how it stays in sync with the code. Resolved at Step 2 when the first agent has to read it to do its job.
+- **Drift semantics.** How confidence is computed, what thresholds gate the L3 policy, and how refinement logic works. Resolved at Steps 9–10 (L3 + L4).
+- **Operator interaction model.** The chat, dialog, and document channels; how operator input is attributed, reviewable, and revocable; where consent lives. Resolved incrementally at Step 8 (L2).
+- **Probe IR verdicts for additional verbs.** The spike protocol (§6a) covers three representative verbs. The per-verb fixture specifications for the remaining declared verbs get authored as those verbs ship; the IR's authority extends verb by verb as fixtures land.
+
+## 8a) Metric visitor audit — port verdicts per visitor
+
+The seven inherited visitors (`extraction-ratio`, `handshake-density`, `rung-distribution`, `intervention-cost`, `compounding-economics`, `memory-worthiness-ratio` / M5, `intervention-marginal-value` / C6) each carry forward into `workshop/metrics/` under one of three dispositions. None retire as concepts; the dispositions differ in how much implementation reshape is required.
+
+| Visitor | Disposition | Reshape scope | Notes |
+|---|---|---|---|
+| `extraction-ratio` | port unchanged | 0 LOC | Hit-rate frontier is substrate-generic. Computes over any run record regardless of source. |
+| `handshake-density` | port unchanged | 0 LOC | Suspension / agent-fallback / live-DOM-fallback rates are intrinsic to any authoring flow. |
+| `rung-distribution` | port unchanged | 0 LOC | Rung precedence is a resolver-level concept that survives the monolith split of `resolution-stages.ts`. |
+| `intervention-cost` | minor recalibration | 1–2 LOC | Fallback formula (suspension + agent-fallback) is stable. The primary signal (`operator-intervention-density` proof obligation) may not exist post-compartmentalization; mark the fallback as primary when the obligation is absent. |
+| `compounding-economics` | significant reshape | 15–30 LOC | Concept survives (does memory earn its keep). Implementation decouples from the `compounding-economics` proof obligation and the `.canonical-artifacts/` tax model; refactors around the probe-coverage cohort key introduced below. |
+| `memory-worthiness-ratio` (**M5**) | significant reshape | 30+ LOC + trajectory redesign | Concept is load-bearing for workshop graduation. Implementation retires its scenario-ID cohort key and re-indexes trajectories by **probe-surface cohort** (probes exercising the same verb × facet-kind × error-family triple). The slope formula `slope(effectiveHitRate over MemoryMaturity) / maintenanceOverhead` stays intact; what changes is what "cohort-comparable" means. |
+| `intervention-marginal-value` (**C6**) | significant reshape | 30+ LOC | Concept is the **workshop graduation gate**. The v1 stub pending `InterventionTokenImpact` ledger work retires; the successor is **`metric-hypothesis-confirmation-rate`** — the fraction of hypothesis receipts where `confirmed === true` across a rolling window. This is C6 in probe-IR language and lands as a manifest-declared metric verb at `v2-direction.md §6` Step 10. |
+
+**Summary verdict:** three visitors port unchanged; one ports with a one-line comment; three port with significant reshape. **No visitor retires as a concept.** M5 and C6 require the most work, but both answer questions the workshop graduation gate cannot retire: "is memory compounding?" and "does accepting a hypothesis pay off?"
+
+**Audit background:** the per-visitor rationale and the per-file code references (visitor implementations plus supporting types under `lib/domain/fitness/`) are summarized from a full-read audit performed 2026-04-17. The audit identified M5's cohort dependency on the v1 10000/20000 scenario partition and C6's dependency on the improvement-ledger stub as the two load-bearing reshape surfaces. The scenario partition retires with the dogfood tree (`v2-direction.md §4B`); the ledger stub retires with the workshop's shift to hypothesis receipts as the durable proposal-outcome record.

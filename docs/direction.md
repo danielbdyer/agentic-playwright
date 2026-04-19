@@ -1,10 +1,10 @@
-# Tesseract Direction
+# Tesseract Direction (v1-era)
 
-> Canonical — owner direction (see master-architecture.md for full doctrine)
+> Historical owner direction from the v1 era. **Not authoritative under v2.** For current v2 direction see `docs/v2-direction.md`. This document is retained because parts of its implementation-bias section remain sound as practice within `product/`; the specific sequencing (near-term owner priorities) is superseded by `docs/v2-direction.md §6`.
 
-`docs/master-architecture.md` is now the authoritative architecture specification.
+For v1's historical architecture doctrine see `docs/v1-reference/master-architecture.md`.
 
-This document remains as a shorter owner-direction note: it captures transition decisions, sequencing, and non-negotiable implementation bias while the repo moves toward the master architecture.
+This document captured the transition from compiler-only framing to the three-spine model (Interface Intelligence / Agent Workbench / Recursive Improvement) that v1 ran under. v2 compartmentalizes those spines into three folders (`product/` / `workshop/` / `dashboard/`) with a manifest-mediated seam; the owner-direction intent (reusable structural knowledge, approved artifacts as canonical truth, derived-from-canon as ratcheting) carries forward but lives in `v2-direction.md` under a reshaped frame.
 
 ## Directional shift
 
