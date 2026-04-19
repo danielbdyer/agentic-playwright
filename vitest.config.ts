@@ -11,7 +11,12 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['tests/**/*.laws.spec.ts', 'tests/**/*.spec.ts'],
+    include: [
+      'tests/**/*.laws.spec.ts',
+      'tests/**/*.spec.ts',
+      'product/tests/**/*.laws.spec.ts',
+      'product/tests/**/*.spec.ts',
+    ],
     exclude: [
       'tests/integration/**/*.spec.ts',
       'tests/**/playwright-*.spec.ts',
