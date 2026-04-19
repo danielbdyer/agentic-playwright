@@ -20,7 +20,7 @@
  * write actions only during pause).
  */
 
-import { createPlaywrightBridge, type PlaywrightBridgePort } from '../mcp/playwright-mcp-bridge';
+import { createPlaywrightBridge, type PlaywrightBridgePort } from '../../../dashboard/mcp/playwright-mcp-bridge';
 
 // ─── Types ───
 

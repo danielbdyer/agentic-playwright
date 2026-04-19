@@ -11,7 +11,7 @@
  * - Commands (tesseract.refresh, tesseract.approve, tesseract.rerun)
  *
  * The extension introduces no new domain concepts. All business logic
- * lives in lib/infrastructure/vscode/ as pure functions.
+ * lives in product/instruments/vscode/ as pure functions.
  */
 
 import * as vscode from 'vscode';

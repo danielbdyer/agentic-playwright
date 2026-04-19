@@ -20,7 +20,7 @@ import {
   phaseNames,
   type DogfoodConfig,
   type LoopMetrics,
-} from '../../lib/application/improvement/dogfood-orchestrator';
+} from '../../workshop/orchestration/dogfood-orchestrator';
 
 // ─── Fixtures ───
 

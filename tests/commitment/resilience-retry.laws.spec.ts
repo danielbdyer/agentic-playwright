@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
-import { createLlmApiProvider, DEFAULT_TRANSLATION_CONFIG } from '../../lib/application/resolution/translation/translation-provider';
-import { DEFAULT_AGENT_INTERPRETER_CONFIG, resolveAgentInterpreterProvider } from '../../lib/application/agency/agent-interpreter-provider';
-import type { TranslationRequest } from '../../lib/domain/resolution/types';
-import { createElementId, createScreenId } from '../../lib/domain/kernel/identity';
-import type { AgentInterpretationRequest } from '../../lib/domain/interpretation/agent-interpreter';
+import { createLlmApiProvider, DEFAULT_TRANSLATION_CONFIG } from '../../product/reasoning/translation-provider';
+import { DEFAULT_AGENT_INTERPRETER_CONFIG, resolveAgentInterpreterProvider } from '../../product/reasoning/agent-interpreter-provider';
+import type { TranslationRequest } from '../../product/domain/resolution/types';
+import { createElementId, createScreenId } from '../../product/domain/kernel/identity';
+import type { AgentInterpretationRequest } from '../../product/domain/interpretation/agent-interpreter';
 
 const request: TranslationRequest = {
   version: 1,

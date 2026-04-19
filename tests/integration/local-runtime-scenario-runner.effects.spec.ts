@@ -3,15 +3,15 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import { Effect } from 'effect';
 import { expect, test } from '@playwright/test';
-import { createProjectPaths, translationCachePath } from '../../lib/application/paths';
-import { translationCacheKey } from '../../lib/application/resolution/translation/translation-cache';
-import type { TranslationReceipt, TranslationRequest } from '../../lib/domain/resolution/types';
-import { createElementId, createScreenId } from '../../lib/domain/kernel/identity';
+import { createProjectPaths, translationCachePath } from '../../product/application/paths';
+import { translationCacheKey } from '../../product/reasoning/translation-cache';
+import type { TranslationReceipt, TranslationRequest } from '../../product/domain/resolution/types';
+import { createElementId, createScreenId } from '../../product/domain/kernel/identity';
 import {
   buildCachedTranslator,
   buildDefaultTranslator,
   bridgeAgentInterpreterForRuntime,
-} from '../../lib/composition/local-runtime-scenario-runner';
+} from '../../product/composition/local-runtime-scenario-runner';
 
 function createRequest(): TranslationRequest {
   return {

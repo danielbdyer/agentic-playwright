@@ -1,7 +1,7 @@
 import { Effect, Either, Schema } from 'effect';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
 import { renderOperatorInboxMarkdown, buildOperatorInboxItems } from '../agency/operator';
-import { buildWorkflowHotspots } from '../improvement/hotspots';
+import { buildWorkflowHotspots } from '../../../workshop/orchestration/hotspots';
 import type { ProjectPaths } from '../paths';
 import { relativeProjectPath } from '../paths';
 import { FileSystem, Dashboard } from '../ports';

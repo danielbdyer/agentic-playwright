@@ -1,3 +1,3 @@
-export { widgetCapabilityContracts } from '../../../lib/domain/widgets/contracts';
-export type { WidgetActionHandler } from '../../../lib/runtime/widgets';
-export { widgetActionHandlers } from '../../../lib/runtime/widgets';
+export { widgetCapabilityContracts } from '../../../product/domain/widgets/contracts';
+export type { WidgetActionHandler } from '../../../product/runtime/widgets';
+export { widgetActionHandlers } from '../../../product/runtime/widgets';

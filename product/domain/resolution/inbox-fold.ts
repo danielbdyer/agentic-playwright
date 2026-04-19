@@ -2,7 +2,7 @@
  * Exhaustive fold for `OperatorInboxItemKind`.
  *
  * The 6-case `OperatorInboxItem.kind` discriminator was previously
- * scattered across `lib/application/agency/operator.ts` as 5 separate
+ * scattered across `product/application/agency/operator.ts` as 5 separate
  * `switch` blocks (`requestedParticipation`, `blockageType`, `blastRadius`,
  * `requiredCapabilities`, `requiredAuthorities`). The same shape recurs
  * across MCP and projection consumers.

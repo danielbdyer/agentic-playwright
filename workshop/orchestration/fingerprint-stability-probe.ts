@@ -1,7 +1,7 @@
 /**
  * Fingerprint-stability probe — Phase 1.4 application layer.
  *
- * The Phase 1 `lib/domain/fitness/fingerprint-stability.ts` module
+ * The Phase 1 `workshop/metrics/fingerprint-stability.ts` module
  * declared the pure comparison and the obligation shape. This module
  * is the Effect-orchestrated driver that actually *runs* the probe:
  * walk the workspace's generated artifacts, hash them, and either
@@ -30,16 +30,16 @@
 
 import path from 'path';
 import { Effect } from 'effect';
-import { FileSystem } from '../ports';
-import { sha256 } from '../../domain/kernel/hash';
+import { FileSystem } from '../../product/application/ports';
+import { sha256 } from '../../product/domain/kernel/hash';
 import {
   compareArtifactFingerprints,
   fingerprintStabilityObligation,
   type ArtifactFingerprintMap,
-} from '../../domain/fitness/fingerprint-stability';
-import type { LogicalProofObligation } from '../../domain/fitness/types';
-import { walkFiles } from '../catalog/artifacts';
-import type { ProjectPaths } from '../paths';
+} from '../metrics/fingerprint-stability';
+import type { LogicalProofObligation } from '../metrics/types';
+import { walkFiles } from '../../product/application/catalog/artifacts';
+import type { ProjectPaths } from '../../product/application/paths';
 
 /** Where the probe stores its canonical snapshot on disk.
  *  Lives under `.tesseract/` (runtime dir, always gitignored) rather

@@ -31,8 +31,8 @@
  * pattern, drift-mode, resolution-override, posture-sample) come
  * from different surfaces and live in their own decomposers.
  *
- * Pure application — depends on lib/domain/pipeline (typed
- * envelopes) and lib/domain/target/interface-graph (DiscoveryRun
+ * Pure application — depends on product/domain/pipeline (typed
+ * envelopes) and product/domain/target/interface-graph (DiscoveryRun
  * shape). No Effect, no IO, no mutation.
  */
 

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { buildWorkflowHotspots } from '../../lib/application/improvement/hotspots';
-import type { InterpretationDriftRecord, RunRecord } from '../../lib/domain/execution/types';
-import { createAdoId } from '../../lib/domain/kernel/identity';
+import { buildWorkflowHotspots } from '../../workshop/orchestration/hotspots';
+import type { InterpretationDriftRecord, RunRecord } from '../../product/domain/execution/types';
+import { createAdoId } from '../../product/domain/kernel/identity';
 
 function fakeRun(input: {
   adoId: string;

@@ -1,20 +1,20 @@
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { activateProposalBundle } from '../../lib/application/knowledge/activate-proposals';
-import { loadWorkspaceCatalog } from '../../lib/application/catalog';
+import { activateProposalBundle } from '../../product/application/knowledge/activate-proposals';
+import { loadWorkspaceCatalog } from '../../product/application/catalog';
 import {
   createProposalBundleEnvelope,
   createScenarioEnvelopeFingerprints,
   createScenarioEnvelopeIds,
-} from '../../lib/application/catalog/envelope';
-import { resolveAgentSessionAdapter } from '../../lib/application/resolution/provider-registry';
-import { refreshScenario } from '../../lib/application/resolution/refresh';
-import { runScenario } from '../../lib/application/commitment/run';
-import { runWithLocalServices } from '../../lib/composition/local-services';
-import { createAdoId } from '../../lib/domain/kernel/identity';
-import { graphIds } from '../../lib/domain/kernel/ids';
-import type { ProposalEntry } from '../../lib/domain/execution/types';
+} from '../../product/application/catalog/envelope';
+import { resolveAgentSessionAdapter } from '../../product/application/resolution/provider-registry';
+import { refreshScenario } from '../../product/application/resolution/refresh';
+import { runScenario } from '../../product/application/commitment/run';
+import { runWithLocalServices } from '../../product/composition/local-services';
+import { createAdoId } from '../../product/domain/kernel/identity';
+import { graphIds } from '../../product/domain/kernel/ids';
+import type { ProposalEntry } from '../../product/domain/execution/types';
 import { createTestWorkspace } from '../support/workspace';
 import { policySearchScreenId, policyNumberInputId } from '../support/compiler-helpers';
 

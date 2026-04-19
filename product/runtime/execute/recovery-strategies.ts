@@ -142,7 +142,7 @@ export function runRecoveryChain(
   policyProfile: string,
 ): RecoveryChainResult {
   // Delegate to the Kleisli iterator `freeSearch` from
-  // lib/domain/algebra/free-forgetful.ts. Each strategy is a
+  // product/domain/algebra/free-forgetful.ts. Each strategy is a
   // candidate; the per-candidate attempt runs its own inner loop
   // over `attempt: 1..maxAttempts`, accumulates RecoveryAttempt
   // records, and returns a "result" of true when recovery

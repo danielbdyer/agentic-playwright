@@ -1,48 +1,48 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals, tryActivateProposal } from '../knowledge/activate-proposals';
-import { isActivated, isPending } from '../../domain/proposal/lifecycle';
-import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from '../catalog';
-import { buildPartialFitnessMetrics } from '../improvement/fitness';
+import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicProposals, tryActivateProposal } from '../../product/application/knowledge/activate-proposals';
+import { isActivated, isPending } from '../../product/domain/proposal/lifecycle';
+import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from '../../product/application/catalog';
+import { buildPartialFitnessMetrics } from './fitness';
 import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';
 import { aggregateLearningState, type LearningState } from '../learning/learning-state';
-import { buildExecutionCoherence } from '../drift/execution-coherence';
+import { buildExecutionCoherence } from '../../product/application/drift/execution-coherence';
 import { signalMaturity, buildLearningSignalsSummary, countDegradingSignals } from '../learning/signal-maturation';
-import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from '../agency/agent-workbench';
-import { createDashboardDecider } from '../agency/dashboard-decider';
-import { createDualModeDecider, createAgentDecider } from '../agency/agent-decider';
-import type { BottleneckWeightCorrelation } from '../../domain/fitness/types';
-import type { AgentWorkItem, WorkItemCompletion } from '../../domain/handshake/workbench';
-import { detectAliasConflicts } from '../../domain/knowledge/inference';
-import { dashboardEvent } from '../../domain/observation/dashboard';
-import type { DashboardPort } from '../ports';
-import { Dashboard } from '../ports';
-import { improvementLoopLedgerPath, type ProjectPaths } from '../paths';
-import { compileScenariosParallel } from '../resolution/compile';
-import { runScenarioSelection } from '../commitment/run';
-import { FileSystem } from '../ports';
-import { runStateMachine } from '../resilience/state-machine';
-import { pruneTranslationCache } from '../resolution/translation/translation-cache';
+import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from '../../product/application/agency/agent-workbench';
+import { createDashboardDecider } from '../../product/application/agency/dashboard-decider';
+import { createDualModeDecider, createAgentDecider } from '../../product/application/agency/agent-decider';
+import type { BottleneckWeightCorrelation } from '../metrics/types';
+import type { AgentWorkItem, WorkItemCompletion } from '../../product/domain/handshake/workbench';
+import { detectAliasConflicts } from '../../product/domain/knowledge/inference';
+import { dashboardEvent } from '../../product/domain/observation/dashboard';
+import type { DashboardPort } from '../../product/application/ports';
+import { Dashboard } from '../../product/application/ports';
+import { improvementLoopLedgerPath, type ProjectPaths } from '../../product/application/paths';
+import { compileScenariosParallel } from '../../product/application/resolution/compile';
+import { runScenarioSelection } from '../../product/application/commitment/run';
+import { FileSystem } from '../../product/application/ports';
+import { runStateMachine } from '../../product/application/resilience/state-machine';
+import { pruneTranslationCache } from '../../product/reasoning/translation-cache';
 import { round4 } from '../learning/learning-shared';
-import type { BrowserPoolPort, BrowserPoolStats } from '../runtime-support/browser-pool';
+import type { BrowserPoolPort, BrowserPoolStats } from '../../product/application/runtime-support/browser-pool';
 import {
   readSemanticDictionary,
   writeSemanticDictionary,
   decayUnusedEntries,
-} from '../resolution/translation/semantic-translation-dictionary';
+} from '../../product/reasoning/semantic-translation-dictionary';
 import {
   type ConvergenceState,
   initialConvergenceState,
   isTerminal,
   transitionConvergence,
-} from '../../domain/projection/convergence-fsm';
-import type { AdoId } from '../../domain/kernel/identity';
-import { groupBy } from '../../domain/kernel/collections';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
-import { asDogfoodLedgerProjection, asImprovementLoopLedger } from '../../domain/improvement/types';
-import type { BottleneckWeights } from '../../domain/attention/pipeline-config';
-import type { ProposalBundle } from '../../domain/execution/types';
-import type { AutoApprovalPolicy, KnowledgePosture, TrustPolicy } from '../../domain/governance/workflow-types';
+} from '../../product/domain/projection/convergence-fsm';
+import type { AdoId } from '../../product/domain/kernel/identity';
+import { groupBy } from '../../product/domain/kernel/collections';
+import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
+import { asDogfoodLedgerProjection, asImprovementLoopLedger } from '../../product/domain/improvement/types';
+import type { BottleneckWeights } from '../../product/domain/attention/pipeline-config';
+import type { ProposalBundle } from '../../product/domain/execution/types';
+import type { AutoApprovalPolicy, KnowledgePosture, TrustPolicy } from '../../product/domain/governance/workflow-types';
 import type {
   DogfoodLedgerProjection,
   ImprovementLoopConvergenceReason,
@@ -50,12 +50,12 @@ import type {
   ImprovementLoopLedger,
   LearningSignalsSummary,
   SpeedrunProgressEvent,
-} from '../../domain/improvement/types';
-import { DEFAULT_AUTO_APPROVAL_POLICY } from '../../domain/governance/trust-policy';
-import { matureComponentKnowledge, type ComponentEvidence } from '../../domain/projection/component-maturation';
-import { aggregateQualityMetrics, findToxicAliases, type AliasOutcome } from '../../domain/proposal/quality';
-import type { RungRate } from '../../domain/fitness/types';
-import type { ScreenGroupDecider, WorkItemDecider } from '../agency/agent-workbench';
+} from '../../product/domain/improvement/types';
+import { DEFAULT_AUTO_APPROVAL_POLICY } from '../../product/domain/governance/trust-policy';
+import { matureComponentKnowledge, type ComponentEvidence } from '../../product/domain/projection/component-maturation';
+import { aggregateQualityMetrics, findToxicAliases, type AliasOutcome } from '../../product/domain/proposal/quality';
+import type { RungRate } from '../metrics/types';
+import type { ScreenGroupDecider, WorkItemDecider } from '../../product/application/agency/agent-workbench';
 import { collectPendingProposals } from './dogfood/activation';
 import {
   consecutivePairs,
@@ -491,7 +491,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
 
     // Step 3d: aggregate learning state from all intelligence modules
     const executionReceipts = (postRunCatalog.runRecords as unknown as ReadonlyArray<{
-      readonly artifact: { readonly steps: ReadonlyArray<{ readonly execution: import('../../domain/evidence/types').StepExecutionReceipt }> };
+      readonly artifact: { readonly steps: ReadonlyArray<{ readonly execution: import('../../product/domain/evidence/types').StepExecutionReceipt }> };
     }>).flatMap((entry) => entry.artifact.steps.map((step) => step.execution));
     const updatedLearningState = aggregateLearningState(executionReceipts, state.learningState);
     const coherence = buildExecutionCoherence({ learningState: updatedLearningState });
@@ -526,7 +526,7 @@ function runIteration(iteration: number, options: DogfoodOptions, state: LoopSta
     // multiple different elements. These create ambiguous resolution and should
     // be flagged for the agent to resolve. On warm-start especially, stale or
     // conflicting aliases degrade resolution quality.
-    const screenHintsMap: Record<string, import('../../domain/knowledge/types').ScreenHints> = {};
+    const screenHintsMap: Record<string, import('../../product/domain/knowledge/types').ScreenHints> = {};
     for (const hintsEnvelope of postRunCatalog.screenHints) {
       screenHintsMap[hintsEnvelope.artifact.screen] = hintsEnvelope.artifact;
     }

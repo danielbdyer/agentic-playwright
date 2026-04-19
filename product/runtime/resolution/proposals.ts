@@ -30,7 +30,7 @@ function enrichmentForElement(
 }
 
 function proposalStatusForSource(source: InterpretationSource): ProposalEpistemicStatus {
-  // InterpretationSource is a 3-variant union (lib/runtime/resolution/types.ts:85).
+  // InterpretationSource is a 3-variant union (product/runtime/resolution/types.ts:85).
   // Exhaustive switch — no default. Adding a new source variant
   // breaks the build here until it's handled, which is what we want.
   // Previously this function accepted `string` and had 8 cases plus a

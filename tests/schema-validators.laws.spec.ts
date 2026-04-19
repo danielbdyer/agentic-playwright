@@ -23,7 +23,7 @@ import {
   BoundStepSemanticSchema,
   WorkflowEnvelopeSemanticSchema,
   TrustPolicySemanticSchema,
-} from '../lib/domain/validation/schema-validators';
+} from '../product/domain/validation/schema-validators';
 import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───

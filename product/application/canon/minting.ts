@@ -51,8 +51,8 @@
  * through a batch transformation without passing it into every
  * intermediate step.
  *
- * Pure application — depends only on `lib/domain/pipeline` (typed
- * envelopes), `lib/domain/kernel/hash` (deterministic stringification
+ * Pure application — depends only on `product/domain/pipeline` (typed
+ * envelopes), `product/domain/kernel/hash` (deterministic stringification
  * + sha256). No Effect, no IO, no mutation.
  */
 
@@ -124,7 +124,7 @@ export interface AtomCandidate<C extends AtomClass, T> {
    *  becomes the atom envelope's `class` field. */
   readonly address: AtomAddressOf<C>;
   /** The atom's content — typed per atom class, typically an
-   *  existing domain type from `lib/domain/knowledge/types.ts`. */
+   *  existing domain type from `product/domain/knowledge/types.ts`. */
   readonly content: T;
   /** Upstream input references for the demotion machinery. When
    *  an upstream input changes, atoms whose `inputs` list contains

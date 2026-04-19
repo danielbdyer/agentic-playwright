@@ -23,9 +23,9 @@ import {
   createDisabledToolProvider,
   type AgentToolProvider,
   type McpToolInvoker,
-} from '../../lib/runtime/resolution/mcp-bridge';
-import { dashboardMcpTools, type McpToolDefinition } from '../../lib/domain/observation/dashboard';
-import type { McpToolInvocation, McpToolResult } from '../../lib/application/ports';
+} from '../../product/runtime/resolution/mcp-bridge';
+import { dashboardMcpTools, type McpToolDefinition } from '../../product/domain/observation/dashboard';
+import type { McpToolInvocation, McpToolResult } from '../../product/application/ports';
 
 // ─── Test Fixtures ───
 

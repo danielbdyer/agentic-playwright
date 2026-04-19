@@ -1,4 +1,4 @@
-import { emitOperatorInbox } from '../../agency/inbox';
+import { emitOperatorInbox } from '../../application/agency/inbox';
 import { createCommandSpec } from '../shared';
 
 export const inboxCommand = createCommandSpec({

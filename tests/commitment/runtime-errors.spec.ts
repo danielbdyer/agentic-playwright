@@ -4,7 +4,7 @@ import {
   snapshotHandleResolutionError,
   unknownEffectTargetError,
   unknownScreenError,
-} from '../../lib/domain/kernel/errors';
+} from '../../product/domain/kernel/errors';
 import {
   createAdoId,
   createElementId,
@@ -13,13 +13,13 @@ import {
   createSurfaceId,
   createWidgetId,
   type WidgetId,
-} from '../../lib/domain/kernel/identity';
-import { StepProgram } from '../../lib/domain/intent/types';
-import { deriveCapabilities } from '../../lib/domain/commitment/grammar';
-import { playwrightStepProgramInterpreter, runStepProgram, runtimeFailureDiagnostic } from '../../lib/runtime/execute/program';
-import { interact } from '../../lib/runtime/widgets/interact';
-import type { ScreenRegistry } from '../../lib/runtime/adapters/load';
-import { validateScreenElements, validateSurfaceGraph } from '../../lib/domain/validation';
+} from '../../product/domain/kernel/identity';
+import { StepProgram } from '../../product/domain/intent/types';
+import { deriveCapabilities } from '../../product/domain/commitment/grammar';
+import { playwrightStepProgramInterpreter, runStepProgram, runtimeFailureDiagnostic } from '../../product/runtime/execute/program';
+import { interact } from '../../product/runtime/widgets/interact';
+import type { ScreenRegistry } from '../../product/runtime/adapters/load';
+import { validateScreenElements, validateSurfaceGraph } from '../../product/domain/validation';
 
 const policySearchScreenId = createScreenId('policy-search');
 const policyNumberInputId = createElementId('policyNumberInput');

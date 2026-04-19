@@ -12,7 +12,7 @@ import { expect, test } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const LIB_ROOT = path.resolve(__dirname, '../..', 'lib');
+const LIB_ROOT = path.resolve(__dirname, '../..', 'product');
 
 function walkTs(dir: string): string[] {
   const results: string[] = [];
@@ -205,7 +205,7 @@ test('key domain interfaces use readonly fields', () => {
   ];
 
   for (const file of criticalFiles) {
-    const content = fs.readFileSync(path.join(LIB_ROOT, 'domain', file), 'utf-8');
+    const content = fs.readFileSync(file.startsWith('fitness/') ? path.join(LIB_ROOT, '..', 'workshop', 'metrics', file.slice('fitness/'.length)) : path.join(LIB_ROOT, 'domain', file), 'utf-8');
     // Find exported interfaces with non-readonly fields
     const interfaceBlocks = content.match(/export\s+interface\s+\w+[^{]*\{[^}]+\}/g) ?? [];
 
@@ -399,7 +399,7 @@ test('WorkflowEnvelope has all required fields and mapPayload preserves them', (
 // ─── Law: Discriminated unions with `kind` fields have fold coverage ───
 
 /**
- * Scans all type files under lib/domain/types/ for discriminated union types
+ * Scans all type files under product/domain/types/ for discriminated union types
  * that use a `kind` field as discriminant, then verifies that a corresponding
  * fold function exists in visitors.ts or in the defining type file itself.
  *

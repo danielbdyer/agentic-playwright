@@ -16,21 +16,21 @@
 
 import { Effect } from 'effect';
 import { translateIntentToOntology } from './translate';
-import type { ExecutionProfile } from '../../../domain/governance/workflow-types';
-import type { TranslationReceipt, TranslationRequest } from '../../../domain/resolution/types';
-import type { ElementId, ScreenId } from '../../../domain/kernel/identity';
+import type { ExecutionProfile } from '../domain/governance/workflow-types';
+import type { TranslationReceipt, TranslationRequest } from '../domain/resolution/types';
+import type { ElementId, ScreenId } from '../domain/kernel/identity';
 import {
   translationProviderError,
   translationProviderParseError,
   type TranslationProviderParseError,
   type TranslationProviderTimeoutError,
-} from '../../../domain/kernel/errors';
+} from '../domain/kernel/errors';
 import {
   RETRY_POLICIES,
   formatRetryMetadata,
   retryMetadata,
   retryScheduleForTaggedErrors,
-} from '../../resilience/schedules';
+} from '../application/resilience/schedules';
 
 // ─── Provider Contract (Strategy interface) ───
 
@@ -346,8 +346,8 @@ function createHybridProvider(
 // TranslationProviderKind. Adding a new variant to the union
 // becomes a TypeScript error here until a corresponding factory
 // is registered, matching the pattern used by L4_VISITORS at
-// lib/domain/fitness/metric/visitors/index.ts:42-50 and
-// AtomPromotionGateRegistry at lib/domain/pipeline/promotion-gate.ts:120-122.
+// workshop/metrics/metric/visitors/index.ts:42-50 and
+// AtomPromotionGateRegistry at product/domain/pipeline/promotion-gate.ts:120-122.
 
 type TranslationProviderFactory = (
   config: TranslationConfig,

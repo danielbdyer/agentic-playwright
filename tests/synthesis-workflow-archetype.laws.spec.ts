@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { createSeededRng } from '../lib/domain/kernel/random';
-import { composeWorkflowSteps, selectArchetype } from '../lib/domain/synthesis/workflow-archetype';
-import type { ScreenPlanInput } from '../lib/domain/synthesis/scenario-plan';
+import { createSeededRng } from '../product/domain/kernel/random';
+import { composeWorkflowSteps, selectArchetype } from '../product/domain/synthesis/workflow-archetype';
+import type { ScreenPlanInput } from '../product/domain/synthesis/scenario-plan';
 
 function policyFormScreen(): ScreenPlanInput {
   return {

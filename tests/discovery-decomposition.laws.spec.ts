@@ -20,21 +20,21 @@ import {
   decomposeDiscoveryRun,
   atomsOfClass,
   groupAtomsByClass,
-} from '../lib/application/discovery/decompose-discovery-run';
+} from '../product/application/discovery/decompose-discovery-run';
 import {
   createDiscoveryRunnerRegistry,
   type DiscoveryRunner,
   type DiscoveryRunnerId,
-} from '../lib/application/discovery/discovery-runner';
+} from '../product/application/discovery/discovery-runner';
 import {
   createScreenDiscoveryRunner,
   SCREEN_DISCOVERY_PRODUCED_CLASSES,
   SCREEN_DISCOVERY_RUNNER_ID,
-} from '../lib/application/discovery/screen-discovery-runner';
+} from '../product/application/discovery/screen-discovery-runner';
 
-import type { DiscoveryRun } from '../lib/domain/target/interface-graph';
-import type { AtomClass } from '../lib/domain/pipeline/atom-address';
-import { brandString } from '../lib/domain/kernel/brand';
+import type { DiscoveryRun } from '../product/domain/target/interface-graph';
+import type { AtomClass } from '../product/domain/pipeline/atom-address';
+import { brandString } from '../product/domain/kernel/brand';
 
 // ─── Fixture: a synthetic DiscoveryRun ───────────────────────────
 

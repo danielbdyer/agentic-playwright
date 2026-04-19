@@ -16,7 +16,7 @@ import {
   createSurfaceId,
 } from '../../domain/kernel/identity';
 import { tryAsync } from '../../application/effect';
-import { captureAriaYaml } from '../../playwright/aria';
+import { captureAriaYaml } from '../observation/aria';
 import { resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './browser-options';
 import type { Browser } from '@playwright/test';
 import type { LocatorStrategy } from '../../domain/governance/workflow-types';

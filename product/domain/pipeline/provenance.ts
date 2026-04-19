@@ -8,8 +8,8 @@
  * survive as type aliases for source-compatibility with existing
  * consumers, but they all refer to the same shape.
  *
- * Every mint helper in `lib/application/canon/minting.ts` and
- * every decomposer in `lib/application/canon/` threads a
+ * Every mint helper in `product/application/canon/minting.ts` and
+ * every decomposer in `product/application/canon/` threads a
  * `CanonProvenance` through to the output envelopes via
  * `mintAtom` / `mintComposition`. Adding a new provenance field
  * here automatically propagates to all three tiers.

@@ -9,8 +9,8 @@
  * of pipeline fidelity measured from clean-slate runs.
  */
 
-import type { ResolutionPrecedenceRung } from '../resolution/precedence';
-import type { StepWinningSource } from '../governance/workflow-types';
+import type { ResolutionPrecedenceRung } from '../../product/domain/resolution/precedence';
+import type { StepWinningSource } from '../../product/domain/governance/workflow-types';
 
 // ─── Pipeline Failure Classification ───
 

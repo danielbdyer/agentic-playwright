@@ -25,7 +25,7 @@ import {
   createDashboardMcpServer,
   type DashboardMcpServerOptions,
   type LoopStatus,
-} from '../../lib/infrastructure/mcp/dashboard-mcp-server';
+} from '../../dashboard/mcp/dashboard-mcp-server';
 
 function mockOptions(
   artifacts: Readonly<Record<string, unknown>>,

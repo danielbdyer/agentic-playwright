@@ -22,10 +22,10 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { Effect } from 'effect';
 import { expect, test } from '@playwright/test';
-import { runFingerprintStabilityProbe } from '../../lib/application/improvement/fingerprint-stability-probe';
-import { refreshScenario } from '../../lib/application/resolution/refresh';
-import { runWithLocalServices } from '../../lib/composition/local-services';
-import { createAdoId } from '../../lib/domain/kernel/identity';
+import { runFingerprintStabilityProbe } from '../../workshop/orchestration/fingerprint-stability-probe';
+import { refreshScenario } from '../../product/application/resolution/refresh';
+import { runWithLocalServices } from '../../product/composition/local-services';
+import { createAdoId } from '../../product/domain/kernel/identity';
 import { createTestWorkspace } from '../support/workspace';
 
 test('probe first run establishes baseline with score 1 and measurementClass=direct', async () => {

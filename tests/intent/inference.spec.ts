@@ -1,9 +1,9 @@
 import { readFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { parseSnapshotToScenario } from '../../lib/application/intent/parse';
-import { normalizeIntentText } from '../../lib/domain/knowledge/inference';
-import { validateAdoSnapshot } from '../../lib/domain/validation';
+import { parseSnapshotToScenario } from '../../product/application/intent/parse';
+import { normalizeIntentText } from '../../product/domain/knowledge/inference';
+import { validateAdoSnapshot } from '../../product/domain/validation';
 
 const rootDir = process.cwd();
 const suiteRoot = path.join(rootDir, 'dogfood');

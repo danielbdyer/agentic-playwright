@@ -6,15 +6,15 @@
  * @see docs/cold-start-convergence-plan.md § 4.C item 2
  */
 import { describe, test, expect } from 'vitest';
-import { createScreenId, createElementId } from '../../lib/domain/kernel/identity';
-import type { InterventionReceipt, InterventionAttachmentRegion } from '../../lib/domain/handshake/intervention';
-import type { ResolutionStepShape } from '../../lib/domain/handshake/region-snapshot';
+import { createScreenId, createElementId } from '../../product/domain/kernel/identity';
+import type { InterventionReceipt, InterventionAttachmentRegion } from '../../product/domain/handshake/intervention';
+import type { ResolutionStepShape } from '../../product/domain/handshake/region-snapshot';
 import {
   identifyMeasurableInterventions,
   measureIntervention,
   measureInterventionBatch,
   type MeasurableIntervention,
-} from '../../lib/domain/handshake/impact-scheduler';
+} from '../../product/domain/handshake/impact-scheduler';
 
 const SCREEN = createScreenId('policy-search');
 const ELEMENT = createElementId('searchButton');

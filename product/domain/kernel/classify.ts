@@ -17,12 +17,12 @@
  *
  * Two concrete instances in the codebase use this pattern today:
  *
- *   - `classifyFailure` in `lib/application/improvement/fitness.ts`
+ *   - `classifyFailure` in `workshop/orchestration/fitness.ts`
  *     — classifies a `StepOutcome` into a `PipelineFailureClass`
  *     based on translation score thresholds, recovery success, and
  *     winning-source fallback patterns.
  *   - `classifyFailure` in
- *     `lib/infrastructure/reporting/tesseract-reporter.ts` —
+ *     `product/instruments/reporting/tesseract-reporter.ts` —
  *     classifies a Playwright error message into a
  *     `FailureClassification` based on substring matches.
  *

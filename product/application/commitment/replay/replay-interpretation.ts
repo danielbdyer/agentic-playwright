@@ -10,7 +10,7 @@ import { createScenarioEnvelopeFingerprints } from '../../catalog/envelope';
 import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from '../select-run-context';
 import { interpretScenarioFromPlan } from '../interpret';
 import { emitOperatorInbox } from '../../agency/inbox';
-import { projectBenchmarkScorecard } from '../../improvement/benchmark';
+import { projectBenchmarkScorecard } from '../../../../workshop/orchestration/benchmark';
 import { buildDerivedGraph } from '../../graph/graph';
 
 interface InterpretationRecord {

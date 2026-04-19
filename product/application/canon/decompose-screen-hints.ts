@@ -24,7 +24,7 @@
  * enrichment data (aliases, locator ladder, snapshot aliases,
  * affordance, default value ref, parameter binding) lives in
  * `Atom<'element', ScreenElementHint>`. Per
- * `lib/application/catalog/types.ts:113`, the catalog stores
+ * `product/application/catalog/types.ts:113`, the catalog stores
  * `tier1Atoms` as an array (not a map), so two atoms with the same
  * address coexist without overwriting.
  *
@@ -65,7 +65,7 @@
  * **Type reuse — no parallel content shapes.** Per
  * `docs/domain-class-decomposition.md` § Knowledge row, the existing
  * domain type `ScreenElementHint` (defined at
- * `lib/domain/knowledge/types.ts:185-197`) IS the hint atom's
+ * `product/domain/knowledge/types.ts:185-197`) IS the hint atom's
  * canonical content shape.
  *
  * **Stable referent positioning.** Per `docs/domain-model.md`
@@ -76,9 +76,9 @@
  * hint's canonical home today is
  * `knowledge/screens/{screen}.hints.yaml`.
  *
- * Pure application — depends only on `lib/application/canon/minting`
- * (shared envelope machinery), `lib/domain/pipeline`, and
- * `lib/domain/knowledge/types`. No Effect, no IO, no mutation.
+ * Pure application — depends only on `product/application/canon/minting`
+ * (shared envelope machinery), `product/domain/pipeline`, and
+ * `product/domain/knowledge/types`. No Effect, no IO, no mutation.
  */
 
 import type { ScreenHints, ScreenElementHint } from '../../domain/knowledge/types';

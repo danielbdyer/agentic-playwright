@@ -21,7 +21,7 @@
  * each level.
  *
  * **Type reuse.** The atom content is the existing `Posture`
- * domain type from `lib/domain/knowledge/types.ts:355-358`.
+ * domain type from `product/domain/knowledge/types.ts:355-358`.
  *
  * **Stable referent positioning.** Per `docs/domain-model.md`
  * § Target gravitational well, postures are behavioral dispositions
@@ -31,8 +31,8 @@
  * **Ontology alignment.** Per `docs/domain-ontology.md` § Posture.
  *
  * Pure application — depends only on
- * `lib/application/canon/minting`, `lib/domain/pipeline`, and
- * `lib/domain/knowledge/types`. No Effect, no IO, no mutation.
+ * `product/application/canon/minting`, `product/domain/pipeline`, and
+ * `product/domain/knowledge/types`. No Effect, no IO, no mutation.
  */
 
 import type { ScreenPostures, Posture } from '../../domain/knowledge/types';

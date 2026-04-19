@@ -21,7 +21,7 @@ import { engage } from '../resolve/engage';
 import type { ScreenRegistry } from '../adapters/load';
 import { resolveLocator } from '../widgets/locate';
 import { describeLocatorStrategy } from '../widgets/locate';
-import { expectAriaSnapshot } from '../../playwright/aria';
+import { expectAriaSnapshot } from '../../instruments/observation/aria';
 import { interact } from '../widgets/interact';
 import { hasSnapshotTemplate, readSnapshotTemplate } from '../observe/snapshots';
 import type { RuntimeDiagnosticContext, RuntimeFailure, RuntimeResult } from '../result';

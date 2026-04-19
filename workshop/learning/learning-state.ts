@@ -10,22 +10,22 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type { StepExecutionReceipt } from '../../domain/execution/types';
-import type { ComponentProposal } from '../../domain/projection/component-maturation';
-import { matureComponentKnowledge } from '../../domain/projection/component-maturation';
-import { collapseObservations } from '../../domain/kernel/observation-collapse';
-import type { TimingBaselineIndex, TimingRegression } from '../drift/timing-baseline';
-import { detectTimingRegressions, timingBaselineCollapse } from '../drift/timing-baseline';
-import type { SelectorHealthIndex, SelectorHealthMetrics } from '../drift/selector-health';
-import { flagProblematicSelectors, selectorHealthCollapse } from '../drift/selector-health';
-import type { RecoveryEffectivenessIndex, StrategyEffectiveness } from '../drift/recovery-effectiveness';
-import { computeRecoveryEfficiency, recoveryEffectivenessCollapse } from '../drift/recovery-effectiveness';
-import type { ConsolePatternIndex, ConsolePatternMetrics } from '../drift/console-intelligence';
-import { extractConsoleObservations, flagNoisySteps, consoleIntelligenceCollapse } from '../drift/console-intelligence';
-import type { CostBaselineIndex, CostBaseline } from '../drift/execution-cost';
-import { detectCostAnomalies, computeCostEfficiency, executionCostCollapse } from '../drift/execution-cost';
-import type { RungHistoryIndex, RungHistoryEntry } from '../drift/rung-drift';
-import { computeRungStability, detectRungDrift, rungDriftCollapse } from '../drift/rung-drift';
+import type { StepExecutionReceipt } from '../../product/domain/execution/types';
+import type { ComponentProposal } from '../../product/domain/projection/component-maturation';
+import { matureComponentKnowledge } from '../../product/domain/projection/component-maturation';
+import { collapseObservations } from '../../product/domain/kernel/observation-collapse';
+import type { TimingBaselineIndex, TimingRegression } from '../../product/application/drift/timing-baseline';
+import { detectTimingRegressions, timingBaselineCollapse } from '../../product/application/drift/timing-baseline';
+import type { SelectorHealthIndex, SelectorHealthMetrics } from '../../product/application/drift/selector-health';
+import { flagProblematicSelectors, selectorHealthCollapse } from '../../product/application/drift/selector-health';
+import type { RecoveryEffectivenessIndex, StrategyEffectiveness } from '../../product/application/drift/recovery-effectiveness';
+import { computeRecoveryEfficiency, recoveryEffectivenessCollapse } from '../../product/application/drift/recovery-effectiveness';
+import type { ConsolePatternIndex, ConsolePatternMetrics } from '../../product/application/drift/console-intelligence';
+import { extractConsoleObservations, flagNoisySteps, consoleIntelligenceCollapse } from '../../product/application/drift/console-intelligence';
+import type { CostBaselineIndex, CostBaseline } from '../../product/application/drift/execution-cost';
+import { detectCostAnomalies, computeCostEfficiency, executionCostCollapse } from '../../product/application/drift/execution-cost';
+import type { RungHistoryIndex, RungHistoryEntry } from '../../product/application/drift/rung-drift';
+import { computeRungStability, detectRungDrift, rungDriftCollapse } from '../../product/application/drift/rung-drift';
 
 // ─── Learning State Types ───
 

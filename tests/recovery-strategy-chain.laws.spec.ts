@@ -18,9 +18,9 @@ import {
   verifyPrerequisites,
   forceAlternateLocatorRungs,
   boundedRetryWithBackoff,
-} from '../lib/runtime/execute/recovery-strategies';
-import type { ComposableRecoveryStrategy, RecoveryContext, RecoveryAttemptOutcome } from '../lib/runtime/execute/recovery-strategies';
-import type { RecoveryBudget, RecoveryFailureFamily } from '../lib/domain/commitment/recovery-policy';
+} from '../product/runtime/execute/recovery-strategies';
+import type { ComposableRecoveryStrategy, RecoveryContext, RecoveryAttemptOutcome } from '../product/runtime/execute/recovery-strategies';
+import type { RecoveryBudget, RecoveryFailureFamily } from '../product/domain/commitment/recovery-policy';
 import { mulberry32, pick , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───

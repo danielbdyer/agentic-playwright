@@ -3,7 +3,7 @@ import type { AdoId } from '../../domain/kernel/identity';
 import { loadWorkspaceCatalog } from '../catalog';
 import { findRunbook, runtimeControlsForScenario } from '../resolution/controls';
 import { buildOperatorInboxItems, operatorInboxItemsForScenario } from '../agency/operator';
-import { buildWorkflowHotspots } from '../improvement/hotspots';
+import { buildWorkflowHotspots } from '../../../workshop/orchestration/hotspots';
 import type { ProjectPaths } from '../paths';
 
 const laneMap = [

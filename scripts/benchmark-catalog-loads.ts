@@ -8,12 +8,12 @@
  */
 
 import * as path from 'path';
-import { createProjectPaths } from '../lib/application/paths';
-import { getCatalogLoadCount, resetCatalogLoadCount } from '../lib/application/catalog';
-import { speedrunProgram } from '../lib/application/improvement/speedrun';
-import { cleanSlateProgram } from '../lib/application/improvement/clean-slate';
-import { runWithLocalServices } from '../lib/composition/local-services';
-import type { SpeedrunProgressEvent } from '../lib/domain/improvement/types';
+import { createProjectPaths } from '../product/application/paths';
+import { getCatalogLoadCount, resetCatalogLoadCount } from '../product/application/catalog';
+import { speedrunProgram } from '../workshop/orchestration/speedrun';
+import { cleanSlateProgram } from '../workshop/orchestration/clean-slate';
+import { runWithLocalServices } from '../product/composition/local-services';
+import type { SpeedrunProgressEvent } from '../product/domain/improvement/types';
 
 const rootDir = process.cwd();
 const paths = createProjectPaths(rootDir, path.join(rootDir, 'dogfood'));
@@ -52,7 +52,7 @@ async function main(): Promise<void> {
   const result = await runWithLocalServices(
     speedrunProgram({
       paths,
-      config: (await import('../lib/domain/types')).DEFAULT_PIPELINE_CONFIG,
+      config: (await import('../product/domain/types')).DEFAULT_PIPELINE_CONFIG,
       count: 3,
       seed: 'benchmark-v1',
       maxIterations: 1,

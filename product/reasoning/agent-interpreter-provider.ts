@@ -28,23 +28,23 @@ import {
   agentInterpreterProviderError,
   type AgentInterpreterParseError,
   type AgentInterpreterTimeoutError,
-} from '../../domain/kernel/errors';
-import type { ResolutionTarget } from '../../domain/governance/workflow-types';
-import type { ResolutionProposalDraft } from '../../domain/resolution/types';
-import type { StepAction } from '../../domain/governance/workflow-types';
-import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../../domain/kernel/identity';
-import { primaryAffordanceForRole } from '../../domain/widgets/role-affordances';
-import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../../domain/knowledge/inference';
-import { assignVariant, type ABTestConfig } from './agent-ab-testing';
+} from '../domain/kernel/errors';
+import type { ResolutionTarget } from '../domain/governance/workflow-types';
+import type { ResolutionProposalDraft } from '../domain/resolution/types';
+import type { StepAction } from '../domain/governance/workflow-types';
+import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/kernel/identity';
+import { primaryAffordanceForRole } from '../domain/widgets/role-affordances';
+import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../domain/knowledge/inference';
+import { assignVariant, type ABTestConfig } from '../application/agency/agent-ab-testing';
 import {
   RETRY_POLICIES,
   formatRetryMetadata,
   retryMetadata,
   retryScheduleForTaggedErrors,
-} from '../resilience/schedules';
+} from '../application/resilience/schedules';
 
-import type { AgentInterpretationRequest, AgentInterpretationResult } from '../../domain/interpretation/agent-interpreter';
-import type { AgentInterpreterKind, AgentInterpreterPort } from '../../domain/resolution/model';
+import type { AgentInterpretationRequest, AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
+import type { AgentInterpreterKind, AgentInterpreterPort } from '../domain/resolution/model';
 
 type ApplicationAgentInterpreterPort = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;
 

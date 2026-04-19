@@ -1,11 +1,11 @@
 ﻿import { readFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { refreshScenario } from '../../lib/application/resolution/refresh';
-import { runWithLocalServices } from '../../lib/composition/local-services';
-import { createAdoId } from '../../lib/domain/kernel/identity';
-import { classifyFailure, findFailureContext } from '../../lib/infrastructure/reporting/tesseract-reporter';
-import { validateDerivedGraph } from '../../lib/domain/validation';
+import { refreshScenario } from '../../product/application/resolution/refresh';
+import { runWithLocalServices } from '../../product/composition/local-services';
+import { createAdoId } from '../../product/domain/kernel/identity';
+import { classifyFailure, findFailureContext } from '../../product/instruments/reporting/tesseract-reporter';
+import { validateDerivedGraph } from '../../product/domain/validation';
 import { createTestWorkspace } from '../support/workspace';
 
 test('reporter graph context resolves a failed test back to the scenario node', async () => {

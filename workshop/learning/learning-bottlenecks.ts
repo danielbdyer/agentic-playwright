@@ -1,15 +1,15 @@
-import type { BottleneckWeights } from '../../domain/attention/pipeline-config';
-import type { BottleneckWeightCorrelation } from '../../domain/fitness/types';
+import type { BottleneckWeights } from '../../product/domain/attention/pipeline-config';
+import type { BottleneckWeightCorrelation } from '../metrics/types';
 import type {
   BottleneckSignal,
   CorpusHealthReport,
   GroundedSpecFragment,
   KnowledgeBottleneck,
   KnowledgeBottleneckReport,
-} from '../../domain/learning/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
-import { foldBottleneckSignal } from '../../domain/kernel/visitors';
-import { groupBy, uniqueSorted } from '../../domain/kernel/collections';
+} from '../../product/domain/learning/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
+import { foldBottleneckSignal } from '../../product/domain/kernel/visitors';
+import { groupBy, uniqueSorted } from '../../product/domain/kernel/collections';
 import {
   round4,
   screenFromGraphNodeIds,

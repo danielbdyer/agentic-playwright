@@ -9,11 +9,11 @@
 
 import path from 'path';
 import { Effect } from 'effect';
-import type { ExperimentRecord, ExperimentRegistry } from '../../domain/improvement/experiment';
-import { appendExperiment, emptyExperimentRegistry } from '../../domain/improvement/experiment';
-import { uniqueByFirst } from '../../domain/kernel/collections';
-import type { ProjectPaths } from '../paths';
-import { FileSystem } from '../ports';
+import type { ExperimentRecord, ExperimentRegistry } from '../../product/domain/improvement/experiment';
+import { appendExperiment, emptyExperimentRegistry } from '../../product/domain/improvement/experiment';
+import { uniqueByFirst } from '../../product/domain/kernel/collections';
+import type { ProjectPaths } from '../../product/application/paths';
+import { FileSystem } from '../../product/application/ports';
 import {
   improvementLedgerPath,
   loadImprovementLedger,

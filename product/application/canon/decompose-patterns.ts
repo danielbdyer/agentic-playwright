@@ -29,8 +29,8 @@
  * content. The mint helper's fingerprint formula covers the full
  * content including the category field.
  *
- * Pure application — depends only on `lib/application/canon/minting`,
- * `lib/domain/pipeline`, and `lib/domain/knowledge/types`.
+ * Pure application — depends only on `product/application/canon/minting`,
+ * `product/domain/pipeline`, and `product/domain/knowledge/types`.
  */
 
 import type {

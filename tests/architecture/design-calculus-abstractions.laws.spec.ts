@@ -12,11 +12,11 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { chooseByPrecedence, dispatchByPrecedence, precedenceWeight } from '../../lib/domain/resolution/precedence';
-import { collapseObservations, collapseAll } from '../../lib/domain/kernel/observation-collapse';
-import type { ObservationCollapse } from '../../lib/domain/kernel/observation-collapse';
-import { contextualMerge, contextualMergeAll, fromBoundedLattice } from '../../lib/domain/algebra/contextual-merge';
-import { GovernanceLattice } from '../../lib/domain/algebra/lattice';
+import { chooseByPrecedence, dispatchByPrecedence, precedenceWeight } from '../../product/domain/resolution/precedence';
+import { collapseObservations, collapseAll } from '../../product/domain/kernel/observation-collapse';
+import type { ObservationCollapse } from '../../product/domain/kernel/observation-collapse';
+import { contextualMerge, contextualMergeAll, fromBoundedLattice } from '../../product/domain/algebra/contextual-merge';
+import { GovernanceLattice } from '../../product/domain/algebra/lattice';
 import {
   approved,
   suspended,
@@ -29,16 +29,16 @@ import {
   type VerdictGate,
   type GovernanceVerdict,
   fromGovernance,
-} from '../../lib/domain/kernel/governed-suspension';
+} from '../../product/domain/kernel/governed-suspension';
 import {
   rungToMinConfidence,
   confidenceToRungs,
   isConsistentProvenance,
   confidenceOrdinal,
   confidenceGte,
-} from '../../lib/domain/resolution/confidence-provenance';
-import type { ResolutionPrecedenceRung } from '../../lib/domain/resolution/precedence';
-import type { Confidence } from '../../lib/domain/governance/workflow-types';
+} from '../../product/domain/resolution/confidence-provenance';
+import type { ResolutionPrecedenceRung } from '../../product/domain/resolution/precedence';
+import type { Confidence } from '../../product/domain/governance/workflow-types';
 
 // ═══════════════════════════════════════════════════════════
 // Abstraction 1: Precedence-Governed Dispatch

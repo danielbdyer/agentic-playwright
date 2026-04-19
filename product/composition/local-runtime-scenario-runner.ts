@@ -2,7 +2,7 @@ import { Effect } from 'effect';
 import { FileSystem } from '../application/ports';
 import type { RuntimeScenarioRunnerPort } from '../application/ports';
 import { createProjectPaths, type ProjectPaths } from '../application/paths';
-import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../application/resolution/translation/translation-cache';
+import { readTranslationCache, translationCacheKey, writeTranslationCache } from '../reasoning/translation-cache';
 import {
   accrueSemanticEntry,
   readSemanticDictionary,
@@ -10,17 +10,17 @@ import {
   recordSemanticSuccess,
   recordValidatedSuccess,
   writeSemanticDictionary,
-} from '../application/resolution/translation/semantic-translation-dictionary';
-import { translateIntentToOntology } from '../application/resolution/translation/translate';
-import type { TranslationProvider } from '../application/resolution/translation/translation-provider';
-import { resolveAgentInterpreterPort } from '../application/agency/agent-interpreter-provider';
+} from '../reasoning/semantic-translation-dictionary';
+import { translateIntentToOntology } from '../reasoning/translate';
+import type { TranslationProvider } from '../reasoning/translation-provider';
+import { resolveAgentInterpreterPort } from '../reasoning/agent-interpreter-provider';
 import type { AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
 import type { AgentInterpreterPort } from '../domain/resolution/model';
 import type { SemanticDictionaryCatalog } from '../domain/knowledge/semantic-dictionary-types';
 import type { TranslationReceipt, TranslationRequest } from '../domain/resolution/types';
-import { LocalFileSystem } from '../infrastructure/fs/local-fs';
-import { launchHeadedHarness } from '../infrastructure/tooling/headed-harness';
-import { createLocalRuntimeEnvironment, type LocalRuntimeAgentInterpreter } from '../infrastructure/runtime/local-runtime-environment';
+import { LocalFileSystem } from '../instruments/fs/local-fs';
+import { launchHeadedHarness } from '../instruments/tooling/headed-harness';
+import { createLocalRuntimeEnvironment, type LocalRuntimeAgentInterpreter } from '../instruments/runtime/local-runtime-environment';
 import { createScenarioRunState, runScenarioStep } from '../runtime/scenario';
 
 type EffectfulAgentInterpreterPort = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;

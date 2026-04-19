@@ -1,13 +1,13 @@
 import { Effect } from 'effect';
-import { emitApprovedScenarioArtifacts } from '../../lib/application/commitment/emit';
-import { executeApprovedInterventionAction, type InterventionKernel } from '../../lib/application/governance/intervention-kernel';
-import type { ProjectPaths } from '../../lib/application/paths';
-import type { ProposalBundle, RunRecord } from '../../lib/domain/execution/types';
-import type { InterventionCommandAction, InterventionReceipt } from '../../lib/domain/handshake/intervention';
-import type { BoundScenario } from '../../lib/domain/intent/types';
-import type { ScenarioProjectionInput } from '../../lib/domain/projection/types';
-import type { ScenarioInterpretationSurface } from '../../lib/domain/resolution/types';
-import type { Approved } from '../../lib/domain/governance/workflow-types';
+import { emitApprovedScenarioArtifacts } from '../../product/application/commitment/emit';
+import { executeApprovedInterventionAction, type InterventionKernel } from '../../workshop/policy/intervention-kernel';
+import type { ProjectPaths } from '../../product/application/paths';
+import type { ProposalBundle, RunRecord } from '../../product/domain/execution/types';
+import type { InterventionCommandAction, InterventionReceipt } from '../../product/domain/handshake/intervention';
+import type { BoundScenario } from '../../product/domain/intent/types';
+import type { ScenarioProjectionInput } from '../../product/domain/projection/types';
+import type { ScenarioInterpretationSurface } from '../../product/domain/resolution/types';
+import type { Approved } from '../../product/domain/governance/workflow-types';
 
 const kernel: InterventionKernel = {
   executeAction: () => Effect.succeed({ summary: 'ok' }),

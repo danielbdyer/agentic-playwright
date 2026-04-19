@@ -14,7 +14,7 @@ import {
   knowledgeHitRateLyapunov,
   deriveTerminationBound,
   estimateRateOfDecrease,
-} from '../../domain/projection/convergence-bounds';
+} from '../../product/domain/projection/convergence-bounds';
 
 // ─── Configuration ───
 

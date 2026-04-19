@@ -9,7 +9,7 @@
  *     extract risk signals → combine with weights → emit obligation
  *
  * This module factors that pattern through `ScoringRule<T>` from
- * `lib/domain/algebra/scoring.ts` — the codebase's existing primitive
+ * `product/domain/algebra/scoring.ts` — the codebase's existing primitive
  * for composable score combinators. Each obligation becomes a
  * `RiskFormula<Input>` that can be applied to an input record to
  * produce a `LogicalProofObligation`.
@@ -22,7 +22,7 @@
  * discipline elsewhere in the codebase.
  */
 
-import { type ScoringRule } from '../algebra/scoring';
+import { type ScoringRule } from '../../product/domain/algebra/scoring';
 import {
   RISK_CRITICAL_THRESHOLD,
   RISK_WATCH_THRESHOLD,

@@ -3,13 +3,13 @@
  * visitors produce correct coverage ratios from real atom data.
  */
 import { describe, test, expect } from 'vitest';
-import { createElementId, createScreenId } from '../../lib/domain/kernel/identity';
+import { createElementId, createScreenId } from '../../product/domain/kernel/identity';
 import {
   DISCOVERY_VISITORS,
   buildDiscoveryMetricTree,
-} from '../../lib/domain/fitness/metric/visitors-discovery';
+} from '../../workshop/metrics/metric/visitors-discovery';
 
-import type { DiscoveryAtomShape } from '../../lib/domain/fitness/metric/visitors-discovery';
+import type { DiscoveryAtomShape } from '../../workshop/metrics/metric/visitors-discovery';
 
 function makeElementAtom(screen: string, element: string): DiscoveryAtomShape {
   return {

@@ -1,7 +1,7 @@
 import path from 'path';
-import { createProjectPaths, type ProjectPaths } from '../paths';
-import type { ExecutionPosture } from '../../domain/governance/workflow-types';
-import { TesseractError } from '../../domain/kernel/errors';
+import { createProjectPaths, type ProjectPaths } from '../application/paths';
+import type { ExecutionPosture } from '../domain/governance/workflow-types';
+import { TesseractError } from '../domain/kernel/errors';
 import { commandRegistry } from './commands/index';
 import {
   type CommandExecution,
@@ -12,7 +12,7 @@ import {
   flagDecoders,
   flagDescriptorTable,
 } from './shared';
-import { withExecutionContext } from '../commitment/execution-context';
+import { withExecutionContext } from '../application/commitment/execution-context';
 
 // Re-export public API so existing consumers are unaffected
 export { commandNames } from './shared';

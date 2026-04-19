@@ -1,6 +1,6 @@
 ﻿import { expect, test } from '@playwright/test';
-import { agent, fixture, generatedToken, literal } from '../lib/domain/governance/workflow-facade';
-import { fixtureIds, snapshotTemplateIds } from '../lib/generated/tesseract-knowledge';
+import { agent, fixture, generatedToken, literal } from '../product/domain/governance/workflow-facade';
+import { fixtureIds, snapshotTemplateIds } from '../product/generated/tesseract-knowledge';
 
 test('generated knowledge surface provides a typed agent-facing DSL', () => {
   const proposal = agent.screen('policy-search').element('policyNumberInput').input(fixture('activePolicy', 'number'), 'valid');

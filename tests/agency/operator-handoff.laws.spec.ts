@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { buildOperatorInboxItems, renderOperatorInboxMarkdown } from '../../lib/application/agency/operator';
-import type { ProposalBundle } from '../../lib/domain/execution/types';
-import type { WorkspaceCatalog } from '../../lib/application/catalog';
+import { buildOperatorInboxItems, renderOperatorInboxMarkdown } from '../../product/application/agency/operator';
+import type { ProposalBundle } from '../../product/domain/execution/types';
+import type { WorkspaceCatalog } from '../../product/application/catalog';
 
 function mockCatalog(): WorkspaceCatalog {
   const proposalA = {

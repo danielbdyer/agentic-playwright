@@ -16,11 +16,11 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { createProjectPaths } from '../lib/application/paths';
-import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/attention/pipeline-config';
-import type { PipelineConfig } from '../lib/domain/attention/pipeline-config';
-import { speedrunProgram, type SpeedrunInput, type SpeedrunResult } from '../lib/application/improvement/speedrun';
-import { runWithLocalServices } from '../lib/composition/local-services';
+import { createProjectPaths } from '../product/application/paths';
+import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../product/domain/attention/pipeline-config';
+import type { PipelineConfig } from '../product/domain/attention/pipeline-config';
+import { speedrunProgram, type SpeedrunInput, type SpeedrunResult } from '../workshop/orchestration/speedrun';
+import { runWithLocalServices } from '../product/composition/local-services';
 
 const args = process.argv.slice(2);
 function argVal(name: string, fallback: string): string {

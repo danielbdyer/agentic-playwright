@@ -9,12 +9,12 @@
 
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
-import { agentInterpretationCacheKey, readAgentInterpretationCache, writeAgentInterpretationCache } from '../../lib/application/agency/agent-interpretation-cache';
-import type { AgentInterpretationCacheKeyInput } from '../../lib/application/agency/agent-interpretation-cache';
-import type { AgentInterpretationResult } from '../../lib/domain/interpretation/agent-interpreter';
-import { createProjectPaths } from '../../lib/application/paths';
-import { FileSystem } from '../../lib/application/ports';
-import { LocalFileSystem } from '../../lib/infrastructure/fs/local-fs';
+import { agentInterpretationCacheKey, readAgentInterpretationCache, writeAgentInterpretationCache } from '../../product/reasoning/agent-interpretation-cache';
+import type { AgentInterpretationCacheKeyInput } from '../../product/reasoning/agent-interpretation-cache';
+import type { AgentInterpretationResult } from '../../product/domain/interpretation/agent-interpreter';
+import { createProjectPaths } from '../../product/application/paths';
+import { FileSystem } from '../../product/application/ports';
+import { LocalFileSystem } from '../../product/instruments/fs/local-fs';
 import { LAW_SEED_COUNT, mulberry32, randomWord } from '../support/random';
 import { promises as nodeFs } from 'fs';
 import path from 'path';

@@ -6,10 +6,10 @@
 
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
-import { buildAgentWorkItems, defaultWorkItemDecider } from '../../lib/application/agency/agent-workbench';
-import type { WorkflowHotspot } from '../../lib/application/improvement/hotspots';
-import type { AgentWorkItem, WorkItemKind } from '../../lib/domain/handshake/workbench';
-import type { WorkspaceCatalog } from '../../lib/application/catalog';
+import { buildAgentWorkItems, defaultWorkItemDecider } from '../../product/application/agency/agent-workbench';
+import type { WorkflowHotspot } from '../../workshop/orchestration/hotspots';
+import type { AgentWorkItem, WorkItemKind } from '../../product/domain/handshake/workbench';
+import type { WorkspaceCatalog } from '../../product/application/catalog';
 
 // ─── Mock Factories ───
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { groupBy, sortByStringKey, uniqueSorted } from '../../lib/domain/kernel/collections';
+import { groupBy, sortByStringKey, uniqueSorted } from '../../product/domain/kernel/collections';
 import { mulberry32, randomWord , LAW_SEED_COUNT } from '../support/random';
 
 test('uniqueSorted is deterministic and idempotent across random string sets', () => {

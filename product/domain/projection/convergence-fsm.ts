@@ -12,7 +12,7 @@
  * Implements FSMDefinition<ConvergenceState, ConvergenceEvent> from the
  * generic finite-state-machine kernel module.
  *
- * @see lib/domain/kernel/finite-state-machine.ts
+ * @see product/domain/kernel/finite-state-machine.ts
  */
 
 import type { FSMDefinition } from '../kernel/finite-state-machine';

@@ -2,7 +2,7 @@
  * Semantic Translation Dictionary — application layer (I/O only).
  *
  * Pure domain logic (lookup, accrual, pruning, scoring) lives in
- * lib/domain/knowledge/semantic-dictionary.ts. This file provides
+ * product/domain/knowledge/semantic-dictionary.ts. This file provides
  * Effect-based persistence and re-exports the pure API.
  */
 
@@ -11,11 +11,11 @@ import {
   deserializeShingleIndex,
   serializeShingleIndex,
   type SerializedShingleIndex,
-} from '../../../domain/knowledge/shingles';
-import { ensureShingleIndex, emptyCatalog } from '../../../domain/knowledge/semantic-dictionary';
-import type { SemanticDictionaryCatalog, SemanticDictionaryEntry } from '../../../domain/knowledge/semantic-dictionary-types';
-import { FileSystem } from '../../ports';
-import type { ProjectPaths } from '../../paths';
+} from '../domain/knowledge/shingles';
+import { ensureShingleIndex, emptyCatalog } from '../domain/knowledge/semantic-dictionary';
+import type { SemanticDictionaryCatalog, SemanticDictionaryEntry } from '../domain/knowledge/semantic-dictionary-types';
+import { FileSystem } from '../application/ports';
+import type { ProjectPaths } from '../application/paths';
 
 // Re-export pure domain API so existing application-layer consumers don't break
 export {
@@ -30,8 +30,8 @@ export {
   pruneSemanticDictionary,
   promotionCandidates,
   emptyCatalog,
-} from '../../../domain/knowledge/semantic-dictionary';
-export type { SemanticLookupOptions } from '../../../domain/knowledge/semantic-dictionary';
+} from '../domain/knowledge/semantic-dictionary';
+export type { SemanticLookupOptions } from '../domain/knowledge/semantic-dictionary';
 
 // ─── Persistence (Effect-based) ───
 

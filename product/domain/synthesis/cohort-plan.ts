@@ -3,7 +3,7 @@
  * orchestrator.
  *
  * The existing `planSyntheticScenarios()` primitive at
- * `lib/domain/synthesis/scenario-plan.ts` generates a flat batch of
+ * `product/domain/synthesis/scenario-plan.ts` generates a flat batch of
  * scenarios from a single (seed, count, perturbation) tuple. The
  * fifth-kind loop needs richer structure: the reference corpus is
  * organized into 12 cohorts, each with its own perturbation config,

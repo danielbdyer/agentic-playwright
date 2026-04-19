@@ -12,7 +12,7 @@ const ROOT = path.resolve(__dirname, '..');
 
 interface ExportInfo {
   name: string;
-  source: string; // relative to lib/domain/, e.g. 'governance/workflow-types'
+  source: string; // relative to product/domain/, e.g. 'governance/workflow-types'
 }
 
 const LEAF_SOURCES = [
@@ -73,7 +73,7 @@ function buildTypeMap(): Map<string, string> {
   const map = new Map<string, string>();
 
   for (const source of LEAF_SOURCES) {
-    const filePath = path.join(ROOT, 'lib/domain', source + '.ts');
+    const filePath = path.join(ROOT, 'product/domain', source + '.ts');
     if (!fs.existsSync(filePath)) {
       console.error(`Missing: ${filePath}`);
       continue;
@@ -129,7 +129,7 @@ function parseImports(content: string, filePath: string): ImportStatement[] {
 
 function computeRelativePath(fromFile: string, toSource: string): string {
   const fromDir = path.dirname(fromFile);
-  const toFile = path.join(ROOT, 'lib/domain', toSource);
+  const toFile = path.join(ROOT, 'product/domain', toSource);
   let rel = path.relative(fromDir, toFile).replace(/\\/g, '/');
   if (!rel.startsWith('.')) rel = './' + rel;
   // Remove .ts extension

@@ -4,7 +4,7 @@ import { explainBoundScenario } from '../../domain/scenario/explanation';
 import { TesseractError } from '../../domain/kernel/errors';
 import type { AdoId } from '../../domain/kernel/identity';
 import { buildGroundedSpecFlow } from '../../domain/commitment/grounded-flow';
-import { renderReadableSpecModule } from '../../domain/codegen/spec-codegen';
+import { renderReadableSpecModule } from '../../instruments/codegen/spec-codegen';
 import { foldGovernance } from '../../domain/governance/workflow-types';
 import type { Approved, Blocked, ReviewRequired } from '../../domain/governance/workflow-types';
 import type { ProposalBundle, RunRecord } from '../../domain/execution/types';

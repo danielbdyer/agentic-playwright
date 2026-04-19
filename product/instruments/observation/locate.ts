@@ -1,7 +1,7 @@
 ﻿import type { Page, Locator } from '@playwright/test';
 import { Match, pipe } from 'effect';
-import type { LocatorStrategy } from '../domain/governance/workflow-types';
-import type { ElementSig } from '../domain/knowledge/types';
+import type { LocatorStrategy } from '../../domain/governance/workflow-types';
+import type { ElementSig } from '../../domain/knowledge/types';
 
 export interface ResolvedLocator {
   locator: Locator;

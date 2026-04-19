@@ -1,4 +1,4 @@
-import { runDogfoodLoop } from '../../improvement/dogfood';
+import { runDogfoodLoop } from '../../../workshop/orchestration/dogfood';
 import { createCommandSpec } from '../shared';
 import { withDefinedValues } from '../shared';
 

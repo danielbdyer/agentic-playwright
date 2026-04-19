@@ -22,8 +22,8 @@ import {
   buildPipelineDAG,
   findParallelGroups,
   validateDAG,
-} from '../lib/domain/resolution/pipeline-dag';
-import type { PipelineNode, PipelineDAG } from '../lib/domain/resolution/pipeline-dag';
+} from '../product/domain/resolution/pipeline-dag';
+import type { PipelineNode, PipelineDAG } from '../product/domain/resolution/pipeline-dag';
 import { mulberry32, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { buildDiscoveryArtifacts } from '../../lib/domain/knowledge/discovery';
+import { buildDiscoveryArtifacts } from '../../product/domain/knowledge/discovery';
 
 test('buildDiscoveryArtifacts emits deterministic selector and action scaffolds from first-run discovery', () => {
   const input = {

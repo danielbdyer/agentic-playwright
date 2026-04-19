@@ -5,15 +5,15 @@
  * Per docs/canon-and-derivation.md § 3.5–3.8 and the existing
  * schema convention in this directory, every artifact type has a
  * corresponding `Schema.Struct` (or `Schema.Union`) definition.
- * Validators in `lib/domain/validation/canonical-artifacts.ts`
+ * Validators in `product/domain/validation/canonical-artifacts.ts`
  * wrap these with `decoderFor<T>(schema)`.
  *
  * Branded ID schemas live here (rather than in primitives.ts) so
  * they're co-located with the pipeline-specific shapes that use
  * them. They produce branded string types compatible with the
  * `Brand<string, Name>` declarations in
- * `lib/domain/pipeline/composition-address.ts` and
- * `lib/domain/pipeline/projection-address.ts`.
+ * `product/domain/pipeline/composition-address.ts` and
+ * `product/domain/pipeline/projection-address.ts`.
  */
 
 import { Schema } from 'effect';

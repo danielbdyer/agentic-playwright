@@ -1,18 +1,18 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { TesseractError } from '../../domain/kernel/errors';
-import { mapPayload } from '../../domain/governance/workflow-types';
-import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
-import { emitOperatorInbox } from '../agency/inbox';
-import { buildOperatorInboxItems, findProposalById } from '../agency/operator';
-import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from '../knowledge/proposal-patches';
+import { TesseractError } from '../../product/domain/kernel/errors';
+import { mapPayload } from '../../product/domain/governance/workflow-types';
+import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../../product/application/catalog';
+import { emitOperatorInbox } from '../../product/application/agency/inbox';
+import { buildOperatorInboxItems, findProposalById } from '../../product/application/agency/operator';
+import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from '../../product/application/knowledge/proposal-patches';
 import { executeInterventionBatch } from './intervention-kernel';
-import { buildRerunPlan } from '../commitment/replay/rerun-plan';
-import type { ProjectPaths } from '../paths';
-import { approvalReceiptPath, relativeProjectPath } from '../paths';
-import { ExecutionContext, FileSystem } from '../ports';
-import type { ProposalEntry } from '../../domain/execution/types';
-import type { ApprovalReceipt, RerunPlan } from '../../domain/resolution/types';
+import { buildRerunPlan } from '../../product/application/commitment/replay/rerun-plan';
+import type { ProjectPaths } from '../../product/application/paths';
+import { approvalReceiptPath, relativeProjectPath } from '../../product/application/paths';
+import { ExecutionContext, FileSystem } from '../../product/application/ports';
+import type { ProposalEntry } from '../../product/domain/execution/types';
+import type { ApprovalReceipt, RerunPlan } from '../../product/domain/resolution/types';
 import type { ActionExecutionResult } from './intervention-kernel';
 
 export function approveProposal(options: {

@@ -11,10 +11,10 @@ import {
   type TranslationProvider,
   type LlmApiProviderDependencies,
   type TranslationConfig,
-} from '../../lib/application/resolution/translation/translation-provider';
-import { translateIntentToOntology } from '../../lib/application/resolution/translation/translate';
-import type { TranslationRequest } from '../../lib/domain/resolution/types';
-import { createScreenId, createElementId } from '../../lib/domain/kernel/identity';
+} from '../../product/reasoning/translation-provider';
+import { translateIntentToOntology } from '../../product/reasoning/translate';
+import type { TranslationRequest } from '../../product/domain/resolution/types';
+import { createScreenId, createElementId } from '../../product/domain/kernel/identity';
 
 // ─── Fixtures ───
 

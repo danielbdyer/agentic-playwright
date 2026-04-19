@@ -1,5 +1,5 @@
-import { traceScenario } from '../../projections/trace';
-import { createAdoId } from '../../../domain/kernel/identity';
+import { traceScenario } from '../../application/projections/trace';
+import { createAdoId } from '../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';
 

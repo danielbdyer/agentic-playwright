@@ -10,11 +10,11 @@
  * so that knowledge changes automatically invalidate stale entries.
  */
 
-import { fingerprintFor, taggedFingerprintFor } from '../../domain/kernel/hash';
-import type { AgentInterpretationResult } from '../../domain/interpretation/agent-interpreter';
-import { readJsonCacheRecord, writeJsonCacheRecord, pruneCacheFiles } from '../cache/file-cache';
-import type { ProjectPaths } from '../paths';
-import { agentInterpretationCachePath } from '../paths';
+import { fingerprintFor, taggedFingerprintFor } from '../domain/kernel/hash';
+import type { AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
+import { readJsonCacheRecord, writeJsonCacheRecord, pruneCacheFiles } from '../application/cache/file-cache';
+import type { ProjectPaths } from '../application/paths';
+import { agentInterpretationCachePath } from '../application/paths';
 
 // ─── Cache Record Envelope ───
 

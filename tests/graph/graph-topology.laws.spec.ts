@@ -15,17 +15,17 @@ import {
   resolveConditionalEdges,
   EMPTY_GRAPH,
   type GraphBuildInput,
-} from '../../lib/domain/graph/derived-graph';
-import type { ConditionalEdge, GraphAccumulator } from '../../lib/domain/graph/derived-graph';
+} from '../../product/domain/graph/derived-graph';
+import type { ConditionalEdge, GraphAccumulator } from '../../product/domain/graph/derived-graph';
 import {
   createAdoId,
   createElementId,
   createPostureId,
   createScreenId,
   createSurfaceId,
-} from '../../lib/domain/kernel/identity';
-import type { AdoSnapshot, Scenario } from '../../lib/domain/intent/types';
-import type { ScreenElements, ScreenPostures, SurfaceGraph } from '../../lib/domain/knowledge/types';
+} from '../../product/domain/kernel/identity';
+import type { AdoSnapshot, Scenario } from '../../product/domain/intent/types';
+import type { ScreenElements, ScreenPostures, SurfaceGraph } from '../../product/domain/knowledge/types';
 import { mulberry32, randomWord, randomInt , LAW_SEED_COUNT } from '../support/random';
 
 // ─── Factories ───

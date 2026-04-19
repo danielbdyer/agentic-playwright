@@ -42,7 +42,7 @@ import { deterministicRuntimeStepAgent, type RuntimeStepAgent, type ResolutionSt
 import { applyProposalDraftsToRuntimeContext } from './resolution/proposals';
 import type { RuntimeAgentInterpreter } from './resolution/types';
 import type { RuntimeDomResolver } from '../domain/resolution/types';
-import { observeStateRefsOnPage, observeTransitionOnPage } from '../playwright/state-topology';
+import { observeStateRefsOnPage, observeTransitionOnPage } from '../instruments/observation/state-topology';
 import { planExecutionStep } from '../domain/resolution/execution-planner';
 
 export interface RuntimeScenarioEnvironment {

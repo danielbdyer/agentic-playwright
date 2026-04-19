@@ -30,11 +30,11 @@
 
 import type { Scope } from 'effect';
 import { Effect, Fiber, PubSub, Queue } from 'effect';
-import type { DashboardPort } from '../../application/ports';
-import type { DashboardEvent, WorkItemDecision } from '../../domain/observation/dashboard';
-import { dashboardEvent } from '../../domain/observation/dashboard';
+import type { DashboardPort } from '../../product/application/ports';
+import type { DashboardEvent, WorkItemDecision } from '../../product/domain/observation/dashboard';
+import { dashboardEvent } from '../../product/domain/observation/dashboard';
 import { runForkFromRuntimeBoundary } from './runtime-boundary';
-import { enrichEventDataWithExecutionContext } from '../../application/commitment/execution-context';
+import { enrichEventDataWithExecutionContext } from '../../product/application/commitment/execution-context';
 
 // ─── Event Encoding ───
 // Dashboard events are encoded as fixed-size numeric slots in the

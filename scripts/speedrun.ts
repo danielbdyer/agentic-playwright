@@ -31,35 +31,35 @@
  * bundled "no-subcommand → multiSeedSpeedrun" default has been removed
  * outright — the four-verb model is the only supported entry point.
  *
- * All orchestration lives in lib/application/. This script is a thin
+ * All orchestration lives in product/application/. This script is a thin
  * CLI wrapper: parse args → build input → call Effect program → print results.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { createProjectPaths } from '../lib/application/paths';
+import { createProjectPaths } from '../product/application/paths';
 import {
   generatePhase,
   compilePhase,
   iteratePhase,
   fitnessPhase,
   reportPhase,
-} from '../lib/application/improvement/speedrun';
-import { resolveKnowledgePosture } from '../lib/application/knowledge/knowledge-posture';
-import { generateCohortCorpus } from '../lib/application/synthesis/cohort-generator';
+} from '../workshop/orchestration/speedrun';
+import { resolveKnowledgePosture } from '../product/application/knowledge/knowledge-posture';
+import { generateCohortCorpus } from '../workshop/synthesis/cohort-generator';
 import {
   score as scoreCommand,
   captureBaseline,
-} from '../lib/application/measurement';
-import { buildL4MetricTree } from '../lib/domain/fitness/metric/visitors';
-import { findLatestFitnessReport } from '../lib/application/measurement/score';
-import { foldMetricTree } from '../lib/domain/fitness/metric/tree';
-import { runWithLocalServices } from '../lib/composition/local-services';
-import type { PipelineConfig } from '../lib/domain/attention/pipeline-config';
-import type { PipelineFitnessReport } from '../lib/domain/fitness/types';
-import type { KnowledgePosture } from '../lib/domain/governance/workflow-types';
-import type { SpeedrunProgressEvent } from '../lib/domain/improvement/types';
-import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../lib/domain/attention/pipeline-config';
+} from '../product/application/measurement';
+import { buildL4MetricTree } from '../workshop/metrics/metric/visitors';
+import { findLatestFitnessReport } from '../workshop/measurement/score';
+import { foldMetricTree } from '../workshop/metrics/metric/tree';
+import { runWithLocalServices } from '../product/composition/local-services';
+import type { PipelineConfig } from '../product/domain/attention/pipeline-config';
+import type { PipelineFitnessReport } from '../workshop/metrics/types';
+import type { KnowledgePosture } from '../product/domain/governance/workflow-types';
+import type { SpeedrunProgressEvent } from '../product/domain/improvement/types';
+import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../product/domain/attention/pipeline-config';
 import {
   computeAllBaselines,
   deriveAllBudgets,
@@ -68,12 +68,12 @@ import {
   formatBaselineSummary,
   type PhaseTimingBaseline,
   type PhaseTimingBudget,
-} from '../lib/domain/projection/speedrun-statistics';
-import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/tooling/fixture-server';
-import { createPlaywrightBrowserPool } from '../lib/infrastructure/runtime/playwright-browser-pool';
-import type { BrowserPoolPort } from '../lib/application/runtime-support/browser-pool';
-import { createFileBackedDashboardPort } from '../lib/infrastructure/dashboard/file-dashboard-port';
-import { resolvePlaywrightHeadless } from '../lib/infrastructure/tooling/browser-options';
+} from '../product/domain/projection/speedrun-statistics';
+import { startFixtureServer, type FixtureServer } from '../product/instruments/tooling/fixture-server';
+import { createPlaywrightBrowserPool } from '../product/instruments/runtime/playwright-browser-pool';
+import type { BrowserPoolPort } from '../product/application/runtime-support/browser-pool';
+import { createFileBackedDashboardPort } from '../dashboard/bridges/file-dashboard-port';
+import { resolvePlaywrightHeadless } from '../product/instruments/tooling/browser-options';
 
 // ─── CLI argument parsing ───
 

@@ -24,12 +24,12 @@
 import {
   type CohortKey,
   comparable,
-} from '../../domain/fitness/cohort';
+} from '../metrics/cohort';
 import {
   type CompoundingSample,
   type CompoundingTrajectory,
-} from '../../domain/fitness/compounding';
-import type { ScorecardHistoryEntry } from '../../domain/fitness/types';
+} from '../metrics/compounding';
+import type { ScorecardHistoryEntry } from '../metrics/types';
 
 export interface CompoundingProjectionOptions {
   readonly history: readonly ScorecardHistoryEntry[];

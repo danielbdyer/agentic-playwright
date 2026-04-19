@@ -1,12 +1,12 @@
-import { evaluateTrustPolicy } from '../../domain/governance/trust-policy';
-import type { EvidenceDescriptor, ProposedChangeMetadata, TrustPolicy } from '../../domain/governance/workflow-types';
+import { evaluateTrustPolicy } from '../../product/domain/governance/trust-policy';
+import type { EvidenceDescriptor, ProposedChangeMetadata, TrustPolicy } from '../../product/domain/governance/workflow-types';
 import {
   type GovernanceVerdict,
   type VerdictGate,
   approved,
   suspended,
   runGateChain,
-} from '../../domain/kernel/governed-suspension';
+} from '../../product/domain/kernel/governed-suspension';
 
 // ─── Auto-Approval Policy ───
 

@@ -32,7 +32,7 @@
  *
  * This module defines the PURE TYPED INTERFACE the application
  * layer implements. The actual implementation lives in
- * `lib/application/pipeline/` (Phase 0b.2) and integrates with the
+ * `product/application/pipeline/` (Phase 0b.2) and integrates with the
  * existing WorkspaceCatalog and PipelineStage runner.
  *
  * Pure domain — no Effect, no IO, no application imports. This

@@ -8,12 +8,12 @@ import {
   InterventionLedgerStore,
   RuntimeScenarioRunner,
 } from '../application/ports';
-import { makeLocalAdoSource } from '../infrastructure/ado/local-ado-source';
-import { LocalFileSystem } from '../infrastructure/fs/local-fs';
-import { createRecordingWorkspaceFileSystem } from '../infrastructure/fs/recording-fs';
-import { LocalApplicationInterfaceGraphRepository } from '../infrastructure/repositories/local-application-interface-graph-repository';
-import { LocalImprovementRunRepository } from '../infrastructure/repositories/local-improvement-run-repository';
-import { LocalInterventionLedgerRepository } from '../infrastructure/repositories/local-intervention-ledger-repository';
+import { makeLocalAdoSource } from '../instruments/intent/local-ado-source';
+import { LocalFileSystem } from '../instruments/fs/local-fs';
+import { createRecordingWorkspaceFileSystem } from '../instruments/fs/recording-fs';
+import { LocalApplicationInterfaceGraphRepository } from '../instruments/repositories/local-application-interface-graph-repository';
+import { LocalImprovementRunRepository } from '../instruments/repositories/local-improvement-run-repository';
+import { LocalInterventionLedgerRepository } from '../instruments/repositories/local-intervention-ledger-repository';
 import { LocalRuntimeScenarioRunner } from './local-runtime-scenario-runner';
 import type { ExecutionPosture, WriteJournalEntry } from '../domain/governance/workflow-types';
 

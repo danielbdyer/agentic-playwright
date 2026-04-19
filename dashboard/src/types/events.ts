@@ -14,8 +14,8 @@ import type {
   ItemPendingPayload,
   ItemProcessingPayload,
   ItemCompletedPayload,
-} from '../../../lib/domain/observation/dashboard';
-import { DASHBOARD_EVENT_KINDS } from '../../../lib/domain/observation/dashboard';
+} from '../../../product/domain/observation/dashboard';
+import { DASHBOARD_EVENT_KINDS } from '../../../product/domain/observation/dashboard';
 
 export type {
   DashboardEventKind,

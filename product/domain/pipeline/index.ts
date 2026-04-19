@@ -8,7 +8,7 @@
  *
  * The application-layer wiring (extending WorkspaceCatalog,
  * implementing the lookup chain, integrating with PipelineStage)
- * lives in `lib/application/pipeline/`. This namespace is types
+ * lives in `product/application/pipeline/`. This namespace is types
  * only — no Effect, no IO, no side effects.
  *
  * Read `docs/canon-and-derivation.md` before editing this namespace.

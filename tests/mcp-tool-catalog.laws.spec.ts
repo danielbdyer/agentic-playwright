@@ -14,9 +14,9 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { dashboardMcpTools } from '../lib/domain/observation/dashboard';
-import { createDashboardMcpServer } from '../lib/infrastructure/mcp/dashboard-mcp-server';
-import type { DashboardMcpServerOptions } from '../lib/infrastructure/mcp/dashboard-mcp-server';
+import { dashboardMcpTools } from '../product/domain/observation/dashboard';
+import { createDashboardMcpServer } from '../dashboard/mcp/dashboard-mcp-server';
+import type { DashboardMcpServerOptions } from '../dashboard/mcp/dashboard-mcp-server';
 import { Effect } from 'effect';
 
 // ─── The 8 core tools defined in the dashboard MCP server handler map ───

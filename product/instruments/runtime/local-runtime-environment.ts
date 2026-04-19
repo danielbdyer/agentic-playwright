@@ -5,8 +5,8 @@ import type { ExecutionPosture } from '../../domain/governance/workflow-types';
 import type { RuntimeDomResolver, TranslationReceipt, TranslationRequest } from '../../domain/resolution/types';
 import type { RecoveryPolicy } from '../../domain/commitment/recovery-policy';
 import type { AgentInterpreterPort } from '../../domain/resolution/model';
-import { createLocalScreenRegistryLoader } from '../screen-registry/local-screen-registry-loader';
-import { createLocalSnapshotTemplateLoader } from '../snapshots/local-snapshot-template-loader';
+import { createLocalScreenRegistryLoader } from '../catalog/local-screen-registry-loader';
+import { createLocalSnapshotTemplateLoader } from '../catalog/local-snapshot-template-loader';
 
 export type LocalRuntimeAgentInterpreter = AgentInterpreterPort;
 

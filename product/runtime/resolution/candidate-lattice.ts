@@ -96,7 +96,7 @@ const candidateScoring = combineScoringRules<Omit<LatticeCandidate<unknown>, 'sc
  * confidence a source guarantees; this function converts that to the
  * weighted vector representation used by the candidate lattice.
  *
- * @see lib/domain/resolution/confidence-provenance.ts
+ * @see product/domain/resolution/confidence-provenance.ts
  */
 const CONFIDENCE_TO_COMPONENTS: Readonly<Record<Confidence, LatticeCandidate<unknown>['confidenceComponents']>> = {
   'human': { compilerDerived: 1, agentVerified: 0, agentProposed: 0 },

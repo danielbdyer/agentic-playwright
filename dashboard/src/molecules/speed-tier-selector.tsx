@@ -4,13 +4,13 @@
  * Displays available playback speed tiers and allows selection.
  * Speeds: 0.5×, 1×, 5×, 10×, 25×, 50×, 100×
  *
- * Consumes pure domain logic from lib/domain/speed-tier-batcher.ts.
+ * Consumes pure domain logic from product/domain/speed-tier-batcher.ts.
  *
  * @see docs/first-day-flywheel-visualization.md Part III: Playback Speed Tiers
  */
 
 import { memo, useState } from 'react';
-import { SPEED_TIERS, type SpeedTier } from '../../../lib/domain/projection/speed-tier-batcher';
+import { SPEED_TIERS, type SpeedTier } from '../../../product/domain/projection/speed-tier-batcher';
 
 // ─── Component Props ───
 

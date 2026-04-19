@@ -13,7 +13,7 @@ import {
   incomingOpacity,
   iterationLabel,
   allActMetadata,
-} from '../../lib/domain/projection/act-indicator';
+} from '../../product/domain/projection/act-indicator';
 
 test.describe('ActIndicator laws', () => {
 

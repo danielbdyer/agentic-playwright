@@ -25,16 +25,16 @@ import path from 'path';
 import YAML from 'yaml';
 import { Effect } from 'effect';
 import { expect, test } from '@playwright/test';
-import { loadWorkspaceCatalog } from '../../lib/application/catalog';
-import { runDogfoodLoop } from '../../lib/application/improvement/dogfood';
-import { projectMemoryMaturityCounts } from '../../lib/application/improvement/memory-maturity-projection';
-import { refreshScenario } from '../../lib/application/resolution/refresh';
-import { runWithLocalServices } from '../../lib/composition/local-services';
-import { createAdoId } from '../../lib/domain/kernel/identity';
+import { loadWorkspaceCatalog } from '../../product/application/catalog';
+import { runDogfoodLoop } from '../../workshop/orchestration/dogfood';
+import { projectMemoryMaturityCounts } from '../../workshop/orchestration/memory-maturity-projection';
+import { refreshScenario } from '../../product/application/resolution/refresh';
+import { runWithLocalServices } from '../../product/composition/local-services';
+import { createAdoId } from '../../product/domain/kernel/identity';
 import {
   compareMaturity,
   computeMemoryMaturity,
-} from '../../lib/domain/fitness/memory-maturity';
+} from '../../workshop/metrics/memory-maturity';
 import { createTestWorkspace } from '../support/workspace';
 
 test('memory maturity strictly increases when a new approved element is added', async () => {

@@ -12,10 +12,10 @@
  */
 
 import { Effect } from 'effect';
-import { createDashboardMcpServer } from '../lib/infrastructure/mcp/dashboard-mcp-server';
-import { createHintsWriter } from '../lib/infrastructure/knowledge/hints-writer';
-import { createProjectPaths } from '../lib/application/paths';
-import type { ScreenCapturedEvent } from '../lib/domain/observation/dashboard';
+import { createDashboardMcpServer } from '../dashboard/mcp/dashboard-mcp-server';
+import { createHintsWriter } from '../product/instruments/catalog/hints-writer';
+import { createProjectPaths } from '../product/application/paths';
+import type { ScreenCapturedEvent } from '../product/domain/observation/dashboard';
 import * as fs from 'fs';
 import * as path from 'path';
 

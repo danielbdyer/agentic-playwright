@@ -1,6 +1,6 @@
 /**
  * Laws for the canon mint helpers
- * (`lib/application/canon/minting.ts`).
+ * (`product/application/canon/minting.ts`).
  *
  * The mint helpers are the invariant envelope-construction
  * machinery shared by every canon decomposer. This file tests the
@@ -61,14 +61,14 @@ import {
   type CanonProducer,
   type AtomCandidate,
   type CompositionCandidate,
-} from '../lib/application/canon/minting';
-import type { ElementAtomAddress, RouteAtomAddress } from '../lib/domain/pipeline/atom-address';
-import type { RouteGraphCompositionAddress } from '../lib/domain/pipeline/composition-address';
-import type { AtomReference } from '../lib/domain/pipeline/composition';
-import { isAtomAddressConsistent } from '../lib/domain/pipeline/atom';
-import { isCompositionAddressConsistent } from '../lib/domain/pipeline/composition';
-import type { PhaseOutputSource } from '../lib/domain/pipeline/source';
-import { brandString } from '../lib/domain/kernel/brand';
+} from '../product/application/canon/minting';
+import type { ElementAtomAddress, RouteAtomAddress } from '../product/domain/pipeline/atom-address';
+import type { RouteGraphCompositionAddress } from '../product/domain/pipeline/composition-address';
+import type { AtomReference } from '../product/domain/pipeline/composition';
+import { isAtomAddressConsistent } from '../product/domain/pipeline/atom';
+import { isCompositionAddressConsistent } from '../product/domain/pipeline/composition';
+import type { PhaseOutputSource } from '../product/domain/pipeline/source';
+import { brandString } from '../product/domain/kernel/brand';
 
 // ─── Fixtures ────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import { harvestDeclaredRoutes } from '../../../infrastructure/tooling/harvest-routes';
+import { harvestDeclaredRoutes } from '../../instruments/tooling/harvest-routes';
 import { createCommandSpec } from '../shared';
 import { withDefinedValues } from '../shared';
 

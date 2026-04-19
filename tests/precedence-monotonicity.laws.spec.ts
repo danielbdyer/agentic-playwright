@@ -22,7 +22,7 @@ import {
   runSelectionPrecedenceLaw,
   precedenceWeight,
   chooseByPrecedence,
-} from '../lib/domain/resolution/precedence';
+} from '../product/domain/resolution/precedence';
 
 // ─── Helpers ───
 

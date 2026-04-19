@@ -6,7 +6,7 @@ import {
   targetsByMetric,
   violatedFloors,
   type MetricTarget,
-} from '../../lib/domain/fitness/targets';
+} from '../../workshop/metrics/targets';
 
 // ─── checkTarget ──────────────────────────────────────────────────
 

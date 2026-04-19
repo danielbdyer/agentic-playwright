@@ -8,7 +8,7 @@ import {
   prepareComparisonView,
   computeGrowthSummary,
 } from '../../dashboard/src/organisms/before-after-comparison';
-import type { BeforeAfterComparison as ComparisonData } from '../../lib/domain/projection/summary-view';
+import type { BeforeAfterComparison as ComparisonData } from '../../product/domain/projection/summary-view';
 
 const COMPARISON: ComparisonData = {
   before: { nodeCount: 3, approvedCount: 0, learningCount: 3, blockedCount: 0, avgConfidence: 0.3, screenCount: 1 },

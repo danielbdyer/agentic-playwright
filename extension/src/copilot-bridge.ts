@@ -2,7 +2,7 @@
  * Copilot Chat Bridge — registers the @tesseract Copilot Chat participant.
  *
  * Routes natural-language chat messages to the pure domain handlers in
- * lib/infrastructure/vscode/copilot-participant.ts. The bridge parses
+ * product/instruments/vscode/copilot-participant.ts. The bridge parses
  * slash commands (/inbox, /approve, /rerun, /hotspots) and maps them
  * to CopilotRequest values.
  *
@@ -10,8 +10,8 @@
  */
 
 import * as vscode from 'vscode';
-import { dispatchCopilotRequest } from '../../lib/infrastructure/vscode/copilot-participant';
-import type { CopilotRequest, CopilotResponse } from '../../lib/infrastructure/vscode/types';
+import { dispatchCopilotRequest } from '../../product/instruments/vscode/copilot-participant';
+import type { CopilotRequest, CopilotResponse } from '../../product/instruments/vscode/types';
 import type { ArtifactSnapshot } from './artifact-loader';
 
 const PARTICIPANT_ID = 'tesseract.participant';

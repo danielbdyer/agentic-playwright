@@ -1,5 +1,5 @@
 import { projectBenchmarkScorecard } from './benchmark';
-import type { ProjectPaths } from '../paths';
+import type { ProjectPaths } from '../../product/application/paths';
 
 export function renderBenchmarkScorecard(options: {
   paths: ProjectPaths;

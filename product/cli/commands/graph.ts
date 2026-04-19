@@ -1,4 +1,4 @@
-import { buildDerivedGraph } from '../../graph/graph';
+import { buildDerivedGraph } from '../../application/graph/graph';
 import { createCommandSpec } from '../shared';
 
 export const graphCommand = createCommandSpec({

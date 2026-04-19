@@ -2,7 +2,7 @@
  * Dashboard domain projections — REST API response schemas and queue state.
  *
  * These are lightweight projections of the pipeline's domain types
- * (lib/domain/types/workbench.ts, lib/domain/types/improvement.ts)
+ * (product/domain/types/workbench.ts, product/domain/types/improvement.ts)
  * shaped for the React view layer. All fields are readonly.
  */
 

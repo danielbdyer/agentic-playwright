@@ -1,18 +1,18 @@
 import { Effect } from 'effect';
-import { TesseractError } from '../../domain/kernel/errors';
-import { foldGovernance } from '../../domain/governance/workflow-types';
-import type { Approved } from '../../domain/governance/workflow-types';
+import { TesseractError } from '../../product/domain/kernel/errors';
+import { foldGovernance } from '../../product/domain/governance/workflow-types';
+import type { Approved } from '../../product/domain/governance/workflow-types';
 import type {
   InterventionCommandAction,
   InterventionCommandBatch,
   InterventionLineageProjection,
   InterventionReceipt,
   InterventionStatus,
-} from '../../domain/handshake/intervention';
-import { epistemicStatusForSource } from '../../domain/handshake/epistemic-brand';
-import { createSemanticCore } from '../../domain/handshake/semantic-core';
-import type { ProjectPaths } from '../paths';
-import { FileSystem } from '../ports';
+} from '../../product/domain/handshake/intervention';
+import { epistemicStatusForSource } from '../../product/domain/handshake/epistemic-brand';
+import { createSemanticCore } from '../../product/domain/handshake/semantic-core';
+import type { ProjectPaths } from '../../product/application/paths';
+import { FileSystem } from '../../product/application/ports';
 
 interface ActionExecutionContext {
   readonly action: Approved<InterventionCommandAction>;
@@ -232,7 +232,7 @@ function handoffForAction(
     requiredAuthorities: profile.requiredAuthorities,
     blastRadius: action.reversible.reversible ? 'review-bound' : 'global',
     // Phase 2.2/T6 migration: route through the audited source mapping
-    // in `lib/domain/handshake/epistemic-brand.ts` so intervention
+    // in `product/domain/handshake/epistemic-brand.ts` so intervention
     // receipts cannot accidentally mint `observed` from a block or an
     // approval. The source string names the provenance of this status.
     epistemicStatus: input.status === 'blocked'

@@ -21,12 +21,12 @@ import { expect, test } from '@playwright/test';
 import {
   compareToScorecard,
   updateScorecard,
-} from '../../lib/application/improvement/fitness';
+} from '../../workshop/orchestration/fitness';
 import type {
   PipelineFitnessMetrics,
   PipelineFitnessReport,
   PipelineScorecard,
-} from '../../lib/domain/fitness/types';
+} from '../../workshop/metrics/types';
 
 function baseMetrics(overrides: Partial<PipelineFitnessMetrics> = {}): PipelineFitnessMetrics {
   return {

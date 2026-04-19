@@ -181,12 +181,12 @@ function countTsFiles(dir) {
  */
 function buildStructureOverview() {
   const layers = [
-    { dir: 'lib/domain', name: 'Domain', desc: 'Pure domain logic — types, validation, graph derivation, code generation' },
-    { dir: 'lib/application', name: 'Application', desc: 'Effect orchestration — CLI commands, execution pipelines, fitness, improvement' },
-    { dir: 'lib/runtime', name: 'Runtime', desc: 'Playwright execution — scenario steps, agent resolution, screen identification' },
-    { dir: 'lib/infrastructure', name: 'Infrastructure', desc: 'Ports and adapters — ADO, filesystem, dashboard, MCP, VSCode' },
-    { dir: 'lib/composition', name: 'Composition', desc: 'Dependency injection — Effect Layers, service wiring' },
-    { dir: 'lib/playwright', name: 'Playwright', desc: 'ARIA capture, locator resolution, state topology' },
+    { dir: 'product/domain', name: 'Domain', desc: 'Pure domain logic — types, validation, graph derivation, code generation' },
+    { dir: 'product/application', name: 'Application', desc: 'Effect orchestration — CLI commands, execution pipelines, fitness, improvement' },
+    { dir: 'product/runtime', name: 'Runtime', desc: 'Playwright execution — scenario steps, agent resolution, screen identification' },
+    { dir: 'product/instruments', name: 'Infrastructure', desc: 'Ports and adapters — ADO, filesystem, dashboard, MCP, VSCode' },
+    { dir: 'product/composition', name: 'Composition', desc: 'Dependency injection — Effect Layers, service wiring' },
+    { dir: 'product/instruments/observation', name: 'Playwright', desc: 'ARIA capture, locator resolution, state topology' },
   ];
 
   const rows = layers.map(({ dir, name, desc }) => {

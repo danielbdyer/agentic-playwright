@@ -1,16 +1,16 @@
 import { expect, test } from '@playwright/test';
-import { SchemaError } from '../lib/domain/kernel/errors';
+import { SchemaError } from '../product/domain/kernel/errors';
 import {
   validateBenchmarkContext,
   validateBenchmarkImprovementProjection,
   validateDogfoodRun,
-} from '../lib/domain/validation/execution';
-import { validateInterventionReceipt } from '../lib/domain/validation/intervention';
-import { validateScenario } from '../lib/domain/validation/intent';
-import { validateScreenElements } from '../lib/domain/validation/knowledge';
-import { validateDerivedGraph } from '../lib/domain/validation/projection';
-import { validateResolutionControl } from '../lib/domain/validation/resolution';
-import { validateTrustPolicy } from '../lib/domain/validation/trust-policy';
+} from '../product/domain/validation/execution';
+import { validateInterventionReceipt } from '../product/domain/validation/intervention';
+import { validateScenario } from '../product/domain/validation/intent';
+import { validateScreenElements } from '../product/domain/validation/knowledge';
+import { validateDerivedGraph } from '../product/domain/validation/projection';
+import { validateResolutionControl } from '../product/domain/validation/resolution';
+import { validateTrustPolicy } from '../product/domain/validation/trust-policy';
 
 function expectSchemaPath(fn: () => unknown, path: string) {
   try {

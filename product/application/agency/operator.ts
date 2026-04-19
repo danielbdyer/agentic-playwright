@@ -17,7 +17,7 @@ import { foldOperatorInboxKind } from '../../domain/resolution/inbox-fold';
 import type { OperatorInboxItem } from '../../domain/resolution/types';
 import type { WorkspaceCatalog } from '../catalog';
 import { compareStrings, uniqueSorted } from '../../domain/kernel/collections';
-import type { WorkflowHotspot } from '../improvement/hotspots';
+import type { WorkflowHotspot } from '../../../workshop/orchestration/hotspots';
 import type { RerunPlan } from '../../domain/resolution/types';
 
 function latestRuns(catalog: WorkspaceCatalog): Map<AdoId, RunRecord> {
@@ -117,7 +117,7 @@ function inboxHandoffProfile(item: OperatorInboxItem): InboxHandoffProfile {
 
 function epistemicStatus(item: OperatorInboxItem): InterventionHandoff['epistemicStatus'] {
   // Phase 2.2/T6 migration: route through the audited source-to-status
-  // mapping in `lib/domain/handshake/epistemic-brand.ts` so this site can
+  // mapping in `product/domain/handshake/epistemic-brand.ts` so this site can
   // never accidentally mint `observed` from a non-runtime source. The
   // inbox item's `status` discriminator is mapped to an explicit source
   // string that the brand's `epistemicStatusForSource` understands.

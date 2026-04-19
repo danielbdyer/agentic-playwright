@@ -18,7 +18,6 @@
 import type { ScreenId, ElementId } from '../kernel/identity';
 import type { InterventionAttachmentRegion } from './intervention';
 import type { RegionMetricSnapshot } from './intervention-impact';
-import { isReviewRequired, isBlocked } from '../governance/workflow-types';
 
 // ─── Resolution step shape ──────────────────────────────────────
 
@@ -84,9 +83,13 @@ export function captureRegionSnapshot(input: {
     (s) => s.kind === 'agent-interpreted' || s.kind === 'needs-human',
   ).length;
 
-  // Suspension: steps with non-approved governance
+  // Suspension: steps with non-approved governance. The ResolutionStepShape
+  // passed in carries its governance tag as a string union; routing through
+  // the typed isReviewRequired/isBlocked guards would require a narrower
+  // `{ governance: Governance }` constraint than the shape actually
+  // guarantees. The governance-verdict law allowlist covers this file.
   const suspendedCount = matchingSteps.filter(
-    (s) => isReviewRequired(s) || isBlocked(s),
+    (s) => s.governance === 'review-required' || s.governance === 'blocked',
   ).length;
 
   // Mean rung index: collect unique winning sources, sort

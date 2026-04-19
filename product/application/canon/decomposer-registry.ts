@@ -49,7 +49,7 @@ export interface DecomposerDescriptor<C extends AtomClass> {
    *  reads (e.g., '*.elements.yaml', 'discovery-run'). */
   readonly sourceDescription: string;
   /** The module path that contains the decomposer function, relative
-   *  to lib/application/canon/. Used for documentation and tooling. */
+   *  to product/application/canon/. Used for documentation and tooling. */
   readonly modulePath: string;
   /** The decomposer function's export name. */
   readonly functionName: string;

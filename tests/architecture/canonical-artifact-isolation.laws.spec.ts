@@ -19,7 +19,7 @@ import { expect, test } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const LIB_ROOT = path.resolve(__dirname, '../..', 'lib');
+const LIB_ROOT = path.resolve(__dirname, '../..', 'product');
 
 function walkTs(dir: string): string[] {
   const results: string[] = [];
@@ -37,7 +37,7 @@ function walkTs(dir: string): string[] {
 
 /** True when the source file appears to write to the canonical
  *  artifact store. The check looks for the path constants from
- *  `lib/application/paths/` (atomsAgenticDir, atomsDeterministicDir,
+ *  `product/application/paths/` (atomsAgenticDir, atomsDeterministicDir,
  *  etc.) being passed to writeText/writeJson calls, OR for literal
  *  references to '.canonical-artifacts'. */
 function writesToCanonicalArtifacts(content: string): boolean {
@@ -69,9 +69,9 @@ function writesToCanonicalArtifacts(content: string): boolean {
   return hasWrite;
 }
 
-// ─── Law: lib/runtime/ does not write to the canonical artifact store ───
+// ─── Law: product/runtime/ does not write to the canonical artifact store ───
 
-test('lib/runtime/ does not write to the canonical artifact store', () => {
+test('product/runtime/ does not write to the canonical artifact store', () => {
   const runtimeFiles = walkTs(path.join(LIB_ROOT, 'runtime'));
   const violations: string[] = [];
   for (const file of runtimeFiles) {
@@ -83,9 +83,9 @@ test('lib/runtime/ does not write to the canonical artifact store', () => {
   expect(violations).toEqual([]);
 });
 
-// ─── Law: lib/application/measurement/ does not write to the store ───
+// ─── Law: workshop/measurement/ does not write to the store ───
 
-test('lib/application/measurement/ does not write to the canonical artifact store', () => {
+test('workshop/measurement/ does not write to the canonical artifact store', () => {
   const measurementFiles = walkTs(path.join(LIB_ROOT, 'application', 'measurement'));
   const violations: string[] = [];
   for (const file of measurementFiles) {
@@ -97,9 +97,9 @@ test('lib/application/measurement/ does not write to the canonical artifact stor
   expect(violations).toEqual([]);
 });
 
-// ─── Law: lib/runtime-support/ does not write to the store ───
+// ─── Law: product/application/runtime-support/ does not write to the store ───
 
-test('lib/application/runtime-support/ does not write to the canonical artifact store', () => {
+test('product/application/runtime-support/ does not write to the canonical artifact store', () => {
   const supportFiles = walkTs(path.join(LIB_ROOT, 'application', 'runtime-support'));
   const violations: string[] = [];
   for (const file of supportFiles) {
@@ -113,7 +113,7 @@ test('lib/application/runtime-support/ does not write to the canonical artifact 
 
 // ─── Law: domain layer does not import application layer ───────
 
-test('lib/domain/pipeline/ has no application or infrastructure imports', () => {
+test('product/domain/pipeline/ has no application or infrastructure imports', () => {
   const domainPipelineFiles = walkTs(path.join(LIB_ROOT, 'domain', 'pipeline'));
   const violations: string[] = [];
   const importRegex = /from\s+['"]([^'"]+)['"]/g;
@@ -124,10 +124,10 @@ test('lib/domain/pipeline/ has no application or infrastructure imports', () => 
       const imp = match[1]!;
       // Forbid any import that crosses out of the domain layer.
       if (
-        imp.includes('lib/application/') ||
-        imp.includes('lib/runtime/') ||
-        imp.includes('lib/infrastructure/') ||
-        imp.includes('lib/composition/')
+        imp.includes('product/application/') ||
+        imp.includes('product/runtime/') ||
+        imp.includes('product/instruments/') ||
+        imp.includes('product/composition/')
       ) {
         violations.push(`${path.relative(LIB_ROOT, file)}: ${imp}`);
         continue;
@@ -151,7 +151,7 @@ test('lib/domain/pipeline/ has no application or infrastructure imports', () => 
 
 // ─── Law: domain pipeline references existing identity types ────
 
-test('lib/domain/pipeline/ atom-address.ts references existing kernel identities', () => {
+test('product/domain/pipeline/ atom-address.ts references existing kernel identities', () => {
   const atomAddressFile = path.join(LIB_ROOT, 'domain', 'pipeline', 'atom-address.ts');
   const content = fs.readFileSync(atomAddressFile, 'utf-8');
   expect(content).toContain("from '../kernel/identity'");

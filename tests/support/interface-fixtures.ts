@@ -8,10 +8,10 @@ import {
   createSurfaceId,
   createTransitionRef,
   createWidgetId,
-} from '../../lib/domain/kernel/identity';
-import type { InterfaceResolutionContext, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../lib/domain/knowledge/types';
-import type { GroundedStep, StepGrounding } from '../../lib/domain/resolution/types';
-import type { RuntimeStepAgentContext } from '../../lib/runtime/resolution/types';
+} from '../../product/domain/kernel/identity';
+import type { InterfaceResolutionContext, StepTaskElementCandidate, StepTaskScreenCandidate } from '../../product/domain/knowledge/types';
+import type { GroundedStep, StepGrounding } from '../../product/domain/resolution/types';
+import type { RuntimeStepAgentContext } from '../../product/runtime/resolution/types';
 
 /** Strips readonly modifiers from the top-level fields — for test fixture mutation only. */
 export type Mutable<T> = { -readonly [K in keyof T]: T[K] };

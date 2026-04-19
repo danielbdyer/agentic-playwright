@@ -1,5 +1,5 @@
-import { emitScenario } from '../../commitment/emit';
-import { createAdoId } from '../../../domain/kernel/identity';
+import { emitScenario } from '../../application/commitment/emit';
+import { createAdoId } from '../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';
 

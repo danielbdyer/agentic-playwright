@@ -4,7 +4,7 @@
  * Displays every iteration as a segmented bar, color-coded by act identity.
  * Overlays: hit-rate bars, convergence velocity arrows, iteration markers.
  *
- * Consumes pure domain logic from lib/domain/iteration-timeline.ts.
+ * Consumes pure domain logic from product/domain/iteration-timeline.ts.
  *
  * @see docs/first-day-flywheel-visualization.md Part IX: Iteration Timeline
  */
@@ -16,7 +16,7 @@ import {
   type IterationMetrics,
   type TimelineEntry,
   type TimelineState,
-} from '../../../lib/domain/projection/iteration-timeline';
+} from '../../../product/domain/projection/iteration-timeline';
 import { ConvergenceArrow } from '../molecules/convergence-arrow';
 
 // ─── Component Props ───

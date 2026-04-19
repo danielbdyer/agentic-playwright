@@ -7,8 +7,8 @@
  * `switch` blocks. Adding a new case required manual hunting through
  * every site, and the compiler couldn't catch missed branches.
  *
- * This fold mirrors `foldGovernance` (lib/domain/governance/workflow-types.ts:44)
- * and `foldEpistemicStatus` (lib/domain/handshake/epistemic-brand.ts).
+ * This fold mirrors `foldGovernance` (product/domain/governance/workflow-types.ts:44)
+ * and `foldEpistemicStatus` (product/domain/handshake/epistemic-brand.ts).
  * Adding a new variant to `InterventionTargetKind` will break the
  * build at every fold call site, making the migration explicit.
  *

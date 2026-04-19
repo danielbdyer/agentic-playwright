@@ -1,21 +1,21 @@
 import { Effect } from 'effect';
-import { FileSystem } from '../ports';
-import { loadWorkspaceCatalog } from '../catalog';
-import type { ProjectPaths } from '../paths';
-import type { WorkspaceCatalog } from '../catalog';
+import { FileSystem } from '../../product/application/ports';
+import { loadWorkspaceCatalog } from '../../product/application/catalog';
+import type { ProjectPaths } from '../../product/application/paths';
+import type { WorkspaceCatalog } from '../../product/application/catalog';
 import {
   planSyntheticScenarios,
   resolvePerturbation,
   ZERO_PERTURBATION,
   type PerturbationConfig,
   type SyntheticCatalogPlanInput,
-} from '../../domain/synthesis/scenario-plan';
+} from '../../product/domain/synthesis/scenario-plan';
 
 export { resolvePerturbation, ZERO_PERTURBATION };
 export type { PerturbationConfig };
 
-import type { ScreenPostures } from '../../domain/knowledge/types';
-import type { PostureValue } from '../../domain/synthesis/scenario-plan';
+import type { ScreenPostures } from '../../product/domain/knowledge/types';
+import type { PostureValue } from '../../product/domain/synthesis/scenario-plan';
 
 function extractPostureValues(postures: ScreenPostures | undefined, elementId: string): readonly PostureValue[] {
   const elementPostures = postures?.postures?.[elementId];

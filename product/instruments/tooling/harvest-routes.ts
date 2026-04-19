@@ -28,7 +28,7 @@ import {
   performSafeActiveEvent,
   primeRequiredStatesOnPage,
   type PlaywrightStateObservationContext,
-} from '../../playwright/state-topology';
+} from '../observation/state-topology';
 import { discoverScreenScaffold } from './discover-screen';
 import { launchSharedBrowser, resolvePlaywrightHeadless, resolvePreferredPlaywrightChannel } from './browser-options';
 

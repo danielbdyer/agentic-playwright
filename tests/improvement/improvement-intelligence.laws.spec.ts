@@ -3,8 +3,8 @@ import {
   buildImprovementIntelligence,
   extractTopPriorities,
   computeImprovementTrends,
-} from '../../lib/application/improvement/improvement-intelligence';
-import type { PipelineFitnessReport } from '../../lib/domain/fitness/types';
+} from '../../workshop/orchestration/improvement-intelligence';
+import type { PipelineFitnessReport } from '../../workshop/metrics/types';
 
 function makeFitnessReport(overrides?: Partial<{
   failureModes: PipelineFitnessReport['failureModes'];

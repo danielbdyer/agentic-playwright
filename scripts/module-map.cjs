@@ -9,37 +9,37 @@ const OUTPUT_FILE = path.join(ROOT_DIR, 'docs', 'module-map.md');
  */
 const LAYERS = [
   {
-    dir: 'lib/domain',
+    dir: 'product/domain',
     name: 'Domain',
     summary:
       'Pure, side-effect-free domain logic. No imports from other layers. No filesystem, network, or Effect dependencies.',
   },
   {
-    dir: 'lib/application',
+    dir: 'product/application',
     name: 'Application',
     summary:
       'Effect-based orchestration layer. CLI commands, execution pipelines, fitness reports, improvement loops, and workspace catalog management.',
   },
   {
-    dir: 'lib/runtime',
+    dir: 'product/runtime',
     name: 'Runtime',
     summary:
       'Playwright execution layer. Scenario step execution, agent resolution, screen identification, locator resolution, and ARIA snapshot handling.',
   },
   {
-    dir: 'lib/infrastructure',
+    dir: 'product/instruments',
     name: 'Infrastructure',
     summary:
       'Ports and adapters. File system abstraction, Azure DevOps integration, dashboard event bus, MCP protocol, VSCode integration, and Playwright reporter.',
   },
   {
-    dir: 'lib/composition',
+    dir: 'product/composition',
     name: 'Composition',
     summary:
       'Dependency injection and service wiring. Effect Layer definitions, environment configuration, and service provisioning.',
   },
   {
-    dir: 'lib/playwright',
+    dir: 'product/instruments/observation',
     name: 'Playwright',
     summary:
       'Thin Playwright-specific utilities for ARIA capture, locator resolution strategies, and state topology observation.',
@@ -309,37 +309,37 @@ function generateModuleMap() {
   sections.push('| Task | Start Here |');
   sections.push('| --- | --- |');
   sections.push(
-    '| Understand domain types | `lib/domain/types/` (30 type definition files) |'
+    '| Understand domain types | `product/domain/types/` (30 type definition files) |'
   );
   sections.push(
-    '| Add a CLI command | `lib/application/cli/commands/` + register in `lib/application/cli/registry.ts` |'
+    '| Add a CLI command | `product/cli/commands/` + register in `product/cli/registry.ts` |'
   );
   sections.push(
-    '| Modify the execution pipeline | `lib/application/execution/` (11 files: plan → interpret → execute → evidence → proposals) |'
+    '| Modify the execution pipeline | `product/application/execution/` (11 files: plan → interpret → execute → evidence → proposals) |'
   );
   sections.push(
-    '| Change resolution logic | `lib/runtime/agent/` (17 files: strategy registry, resolution stages, candidate lattice) |'
+    '| Change resolution logic | `product/runtime/agent/` (17 files: strategy registry, resolution stages, candidate lattice) |'
   );
   sections.push(
     '| Add a new screen to knowledge | `dogfood/knowledge/screens/{screen}.elements.yaml` + `.hints.yaml` + `.surface.yaml` |'
   );
   sections.push(
-    '| Modify graph derivation | `lib/domain/derived-graph.ts` + `lib/application/graph.ts` |'
+    '| Modify graph derivation | `product/domain/derived-graph.ts` + `product/application/graph.ts` |'
   );
   sections.push(
-    '| Change code emission | `lib/domain/spec-codegen.ts` + `lib/application/emit.ts` |'
+    '| Change code emission | `product/domain/spec-codegen.ts` + `product/application/emit.ts` |'
   );
   sections.push(
-    '| Understand governance | `lib/domain/governance/` (4 files) + `lib/domain/types/workflow.ts` |'
+    '| Understand governance | `product/domain/governance/` (4 files) + `product/domain/types/workflow.ts` |'
   );
   sections.push(
-    '| Wire new infrastructure | `lib/infrastructure/` (adapter) + `lib/composition/layers.ts` (Effect Layer) |'
+    '| Wire new infrastructure | `product/instruments/` (adapter) + `product/composition/layers.ts` (Effect Layer) |'
   );
   sections.push(
-    '| Add a validation rule | `lib/domain/validation/` (16 files) |'
+    '| Add a validation rule | `product/domain/validation/` (16 files) |'
   );
   sections.push(
-    '| Dashboard / visualization | `dashboard/` (React + R3F) + `lib/domain/` (flywheel modules) |'
+    '| Dashboard / visualization | `dashboard/` (React + R3F) + `product/domain/` (flywheel modules) |'
   );
   sections.push('');
 

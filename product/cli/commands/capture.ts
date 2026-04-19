@@ -1,5 +1,5 @@
-import { captureScreenSection } from '../../../infrastructure/tooling/capture-screen';
-import { createScreenId } from '../../../domain/kernel/identity';
+import { captureScreenSection } from '../../instruments/tooling/capture-screen';
+import { createScreenId } from '../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { requireScreen, requireSection } from '../shared';
 

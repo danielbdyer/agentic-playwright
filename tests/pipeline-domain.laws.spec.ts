@@ -1,5 +1,5 @@
 /**
- * Laws for the lib/domain/pipeline/ namespace.
+ * Laws for the product/domain/pipeline/ namespace.
  *
  * These tests verify the typed primitives that implement the
  * canon-and-derivation doctrine's three-tier interface model:
@@ -29,7 +29,7 @@ import {
   isProjectionSubPhase,
   isTopLevelStage,
   tierOfStage,
-} from '../lib/domain/pipeline/stage-enum';
+} from '../product/domain/pipeline/stage-enum';
 
 import {
   SOURCE_PRECEDENCE,
@@ -41,16 +41,16 @@ import {
   isDemotable,
   foldPhaseOutputSource,
   compareSourcePrecedence,
-} from '../lib/domain/pipeline/source';
+} from '../product/domain/pipeline/source';
 
 import {
   ATOM_CLASSES,
   atomAddressToPath,
   atomAddressEquals,
   type AtomAddress,
-} from '../lib/domain/pipeline/atom-address';
+} from '../product/domain/pipeline/atom-address';
 
-import { atom, isAtomOfClass, isAtomAddressConsistent } from '../lib/domain/pipeline/atom';
+import { atom, isAtomOfClass, isAtomAddressConsistent } from '../product/domain/pipeline/atom';
 
 import {
   COMPOSITION_SUB_TYPES,
@@ -58,18 +58,18 @@ import {
   compositionAddressEquals,
   type FlowId,
   type RunbookId,
-} from '../lib/domain/pipeline/composition-address';
+} from '../product/domain/pipeline/composition-address';
 
-import { composition, isCompositionAddressConsistent } from '../lib/domain/pipeline/composition';
+import { composition, isCompositionAddressConsistent } from '../product/domain/pipeline/composition';
 
 import {
   PROJECTION_SUB_TYPES,
   projectionAddressToPath,
   projectionAddressEquals,
   type RoleId,
-} from '../lib/domain/pipeline/projection-address';
+} from '../product/domain/pipeline/projection-address';
 
-import { projection, isProjectionAddressConsistent, findBinding } from '../lib/domain/pipeline/projection';
+import { projection, isProjectionAddressConsistent, findBinding } from '../product/domain/pipeline/projection';
 
 import {
   EMPTY_QUALIFIER_BAG,
@@ -77,7 +77,7 @@ import {
   intersectApplicability,
   APPLICABILITY_IDENTITY,
   type QualifierBag,
-} from '../lib/domain/pipeline/qualifier';
+} from '../product/domain/pipeline/qualifier';
 
 import {
   DEFAULT_LOOKUP_MODE,
@@ -85,10 +85,10 @@ import {
   modeConsultsDeterministicObservations,
   modeRunsDiscovery,
   modeConsultsLiveCache,
-} from '../lib/domain/pipeline/lookup-chain';
+} from '../product/domain/pipeline/lookup-chain';
 
-import { brandString } from '../lib/domain/kernel/brand';
-import { asFingerprint } from '../lib/domain/kernel/hash';
+import { brandString } from '../product/domain/kernel/brand';
+import { asFingerprint } from '../product/domain/kernel/hash';
 
 // ─── Stage enumeration ───────────────────────────────────────────
 

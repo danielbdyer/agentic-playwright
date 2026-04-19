@@ -8,8 +8,8 @@ import {
   findNearestCheckpoint,
   type SceneState,
   type SceneCheckpoint,
-} from '../../lib/domain/projection/scene-state-accumulator';
-import type { DashboardEventKind } from '../../lib/domain/observation/dashboard';
+} from '../../product/domain/projection/scene-state-accumulator';
+import type { DashboardEventKind } from '../../product/domain/observation/dashboard';
 
 // ─── Helpers ───
 

@@ -1,15 +1,15 @@
 import { expect, test } from '@playwright/test';
-import { loadWorkspaceCatalog } from '../../lib/application/catalog';
-import { buildProposals } from '../../lib/application/commitment/build-proposals';
-import { buildRunRecord } from '../../lib/application/commitment/build-run-record';
-import { foldScenarioRun } from '../../lib/application/commitment/fold';
-import { selectRunContext } from '../../lib/application/commitment/select-run-context';
-import { runWithLocalServices } from '../../lib/composition/local-services';
-import { refreshScenario } from '../../lib/application/resolution/refresh';
-import { createAdoId } from '../../lib/domain/kernel/identity';
-import type { ScenarioRunPlan } from '../../lib/domain/resolution/types';
-import type { RuntimeScenarioStepResult } from '../../lib/application/ports';
-import type { PersistedEvidenceArtifact } from '../../lib/application/commitment/persist-evidence';
+import { loadWorkspaceCatalog } from '../../product/application/catalog';
+import { buildProposals } from '../../product/application/commitment/build-proposals';
+import { buildRunRecord } from '../../product/application/commitment/build-run-record';
+import { foldScenarioRun } from '../../product/application/commitment/fold';
+import { selectRunContext } from '../../product/application/commitment/select-run-context';
+import { runWithLocalServices } from '../../product/composition/local-services';
+import { refreshScenario } from '../../product/application/resolution/refresh';
+import { createAdoId } from '../../product/domain/kernel/identity';
+import type { ScenarioRunPlan } from '../../product/domain/resolution/types';
+import type { RuntimeScenarioStepResult } from '../../product/application/ports';
+import type { PersistedEvidenceArtifact } from '../../product/application/commitment/persist-evidence';
 import { createInterfaceResolutionContext } from '../support/interface-fixtures';
 import { createTestWorkspace } from '../support/workspace';
 

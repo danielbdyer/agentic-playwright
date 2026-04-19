@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/env node
-import { TesseractError } from '../lib/domain/kernel/errors';
-import { runWithLocalServicesDetailed } from '../lib/composition/local-services';
-import { createCliPaths, parseCliInvocation, resolveExecutionPosture } from '../lib/application/cli/registry';
+import { TesseractError } from '../product/domain/kernel/errors';
+import { runWithLocalServicesDetailed } from '../product/composition/local-services';
+import { createCliPaths, parseCliInvocation, resolveExecutionPosture } from '../product/cli/registry';
 
 function logJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);

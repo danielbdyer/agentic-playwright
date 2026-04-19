@@ -7,26 +7,26 @@
  * the scorecard comparison is the "beat-the-mark" gate.
  */
 
-import { classify, type ClassificationRule } from '../../domain/kernel/classify';
-import { TesseractError } from '../../domain/kernel/errors';
-import type { ProposalBundle, StepExecutionReceipt } from '../../domain/execution/types';
+import { classify, type ClassificationRule } from '../../product/domain/kernel/classify';
+import { TesseractError } from '../../product/domain/kernel/errors';
+import type { ProposalBundle, StepExecutionReceipt } from '../../product/domain/execution/types';
 import {
   addToParetoFrontier,
   isAcceptedByParetoFrontier,
   objectivesFromMetrics,
   summarizeTheoremBaseline,
   theoremBaselineCoverageForObligations,
-} from '../../domain/fitness/types';
+} from '../metrics/types';
 import {
   computeMemoryMaturity,
   memoryMaturityEntryCount,
-} from '../../domain/fitness/memory-maturity';
+} from '../metrics/memory-maturity';
 import {
   compoundingObligation,
   trajectoryMeasurementClass,
   type CompoundingTrajectory,
-} from '../../domain/fitness/compounding';
-import { hasCriticalFloorViolation } from '../../domain/fitness/targets';
+} from '../metrics/compounding';
+import { hasCriticalFloorViolation } from '../metrics/targets';
 import { projectCompoundingTrajectory } from './compounding-projection';
 import type {
   KnowledgeCoverageSummary,
@@ -41,16 +41,16 @@ import type {
   ScorecardHighWaterMark,
   ScorecardHistoryEntry,
   ScoringEffectiveness,
-} from '../../domain/fitness/types';
-import type { StepWinningSource } from '../../domain/governance/workflow-types';
-import type { ExperimentRecord } from '../../domain/improvement/experiment';
-import type { ImprovementLoopLedger } from '../../domain/improvement/types';
-import type { ResolutionReceipt } from '../../domain/resolution/types';
-import { groupByMap } from '../../domain/kernel/collections';
-import { foldPipelineFailureClass, WINNING_SOURCE_TO_RUNG } from '../../domain/kernel/visitors';
-import { isBlocked } from '../../domain/proposal/lifecycle';
-import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../../domain/resolution/precedence';
-import type { BottleneckWeightCorrelation, GeneralizationMetrics } from '../../domain/fitness/types';
+} from '../metrics/types';
+import type { StepWinningSource } from '../../product/domain/governance/workflow-types';
+import type { ExperimentRecord } from '../../product/domain/improvement/experiment';
+import type { ImprovementLoopLedger } from '../../product/domain/improvement/types';
+import type { ResolutionReceipt } from '../../product/domain/resolution/types';
+import { groupByMap } from '../../product/domain/kernel/collections';
+import { foldPipelineFailureClass, WINNING_SOURCE_TO_RUNG } from '../../product/domain/kernel/visitors';
+import { isBlocked } from '../../product/domain/proposal/lifecycle';
+import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../../product/domain/resolution/precedence';
+import type { BottleneckWeightCorrelation, GeneralizationMetrics } from '../metrics/types';
 
 // ─── Step-level classification ───
 
@@ -152,16 +152,16 @@ export interface FitnessInputData {
   readonly experimentHistory?: readonly ExperimentRecord[] | undefined;
   readonly knowledgeCoverage?: KnowledgeCoverageSummary | undefined;
   /** Learning signals from the last iteration — enriches fitness metrics with execution health. */
-  readonly learningSignals?: import('../../domain/improvement/types').LearningSignalsSummary | undefined;
+  readonly learningSignals?: import('../../product/domain/improvement/types').LearningSignalsSummary | undefined;
   /** Obligations produced by out-of-band probes (e.g. fingerprint-stability)
    *  whose `measurementClass: 'direct'` is earned through real structural
    *  measurement rather than heuristic risk scoring. Merged into the
    *  runtime obligation set and passed through to the scorecard. */
-  readonly extraObligations?: readonly import('../../domain/fitness/types').LogicalProofObligation[] | undefined;
+  readonly extraObligations?: readonly import('../metrics/types').LogicalProofObligation[] | undefined;
   /** Operational `MemoryMaturity(τ)` counts derived from the catalog at the
    *  time the fitness report is built. Used by C-family obligations and the
    *  scorecard history to track compounding direction across cohorts. */
-  readonly memoryMaturityCounts?: import('../../domain/fitness/memory-maturity').MemoryMaturityCounts | undefined;
+  readonly memoryMaturityCounts?: import('../metrics/memory-maturity').MemoryMaturityCounts | undefined;
   /** Existing scorecard, when available. Lets `buildFitnessReport` project
    *  a cohort-trajectory measurement of compounding-economics from history
    *  instead of the single-frame heuristic. Without this, the C-family

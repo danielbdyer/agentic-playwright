@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { applyProposalPatch, validatePatchedProposalArtifact } from '../../lib/application/knowledge/proposal-patches';
-import type { ProposalEntry } from '../../lib/domain/execution/types';
+import { applyProposalPatch, validatePatchedProposalArtifact } from '../../product/application/knowledge/proposal-patches';
+import type { ProposalEntry } from '../../product/domain/execution/types';
 
 function makeProposalEntry(input: {
   artifactType: ProposalEntry['artifactType'];

@@ -45,7 +45,7 @@ export interface MetricVisitor<Input, Kind extends string> {
  *  map to a visitor whose `outputKind` matches that key. The visitor's
  *  input type is `unknown` at the registry boundary because different
  *  visitors consume different receipt shapes; concrete bindings live in
- *  the application layer (`lib/application/measurement/`). */
+ *  the application layer (`workshop/measurement/`). */
 export type PipelineVisitorRegistry = {
   readonly [K in PipelineMetricKind]: MetricVisitor<unknown, K>;
 };

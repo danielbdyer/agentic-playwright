@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
-import { createAdoId, createElementId, createScreenId } from '../../lib/domain/kernel/identity';
-import { graphIds } from '../../lib/domain/kernel/ids';
-import { loadWorkspaceCatalog } from '../../lib/application/catalog';
-import { refreshScenario } from '../../lib/application/resolution/refresh';
-import { internalRerunPlan } from '../../lib/application/commitment/replay/rerun-plan';
-import { runWithLocalServices } from '../../lib/composition/local-services';
+import { createAdoId, createElementId, createScreenId } from '../../product/domain/kernel/identity';
+import { graphIds } from '../../product/domain/kernel/ids';
+import { loadWorkspaceCatalog } from '../../product/application/catalog';
+import { refreshScenario } from '../../product/application/resolution/refresh';
+import { internalRerunPlan } from '../../product/application/commitment/replay/rerun-plan';
+import { runWithLocalServices } from '../../product/composition/local-services';
 import { createTestWorkspace } from '../support/workspace';
 
 test('rerun planner returns no-op selection for unchanged inputs', async () => {

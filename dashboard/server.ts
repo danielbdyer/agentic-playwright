@@ -9,19 +9,19 @@ import { Effect } from 'effect';
 import {
   createPipelineEventBus,
   subscribeWsBroadcaster,
-} from '../lib/infrastructure/dashboard/pipeline-event-bus';
+} from '../dashboard/bridges/pipeline-event-bus';
 import {
   subscribeJournalWriter,
   journalWriterConfig,
-} from '../lib/infrastructure/dashboard/journal-writer';
-import { createProjectPaths } from '../lib/application/paths';
-import { runWithLocalServices } from '../lib/composition/local-services';
-import { speedrunProgram } from '../lib/application/speedrun';
-import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/attention/pipeline-config';
-import { startFixtureServer } from '../lib/infrastructure/fixture-server';
-import { createPlaywrightBrowserPool } from '../lib/infrastructure/playwright-browser-pool';
-import { resolvePlaywrightHeadless } from '../lib/infrastructure/tooling/browser-options';
-import { withScreencast } from '../lib/infrastructure/dashboard/cdp-screencast';
+} from '../dashboard/bridges/journal-writer';
+import { createProjectPaths } from '../product/application/paths';
+import { runWithLocalServices } from '../product/composition/local-services';
+import { speedrunProgram } from '../workshop/orchestration/speedrun';
+import { DEFAULT_PIPELINE_CONFIG } from '../product/domain/attention/pipeline-config';
+import { startFixtureServer } from '../product/instruments/tooling/fixture-server';
+import { createPlaywrightBrowserPool } from '../product/instruments/runtime/playwright-browser-pool';
+import { resolvePlaywrightHeadless } from '../product/instruments/tooling/browser-options';
+import { withScreencast } from '../dashboard/bridges/cdp-screencast';
 import { parseDashboardConfig } from './server/config';
 import { createFileAccess } from './server/infrastructure/file-access';
 import { createMcpToolsRegistry } from './server/mcp-tools';

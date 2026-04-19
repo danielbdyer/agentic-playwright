@@ -1,1 +1,1 @@
-export { captureAriaYaml, expectAriaSnapshot } from '../../playwright/aria';
+export { captureAriaYaml, expectAriaSnapshot } from '../../instruments/observation/aria';

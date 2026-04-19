@@ -9,7 +9,7 @@
  * never an in-place mutation.
  *
  * Persistence shape, file format, and naming convention are owned by the
- * application layer (`lib/application/measurement/baseline-store.ts`).
+ * application layer (`workshop/measurement/baseline-store.ts`).
  * This module owns only the value object.
  */
 

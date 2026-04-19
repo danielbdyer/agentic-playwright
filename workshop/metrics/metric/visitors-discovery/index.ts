@@ -23,7 +23,7 @@ import {
   type DiscoveryFitnessMetricKind,
 } from '../catalogue-discovery';
 import type { MetricVisitor } from '../visitor';
-import type { AtomClass, AtomAddress } from '../../../pipeline/atom-address';
+import type { AtomClass, AtomAddress } from '../../../../product/domain/pipeline/atom-address';
 import { fidelityVisitor, coverageVisitor } from './fidelity';
 
 // ─── Visitor input shape ────────────────────────────────────────

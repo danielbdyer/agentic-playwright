@@ -5,13 +5,13 @@
  * artifacts (the compound YAML files at `dogfood/knowledge/screens/`,
  * `dogfood/knowledge/routes/`, `dogfood/controls/datasets/`, etc.)
  * into per-atom envelopes addressable by the lookup chain at
- * `lib/domain/pipeline/lookup-chain.ts`.
+ * `product/domain/pipeline/lookup-chain.ts`.
  *
  * This namespace is the application-layer home for Phase A of
  * `docs/cold-start-convergence-plan.md` (atom decomposition). Each
  * decomposer is a pure function — same input, same output — that
  * mirrors the shape of `decomposeDiscoveryRun` at
- * `lib/application/discovery/decompose-discovery-run.ts`. The two
+ * `product/application/discovery/decompose-discovery-run.ts`. The two
  * fan-in patterns (cold derivation and existing canon migration)
  * deliberately share one decomposition idiom so future readers see
  * one pattern, not two.

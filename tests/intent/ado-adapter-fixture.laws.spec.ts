@@ -15,7 +15,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { computeAdoContentHash, normalizeHtmlText } from '../../lib/domain/kernel/hash';
+import { computeAdoContentHash, normalizeHtmlText } from '../../product/domain/kernel/hash';
 
 // ─── Inline Fixtures ───
 // Minimal ADO work item XML fragments for testing the parsing pipeline.

@@ -20,10 +20,10 @@ export function actionFamilyOf(action: string): string {
 // combineScoringRules is foldMap over that monoid — makes the algebraic
 // structure explicit and enables swapping monoid instances if needed.
 
-export type { ScoringRule } from '../../domain/algebra/scoring';
-import type { ScoringRule } from '../../domain/algebra/scoring';
-import { scoringRuleMonoid } from '../../domain/algebra/scoring';
-import { concatAll } from '../../domain/algebra/monoid';
+export type { ScoringRule } from '../../product/domain/algebra/scoring';
+import type { ScoringRule } from '../../product/domain/algebra/scoring';
+import { scoringRuleMonoid } from '../../product/domain/algebra/scoring';
+import { concatAll } from '../../product/domain/algebra/monoid';
 
 export function combineScoringRules<T>(...rules: readonly ScoringRule<T>[]): ScoringRule<T> {
   return concatAll(scoringRuleMonoid<T>(), rules);

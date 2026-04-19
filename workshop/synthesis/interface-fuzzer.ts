@@ -9,9 +9,9 @@
  */
 
 import { Effect } from 'effect';
-import { FileSystem } from '../ports';
-import type { ProjectPaths } from '../paths';
-import { createSeededRng, pick } from '../../domain/kernel/random';
+import { FileSystem } from '../../product/application/ports';
+import type { ProjectPaths } from '../../product/application/paths';
+import { createSeededRng, pick } from '../../product/domain/kernel/random';
 
 // ─── Drift Event Types ───
 

@@ -13,20 +13,20 @@
 
 import path from 'path';
 import { Effect, Either, Option } from 'effect';
-import type { ProjectPaths } from '../paths';
+import type { ProjectPaths } from '../../product/application/paths';
 import { speedrunProgram, type SpeedrunInput, type SpeedrunResult } from './speedrun';
 import { mappingForFailureClass, generateCandidates, type CandidateConfig } from './knob-search';
-import { updateScorecard } from '../improvement/fitness';
+import { updateScorecard } from './fitness';
 import { recordExperiment } from './experiment-registry';
 import { scorecardPath } from './improvement';
 import { cleanSlateProgram } from './clean-slate';
-import { FileSystem } from '../ports';
-import type { PipelineConfig } from '../../domain/attention/pipeline-config';
-import type { PipelineScorecard } from '../../domain/fitness/types';
-import type { ExperimentRecord } from '../../domain/improvement/experiment';
-import type { ExperimentSubstrate, SpeedrunProgressEvent, SubstrateContext } from '../../domain/improvement/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
-import { TesseractError } from '../../domain/kernel/errors';
+import { FileSystem } from '../../product/application/ports';
+import type { PipelineConfig } from '../../product/domain/attention/pipeline-config';
+import type { PipelineScorecard } from '../metrics/types';
+import type { ExperimentRecord } from '../../product/domain/improvement/experiment';
+import type { ExperimentSubstrate, SpeedrunProgressEvent, SubstrateContext } from '../../product/domain/improvement/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
+import { TesseractError } from '../../product/domain/kernel/errors';
 
 // ─── Public types ───
 

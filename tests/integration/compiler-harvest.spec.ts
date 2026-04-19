@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { validateDiscoveryIndex } from '../../lib/domain/validation';
-import { harvestDeclaredRoutes } from '../../lib/infrastructure/tooling/harvest-routes';
-import { runWithLocalServices } from '../../lib/composition/local-services';
+import { validateDiscoveryIndex } from '../../product/domain/validation';
+import { harvestDeclaredRoutes } from '../../product/instruments/tooling/harvest-routes';
+import { runWithLocalServices } from '../../product/composition/local-services';
 import { createTestWorkspace } from '../support/workspace';
 
 test('harvest visits declared route variants and writes route-scoped receipts', async () => {

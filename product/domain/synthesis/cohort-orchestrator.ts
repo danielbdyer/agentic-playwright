@@ -7,7 +7,7 @@
  * and returns the grouped plans plus a stable manifest.
  *
  * Pure domain — no Effect, no IO, no application imports. The
- * application-layer wrapper at `lib/application/synthesis/cohort-generator.ts`
+ * application-layer wrapper at `workshop/synthesis/cohort-generator.ts`
  * handles file IO and catalog loading.
  *
  * Determinism contract:

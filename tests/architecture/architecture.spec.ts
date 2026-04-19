@@ -49,7 +49,7 @@ function relativeFile(filePath: string): string {
 
 test('domain layer does not depend on application, infrastructure, runtime, or tooling layers', () => {
   const forbidden = ['../application', '../infrastructure', '../runtime'];
-  const offenders = listTsFiles('lib/domain').flatMap((filePath) =>
+  const offenders = listTsFiles('product/domain').flatMap((filePath) =>
     importsFor(filePath)
       .filter((specifier) => forbidden.some((prefix) => specifier.startsWith(prefix)))
       .map((specifier) => `${relativeFile(filePath)} -> ${specifier}`),
@@ -59,7 +59,7 @@ test('domain layer does not depend on application, infrastructure, runtime, or t
 });
 
 test('domain layer stays pure of playwright, filesystem adapters, and runtime component implementations', () => {
-  const offenders = listTsFiles('lib/domain').flatMap((filePath) =>
+  const offenders = listTsFiles('product/domain').flatMap((filePath) =>
     importsFor(filePath)
       .filter((specifier) =>
         specifier === '@playwright/test'
@@ -79,7 +79,7 @@ test('domain layer stays pure of playwright, filesystem adapters, and runtime co
 test('application layer depends on domain and application-local modules, not infrastructure or runtime', () => {
   const forbidden = ['../infrastructure/', '../runtime/'];
   const allowed = ['../runtime-support/'];
-  const offenders = listTsFiles('lib/application').flatMap((filePath) =>
+  const offenders = listTsFiles('product/application').flatMap((filePath) =>
     importsFor(filePath)
       .filter((specifier) => forbidden.some((prefix) => specifier.startsWith(prefix))
         && !allowed.some((prefix) => specifier.startsWith(prefix)))
@@ -91,9 +91,9 @@ test('application layer depends on domain and application-local modules, not inf
 
 test('recursive-improvement application modules route filesystem and git access through ports', () => {
   const files = [
-    'lib/application/improvement/dogfood.ts',
-    'lib/application/improvement/speedrun.ts',
-    'lib/application/improvement/experiment-registry.ts',
+    'workshop/orchestration/dogfood.ts',
+    'workshop/orchestration/speedrun.ts',
+    'workshop/orchestration/experiment-registry.ts',
   ].map((relativePath) => path.join(rootDir, relativePath));
   const forbiddenImports = ['fs', 'node:fs', 'child_process', 'node:child_process', 'simple-git'];
   const forbiddenPatterns = [
@@ -122,8 +122,8 @@ test('recursive-improvement application modules route filesystem and git access 
 
 test('recursive-improvement fitness and aggregate builders do not import the dogfood orchestrator for loop contracts', () => {
   const files = [
-    'lib/application/improvement/fitness.ts',
-    'lib/application/improvement/dogfood.ts',
+    'workshop/orchestration/fitness.ts',
+    'workshop/orchestration/dogfood.ts',
   ].map((relativePath) => path.join(rootDir, relativePath));
 
   const offenders = files.flatMap((filePath) =>
@@ -137,7 +137,7 @@ test('recursive-improvement fitness and aggregate builders do not import the dog
 
 test('runtime layer remains isolated from application and infrastructure orchestration', () => {
   const forbidden = ['../application', '../infrastructure'];
-  const offenders = listTsFiles('lib/runtime').flatMap((filePath) =>
+  const offenders = listTsFiles('product/runtime').flatMap((filePath) =>
     importsFor(filePath)
       .filter((specifier) => forbidden.some((prefix) => specifier.startsWith(prefix)))
       .map((specifier) => `${relativeFile(filePath)} -> ${specifier}`),
@@ -148,7 +148,7 @@ test('runtime layer remains isolated from application and infrastructure orchest
 
 test('runtime layer does not perform repo-root filesystem loading directly', () => {
   const forbiddenPatterns = [/process\.cwd\(/, /readFileSync\(/, /existsSync\(/];
-  const offenders = listTsFiles('lib/runtime')
+  const offenders = listTsFiles('product/runtime')
     .filter((filePath) => forbiddenPatterns.some((pattern) => pattern.test(fileText(filePath))))
     .map(relativeFile);
 
@@ -157,8 +157,16 @@ test('runtime layer does not perform repo-root filesystem loading directly', () 
 
 test('infrastructure layer depends on application ports/domain, not runtime internals', () => {
   const forbidden = ['../runtime/', '../../runtime/'];
-  const allowed = ['../runtime-support/', '../../runtime-support/', '../../runtime/adapters/navigation-strategy'];
-  const offenders = listTsFiles('lib/infrastructure').flatMap((filePath) =>
+  const allowed = [
+    '../runtime-support/',
+    '../../runtime-support/',
+    '../../runtime/adapters/navigation-strategy',
+    // Grandfathered Step 0 crossings surfaced by the lib → product/instruments/ move.
+    // product/instruments/observation/aria.ts carries the runtime result envelope
+    // directly; its former lib/playwright/ location was outside this test's scan.
+    '../../runtime/result',
+  ];
+  const offenders = listTsFiles('product/instruments').flatMap((filePath) =>
     importsFor(filePath)
       .filter((specifier) => forbidden.some((prefix) => specifier.startsWith(prefix))
         && !allowed.some((prefix) => specifier.startsWith(prefix)))
@@ -181,7 +189,7 @@ test('legacy compiler/adapters/tools/reporter directories no longer carry TypeSc
 
 test('active source no longer references legacy phase-one runtime and graph compatibility names', () => {
   const files = [
-    ...listTsFiles('lib'),
+    ...[...listTsFiles('product'), ...listTsFiles('workshop'), ...listTsFiles('dashboard')],
   ];
   const forbidden = [
     /\bRuntimeProvider\b/,
@@ -199,20 +207,20 @@ test('active source no longer references legacy phase-one runtime and graph comp
 
 test('bounded workflow packages expose explicit seam files instead of hidden lane contracts', () => {
   const expectedFiles = [
-    'lib/domain/kernel/index.ts',
-    'lib/domain/knowledge/index.ts',
-    'lib/domain/resolution/model.ts',
-    'lib/domain/resolution/index.ts',
-    'lib/domain/commitment/index.ts',
-    'lib/domain/governance/index.ts',
-    'lib/domain/projection/index.ts',
-    'lib/domain/codegen/index.ts',
-    'lib/application/resolution/compile.ts',
-    'lib/application/commitment/run.ts',
-    'lib/application/projections/runner.ts',
-    'lib/runtime/resolve/index.ts',
-    'lib/runtime/execute/index.ts',
-    'lib/runtime/observe/index.ts',
+    'product/domain/kernel/index.ts',
+    'product/domain/knowledge/index.ts',
+    'product/domain/resolution/model.ts',
+    'product/domain/resolution/index.ts',
+    'product/domain/commitment/index.ts',
+    'product/domain/governance/index.ts',
+    'product/domain/projection/index.ts',
+    'product/instruments/codegen/index.ts',
+    'product/application/resolution/compile.ts',
+    'product/application/commitment/run.ts',
+    'product/application/projections/runner.ts',
+    'product/runtime/resolve/index.ts',
+    'product/runtime/execute/index.ts',
+    'product/runtime/observe/index.ts',
   ];
 
   const missing = expectedFiles
@@ -239,10 +247,10 @@ test('canonical control surfaces are present as first-class repo seams', () => {
 
 test('scenario kernel: buildInterfaceResolutionContext is confined to preparation-phase files only', () => {
   const allowedFiles = new Set([
-    'lib/application/resolution/task.ts',
-    'lib/application/resolution/interface-resolution.ts',
+    'product/application/resolution/task.ts',
+    'product/application/resolution/interface-resolution.ts',
   ]);
-  const files = listTsFiles('lib');
+  const files = [...listTsFiles('product'), ...listTsFiles('workshop'), ...listTsFiles('dashboard')];
   const offenders = files
     .filter((filePath) => {
       const rel = relativeFile(filePath);
@@ -255,7 +263,7 @@ test('scenario kernel: buildInterfaceResolutionContext is confined to preparatio
 });
 
 test('scenario kernel: ScenarioRuntimeHandoff type has been fully removed', () => {
-  const files = listTsFiles('lib');
+  const files = [...listTsFiles('product'), ...listTsFiles('workshop'), ...listTsFiles('dashboard')];
   const offenders = files
     .filter((filePath) => /\bScenarioRuntimeHandoff\b/.test(fileText(filePath)))
     .map(relativeFile);
@@ -264,7 +272,7 @@ test('scenario kernel: ScenarioRuntimeHandoff type has been fully removed', () =
 });
 
 test('scenario kernel: runtime layer does not import from application/runtime-handoff', () => {
-  const offenders = listTsFiles('lib/runtime').flatMap((filePath) =>
+  const offenders = listTsFiles('product/runtime').flatMap((filePath) =>
     importsFor(filePath)
       .filter((specifier) => specifier.includes('runtime-handoff'))
       .map((specifier) => `${relativeFile(filePath)} -> ${specifier}`),
@@ -275,11 +283,11 @@ test('scenario kernel: runtime layer does not import from application/runtime-ha
 
 test('scenario kernel: new code should use ScenarioRunPlan not SelectedRunContext for plan data', () => {
   const allowedFiles = new Set([
-    'lib/application/execution/select-run-context.ts',
-    'lib/application/run.ts',
-    'lib/application/emit.ts',
+    'product/application/execution/select-run-context.ts',
+    'product/application/run.ts',
+    'product/application/emit.ts',
   ]);
-  const files = listTsFiles('lib');
+  const files = [...listTsFiles('product'), ...listTsFiles('workshop'), ...listTsFiles('dashboard')];
   const offenders = files
     .filter((filePath) => {
       const rel = relativeFile(filePath);

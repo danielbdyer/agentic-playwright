@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { translationCacheKey } from '../../lib/application/resolution/translation/translation-cache';
-import type { TranslationRequest } from '../../lib/domain/resolution/types';
-import { createElementId, createScreenId } from '../../lib/domain/kernel/identity';
-import { deterministicRuntimeStepAgent } from '../../lib/runtime/resolution';
+import { translationCacheKey } from '../../product/reasoning/translation-cache';
+import type { TranslationRequest } from '../../product/domain/resolution/types';
+import { createElementId, createScreenId } from '../../product/domain/kernel/identity';
+import { deterministicRuntimeStepAgent } from '../../product/runtime/resolution';
 import { createAgentContext, createInterfaceResolutionContext, createGroundedStep } from '../support/interface-fixtures';
 
 function baseRequest(): TranslationRequest {

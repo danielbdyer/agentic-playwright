@@ -17,7 +17,7 @@ import { foldResolutionReceipt } from '../../domain/kernel/visitors';
 import { groupBy } from '../../domain/kernel/collections';
 import type { SliceFn, ProjectionFn } from '../../domain/algebra/slice-projection';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
-import { buildWorkflowHotspots, type WorkflowHotspot } from '../improvement/hotspots';
+import { buildWorkflowHotspots, type WorkflowHotspot } from '../../../workshop/orchestration/hotspots';
 import type { ProjectPaths } from '../paths';
 import { FileSystem, Dashboard } from '../ports';
 import { dashboardEvent } from '../../domain/observation/dashboard';
@@ -26,7 +26,7 @@ import {
   weightedScoringRule,
   round4,
   type ScoringRule,
-} from '../learning/learning-shared';
+} from '../../../workshop/learning/learning-shared';
 import type {
   AgentWorkItem,
   AgentWorkbenchProjection,
@@ -217,13 +217,13 @@ function healthWorkItems(
   if (maturity <= 0.4) return [];
 
   const dims: readonly { readonly name: string; readonly value: number; readonly lowerIsBetter: boolean; readonly target: string }[] = [
-    { name: 'timingRegression', value: learningSignals.timingRegressionRate, lowerIsBetter: true, target: 'lib/application/timing-baseline.ts' },
+    { name: 'timingRegression', value: learningSignals.timingRegressionRate, lowerIsBetter: true, target: 'product/application/timing-baseline.ts' },
     { name: 'selectorFlakiness', value: learningSignals.selectorFlakinessRate, lowerIsBetter: true, target: 'knowledge/screens/' },
-    { name: 'consoleNoise', value: learningSignals.consoleNoiseLevel, lowerIsBetter: true, target: 'lib/application/console-intelligence.ts' },
-    { name: 'recoveryEfficiency', value: learningSignals.recoveryEfficiency, lowerIsBetter: false, target: 'lib/application/recovery-effectiveness.ts' },
-    { name: 'costEfficiency', value: learningSignals.costEfficiency, lowerIsBetter: false, target: 'lib/application/execution-cost.ts' },
-    { name: 'rungStability', value: learningSignals.rungStability, lowerIsBetter: false, target: 'lib/application/rung-drift.ts' },
-    { name: 'componentMaturity', value: learningSignals.componentMaturityRate, lowerIsBetter: false, target: 'lib/domain/projection/component-maturation.ts' },
+    { name: 'consoleNoise', value: learningSignals.consoleNoiseLevel, lowerIsBetter: true, target: 'product/application/console-intelligence.ts' },
+    { name: 'recoveryEfficiency', value: learningSignals.recoveryEfficiency, lowerIsBetter: false, target: 'product/application/recovery-effectiveness.ts' },
+    { name: 'costEfficiency', value: learningSignals.costEfficiency, lowerIsBetter: false, target: 'product/application/execution-cost.ts' },
+    { name: 'rungStability', value: learningSignals.rungStability, lowerIsBetter: false, target: 'product/application/rung-drift.ts' },
+    { name: 'componentMaturity', value: learningSignals.componentMaturityRate, lowerIsBetter: false, target: 'product/domain/projection/component-maturation.ts' },
   ];
 
   // Critical threshold: lower-is-better > 0.5, higher-is-better < 0.3

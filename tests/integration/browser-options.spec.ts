@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   resolvePlaywrightHeadless,
   resolvePreferredPlaywrightChannel,
-} from '../../lib/infrastructure/tooling/browser-options';
+} from '../../product/instruments/tooling/browser-options';
 
 test('playwright browser options honor explicit headed and CI-safe modes', () => {
   expect(resolvePlaywrightHeadless({} as NodeJS.ProcessEnv)).toBe(true);

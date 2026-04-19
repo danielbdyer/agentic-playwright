@@ -1,8 +1,8 @@
-import { fingerprintFor, taggedFingerprintFor } from '../../../domain/kernel/hash';
-import type { TranslationReceipt, TranslationRequest } from '../../../domain/resolution/types';
-import { readJsonCacheRecord, writeJsonCacheRecord, pruneCacheFiles } from '../../cache/file-cache';
-import type { ProjectPaths } from '../../paths';
-import { translationCachePath } from '../../paths';
+import { fingerprintFor, taggedFingerprintFor } from '../domain/kernel/hash';
+import type { TranslationReceipt, TranslationRequest } from '../domain/resolution/types';
+import { readJsonCacheRecord, writeJsonCacheRecord, pruneCacheFiles } from '../application/cache/file-cache';
+import type { ProjectPaths } from '../application/paths';
+import { translationCachePath } from '../application/paths';
 
 export interface TranslationCacheRecord {
   kind: 'translation-cache-record';

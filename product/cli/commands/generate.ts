@@ -1,4 +1,4 @@
-import { generateSyntheticScenarios } from '../../synthesis/scenario-generator';
+import { generateSyntheticScenarios } from '../../../workshop/synthesis/scenario-generator';
 import { createCommandSpec } from '../shared';
 
 export const generateCommand = createCommandSpec({

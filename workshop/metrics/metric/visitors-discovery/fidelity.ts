@@ -15,8 +15,8 @@
  * Pure domain — no Effect, no IO.
  */
 
-import type { AtomClass } from '../../../pipeline/atom-address';
-import { atomAddressToPath } from '../../../pipeline/atom-address';
+import type { AtomClass } from '../../../../product/domain/pipeline/atom-address';
+import { atomAddressToPath } from '../../../../product/domain/pipeline/atom-address';
 import { metric, type MetricProvenance } from '../value';
 import { metricNode, type MetricNode } from '../tree';
 import type { MetricVisitor } from '../visitor';

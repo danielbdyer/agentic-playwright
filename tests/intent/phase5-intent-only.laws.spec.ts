@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { bindScenarioStep } from '../../lib/domain/governance/binding';
-import { parseSnapshotToScenario } from '../../lib/application/intent/parse';
-import type { ExecutionProfile } from '../../lib/domain/governance/workflow-types';
-import type { AdoSnapshot } from '../../lib/domain/intent/types';
-import type { AdoId } from '../../lib/domain/kernel/identity';
+import { bindScenarioStep } from '../../product/domain/governance/binding';
+import { parseSnapshotToScenario } from '../../product/application/intent/parse';
+import type { ExecutionProfile } from '../../product/domain/governance/workflow-types';
+import type { AdoSnapshot } from '../../product/domain/intent/types';
+import type { AdoId } from '../../product/domain/kernel/identity';
 
 // ─── WP1 Law Tests: Intent-Only Steps + Dogfood Profile ───
 

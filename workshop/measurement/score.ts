@@ -19,25 +19,25 @@
 
 import * as path from 'path';
 import { Effect } from 'effect';
-import { FileSystem } from '../ports';
-import type { ProjectPaths } from '../paths';
-import { TesseractError } from '../../domain/kernel/errors';
-import type { PipelineFitnessReport } from '../../domain/fitness/types';
-import { buildPipelineMetricTree } from '../../domain/fitness/metric/visitors';
-import { buildDiscoveryMetricTree } from '../../domain/fitness/metric/visitors-discovery';
-import type { MetricNode } from '../../domain/fitness/metric/tree';
-import { loadWorkspaceCatalog } from '../catalog/workspace-catalog';
+import { FileSystem } from '../../product/application/ports';
+import type { ProjectPaths } from '../../product/application/paths';
+import { TesseractError } from '../../product/domain/kernel/errors';
+import type { PipelineFitnessReport } from '../metrics/types';
+import { buildPipelineMetricTree } from '../metrics/metric/visitors';
+import { buildDiscoveryMetricTree } from '../metrics/metric/visitors-discovery';
+import type { MetricNode } from '../metrics/metric/tree';
+import { loadWorkspaceCatalog } from '../../product/application/catalog/workspace-catalog';
 import {
   diffMetricTrees,
   deltaVerdict,
   type MetricTreeDelta,
   type DeltaVerdict,
-} from '../../domain/fitness/metric/delta';
+} from '../metrics/metric/delta';
 import {
   findLatestBaseline,
   loadBaseline,
 } from './baseline-store';
-import type { MetricBaseline } from '../../domain/fitness/metric/baseline';
+import type { MetricBaseline } from '../metrics/metric/baseline';
 
 // ─── Fitness report discovery ───────────────────────────────────
 

@@ -13,13 +13,13 @@
 import { test, expect } from '@playwright/test';
 import {
   detectAliasConflicts,
-} from '../../lib/domain/knowledge/inference';
+} from '../../product/domain/knowledge/inference';
 import {
   proposalsFromDecomposition,
-} from '../../lib/runtime/resolution/proposals';
-import type { IntentDecomposition } from '../../lib/domain/knowledge/inference';
-import type { StepTaskElementCandidate, StepTaskScreenCandidate } from '../../lib/domain/knowledge/types';
-import type { GroundedStep } from '../../lib/domain/resolution/types';
+} from '../../product/runtime/resolution/proposals';
+import type { IntentDecomposition } from '../../product/domain/knowledge/inference';
+import type { StepTaskElementCandidate, StepTaskScreenCandidate } from '../../product/domain/knowledge/types';
+import type { GroundedStep } from '../../product/domain/resolution/types';
 
 // ─── Test Fixtures ───
 

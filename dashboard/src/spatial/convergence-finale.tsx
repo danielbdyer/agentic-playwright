@@ -8,7 +8,7 @@
  *   - no-proposals: Amber pulse, partial ceremony (15s)
  *   - budget-exhausted: Neutral, narration + summary only (12s)
  *
- * Consumes pure domain logic from lib/domain/convergence-finale.ts.
+ * Consumes pure domain logic from product/domain/convergence-finale.ts.
  *
  * @see docs/first-day-flywheel-visualization.md Part IX: Convergence Finale
  */
@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import {
   type FinaleState,
   type FinaleTint,
-} from '../../../lib/domain/projection/convergence-finale';
+} from '../../../product/domain/projection/convergence-finale';
 
 // ─── Types ───
 

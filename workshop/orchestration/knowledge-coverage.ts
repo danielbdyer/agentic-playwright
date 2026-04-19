@@ -1,5 +1,5 @@
-import type { KnowledgeCoverageSummary } from '../../domain/fitness/types';
-import type { WorkspaceCatalog } from '../catalog/types';
+import type { KnowledgeCoverageSummary } from '../metrics/types';
+import type { WorkspaceCatalog } from '../../product/application/catalog/types';
 
 function round4(value: number): number {
   return Number(value.toFixed(4));

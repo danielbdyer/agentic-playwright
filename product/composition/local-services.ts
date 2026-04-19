@@ -16,25 +16,25 @@ import {
   InterventionLedgerStore,
   VersionControl,
 } from '../application/ports';
-import { makeLocalAdoSource } from '../infrastructure/ado/local-ado-source';
-import { makeLiveAdoSource, readLiveAdoSourceConfigFromEnv } from '../infrastructure/ado/live-ado-source';
-import { LocalFileSystem } from '../infrastructure/fs/local-fs';
-import { createRecordingWorkspaceFileSystem } from '../infrastructure/fs/recording-fs';
-import { LocalApplicationInterfaceGraphRepository } from '../infrastructure/repositories/local-application-interface-graph-repository';
-import { LocalImprovementRunRepository } from '../infrastructure/repositories/local-improvement-run-repository';
-import { LocalInterventionLedgerRepository } from '../infrastructure/repositories/local-intervention-ledger-repository';
-import { makeLocalVersionControl } from '../infrastructure/tooling/local-version-control';
+import { makeLocalAdoSource } from '../instruments/intent/local-ado-source';
+import { makeLiveAdoSource, readLiveAdoSourceConfigFromEnv } from '../instruments/intent/live-ado-source';
+import { LocalFileSystem } from '../instruments/fs/local-fs';
+import { createRecordingWorkspaceFileSystem } from '../instruments/fs/recording-fs';
+import { LocalApplicationInterfaceGraphRepository } from '../instruments/repositories/local-application-interface-graph-repository';
+import { LocalImprovementRunRepository } from '../instruments/repositories/local-improvement-run-repository';
+import { LocalInterventionLedgerRepository } from '../instruments/repositories/local-intervention-ledger-repository';
+import { makeLocalVersionControl } from '../instruments/tooling/local-version-control';
 import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter, createLocalRuntimeScenarioRunnerWithPool } from './local-runtime-scenario-runner';
 import type { AgentInterpreterPort } from '../domain/resolution/model';
 import type { AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
-import { PlaywrightBridge, DisabledPlaywrightBridge } from '../infrastructure/mcp/playwright-mcp-bridge';
+import { PlaywrightBridge, DisabledPlaywrightBridge } from '../../dashboard/mcp/playwright-mcp-bridge';
 import { dashboardEvent } from '../domain/observation/dashboard';
 import type { PipelineConfig } from '../domain/attention/pipeline-config';
 import type { ExecutionPosture, WriteJournalEntry } from '../domain/governance/workflow-types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/attention/pipeline-config';
 import type { DashboardPort, McpServerPort, StageTracerPort } from '../application/ports';
 import { enrichEventDataWithExecutionContext } from '../application/commitment/execution-context';
-import type { PlaywrightBridgePort } from '../infrastructure/mcp/playwright-mcp-bridge';
+import type { PlaywrightBridgePort } from '../../dashboard/mcp/playwright-mcp-bridge';
 
 type EffectfulAgentInterpreterPort = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;
 

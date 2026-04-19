@@ -26,13 +26,13 @@ import {
   foldImprovementTarget,
   foldResolutionEvent,
   foldPipelineFailureClass,
-} from '../../lib/domain/kernel/visitors';
-import type { PipelineFailureClass, PipelineImprovementTarget } from '../../lib/domain/fitness/types';
-import type { LocatorStrategy } from '../../lib/domain/governance/workflow-types';
-import type { StepInstruction, ValueRef } from '../../lib/domain/intent/types';
-import type { ResolutionEvent, ResolutionReceipt } from '../../lib/domain/resolution/types';
+} from '../../product/domain/kernel/visitors';
+import type { PipelineFailureClass, PipelineImprovementTarget } from '../../workshop/metrics/types';
+import type { LocatorStrategy } from '../../product/domain/governance/workflow-types';
+import type { StepInstruction, ValueRef } from '../../product/domain/intent/types';
+import type { ResolutionEvent, ResolutionReceipt } from '../../product/domain/resolution/types';
 import { mulberry32, pick , LAW_SEED_COUNT } from '../support/random';
-import { asFingerprint } from '../../lib/domain/kernel/hash';
+import { asFingerprint } from '../../product/domain/kernel/hash';
 
 // ─── Pure transformers for fusion testing ───
 

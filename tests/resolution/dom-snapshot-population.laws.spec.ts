@@ -9,7 +9,7 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { captureTruncatedAriaSnapshot } from '../../lib/runtime/resolution/resolution-stages';
+import { captureTruncatedAriaSnapshot } from '../../product/runtime/resolution/resolution-stages';
 
 // ─── Mock Page Factories ───
 

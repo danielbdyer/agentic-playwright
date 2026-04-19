@@ -2,13 +2,13 @@ import { expect, test } from '@playwright/test';
 import {
   ALL_INTERVENTION_TARGET_KINDS,
   foldInterventionTargetKind,
-} from '../../lib/domain/handshake/intervention-target-fold';
+} from '../../product/domain/handshake/intervention-target-fold';
 import {
   ALL_OPERATOR_INBOX_KINDS,
   foldOperatorInboxKind,
-} from '../../lib/domain/resolution/inbox-fold';
-import type { InterventionTarget } from '../../lib/domain/handshake/intervention';
-import type { OperatorInboxItem } from '../../lib/domain/resolution/types';
+} from '../../product/domain/resolution/inbox-fold';
+import type { InterventionTarget } from '../../product/domain/handshake/intervention';
+import type { OperatorInboxItem } from '../../product/domain/resolution/types';
 
 function target(kind: InterventionTarget['kind']): InterventionTarget {
   return { kind, ref: 'test', label: 'test' };

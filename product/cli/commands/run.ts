@@ -1,5 +1,5 @@
-import { runScenarioSelection } from '../../commitment/run';
-import { createAdoId } from '../../../domain/kernel/identity';
+import { runScenarioSelection } from '../../application/commitment/run';
+import { createAdoId } from '../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { withDefinedValues } from '../shared';
 

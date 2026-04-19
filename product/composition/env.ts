@@ -2,7 +2,7 @@
  * Environment variable reads centralized at the composition boundary.
  *
  * The lint rule `no-restricted-properties` forbids `process.env` outside
- * `lib/composition/` and `lib/infrastructure/tooling/`. This module is
+ * `product/composition/` and `product/instruments/tooling/`. This module is
  * the canonical place for all env reads that feed into application-layer
  * configuration.
  */

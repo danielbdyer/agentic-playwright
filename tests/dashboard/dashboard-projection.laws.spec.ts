@@ -19,14 +19,14 @@
 
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
-import { DisabledDashboard, DisabledStageTracer, StageTracer } from '../../lib/application/ports';
-import type { DashboardPort } from '../../lib/application/ports';
-import type { DashboardEvent, DashboardEventKind, WorkItemDecision } from '../../lib/domain/observation/dashboard';
-import { dashboardEvent } from '../../lib/domain/observation/dashboard';
-import type { AgentWorkItem, WorkItemKind } from '../../lib/domain/handshake/workbench';
-import { runPipelineStage } from '../../lib/application/pipeline';
+import { DisabledDashboard, DisabledStageTracer, StageTracer } from '../../product/application/ports';
+import type { DashboardPort } from '../../product/application/ports';
+import type { DashboardEvent, DashboardEventKind, WorkItemDecision } from '../../product/domain/observation/dashboard';
+import { dashboardEvent } from '../../product/domain/observation/dashboard';
+import type { AgentWorkItem, WorkItemKind } from '../../product/domain/handshake/workbench';
+import { runPipelineStage } from '../../product/application/pipeline';
 import { mulberry32, pick, randomInt , LAW_SEED_COUNT } from '../support/random';
-import type { AdoId } from '../../lib/domain/kernel/identity';
+import type { AdoId } from '../../product/domain/kernel/identity';
 
 // ─── Recording Dashboard ───
 

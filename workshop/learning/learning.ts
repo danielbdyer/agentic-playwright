@@ -1,15 +1,15 @@
 import path from 'path';
 import { Effect } from 'effect';
-import type { ProposalBundle, RunRecord } from '../../domain/execution/types';
-import type { BoundScenario } from '../../domain/intent/types';
-import type { GroundedSpecFragment, ReplayExample, TrainingCorpusManifest } from '../../domain/learning/types';
-import type { ScenarioInterpretationSurface } from '../../domain/resolution/types';
-import type { ApplicationInterfaceGraph, SelectorCanon } from '../../domain/target/interface-graph';
-import type { AdoId } from '../../domain/kernel/identity';
-import { relativeProjectPath, learningRuntimeDirPath } from '../paths';
-import type { ProjectPaths } from '../paths';
-import { FileSystem, type FileSystemPort } from '../ports';
-import { walkFiles } from '../catalog/artifacts';
+import type { ProposalBundle, RunRecord } from '../../product/domain/execution/types';
+import type { BoundScenario } from '../../product/domain/intent/types';
+import type { GroundedSpecFragment, ReplayExample, TrainingCorpusManifest } from '../../product/domain/learning/types';
+import type { ScenarioInterpretationSurface } from '../../product/domain/resolution/types';
+import type { ApplicationInterfaceGraph, SelectorCanon } from '../../product/domain/target/interface-graph';
+import type { AdoId } from '../../product/domain/kernel/identity';
+import { relativeProjectPath, learningRuntimeDirPath } from '../../product/application/paths';
+import type { ProjectPaths } from '../../product/application/paths';
+import { FileSystem, type FileSystemPort } from '../../product/application/ports';
+import { walkFiles } from '../../product/application/catalog/artifacts';
 
 export interface LearningProjectionResult {
   manifest: TrainingCorpusManifest;

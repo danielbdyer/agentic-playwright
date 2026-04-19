@@ -2,9 +2,9 @@
  * Validators for the three-tier interface model canonical
  * artifacts (atoms, compositions, projections).
  *
- * Wraps the Effect Schema definitions in `lib/domain/schemas/pipeline.ts`
+ * Wraps the Effect Schema definitions in `product/domain/schemas/pipeline.ts`
  * with `decoderFor<T>(schema)` helpers, matching the convention used
- * by every other validator under `lib/domain/validation/`.
+ * by every other validator under `product/domain/validation/`.
  *
  * The schemas enforce both structural shape AND the cross-field
  * (class, address) consistency invariants via Schema.filter

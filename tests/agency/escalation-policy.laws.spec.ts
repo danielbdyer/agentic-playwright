@@ -16,8 +16,8 @@ import { test, expect } from '@playwright/test';
 import {
   evaluateEscalationPolicy,
   type EscalationThresholds,
-} from '../../lib/application/governance/escalation-policy';
-import type { AdoId } from '../../lib/domain/kernel/identity';
+} from '../../workshop/policy/escalation-policy';
+import type { AdoId } from '../../product/domain/kernel/identity';
 
 const adoId = (id: string) => id as AdoId;
 

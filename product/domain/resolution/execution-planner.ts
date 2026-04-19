@@ -1,5 +1,5 @@
 // Pure graph pathfinding for state-transition execution planning.
-// Moved from lib/application/execution/planner.ts — no Effect, Playwright, or IO dependencies.
+// Moved from product/application/execution/planner.ts — no Effect, Playwright, or IO dependencies.
 
 import type { EventSignatureRef, StateNodeRef, TransitionRef } from '../kernel/identity';
 import type { StateTransitionGraph } from '../target/interface-graph';

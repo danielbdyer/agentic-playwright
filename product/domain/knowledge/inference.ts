@@ -86,7 +86,7 @@ export function bestAliasMatch(normalizedText: string, aliases: readonly string[
 // Intent decomposition and synonym expansion are LLM-mediated concerns.
 // The LLM decomposes natural-language action text into structured tokens
 // and proposes alias expansions — see IntentDecomposition below and
-// the translation contract in lib/runtime/resolution/types.ts.
+// the translation contract in product/runtime/resolution/types.ts.
 //
 // The deterministic pipeline's role is to:
 // 1. Present structured context to the LLM (screens, elements, aliases)

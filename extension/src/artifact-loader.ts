@@ -9,8 +9,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { OperatorInboxItem } from '../../lib/domain/resolution/types';
-import type { ProposalBundle } from '../../lib/domain/execution/types';
+import type { OperatorInboxItem } from '../../product/domain/resolution/types';
+import type { ProposalBundle } from '../../product/domain/execution/types';
 
 export interface ArtifactSnapshot {
   readonly inbox: readonly OperatorInboxItem[];

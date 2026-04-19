@@ -7,13 +7,13 @@
  * per scorecard write at the end of an iteration).
  */
 
-import type { WorkspaceCatalog } from '../catalog/types';
+import type { WorkspaceCatalog } from '../../product/application/catalog/types';
 import {
   computeMemoryMaturity,
   emptyMemoryMaturityCounts,
   type MemoryMaturity,
   type MemoryMaturityCounts,
-} from '../../domain/fitness/memory-maturity';
+} from '../metrics/memory-maturity';
 
 /**
  * Count approved knowledge entries from a catalog. Pure.

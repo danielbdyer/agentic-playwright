@@ -1,2 +1,2 @@
-export { osInputContract } from '../../../lib/domain/widgets/contracts';
-export { osInputHandlers } from '../../../lib/runtime/widgets/os-input';
+export { osInputContract } from '../../../product/domain/widgets/contracts';
+export { osInputHandlers } from '../../../product/runtime/widgets/os-input';

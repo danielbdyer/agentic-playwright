@@ -11,12 +11,12 @@
  */
 
 import { Deferred, Duration, Effect, Ref } from 'effect';
-import type { DashboardPort } from '../../application/ports';
-import type { DashboardEvent, WorkItemDecision } from '../../domain/observation/dashboard';
-import type { AgentWorkItem } from '../../domain/handshake/workbench';
-import { dashboardEvent } from '../../domain/observation/dashboard';
-import { TesseractError } from '../../domain/kernel/errors';
-import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
+import type { DashboardPort } from '../../product/application/ports';
+import type { DashboardEvent, WorkItemDecision } from '../../product/domain/observation/dashboard';
+import type { AgentWorkItem } from '../../product/domain/handshake/workbench';
+import { dashboardEvent } from '../../product/domain/observation/dashboard';
+import { TesseractError } from '../../product/domain/kernel/errors';
+import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../product/application/resilience/schedules';
 
 export interface WsBroadcaster {
   /** Send a JSON message to all connected WebSocket clients. */

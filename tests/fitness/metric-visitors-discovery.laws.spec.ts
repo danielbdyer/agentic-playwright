@@ -12,12 +12,12 @@ import { describe, test, expect } from 'vitest';
 import {
   DISCOVERY_FITNESS_METRIC_KINDS,
   type DiscoveryFitnessMetricKind,
-} from '../../lib/domain/fitness/metric/catalogue-discovery';
+} from '../../workshop/metrics/metric/catalogue-discovery';
 import {
   DISCOVERY_VISITORS,
   buildDiscoveryMetricTree,
   type DiscoveryVisitorInput,
-} from '../../lib/domain/fitness/metric/visitors-discovery';
+} from '../../workshop/metrics/metric/visitors-discovery';
 
 function makeStubInput(): DiscoveryVisitorInput {
   return {

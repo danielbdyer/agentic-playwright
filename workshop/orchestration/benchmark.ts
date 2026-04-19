@@ -1,7 +1,7 @@
 import { Effect, Either, Schema } from 'effect';
-import { loadWorkspaceCatalog } from '../catalog';
-import { runScenarioSelection } from '../commitment/run';
-import type { ProjectPaths } from '../paths';
+import { loadWorkspaceCatalog } from '../../product/application/catalog';
+import { runScenarioSelection } from '../../product/application/commitment/run';
+import type { ProjectPaths } from '../../product/application/paths';
 import {
   benchmarkImprovementProjectionPath,
   benchmarkDogfoodRunPath,
@@ -11,28 +11,28 @@ import {
   benchmarkVariantsSpecPath,
   benchmarkVariantsTracePath,
   relativeProjectPath,
-} from '../paths';
-import { resolveEffectConcurrency } from '../runtime-support/concurrency';
-import { ExecutionContext, FileSystem } from '../ports';
-import { TesseractError } from '../../domain/kernel/errors';
-import { groupBy, uniqueSorted } from '../../domain/kernel/collections';
-import { WINNING_SOURCE_TO_RUNG } from '../../domain/kernel/visitors';
-import { concatAll } from '../../domain/algebra/monoid';
-import { numberRecordSumMonoid, structMonoid, sumMonoid } from '../../domain/algebra/envelope-mergers';
-import type { InterpretationDriftRecord, ProposalBundle } from '../../domain/execution/types';
-import type { LogicalProofObligation } from '../../domain/fitness/types';
-import type { ImprovementRun } from '../../domain/improvement/types';
-import type { LearningScorecard } from '../../domain/learning/types';
+} from '../../product/application/paths';
+import { resolveEffectConcurrency } from '../../product/application/runtime-support/concurrency';
+import { ExecutionContext, FileSystem } from '../../product/application/ports';
+import { TesseractError } from '../../product/domain/kernel/errors';
+import { groupBy, uniqueSorted } from '../../product/domain/kernel/collections';
+import { WINNING_SOURCE_TO_RUNG } from '../../product/domain/kernel/visitors';
+import { concatAll } from '../../product/domain/algebra/monoid';
+import { numberRecordSumMonoid, structMonoid, sumMonoid } from '../../product/domain/algebra/envelope-mergers';
+import type { InterpretationDriftRecord, ProposalBundle } from '../../product/domain/execution/types';
+import type { LogicalProofObligation } from '../metrics/types';
+import type { ImprovementRun } from '../../product/domain/improvement/types';
+import type { LearningScorecard } from '../../product/domain/learning/types';
 import type {
   BenchmarkContext,
   BenchmarkImprovementProjection,
   BenchmarkScorecard,
   DogfoodRun,
   ImprovementProjectionSummary,
-} from '../../domain/projection/types';
-import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../../domain/resolution/precedence';
-import { createAdoId } from '../../domain/kernel/identity';
-import { decodeUnknownEither } from '../../domain/schemas/decode';
+} from '../../product/domain/projection/types';
+import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../../product/domain/resolution/precedence';
+import { createAdoId } from '../../product/domain/kernel/identity';
+import { decodeUnknownEither } from '../../product/domain/schemas/decode';
 import { summarizeKnowledgeCoverage } from './knowledge-coverage';
 
 const decodeScenarioIds = decodeUnknownEither(
@@ -297,7 +297,7 @@ function proofObligation(input: {
 }
 
 function benchmarkProofObligations(input: {
-  knowledgeCoverage: import('../../domain/fitness/types').KnowledgeCoverageSummary;
+  knowledgeCoverage: import('../metrics/types').KnowledgeCoverageSummary;
   firstPassScreenResolutionRate: number;
   firstPassElementResolutionRate: number;
   effectiveHitRate: number;
@@ -591,7 +591,7 @@ function scorecardForBenchmark(input: {
   }>;
   interpretationDriftRecords: InterpretationDriftRecord[];
   learningScorecard?: LearningScorecard | null | undefined;
-  knowledgeCoverage: import('../../domain/fitness/types').KnowledgeCoverageSummary;
+  knowledgeCoverage: import('../metrics/types').KnowledgeCoverageSummary;
 }): BenchmarkScorecard {
   const uniqueScreens = uniqueSorted(input.benchmark.fieldCatalog.flatMap((field) => field.screen.length > 0 ? [field.screen] : []));
   const driftCount = input.benchmark.driftEvents.length;
@@ -756,7 +756,7 @@ function scorecardForBenchmark(input: {
 function renderVariantSpec(benchmark: BenchmarkContext, variants: readonly BenchmarkVariant[]): string {
   const lines: string[] = [
     `// Benchmark variants for ${benchmark.name}`,
-    `import { literal, workflow } from '../../lib/domain/governance/workflow-facade';`,
+    `import { literal, workflow } from '../../product/domain/governance/workflow-facade';`,
     '',
     'export const benchmarkVariants = [',
     ...variants.map((variant) =>

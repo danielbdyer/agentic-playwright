@@ -4,7 +4,7 @@ import { test } from '@playwright/test';
 import type { AdoId } from '../domain/kernel/identity';
 import type { RuntimeInterpreterMode, WriteMode } from '../domain/governance/workflow-types';
 import { loadScenarioRunPlan } from './load-run-plan';
-import { createLocalRuntimeEnvironment } from '../infrastructure/runtime/local-runtime-environment';
+import { createLocalRuntimeEnvironment } from '../instruments/runtime/local-runtime-environment';
 import {
   createScenarioRunState,
   runScenarioHandshake,

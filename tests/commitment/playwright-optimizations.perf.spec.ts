@@ -13,12 +13,12 @@
  * All benchmarks use pure functions — no Playwright browser required.
  */
 import { test, expect } from '@playwright/test';
-import { createAriaSnapshotCache } from '../../lib/runtime/resolution/aria-snapshot-cache';
-import { createSemanticDictCache } from '../../lib/runtime/resolution/semantic-dict-cache';
-import { classifyRoute, navigationOptionsForUrl } from '../../lib/runtime/adapters/navigation-strategy';
-import { determineResetStrategy, extractWarmUpUrls } from '../../lib/application/runtime-support/browser-pool';
-import { createScreenshotCollector, qualityForReason } from '../../lib/application/runtime-support/deferred-screenshot';
-import { evaluateScreenshotPolicy } from '../../lib/application/runtime-support/screenshot-policy';
+import { createAriaSnapshotCache } from '../../product/runtime/resolution/aria-snapshot-cache';
+import { createSemanticDictCache } from '../../product/runtime/resolution/semantic-dict-cache';
+import { classifyRoute, navigationOptionsForUrl } from '../../product/runtime/adapters/navigation-strategy';
+import { determineResetStrategy, extractWarmUpUrls } from '../../product/application/runtime-support/browser-pool';
+import { createScreenshotCollector, qualityForReason } from '../../product/application/runtime-support/deferred-screenshot';
+import { evaluateScreenshotPolicy } from '../../product/application/runtime-support/screenshot-policy';
 
 function measure<T>(label: string, fn: () => T, iterations: number = 10000): { result: T; avgNs: number; totalMs: number } {
   const start = performance.now();

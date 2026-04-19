@@ -1,18 +1,18 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { ImprovementRunStore } from '../ports';
-import type { ProjectPaths } from '../paths';
-import type { PipelineConfig } from '../../domain/attention/pipeline-config';
-import type { PipelineFitnessReport, PipelineImprovementTarget } from '../../domain/fitness/types';
-import { foldImprovementTarget } from '../../domain/kernel/visitors';
+import { ImprovementRunStore } from '../../product/application/ports';
+import type { ProjectPaths } from '../../product/application/paths';
+import type { PipelineConfig } from '../../product/domain/attention/pipeline-config';
+import type { PipelineFitnessReport, PipelineImprovementTarget } from '../metrics/types';
+import { foldImprovementTarget } from '../../product/domain/kernel/visitors';
 import type {
   InterventionReceipt,
   InterventionTarget,
   Participant,
   ParticipantRef,
-} from '../../domain/handshake/intervention';
-import { createSemanticCore } from '../../domain/handshake/semantic-core';
-import type { ExperimentRecord } from '../../domain/improvement/experiment';
+} from '../../product/domain/handshake/intervention';
+import { createSemanticCore } from '../../product/domain/handshake/semantic-core';
+import type { ExperimentRecord } from '../../product/domain/improvement/experiment';
 import type {
   AcceptanceDecision,
   CandidateIntervention,
@@ -26,8 +26,8 @@ import type {
   ImprovementSignal,
   ObjectiveVector,
   SubstrateContext,
-} from '../../domain/improvement/types';
-import { checkpointRun, createImprovementRun } from '../../domain/aggregates/improvement-run';
+} from '../../product/domain/improvement/types';
+import { checkpointRun, createImprovementRun } from '../../product/domain/aggregates/improvement-run';
 
 export interface BuildImprovementRunInput {
   readonly paths: ProjectPaths;
@@ -173,14 +173,14 @@ function targetPathsForSignal(target: PipelineImprovementTarget): readonly strin
   // Exhaustive fold over PipelineImprovementTarget. Previously this
   // function accepted `string` with a `default: []` fallback — new
   // target kinds would silently produce empty guidance paths. The
-  // existing foldImprovementTarget at lib/domain/kernel/visitors.ts
+  // existing foldImprovementTarget at product/domain/kernel/visitors.ts
   // already exhaustively covers the 5 variants.
   return foldImprovementTarget(target, {
-    translation: () => ['lib/application/translation-provider.ts'],
-    resolution: () => ['lib/runtime/resolution/resolution-stages.ts', 'lib/application/interface-intelligence.ts'],
-    recovery: () => ['lib/runtime/scenario.ts'],
-    scoring: () => ['lib/application/fitness.ts', 'lib/application/knob-search.ts'],
-    trustPolicy: () => ['lib/application/trust-policy.ts'],
+    translation: () => ['product/application/translation-provider.ts'],
+    resolution: () => ['product/runtime/resolution/resolution-stages.ts', 'product/application/interface-intelligence.ts'],
+    recovery: () => ['product/runtime/scenario.ts'],
+    scoring: () => ['product/application/fitness.ts', 'product/application/knob-search.ts'],
+    trustPolicy: () => ['product/application/trust-policy.ts'],
   });
 }
 
@@ -222,13 +222,13 @@ function targetPathsForHealthDimension(name: HealthDimensionName): readonly stri
   // name and makes adding a new dimension a compile-time error
   // at both the dispatch site and the `dims` array below.
   switch (name) {
-    case 'timingRegression': return ['lib/application/timing-baseline.ts'];
-    case 'selectorFlakiness': return ['lib/application/selector-health.ts', 'knowledge/screens/'];
-    case 'consoleNoise': return ['lib/application/console-intelligence.ts'];
-    case 'recoveryEfficiency': return ['lib/application/recovery-effectiveness.ts', 'lib/runtime/recovery-strategies.ts'];
-    case 'costEfficiency': return ['lib/application/execution-cost.ts'];
-    case 'rungStability': return ['lib/application/rung-drift.ts', 'knowledge/surfaces/'];
-    case 'componentMaturity': return ['lib/domain/projection/component-maturation.ts', 'knowledge/components/'];
+    case 'timingRegression': return ['product/application/timing-baseline.ts'];
+    case 'selectorFlakiness': return ['product/application/selector-health.ts', 'knowledge/screens/'];
+    case 'consoleNoise': return ['product/application/console-intelligence.ts'];
+    case 'recoveryEfficiency': return ['product/application/recovery-effectiveness.ts', 'product/runtime/recovery-strategies.ts'];
+    case 'costEfficiency': return ['product/application/execution-cost.ts'];
+    case 'rungStability': return ['product/application/rung-drift.ts', 'knowledge/surfaces/'];
+    case 'componentMaturity': return ['product/domain/projection/component-maturation.ts', 'knowledge/components/'];
   }
 }
 
@@ -274,7 +274,7 @@ function improvementSignals(input: BuildImprovementRunInput): readonly Improveme
         : 'Objective vector did not clear the governed scorecard gate.',
       detail: input.scorecardSummary,
       severity: input.scorecardComparison.improved ? 'info' : 'warn',
-      targetPaths: ['lib/application/fitness.ts', 'lib/application/improvement.ts'],
+      targetPaths: ['product/application/fitness.ts', 'product/application/improvement.ts'],
       interventionKinds: ['self-improvement-action', 'benchmark-action'],
       metrics: {
         effectiveHitRateDelta: input.scorecardComparison.effectiveHitRateDelta,
@@ -289,7 +289,7 @@ function improvementSignals(input: BuildImprovementRunInput): readonly Improveme
       summary: 'Operator and system cost remained visible in the recursive-improvement loop.',
       detail: `Completed ${input.ledger.completedIterations} iterations and ${input.ledger.totalInstructionCount} instructions.`,
       severity: input.ledger.completedIterations > 1 || input.ledger.totalInstructionCount > 0 ? 'warn' : 'info',
-      targetPaths: ['lib/application/dogfood.ts', 'lib/application/improvement.ts'],
+      targetPaths: ['product/application/dogfood.ts', 'product/application/improvement.ts'],
       interventionKinds: ['self-improvement-action'],
       metrics: {
         completedIterations: input.ledger.completedIterations,

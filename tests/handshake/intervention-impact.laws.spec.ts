@@ -3,7 +3,7 @@ import {
   buildInterventionImpactReceipt,
   computeInterventionImpact,
   type RegionMetricSnapshot,
-} from '../../lib/domain/handshake/intervention-impact';
+} from '../../product/domain/handshake/intervention-impact';
 
 const before: RegionMetricSnapshot = {
   ambiguityRate: 0.5,

@@ -1,6 +1,6 @@
 /**
  * Branded epistemic types — mirrors `Approved<T>`/`Blocked<T>` and
- * `foldGovernance` from `lib/domain/governance/workflow-types.ts`,
+ * `foldGovernance` from `product/domain/governance/workflow-types.ts`,
  * applied to `InterventionEpistemicStatus`.
  *
  * Today's `InterventionEpistemicStatus` is a string union with no
@@ -15,7 +15,7 @@
  *   - audited mint functions: synthetic payloads cannot mint Observed
  *
  * Pattern alignment: Visitor + State Machine, mirroring
- * `lib/domain/governance/workflow-types.ts:9-53`. Pure domain — no
+ * `product/domain/governance/workflow-types.ts:9-53`. Pure domain — no
  * Effect, no IO, no application imports.
  */
 

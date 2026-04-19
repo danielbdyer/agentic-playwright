@@ -21,7 +21,7 @@
  * Pure function: run records → escalation decisions.
  */
 
-import type { AdoId } from '../../domain/kernel/identity';
+import type { AdoId } from '../../product/domain/kernel/identity';
 
 // ─── Types ───
 

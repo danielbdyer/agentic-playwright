@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   journalWriterConfig,
   deriveAct,
-} from '../lib/infrastructure/dashboard/journal-writer';
+} from '../dashboard/bridges/journal-writer';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 

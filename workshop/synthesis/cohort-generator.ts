@@ -26,20 +26,20 @@
  */
 
 import { Effect } from 'effect';
-import { FileSystem } from '../ports';
-import { loadWorkspaceCatalog } from '../catalog';
-import type { ProjectPaths } from '../paths';
-import type { WorkspaceCatalog } from '../catalog';
-import { TesseractError } from '../../domain/kernel/errors';
+import { FileSystem } from '../../product/application/ports';
+import { loadWorkspaceCatalog } from '../../product/application/catalog';
+import type { ProjectPaths } from '../../product/application/paths';
+import type { WorkspaceCatalog } from '../../product/application/catalog';
+import { TesseractError } from '../../product/domain/kernel/errors';
 import {
   orchestrateCohorts,
   findCohortIdOverlaps,
   type OrchestrateCohortsResult,
-} from '../../domain/synthesis/cohort-orchestrator';
-import type { CohortDefinition, CohortManifest } from '../../domain/synthesis/cohort-plan';
-import { REFERENCE_COHORTS } from '../../domain/synthesis/reference-cohorts';
-import type { SyntheticCatalogPlanInput, PostureValue } from '../../domain/synthesis/scenario-plan';
-import type { ScreenPostures } from '../../domain/knowledge/types';
+} from '../../product/domain/synthesis/cohort-orchestrator';
+import type { CohortDefinition, CohortManifest } from '../../product/domain/synthesis/cohort-plan';
+import { REFERENCE_COHORTS } from '../../product/domain/synthesis/reference-cohorts';
+import type { SyntheticCatalogPlanInput, PostureValue } from '../../product/domain/synthesis/scenario-plan';
+import type { ScreenPostures } from '../../product/domain/knowledge/types';
 
 // ─── Catalog normalization (mirrors scenario-generator.ts) ────────
 

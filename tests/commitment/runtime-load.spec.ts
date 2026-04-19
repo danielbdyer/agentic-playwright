@@ -2,11 +2,11 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 import { expect, test } from '@playwright/test';
-import { createProjectPaths } from '../../lib/application/paths';
-import { inspectSurface } from '../../lib/application/projections/surface';
-import { runWithLocalServices } from '../../lib/composition/local-services';
-import { createScreenId } from '../../lib/domain/kernel/identity';
-import { createLocalScreenRegistryLoader } from '../../lib/infrastructure/screen-registry/local-screen-registry-loader';
+import { createProjectPaths } from '../../product/application/paths';
+import { inspectSurface } from '../../product/application/projections/surface';
+import { runWithLocalServices } from '../../product/composition/local-services';
+import { createScreenId } from '../../product/domain/kernel/identity';
+import { createLocalScreenRegistryLoader } from '../../product/instruments/catalog/local-screen-registry-loader';
 
 function createWorkspace(
   screenId: string,

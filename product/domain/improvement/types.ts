@@ -1,5 +1,5 @@
 import type { PipelineConfig } from '../attention/pipeline-config';
-import type { PipelineFitnessReport, RungRate } from '../fitness/types';
+import type { PipelineFitnessReport, RungRate } from '../../../workshop/metrics/types';
 import type { BottleneckWeights } from '../attention/pipeline-config';
 import type {
   InterventionKind,

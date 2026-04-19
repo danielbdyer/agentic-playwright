@@ -4,10 +4,10 @@
  * fill inputs, click buttons, and observe DOM structure.
  */
 import { expect, test } from '@playwright/test';
-import { createElementId, createScreenId, createSectionId, createSurfaceId, createWidgetId } from '../../lib/domain/kernel/identity';
-import type { LoadedScreen, ScreenRegistry } from '../../lib/domain/commitment/runtime-loaders';
-import type { StepProgram, ValueRef } from '../../lib/domain/intent/types';
-import { playwrightStepProgramInterpreter } from '../../lib/runtime/execute/program';
+import { createElementId, createScreenId, createSectionId, createSurfaceId, createWidgetId } from '../../product/domain/kernel/identity';
+import type { LoadedScreen, ScreenRegistry } from '../../product/domain/commitment/runtime-loaders';
+import type { StepProgram, ValueRef } from '../../product/domain/intent/types';
+import { playwrightStepProgramInterpreter } from '../../product/runtime/execute/program';
 
 function buildPolicySearchScreen(): LoadedScreen {
   return {

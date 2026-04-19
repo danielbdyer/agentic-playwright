@@ -6,8 +6,8 @@ import {
   buildRungHistory,
   detectRungDrift,
   computeRungStability,
-} from '../../lib/application/drift/rung-drift';
-import type { StepExecutionReceipt } from '../../lib/domain/execution/types';
+} from '../../product/application/drift/rung-drift';
+import type { StepExecutionReceipt } from '../../product/domain/execution/types';
 
 function makeStep(overrides: Partial<{
   widgetContract: string;

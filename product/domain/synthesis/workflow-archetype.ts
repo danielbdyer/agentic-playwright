@@ -413,7 +413,7 @@ const ARCHETYPE_IDS: readonly ArchetypeId[] = Object.keys(ARCHETYPES) as readonl
  * `{ weights: { 'search-verify': 1 } }`. A cohort that wants equal
  * representation passes equal weights for the desired archetypes.
  *
- * Pure type — see `lib/domain/synthesis/cohort-plan.ts` for the
+ * Pure type — see `product/domain/synthesis/cohort-plan.ts` for the
  * canonical definition of `ArchetypePreference`. This declaration is
  * here only to avoid a circular import; it must stay structurally
  * identical.

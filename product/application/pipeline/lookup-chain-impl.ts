@@ -1,6 +1,6 @@
 /**
  * Lookup chain implementation — application-layer wiring of the
- * pure typed interface in `lib/domain/pipeline/lookup-chain.ts`.
+ * pure typed interface in `product/domain/pipeline/lookup-chain.ts`.
  *
  * Per docs/canon-and-derivation.md § 6 The lookup precedence chain
  * and § 6.6 Qualifier-aware lookup, the chain walks five slots in

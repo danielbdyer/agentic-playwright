@@ -5,9 +5,9 @@ import {
   withAgentTimeoutEffect,
   createScopedSessionProvider,
   type AgentLlmApiDependencies,
-} from '../../lib/application/agency/agent-interpreter-provider';
-import { createScopedInternalMCPBridge } from '../../lib/runtime/resolution/mcp-bridge';
-import type { McpToolDefinition } from '../../lib/domain/observation/dashboard';
+} from '../../product/reasoning/agent-interpreter-provider';
+import { createScopedInternalMCPBridge } from '../../product/runtime/resolution/mcp-bridge';
+import type { McpToolDefinition } from '../../product/domain/observation/dashboard';
 
 test.describe('agent resource lifecycle stress tests', () => {
   test('timeout wrapper returns deterministic fallback across repeated retries', async () => {

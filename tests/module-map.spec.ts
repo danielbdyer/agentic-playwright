@@ -24,7 +24,10 @@ test('generated module map advertises layers, dependency rules, and quick refere
   expect(actual).toContain('**Playwright**');
 });
 
-test('each lib layer has a README.md with expected structure', () => {
+test.skip('each lib layer has a README.md with expected structure', () => {
+  // Step 0 retired lib/<layer>/README.md in favor of per-folder READMEs
+  // under product/, workshop/, and dashboard/. A later step will add an
+  // equivalent structural assertion against the three-folder tree.
   const layers = ['domain', 'application', 'runtime', 'infrastructure', 'composition'];
 
   for (const layer of layers) {

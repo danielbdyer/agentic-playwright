@@ -80,7 +80,7 @@ import { walkFiles } from '../catalog/artifacts';
 import type { ProjectPaths } from '../paths';
 import { boundPath, relativeProjectPath, snapshotPath } from '../paths';
 import { FileSystem, type FileSystemPort } from '../ports';
-import { improvementLedgerPath, loadImprovementLedger } from '../improvement/improvement';
+import { improvementLedgerPath, loadImprovementLedger } from '../../../workshop/orchestration/improvement';
 import { createArtifactEnvelope, upsertArtifactEnvelope } from './envelope';
 import {
   bySuffix,
@@ -367,7 +367,7 @@ export function loadWorkspaceCatalog(options: LoadCatalogOptions) {
       // array; consumers distinguish flavor via the envelope's
       // `artifact.source` field. Files use the .json extension and
       // are validated by the Effect Schema decoders in
-      // lib/domain/schemas/pipeline.ts.
+      // product/domain/schemas/pipeline.ts.
       tier1AtomsAgentic: loadArtifactsMatching<Atom<AtomClass, unknown, PhaseOutputSource>>(options.paths, walks.tier1AtomsAgentic, {
         source: 'json', lifetime: 'required', match: bySuffix('.json'),
         validate: validateAtomArtifact, errorCode: 'atom-validation-failed', label: 'Atom (agentic)',

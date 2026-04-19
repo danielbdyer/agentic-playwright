@@ -22,8 +22,8 @@ import type {
   Governance,
   StepAction,
   StepBindingKind,
-} from '../../lib/domain/governance/workflow-types';
-import type { GroundedFlowStep, GroundedSpecFlow } from '../../lib/domain/intent/types';
+} from '../../product/domain/governance/workflow-types';
+import type { GroundedFlowStep, GroundedSpecFlow } from '../../product/domain/intent/types';
 
 // --- Constants ---
 

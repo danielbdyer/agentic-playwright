@@ -23,7 +23,13 @@
     "dogfood/fixtures/**/*.ts",
     "dogfood/fixtures/**/*.tsx",
     "dogfood/knowledge/**/*.ts",
-    "lib/**/*.ts",
+    "product/**/*.ts",
+    "workshop/**/*.ts",
+    "dashboard/mcp/**/*.ts",
+    "dashboard/bridges/**/*.ts",
+    "dashboard/projections/**/*.ts",
+    "dashboard/server.ts",
+    "dashboard/server/**/*.ts",
     "playwright*.ts",
     "tests/**/*.ts",
     "tests-capture/**/*.ts"
@@ -34,7 +40,7 @@
     ".tesseract",
     "dogfood/generated",
     "generated",
-    "lib/generated",
+    "product/generated",
     "node_modules",
     "test-results"
   ]

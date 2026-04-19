@@ -1,2 +1,2 @@
-export { osTableContract } from '../../../lib/domain/widgets/contracts';
-export { osTableHandlers } from '../../../lib/runtime/widgets/os-table';
+export { osTableContract } from '../../../product/domain/widgets/contracts';
+export { osTableHandlers } from '../../../product/runtime/widgets/os-table';

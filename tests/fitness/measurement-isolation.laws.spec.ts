@@ -24,7 +24,7 @@ import { expect, test } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const LIB_ROOT = path.resolve(__dirname, '../..', 'lib');
+const LIB_ROOT = path.resolve(__dirname, '../..', 'product');
 
 function walkTs(dir: string): string[] {
   const results: string[] = [];
@@ -55,8 +55,8 @@ function extractImports(content: string): readonly string[] {
  *  layer). Walks both relative and absolute import strings. */
 function importsMeasurement(importPath: string, fromFile: string): boolean {
   // Absolute paths through the project layout
-  if (importPath.includes('lib/domain/fitness/metric/')) return true;
-  if (importPath.includes('lib/application/measurement/')) return true;
+  if (importPath.includes('workshop/metrics/metric/')) return true;
+  if (importPath.includes('workshop/measurement/')) return true;
 
   // Relative paths — resolve against the importing file
   if (importPath.startsWith('.')) {
@@ -69,9 +69,9 @@ function importsMeasurement(importPath: string, fromFile: string): boolean {
   return false;
 }
 
-// ─── Law: lib/runtime never imports from L4 measurement ─────────
+// ─── Law: product/runtime never imports from L4 measurement ─────────
 
-test('lib/runtime/ does not import from L4 measurement (domain or application)', () => {
+test('product/runtime/ does not import from L4 measurement (domain or application)', () => {
   const runtimeDir = path.join(LIB_ROOT, 'runtime');
   const runtimeFiles = walkTs(runtimeDir);
   const violations: string[] = [];
@@ -89,9 +89,9 @@ test('lib/runtime/ does not import from L4 measurement (domain or application)',
   expect(violations).toEqual([]);
 });
 
-// ─── Law: lib/application/runtime-support never imports measurement ─
+// ─── Law: product/application/runtime-support never imports measurement ─
 
-test('lib/application/runtime-support/ does not import from L4 measurement', () => {
+test('product/application/runtime-support/ does not import from L4 measurement', () => {
   const supportDir = path.join(LIB_ROOT, 'application', 'runtime-support');
   const supportFiles = walkTs(supportDir);
   const violations: string[] = [];
@@ -111,7 +111,7 @@ test('lib/application/runtime-support/ does not import from L4 measurement', () 
 
 // ─── Law: measurement domain layer is dependency-pure ───────────
 
-test('lib/domain/fitness/metric/ does not import from application or runtime', () => {
+test('workshop/metrics/metric/ does not import from application or runtime', () => {
   const metricDir = path.join(LIB_ROOT, 'domain', 'fitness', 'metric');
   const metricFiles = walkTs(metricDir);
   const violations: string[] = [];
@@ -122,11 +122,11 @@ test('lib/domain/fitness/metric/ does not import from application or runtime', (
     for (const imp of imports) {
       // Forbidden: any import that crosses out of the domain layer.
       if (
-        imp.includes('lib/application/') ||
-        imp.includes('lib/runtime/') ||
-        imp.includes('lib/infrastructure/') ||
-        imp.includes('lib/composition/') ||
-        imp.includes('lib/playwright/')
+        imp.includes('product/application/') ||
+        imp.includes('product/runtime/') ||
+        imp.includes('product/instruments/') ||
+        imp.includes('product/composition/') ||
+        imp.includes('product/instruments/observation/')
       ) {
         violations.push(`${path.relative(LIB_ROOT, file)}: forbidden import "${imp}"`);
         continue;
@@ -152,7 +152,7 @@ test('lib/domain/fitness/metric/ does not import from application or runtime', (
 
 // ─── Law: measurement application layer never imports from runtime ─
 
-test('lib/application/measurement/ does not import from lib/runtime/', () => {
+test('workshop/measurement/ does not import from product/runtime/', () => {
   const measurementDir = path.join(LIB_ROOT, 'application', 'measurement');
   const measurementFiles = walkTs(measurementDir);
   const violations: string[] = [];
@@ -161,7 +161,7 @@ test('lib/application/measurement/ does not import from lib/runtime/', () => {
     const content = fs.readFileSync(file, 'utf-8');
     const imports = extractImports(content);
     for (const imp of imports) {
-      if (imp.includes('lib/runtime/')) {
+      if (imp.includes('product/runtime/')) {
         violations.push(`${path.relative(LIB_ROOT, file)}: imports runtime via "${imp}"`);
         continue;
       }

@@ -12,9 +12,9 @@ import {
   confidenceFromScore,
   meetsThreshold,
   inferActionFromText,
-} from '../../lib/runtime/resolution/interpret-intent';
-import { runResolutionPipeline } from '../../lib/runtime/resolution/index';
-import { createScreenId } from '../../lib/domain/kernel/identity';
+} from '../../product/runtime/resolution/interpret-intent';
+import { runResolutionPipeline } from '../../product/runtime/resolution/index';
+import { createScreenId } from '../../product/domain/kernel/identity';
 
 // ─── Fixtures ───
 

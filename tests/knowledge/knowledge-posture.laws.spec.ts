@@ -10,7 +10,7 @@ import { expect, test } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const LIB_ROOT = path.resolve(__dirname, '../..', 'lib');
+const LIB_ROOT = path.resolve(__dirname, '../..', 'product');
 
 // ─── Law: KnowledgePosture type exists with all three variants ───
 
@@ -85,7 +85,7 @@ test('catalog loader defaults to warm-start posture', () => {
 // ─── Law: Dogfood loop passes posture through to catalog on first iteration ───
 
 test('dogfood loop uses cold-start posture only on iteration 1', () => {
-  const dogfoodPath = path.join(LIB_ROOT, 'application', 'improvement', 'dogfood.ts');
+  const dogfoodPath = path.join(LIB_ROOT, '..', 'workshop', 'orchestration', 'dogfood.ts');
   const content = fs.readFileSync(dogfoodPath, 'utf-8');
 
   // Iteration 1 uses configured posture (may be cold-start)

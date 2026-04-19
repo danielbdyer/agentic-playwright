@@ -63,7 +63,7 @@ export function harManifestPath(tesseractDir: string): string {
 
 /**
  * Port for HAR recording/replay on a Playwright browser context.
- * Implementation lives in lib/infrastructure/ — this is the contract only.
+ * Implementation lives in product/instruments/ — this is the contract only.
  */
 export interface HarPort {
   /** Start recording HAR to the given path. Call before navigation. */

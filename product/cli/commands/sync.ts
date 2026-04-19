@@ -1,5 +1,5 @@
-import { syncSnapshots } from '../../intent/sync';
-import { createAdoId } from '../../../domain/kernel/identity';
+import { syncSnapshots } from '../../application/intent/sync';
+import { createAdoId } from '../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { withDefinedValues } from '../shared';
 

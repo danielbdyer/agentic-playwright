@@ -1,30 +1,30 @@
 import { expect, test } from '@playwright/test';
-import { SchemaError } from '../../../lib/domain/kernel/errors';
+import { SchemaError } from '../../../product/domain/kernel/errors';
 import {
   validateBenchmarkImprovementProjectionArtifact as validateBenchmarkImprovementProjectionDirect,
   validateDogfoodRunArtifact as validateDogfoodRunDirect,
-} from '../../../lib/domain/validation/core/execution-validator';
+} from '../../../product/domain/validation/core/execution-validator';
 import {
   validateDerivedGraphArtifact as validateDerivedGraphDirect,
-} from '../../../lib/domain/validation/core/graph-validator';
+} from '../../../product/domain/validation/core/graph-validator';
 import {
   validateScenarioArtifact as validateScenarioDirect,
-} from '../../../lib/domain/validation/core/intent-validator';
+} from '../../../product/domain/validation/core/intent-validator';
 import {
   validateScreenElementsArtifact as validateScreenElementsDirect,
-} from '../../../lib/domain/validation/core/knowledge-validator';
+} from '../../../product/domain/validation/core/knowledge-validator';
 import {
   validateResolutionControlArtifact as validateResolutionControlDirect,
-} from '../../../lib/domain/validation/core/resolution-validator';
+} from '../../../product/domain/validation/core/resolution-validator';
 import {
   validateTrustPolicyArtifact as validateTrustPolicyDirect,
-} from '../../../lib/domain/validation/core/governance-validator';
-import { validateBenchmarkImprovementProjection } from '../../../lib/domain/validation/execution';
-import { validateScenario } from '../../../lib/domain/validation/intent';
-import { validateScreenElements } from '../../../lib/domain/validation/knowledge';
-import { validateDerivedGraph } from '../../../lib/domain/validation/projection';
-import { validateResolutionControl } from '../../../lib/domain/validation/resolution';
-import { validateTrustPolicy } from '../../../lib/domain/validation/trust-policy';
+} from '../../../product/domain/validation/core/governance-validator';
+import { validateBenchmarkImprovementProjection } from '../../../product/domain/validation/execution';
+import { validateScenario } from '../../../product/domain/validation/intent';
+import { validateScreenElements } from '../../../product/domain/validation/knowledge';
+import { validateDerivedGraph } from '../../../product/domain/validation/projection';
+import { validateResolutionControl } from '../../../product/domain/validation/resolution';
+import { validateTrustPolicy } from '../../../product/domain/validation/trust-policy';
 
 const scenarioFixture = {
   source: { ado_id: '10001', revision: 1, content_hash: 'hash', synced_at: '2026-01-01T00:00:00Z' },

@@ -9,8 +9,8 @@
  * @see docs/envelope-axis-refactor-plan.md § 6 (Phase 0c)
  */
 import { describe, test, expect } from 'vitest';
-import type { Fingerprint, FingerprintTag } from '../../lib/domain/kernel/hash';
-import { fingerprintFor, taggedFingerprintFor, asFingerprint } from '../../lib/domain/kernel/hash';
+import type { Fingerprint, FingerprintTag } from '../../product/domain/kernel/hash';
+import { fingerprintFor, taggedFingerprintFor, asFingerprint } from '../../product/domain/kernel/hash';
 
 describe('Phase 0c: Fingerprint<Tag> laws', () => {
   // ─── Law 1: fingerprintFor returns a tagged fingerprint ────

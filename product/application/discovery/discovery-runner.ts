@@ -10,7 +10,7 @@
  * transforms the manifest into per-atom envelopes.
  *
  * The "fat surface" pattern: today the existing discovery code
- * (`discoverScreenScaffold` in lib/infrastructure/tooling/) returns
+ * (`discoverScreenScaffold` in product/instruments/tooling/) returns
  * a single `DiscoveryRun` containing arrays of multiple atom
  * classes (screen, surface, element, selector, snapshot,
  * transition, observation-predicate). Per-atom-class extraction
@@ -19,7 +19,7 @@
  * to be rewritten.
  *
  * The runner interface lives in the application layer because it
- * depends on `DiscoveryRun` from `lib/domain/target/interface-graph`.
+ * depends on `DiscoveryRun` from `product/domain/target/interface-graph`.
  * The decomposer is pure.
  *
  * Slot 5 of the lookup chain stays stubbed in this commit. Phase 3
@@ -45,7 +45,7 @@ export type DiscoveryRunnerId = string;
  *  intentionally narrow — adding a new surface (e.g. a new
  *  inspection tool, a different harvester) requires adding a
  *  variant here AND adding the corresponding adapter under
- *  `lib/application/discovery/`. */
+ *  `product/application/discovery/`. */
 export type DiscoverySurfaceKind =
   | 'screen-scaffold' // discoverScreenScaffold from infrastructure tooling
   | 'route-harvest'   // harvestDeclaredRoutes from infrastructure tooling

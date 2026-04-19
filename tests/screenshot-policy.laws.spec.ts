@@ -20,7 +20,7 @@ import {
   type StepScreenshotContext,
   type ScreenshotManifest,
   type ScreenshotManifestEntry,
-} from '../lib/application/runtime-support/screenshot-policy';
+} from '../product/application/runtime-support/screenshot-policy';
 
 // ─── Helpers ───
 

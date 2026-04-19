@@ -15,7 +15,7 @@
  * Composes into hierarchical trees via `metric-tree.ts`.
  */
 
-import type { Brand } from '../../kernel/brand';
+import type { Brand } from '../../../product/domain/kernel/brand';
 
 // ─── Units ───
 

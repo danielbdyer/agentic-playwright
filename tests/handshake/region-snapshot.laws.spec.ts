@@ -8,12 +8,12 @@
  * @see docs/cold-start-convergence-plan.md § 4.C item 2
  */
 import { describe, test, expect } from 'vitest';
-import { createScreenId, createElementId } from '../../lib/domain/kernel/identity';
-import type { InterventionAttachmentRegion } from '../../lib/domain/handshake/intervention';
+import { createScreenId, createElementId } from '../../product/domain/kernel/identity';
+import type { InterventionAttachmentRegion } from '../../product/domain/handshake/intervention';
 import {
   captureRegionSnapshot,
   type ResolutionStepShape,
-} from '../../lib/domain/handshake/region-snapshot';
+} from '../../product/domain/handshake/region-snapshot';
 
 const SCREEN = createScreenId('policy-search');
 const ELEMENT = createElementId('searchButton');

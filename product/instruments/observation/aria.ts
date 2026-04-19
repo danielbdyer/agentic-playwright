@@ -1,9 +1,9 @@
 import type { Locator } from '@playwright/test';
 import { expect } from '@playwright/test';
-import { normalizeAriaSnapshot, renderAriaSnapshot } from '../domain/knowledge/aria-snapshot';
-import { snapshotHandleResolutionError } from '../domain/kernel/errors';
-import type { RuntimeResult } from '../runtime/result';
-import { runtimeErr, runtimeOk } from '../runtime/result';
+import { normalizeAriaSnapshot, renderAriaSnapshot } from '../../domain/knowledge/aria-snapshot';
+import { snapshotHandleResolutionError } from '../../domain/kernel/errors';
+import type { RuntimeResult } from '../../runtime/result';
+import { runtimeErr, runtimeOk } from '../../runtime/result';
 
 export async function captureAriaYaml(locator: Locator): Promise<RuntimeResult<string>> {
   const handle = await locator.elementHandle();

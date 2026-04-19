@@ -1,2 +1,2 @@
-export { osButtonContract } from '../../../lib/domain/widgets/contracts';
-export { osButtonHandlers } from '../../../lib/runtime/widgets/os-button';
+export { osButtonContract } from '../../../product/domain/widgets/contracts';
+export { osButtonHandlers } from '../../../product/runtime/widgets/os-button';

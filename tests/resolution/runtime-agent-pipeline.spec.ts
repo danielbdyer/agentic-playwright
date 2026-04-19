@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { createAdoId, createCanonicalTargetRef, createElementId, createScreenId, createSurfaceId, createWidgetId } from '../../lib/domain/kernel/identity';
-import type { StepAction } from '../../lib/domain/governance/workflow-types';
-import type { GroundedStep, ResolutionReceipt } from '../../lib/domain/resolution/types';
-import { RESOLUTION_PRECEDENCE, runResolutionPipeline, type RuntimeStepAgentContext } from '../../lib/runtime/resolution';
-import { createScenarioRunState, runScenarioStep } from '../../lib/runtime/scenario';
-import { resolveFromDom } from '../../lib/runtime/resolution/dom-fallback';
+import { createAdoId, createCanonicalTargetRef, createElementId, createScreenId, createSurfaceId, createWidgetId } from '../../product/domain/kernel/identity';
+import type { StepAction } from '../../product/domain/governance/workflow-types';
+import type { GroundedStep, ResolutionReceipt } from '../../product/domain/resolution/types';
+import { RESOLUTION_PRECEDENCE, runResolutionPipeline, type RuntimeStepAgentContext } from '../../product/runtime/resolution';
+import { createScenarioRunState, runScenarioStep } from '../../product/runtime/scenario';
+import { resolveFromDom } from '../../product/runtime/resolution/dom-fallback';
 import {
   createAgentContext,
   createInterfaceResolutionContext,
@@ -17,8 +17,8 @@ import {
   accrueSemanticEntry,
   emptyCatalog,
   recordSemanticSuccess,
-} from '../../lib/application/resolution/translation/semantic-translation-dictionary';
-import type { SemanticDictionaryAccrualInput } from '../../lib/domain/knowledge/semantic-dictionary-types';
+} from '../../product/reasoning/semantic-translation-dictionary';
+import type { SemanticDictionaryAccrualInput } from '../../product/domain/knowledge/semantic-dictionary-types';
 
 function mockPageFromRoleCounts(roleCounts: Record<string, number>) {
   const mockLocator = (n: number) => ({

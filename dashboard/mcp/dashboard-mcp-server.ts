@@ -13,23 +13,23 @@
  */
 
 import { Effect } from 'effect';
-import type { McpServerPort, McpToolInvocation, McpToolResult, McpResource, McpResourceContent } from '../../application/ports';
-import { TesseractError } from '../../domain/kernel/errors';
+import type { McpServerPort, McpToolInvocation, McpToolResult, McpResource, McpResourceContent } from '../../product/application/ports';
+import { TesseractError } from '../../product/domain/kernel/errors';
 import type {
   LogicalProofObligationName,
   TheoremBaselineCoverage,
-} from '../../domain/fitness/types';
+} from '../../workshop/metrics/types';
 import {
   summarizeTheoremBaseline,
   theoremBaselineCoverageForNames,
-} from '../../domain/fitness/types';
-import type { McpToolDefinition, ScreenCapturedEvent, WorkItemDecision } from '../../domain/observation/dashboard';
-import { dashboardEvent, dashboardMcpTools } from '../../domain/observation/dashboard';
+} from '../../workshop/metrics/types';
+import type { McpToolDefinition, ScreenCapturedEvent, WorkItemDecision } from '../../product/domain/observation/dashboard';
+import { dashboardEvent, dashboardMcpTools } from '../../product/domain/observation/dashboard';
 import { resolveResource, buildResourceUri } from './resource-provider';
 import type { ResourceArtifactReader } from './resource-provider';
 import type { PlaywrightBridgePort, BrowserAction } from './playwright-mcp-bridge';
-import { RETRY_POLICIES, formatRetryMetadata, retryMetadata, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
-import { writeDecisionFile } from '../dashboard/file-decision-bridge';
+import { RETRY_POLICIES, formatRetryMetadata, retryMetadata, retryScheduleForTaggedErrors } from '../../product/application/resilience/schedules';
+import { writeDecisionFile } from '../bridges/file-decision-bridge';
 
 // ─── Actionable Errors ───
 
@@ -871,7 +871,7 @@ const executeBrowserAction = (
   let attempts = 0;
   let result: unknown = null;
   // Phase 2.7 audit note: this is the only `Effect.runSync` outside
-  // `lib/composition/`. It is a deliberate exception — the MCP stdio
+  // `product/composition/`. It is a deliberate exception — the MCP stdio
   // boundary is synchronous (the tool handler must return a result, not
   // an Effect), and the playwright bridge IS the Effect-consuming
   // adapter at the system edge. Lifting this through Effect would

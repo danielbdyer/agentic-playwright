@@ -16,14 +16,14 @@
 
 import * as path from 'path';
 import { Effect } from 'effect';
-import { FileSystem } from '../ports';
-import type { ProjectPaths } from '../paths';
-import { TesseractError } from '../../domain/kernel/errors';
+import { FileSystem } from '../../product/application/ports';
+import type { ProjectPaths } from '../../product/application/paths';
+import { TesseractError } from '../../product/domain/kernel/errors';
 import {
   metricBaseline,
   type MetricBaseline,
-} from '../../domain/fitness/metric/baseline';
-import type { MetricNode } from '../../domain/fitness/metric/tree';
+} from '../metrics/metric/baseline';
+import type { MetricNode } from '../metrics/metric/tree';
 
 const BASELINE_SUFFIX = '.baseline.json';
 

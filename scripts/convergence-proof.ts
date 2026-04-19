@@ -19,21 +19,21 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { createProjectPaths } from '../lib/application/paths';
+import { createProjectPaths } from '../product/application/paths';
 import {
   convergenceProofProgram,
   defaultConvergenceSeeds,
   formatConvergenceReport,
   type ConvergenceProofInput,
-} from '../lib/application/improvement/convergence-proof';
-import type { ConvergenceTrialResult } from '../lib/domain/convergence/types';
-import { runWithLocalServices } from '../lib/composition/local-services';
-import type { KnowledgePosture } from '../lib/domain/governance/workflow-types';
-import type { SpeedrunProgressEvent } from '../lib/domain/improvement/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../lib/domain/attention/pipeline-config';
-import { startFixtureServer, type FixtureServer } from '../lib/infrastructure/tooling/fixture-server';
-import { createPlaywrightBrowserPool } from '../lib/infrastructure/runtime/playwright-browser-pool';
-import type { BrowserPoolPort } from '../lib/application/runtime-support/browser-pool';
+} from '../workshop/orchestration/convergence-proof';
+import type { ConvergenceTrialResult } from '../workshop/convergence/types';
+import { runWithLocalServices } from '../product/composition/local-services';
+import type { KnowledgePosture } from '../product/domain/governance/workflow-types';
+import type { SpeedrunProgressEvent } from '../product/domain/improvement/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../product/domain/attention/pipeline-config';
+import { startFixtureServer, type FixtureServer } from '../product/instruments/tooling/fixture-server';
+import { createPlaywrightBrowserPool } from '../product/instruments/runtime/playwright-browser-pool';
+import type { BrowserPoolPort } from '../product/application/runtime-support/browser-pool';
 
 // ─── CLI argument parsing ───
 

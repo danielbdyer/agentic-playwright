@@ -1,4 +1,4 @@
-import { discoverScreenScaffold } from '../../../infrastructure/tooling/discover-screen';
+import { discoverScreenScaffold } from '../../instruments/tooling/discover-screen';
 import { createCommandSpec } from '../shared';
 import { requireUrl } from '../shared';
 

@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 import YAML from 'yaml';
-import { activateProposalBundle } from '../../lib/application/knowledge/activate-proposals';
+import { activateProposalBundle } from '../../product/application/knowledge/activate-proposals';
 import {
   createProposalBundleEnvelope,
   createScenarioEnvelopeFingerprints,
   createScenarioEnvelopeIds,
-} from '../../lib/application/catalog/envelope';
-import { runWithLocalServices } from '../../lib/composition/local-services';
-import { createAdoId } from '../../lib/domain/kernel/identity';
-import type { ProposalBundle, ProposalEntry } from '../../lib/domain/execution/types';
+} from '../../product/application/catalog/envelope';
+import { runWithLocalServices } from '../../product/composition/local-services';
+import { createAdoId } from '../../product/domain/kernel/identity';
+import type { ProposalBundle, ProposalEntry } from '../../product/domain/execution/types';
 import { createTestWorkspace } from '../support/workspace';
 
 function proposalBundleWithDecision(decision: ProposalEntry['trustPolicy']['decision']): ProposalBundle {

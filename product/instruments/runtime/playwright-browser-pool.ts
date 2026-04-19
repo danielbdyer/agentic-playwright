@@ -7,7 +7,7 @@
  * state between scenarios using lightweight operations (clear cookies
  * + storage ≈ 10ms).
  *
- * Uses the BrowserPoolPort interface from lib/application/browser-pool.ts.
+ * Uses the BrowserPoolPort interface from product/application/browser-pool.ts.
  */
 
 import type {

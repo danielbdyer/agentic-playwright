@@ -6,7 +6,7 @@ import { buildDerivedGraph } from '../graph/graph';
 import { writeAgentSessionLedger } from '../agency/agent-session-ledger';
 import { emitScenario } from './emit';
 import { emitOperatorInbox } from '../agency/inbox';
-import { projectLearningArtifacts } from '../learning/learning';
+import { projectLearningArtifacts } from '../../../workshop/learning/learning';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
 import type { ProjectPaths } from '../paths';
 import {

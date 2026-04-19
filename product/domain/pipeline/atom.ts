@@ -9,7 +9,7 @@
  * The Atom type is parameterized by:
  *   - C: the AtomClass (the discriminator)
  *   - T: the content type (the actual fact, typically an existing
- *        domain type from lib/domain/types/)
+ *        domain type from product/domain/types/)
  *
  * Pure domain — no Effect, no IO, no application imports.
  */
@@ -26,7 +26,7 @@ import type { Fingerprint } from '../kernel/hash';
  *  tier-specific provenance types (`AtomProvenance`,
  *  `CompositionProvenance`, `ProjectionProvenance`) are byte-
  *  identical and collapsed to one canonical shape in
- *  `lib/domain/pipeline/provenance.ts`. */
+ *  `product/domain/pipeline/provenance.ts`. */
 export type AtomProvenance = CanonProvenance;
 
 // ─── The Atom envelope ───────────────────────────────────────────

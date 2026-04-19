@@ -17,7 +17,7 @@
  * **Tree opacity is deliberate.** The existing runtime treats
  * snapshot content as an opaque blob via
  * `SnapshotTemplateLoader.read()`. There is no typed
- * `SnapshotTemplate` interface in `lib/domain/knowledge/types.ts`.
+ * `SnapshotTemplate` interface in `product/domain/knowledge/types.ts`.
  * `SnapshotAtomContent.tree` is therefore typed as `unknown` to
  * match the existing convention.
  *
@@ -34,8 +34,8 @@
  * hash changes (a content-addressed marker independent of the
  * parsed tree).
  *
- * Pure application — depends only on `lib/application/canon/minting`,
- * `lib/domain/pipeline`, and `lib/domain/kernel/identity`.
+ * Pure application — depends only on `product/application/canon/minting`,
+ * `product/domain/pipeline`, and `product/domain/kernel/identity`.
  */
 
 import type { ScreenId, SnapshotTemplateId } from '../../domain/kernel/identity';

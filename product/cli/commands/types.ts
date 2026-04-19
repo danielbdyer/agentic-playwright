@@ -1,4 +1,4 @@
-import { generateTypes } from '../../types';
+import { generateTypes } from '../../application/types';
 import { createCommandSpec } from '../shared';
 
 export const typesCommand = createCommandSpec({

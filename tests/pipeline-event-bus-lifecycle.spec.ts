@@ -4,8 +4,8 @@ import {
   createPipelineEventBus,
   readEventCount,
   subscribeWsBroadcaster,
-} from '../lib/infrastructure/dashboard/pipeline-event-bus';
-import type { PipelineEventBus } from '../lib/infrastructure/dashboard/pipeline-event-bus';
+} from '../dashboard/bridges/pipeline-event-bus';
+import type { PipelineEventBus } from '../dashboard/bridges/pipeline-event-bus';
 
 test.describe('pipeline event bus lifecycle', () => {
   test('buffer writer finalizes with scope shutdown', async () => {

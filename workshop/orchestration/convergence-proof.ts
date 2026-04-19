@@ -15,22 +15,22 @@
 
 import path from 'path';
 import { Effect } from 'effect';
-import type { ProjectPaths } from '../paths';
+import type { ProjectPaths } from '../../product/application/paths';
 import { speedrunProgram, type SpeedrunResult } from './speedrun';
 import { cleanSlateProgram } from './clean-slate';
-import { FileSystem, VersionControl } from '../ports';
-import type { PipelineConfig } from '../../domain/attention/pipeline-config';
-import type { KnowledgePosture } from '../../domain/governance/workflow-types';
-import type { SpeedrunProgressEvent } from '../../domain/improvement/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
+import { FileSystem, VersionControl } from '../../product/application/ports';
+import type { PipelineConfig } from '../../product/domain/attention/pipeline-config';
+import type { KnowledgePosture } from '../../product/domain/governance/workflow-types';
+import type { SpeedrunProgressEvent } from '../../product/domain/improvement/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
 import {
   ConvergenceProofResult,
   ConvergenceTrialResult,
   buildTrialResult,
   buildVerdict,
-} from '../../domain/convergence/types';
-import type { BrowserPoolPort } from '../runtime-support/browser-pool';
-import { runHyloEffect, type UnfoldStep } from '../../domain/algebra/hylomorphism';
+} from '../convergence/types';
+import type { BrowserPoolPort } from '../../product/application/runtime-support/browser-pool';
+import { runHyloEffect, type UnfoldStep } from '../../product/domain/algebra/hylomorphism';
 
 // ─── Input ───
 

@@ -1,7 +1,7 @@
-import { normalizeIntentText } from '../../../domain/knowledge/inference';
-import type { TranslationCandidate, TranslationReceipt, TranslationRequest } from '../../../domain/resolution/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../../domain/attention/pipeline-config';
-import { compareStrings, uniqueSorted } from '../../../domain/kernel/collections';
+import { normalizeIntentText } from '../domain/knowledge/inference';
+import type { TranslationCandidate, TranslationReceipt, TranslationRequest } from '../domain/resolution/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../domain/attention/pipeline-config';
+import { compareStrings, uniqueSorted } from '../domain/kernel/collections';
 
 function tokenize(value: string): string[] {
   return uniqueSorted(normalizeIntentText(value).split(/[^a-z0-9]+/).filter((token) => token.length > 1));

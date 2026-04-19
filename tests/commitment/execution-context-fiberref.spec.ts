@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
-import { withExecutionContext, getExecutionContext } from '../../lib/application/commitment/execution-context';
-import { runPipelineStage } from '../../lib/application/pipeline/stage';
-import { StageTracer } from '../../lib/application/ports';
+import { withExecutionContext, getExecutionContext } from '../../product/application/commitment/execution-context';
+import { runPipelineStage } from '../../product/application/pipeline/stage';
+import { StageTracer } from '../../product/application/ports';
 
-import { createPipelineEventBus, subscribeWsBroadcaster } from '../../lib/infrastructure/dashboard/pipeline-event-bus';
+import { createPipelineEventBus, subscribeWsBroadcaster } from '../../dashboard/bridges/pipeline-event-bus';
 
 
 test('withExecutionContext preserves outer values and deterministically restores after nested override', async () => {

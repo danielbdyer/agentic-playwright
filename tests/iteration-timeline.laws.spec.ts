@@ -14,7 +14,7 @@ import {
   MAX_ITERATION_WIDTH_PX,
   type IterationMetrics,
   type FlywheelAct,
-} from '../lib/domain/projection/iteration-timeline';
+} from '../product/domain/projection/iteration-timeline';
 
 const sampleMetrics = (iteration: number, hitRate: number, durationMs: number = 5000): IterationMetrics => ({
   iteration,

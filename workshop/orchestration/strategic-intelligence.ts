@@ -15,20 +15,20 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type { ProposalBundle } from '../../domain/execution/types';
-import type { GroundedSpecFragment, RankedProposal, TrainingCorpusManifest } from '../../domain/learning/types';
-import type { RunRecord } from '../../domain/execution/types';
-import type { PipelineFitnessReport } from '../../domain/fitness/types';
+import type { ProposalBundle } from '../../product/domain/execution/types';
+import type { GroundedSpecFragment, RankedProposal, TrainingCorpusManifest } from '../../product/domain/learning/types';
+import type { RunRecord } from '../../product/domain/execution/types';
+import type { PipelineFitnessReport } from '../metrics/types';
 import {
   buildProposalIntelligence,
   type ProposalIntelligenceReport,
   type RunStepSummary,
-} from '../improvement/proposal-intelligence';
+} from './proposal-intelligence';
 import {
   buildImprovementIntelligence,
   type ImprovementIntelligenceReport,
   type ImprovementPriority,
-} from '../improvement/improvement-intelligence';
+} from './improvement-intelligence';
 
 // ─── Types ───
 

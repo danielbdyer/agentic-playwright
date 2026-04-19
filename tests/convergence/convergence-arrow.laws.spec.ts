@@ -5,7 +5,7 @@ import {
 import {
   directionArrow,
   directionColor,
-} from '../../lib/domain/projection/iteration-timeline';
+} from '../../product/domain/projection/iteration-timeline';
 
 test.describe('ConvergenceArrow laws', () => {
   test('Law 1: improving arrow is ↑', () => {

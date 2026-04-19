@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { mergePatternDocuments } from '../lib/domain/knowledge/patterns';
-import { validatePatternDocument } from '../lib/domain/validation';
+import { mergePatternDocuments } from '../product/domain/knowledge/patterns';
+import { validatePatternDocument } from '../product/domain/validation';
 
 test('mergePatternDocuments produces a deterministic merged registry in sorted path order', () => {
   const first = {

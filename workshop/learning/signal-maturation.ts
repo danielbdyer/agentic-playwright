@@ -1,7 +1,7 @@
 /**
  * Signal Maturation — pure functions for dampening early-iteration learning signals.
  *
- * Uses the same saturation curve as component-maturation.ts (lib/domain/projection/
+ * Uses the same saturation curve as component-maturation.ts (product/domain/projection/
  * component-maturation.ts) with a half-saturation constant of 3 iterations:
  *
  *   maturity(n) = 1 - 1/(1 + n/3)
@@ -15,7 +15,7 @@
  */
 
 import { round4 } from './learning-shared';
-import type { LearningSignalsSummary } from '../../domain/improvement/types';
+import type { LearningSignalsSummary } from '../../product/domain/improvement/types';
 
 /** Half-saturation constant: iteration at which maturity reaches 0.5. */
 const HALF_SATURATION_ITERATION = 3;

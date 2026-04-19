@@ -3,9 +3,9 @@
  * Usage: npx tsx scripts/generate-synthetic.ts [--count N] [--seed S]
  */
 
-import { createProjectPaths } from '../lib/application/paths';
-import { generateSyntheticScenarios } from '../lib/application/synthesis/scenario-generator';
-import { runWithLocalServices } from '../lib/composition/local-services';
+import { createProjectPaths } from '../product/application/paths';
+import { generateSyntheticScenarios } from '../workshop/synthesis/scenario-generator';
+import { runWithLocalServices } from '../product/composition/local-services';
 
 const args = process.argv.slice(2);
 const countArg = args.indexOf('--count');

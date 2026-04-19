@@ -50,7 +50,7 @@ module.exports = [
       'dist/**',
       'dogfood/generated/**',
       'generated/**',
-      'lib/generated/**',
+      'product/generated/**',
       'node_modules/**',
       'scripts/**',
       'test-results/**',
@@ -89,7 +89,7 @@ module.exports = [
     rules: typedRules,
   },
   {
-    files: ['lib/domain/schemas/**/*.ts', 'lib/domain/validation/**/*.ts', 'lib/domain/algebra/**/*.ts', 'lib/domain/graph-query.ts', 'lib/domain/program.ts'],
+    files: ['product/domain/schemas/**/*.ts', 'product/domain/validation/**/*.ts', 'product/domain/algebra/**/*.ts', 'product/domain/graph-query.ts', 'product/domain/program.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         paths: [
@@ -105,8 +105,8 @@ module.exports = [
     },
   },
   {
-    files: ['lib/domain/**/*.ts'],
-    ignores: ['lib/domain/schemas/**/*.ts', 'lib/domain/validation/**/*.ts', 'lib/domain/algebra/**/*.ts', 'lib/domain/graph-query.ts', 'lib/domain/program.ts', 'lib/domain/types/agent-interpreter.ts'],
+    files: ['product/domain/**/*.ts'],
+    ignores: ['product/domain/schemas/**/*.ts', 'product/domain/validation/**/*.ts', 'product/domain/algebra/**/*.ts', 'product/domain/graph-query.ts', 'product/domain/program.ts', 'product/domain/types/agent-interpreter.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         paths: [
@@ -137,7 +137,7 @@ module.exports = [
     },
   },
   {
-    files: ['lib/domain/types/agent-interpreter.ts'],
+    files: ['product/domain/types/agent-interpreter.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         paths: [
@@ -153,7 +153,7 @@ module.exports = [
     },
   },
   {
-    files: ['lib/application/**/*.ts'],
+    files: ['product/application/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
@@ -177,7 +177,7 @@ module.exports = [
     },
   },
   {
-    files: ['lib/runtime/**/*.ts'],
+    files: ['product/runtime/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
@@ -199,24 +199,24 @@ module.exports = [
     },
   },
   {
-    files: ['lib/composition/**/*.ts', 'lib/runtime/**/*.ts', 'lib/infrastructure/**/*.ts'],
+    files: ['product/composition/**/*.ts', 'product/runtime/**/*.ts', 'product/instruments/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         paths: [
           {
             name: '../application/agent-interpreter-provider',
             importNames: ['AgentInterpreterPort', 'ApplicationAgentInterpreterPort'],
-            message: 'Import agent interpreter contracts from lib/domain/resolution/model or lib/domain/types/agent-interpreter.',
+            message: 'Import agent interpreter contracts from product/domain/resolution/model or product/domain/types/agent-interpreter.',
           },
           {
             name: '../../application/agent-interpreter-provider',
             importNames: ['AgentInterpreterPort', 'ApplicationAgentInterpreterPort'],
-            message: 'Import agent interpreter contracts from lib/domain/resolution/model or lib/domain/types/agent-interpreter.',
+            message: 'Import agent interpreter contracts from product/domain/resolution/model or product/domain/types/agent-interpreter.',
           },
           {
             name: '../../../application/agent-interpreter-provider',
             importNames: ['AgentInterpreterPort', 'ApplicationAgentInterpreterPort'],
-            message: 'Import agent interpreter contracts from lib/domain/resolution/model or lib/domain/types/agent-interpreter.',
+            message: 'Import agent interpreter contracts from product/domain/resolution/model or product/domain/types/agent-interpreter.',
           },
           {
             name: './agent-interpreter-provider',
@@ -228,7 +228,7 @@ module.exports = [
     },
   },
   {
-    files: ['lib/infrastructure/**/*.ts'],
+    files: ['product/instruments/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
@@ -240,8 +240,8 @@ module.exports = [
   {
     files: ['lib/**/*.ts'],
     ignores: [
-      'lib/composition/**',
-      'lib/infrastructure/tooling/**',
+      'product/composition/**',
+      'product/instruments/tooling/**',
     ],
     rules: {
       'no-restricted-properties': ['error', {
@@ -252,7 +252,7 @@ module.exports = [
       'no-restricted-syntax': ['error',
         {
           selector: "CallExpression[callee.object.name='Effect'][callee.property.name='runPromise']",
-          message: 'Use Effect.runPromise only in lib/composition adapters.',
+          message: 'Use Effect.runPromise only in product/composition adapters.',
         },
       ],
     },

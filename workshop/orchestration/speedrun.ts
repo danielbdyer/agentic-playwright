@@ -13,12 +13,12 @@
 
 import path from 'path';
 import { Effect, Either, Schema } from 'effect';
-import type { ProjectPaths } from '../paths';
+import type { ProjectPaths } from '../../product/application/paths';
 import { generateSyntheticScenarios } from '../synthesis/scenario-generator';
 import { generateDriftVariants } from '../synthesis/interface-fuzzer';
-import { compileScenariosParallel } from '../resolution/compile';
+import { compileScenariosParallel } from '../../product/application/resolution/compile';
 import { runDogfoodLoop } from './dogfood';
-import type { AdoId } from '../../domain/kernel/identity';
+import type { AdoId } from '../../product/domain/kernel/identity';
 import {
   averageFitnessReports,
   buildFitnessReport,
@@ -27,34 +27,34 @@ import {
   updateScorecard,
   type FitnessInputData,
   type ScorecardComparison,
-} from '../improvement/fitness';
+} from './fitness';
 import { buildImprovementRun, recordImprovementRun, scorecardPath } from './improvement';
 import { loadExperimentRegistry, recordExperiment } from './experiment-registry';
 import { summarizeKnowledgeCoverage } from './knowledge-coverage';
 import { projectMemoryMaturityCounts } from './memory-maturity-projection';
 import { runFingerprintStabilityProbe } from './fingerprint-stability-probe';
 import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';
-import { loadWorkspaceCatalog } from '../catalog';
+import { loadWorkspaceCatalog } from '../../product/application/catalog';
 import { cleanSlateProgram } from './clean-slate';
-import { Dashboard, FileSystem, VersionControl } from '../ports';
-import { validateRunRecord } from '../../domain/validation';
-import { decodeUnknownEither } from '../../domain/schemas/decode';
-import type { PipelineConfig } from '../../domain/attention/pipeline-config';
-import type { ProposalBundle } from '../../domain/execution/types';
-import type { PipelineFitnessReport, PipelineScorecard } from '../../domain/fitness/types';
-import type { KnowledgePosture } from '../../domain/governance/workflow-types';
-import type { ExperimentRecord } from '../../domain/improvement/experiment';
+import { Dashboard, FileSystem, VersionControl } from '../../product/application/ports';
+import { validateRunRecord } from '../../product/domain/validation';
+import { decodeUnknownEither } from '../../product/domain/schemas/decode';
+import type { PipelineConfig } from '../../product/domain/attention/pipeline-config';
+import type { ProposalBundle } from '../../product/domain/execution/types';
+import type { PipelineFitnessReport, PipelineScorecard } from '../metrics/types';
+import type { KnowledgePosture } from '../../product/domain/governance/workflow-types';
+import type { ExperimentRecord } from '../../product/domain/improvement/experiment';
 import type {
   ExperimentSubstrate,
   ImprovementLoopLedger,
   ImprovementRun,
   SpeedrunProgressEvent,
   SubstrateContext,
-} from '../../domain/improvement/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
-import type { RunRecord } from '../../domain/execution/types';
+} from '../../product/domain/improvement/types';
+import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
+import type { RunRecord } from '../../product/domain/execution/types';
 import type { PerturbationConfig } from '../synthesis/scenario-generator';
-import { TesseractError } from '../../domain/kernel/errors';
+import { TesseractError } from '../../product/domain/kernel/errors';
 
 // ─── Public input/result types ───
 
@@ -85,7 +85,7 @@ export interface SpeedrunInput {
   /** Base URL of the SUT for Playwright execution (e.g., http://127.0.0.1:3200). */
   readonly baseUrl?: string | undefined;
   /** Browser pool for page reuse across scenarios. Managed by caller. */
-  readonly browserPool?: import('../runtime-support/browser-pool').BrowserPoolPort | undefined;
+  readonly browserPool?: import('../../product/application/runtime-support/browser-pool').BrowserPoolPort | undefined;
 }
 
 export interface SpeedrunResult {
@@ -327,7 +327,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
     // through `extraObligations`. This is the live path that graduates
     // fingerprint-stability from slot-only to measured.
     const probeResult = yield* runFingerprintStabilityProbe({ paths: input.paths }).pipe(
-      Effect.catchAll(() => Effect.succeed(null as { obligation: import('../../domain/fitness/types').LogicalProofObligation; artifactCount: number } | null)),
+      Effect.catchAll(() => Effect.succeed(null as { obligation: import('../metrics/types').LogicalProofObligation; artifactCount: number } | null)),
     );
 
     const fitnessData: FitnessInputData = {
@@ -506,7 +506,7 @@ export interface IteratePhaseInput {
   readonly interpreterMode?: 'dry-run' | 'diagnostic' | 'playwright' | undefined;
   readonly baseUrl?: string | undefined;
   /** Browser pool for page reuse across scenarios. Managed by caller. */
-  readonly browserPool?: import('../runtime-support/browser-pool').BrowserPoolPort | undefined;
+  readonly browserPool?: import('../../product/application/runtime-support/browser-pool').BrowserPoolPort | undefined;
 }
 
 export function iteratePhase(input: IteratePhaseInput) {
@@ -648,7 +648,7 @@ export function reportPhase(input: ReportPhaseInput) {
 
     const existingScorecard = yield* loadScorecard(input.paths);
     const reportPhaseProbe = yield* runFingerprintStabilityProbe({ paths: input.paths }).pipe(
-      Effect.catchAll(() => Effect.succeed(null as { obligation: import('../../domain/fitness/types').LogicalProofObligation; artifactCount: number } | null)),
+      Effect.catchAll(() => Effect.succeed(null as { obligation: import('../metrics/types').LogicalProofObligation; artifactCount: number } | null)),
     );
     const fitnessReport = buildFitnessReport({
       pipelineVersion,

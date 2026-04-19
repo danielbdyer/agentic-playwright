@@ -1,19 +1,19 @@
 import * as ts from 'typescript';
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'fs';
-import { createAdoId, createElementId, createScreenId } from '../../lib/domain/kernel/identity';
-import { asFingerprint } from '../../lib/domain/kernel/hash';
-import { buildGroundedSpecFlow } from '../../lib/domain/commitment/grounded-flow';
-import { renderReadableSpecModule } from '../../lib/domain/codegen/spec-codegen';
-import type { BoundScenario } from '../../lib/domain/intent/types';
-import type { ScenarioInterpretationSurface } from '../../lib/domain/resolution/types';
-import { refreshScenario } from '../../lib/application/resolution/refresh';
-import { runWithLocalServices } from '../../lib/composition/local-services';
+import { createAdoId, createElementId, createScreenId } from '../../product/domain/kernel/identity';
+import { asFingerprint } from '../../product/domain/kernel/hash';
+import { buildGroundedSpecFlow } from '../../product/domain/commitment/grounded-flow';
+import { renderReadableSpecModule } from '../../product/instruments/codegen/spec-codegen';
+import type { BoundScenario } from '../../product/domain/intent/types';
+import type { ScenarioInterpretationSurface } from '../../product/domain/resolution/types';
+import { refreshScenario } from '../../product/application/resolution/refresh';
+import { runWithLocalServices } from '../../product/composition/local-services';
 import { createTestWorkspace } from '../support/workspace';
 
 const testImports = {
   fixtures: '../../../fixtures/index',
-  scenarioContext: '../../../lib/composition/scenario-context',
+  scenarioContext: '../../../product/composition/scenario-context',
 };
 
 function createTestBoundScenario(overrides?: Partial<{ stepCount: number; hasUnbound: boolean; seed: number }>): BoundScenario {

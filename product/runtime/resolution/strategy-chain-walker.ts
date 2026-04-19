@@ -10,7 +10,7 @@
  * This combinator bridges the abstract free-forgetful algebra with the
  * concrete resolution domain types.
  *
- * @see lib/domain/algebra/free-forgetful.ts
+ * @see product/domain/algebra/free-forgetful.ts
  * @see docs/design-calculus.md § Abstraction 1 + Duality 2
  */
 

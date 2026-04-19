@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { emitAgentWorkbench, loadAgentWorkbench, nextWorkItem, completeWorkItem } from '../../agency/agent-workbench';
+import { emitAgentWorkbench, loadAgentWorkbench, nextWorkItem, completeWorkItem } from '../../application/agency/agent-workbench';
 import { createCommandSpec } from '../shared';
 
 export const workbenchCommand = createCommandSpec({

@@ -1,5 +1,5 @@
-import { parseScenario } from '../../intent/parse';
-import { createAdoId } from '../../../domain/kernel/identity';
+import { parseScenario } from '../../application/intent/parse';
+import { createAdoId } from '../../domain/kernel/identity';
 import { createCommandSpec } from '../shared';
 import { requireAdoId } from '../shared';
 

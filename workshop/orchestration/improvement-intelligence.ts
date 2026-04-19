@@ -16,7 +16,7 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type { InterpretationDriftRecord, ResolutionGraphRecord, RunRecord } from '../../domain/execution/types';
+import type { InterpretationDriftRecord, ResolutionGraphRecord, RunRecord } from '../../product/domain/execution/types';
 import {
   summarizeTheoremBaseline,
   theoremBaselineCoverageForObligations,
@@ -26,8 +26,8 @@ import {
   type TheoremBaselineSummary,
   type PipelineFailureMode,
   type PipelineFitnessReport,
-} from '../../domain/fitness/types';
-import type { ImprovementSignal } from '../../domain/improvement/types';
+} from '../metrics/types';
+import type { ImprovementSignal } from '../../product/domain/improvement/types';
 import { buildWorkflowHotspots, type WorkflowHotspot } from './hotspots';
 
 // ─── Types ───

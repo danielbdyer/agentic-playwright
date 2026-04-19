@@ -23,18 +23,18 @@ import type {
   WorkflowMetadata,
   WorkflowEnvelope,
   WorkflowStage,
-} from '../../lib/domain/governance/workflow-types';
-import { asFingerprint } from '../../lib/domain/kernel/hash';
-import type { RunRecord, StepExecutionReceipt } from '../../lib/domain/evidence/types';
-import type { ProposalBundle } from '../../lib/domain/execution/types';
-import type { BoundScenario } from '../../lib/domain/intent/types';
+} from '../../product/domain/governance/workflow-types';
+import { asFingerprint } from '../../product/domain/kernel/hash';
+import type { RunRecord, StepExecutionReceipt } from '../../product/domain/evidence/types';
+import type { ProposalBundle } from '../../product/domain/execution/types';
+import type { BoundScenario } from '../../product/domain/intent/types';
 import type {
   ScenarioInterpretationSurface,
-} from '../../lib/domain/resolution/types';
+} from '../../product/domain/resolution/types';
 import type {
   ResolutionGraphRecord,
   InterpretationDriftRecord,
-} from '../../lib/domain/drift/types';
+} from '../../product/domain/drift/types';
 
 describe('Phase 0a: envelope stage phantom', () => {
   // ─── Law 1: RunRecord is execution-stage ────────────────────

@@ -343,7 +343,7 @@ export const DogfoodRunSchema = Schema.Struct({
 // ─── Evidence record ───
 //
 // Structural schema for the `EvidenceRecord` shape defined at
-// lib/domain/resolution/types.ts:486. Previously the catalog
+// product/domain/resolution/types.ts:486. Previously the catalog
 // loader at workspace-catalog.ts:362 used a bare
 // `(v) => v as EvidenceRecord` cast with no validator —
 // malformed evidence files would silently flow through and crash

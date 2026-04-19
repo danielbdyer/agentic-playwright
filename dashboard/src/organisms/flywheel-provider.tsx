@@ -19,7 +19,7 @@ import type {
   ScenarioExecutedEvent,
   ConvergenceEvaluatedEvent,
   IterationSummaryEvent,
-} from '../../../lib/domain/observation/dashboard';
+} from '../../../product/domain/observation/dashboard';
 import { useFlywheelAct } from '../hooks/use-flywheel-act';
 import { useCameraChoreography, type CameraChoreographyState } from '../hooks/use-camera-choreography';
 import { useNarrationQueue, type NarrationQueueState, type NarrationVerbosity } from '../hooks/use-narration-queue';

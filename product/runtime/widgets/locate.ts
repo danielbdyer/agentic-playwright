@@ -5,5 +5,5 @@ export {
   locate,
   locatorStrategies,
   type ResolvedLocator,
-} from '../../playwright/locate';
+} from '../../instruments/observation/locate';
 

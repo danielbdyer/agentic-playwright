@@ -257,7 +257,7 @@ async function runPipelinePhases(
   }
 
   // Delegate to freeSearchAsync (the Kleisli iterator from
-  // lib/domain/algebra/free-forgetful.ts). Each phase is a
+  // product/domain/algebra/free-forgetful.ts). Each phase is a
   // candidate; the per-candidate outcome carries its emitted
   // events; the "result" is a receipt if the phase produced one.
   // freeSearchAsync walks phases in order, short-circuits on the

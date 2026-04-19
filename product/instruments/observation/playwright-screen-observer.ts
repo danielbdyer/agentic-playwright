@@ -2,9 +2,9 @@
  * Playwright Screen Observer — live DOM observation adapter.
  *
  * Implements ScreenObservationPort using existing Playwright integration:
- *   - resolveLocator from lib/runtime/locate.ts (locator strategy matching)
- *   - captureAriaYaml from lib/playwright/aria.ts (ARIA tree capture)
- *   - describeLocatorStrategy from lib/runtime/locate.ts (strategy description)
+ *   - resolveLocator from product/runtime/locate.ts (locator strategy matching)
+ *   - captureAriaYaml from product/instruments/observation/aria.ts (ARIA tree capture)
+ *   - describeLocatorStrategy from product/runtime/locate.ts (strategy description)
  *
  * One screen observation: navigate → ARIA snapshot → batch element queries.
  * ~100-300ms per screen, ~5-10 API calls, reuses 660 lines of existing code.
@@ -15,8 +15,8 @@ import type { Page } from '@playwright/test';
 import type { ScreenObservationPort, ScreenObservationResult } from '../../application/ports';
 import type { LocatorStrategy } from '../../domain/governance/workflow-types';
 import type { ElementSig } from '../../domain/knowledge/types';
-import { resolveLocator, describeLocatorStrategy } from '../../playwright/locate';
-import { captureAriaYaml } from '../../playwright/aria';
+import { resolveLocator, describeLocatorStrategy } from './locate';
+import { captureAriaYaml } from './aria';
 import { TesseractError } from '../../domain/kernel/errors';
 import { navigationOptionsForUrl } from '../../runtime/adapters/navigation-strategy';
 

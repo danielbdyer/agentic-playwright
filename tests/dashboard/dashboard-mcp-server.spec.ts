@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
-import { createDashboardMcpServer, type DashboardMcpServerOptions, type LoopStatus } from '../../lib/infrastructure/mcp/dashboard-mcp-server';
+import { createDashboardMcpServer, type DashboardMcpServerOptions, type LoopStatus } from '../../dashboard/mcp/dashboard-mcp-server';
 
 function mockOptions(
   artifacts: Readonly<Record<string, unknown>>,

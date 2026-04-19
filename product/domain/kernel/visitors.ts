@@ -46,7 +46,7 @@ export type DerivedFoldCases<U extends { readonly kind: string }, R> = {
   readonly [K in U['kind'] as KebabToCamel<K>]: (variant: Extract<U, { readonly kind: K }>) => R;
 };
 
-import type { PipelineFailureClass, PipelineImprovementTarget } from '../fitness/types';
+import type { PipelineFailureClass, PipelineImprovementTarget } from '../../../workshop/metrics/types';
 import type { LocatorStrategy } from '../governance/workflow-types';
 import type {
   StepInstruction,
@@ -322,10 +322,10 @@ export const WINNING_SOURCE_TO_RUNG: Readonly<Record<StepWinningSource, string>>
 
 // ─── BottleneckSignal ───
 //
-// BottleneckSignal (lib/domain/learning/types.ts:143) is a 5-variant
+// BottleneckSignal (product/domain/learning/types.ts:143) is a 5-variant
 // union describing the shape of a knowledge bottleneck. Previously
 // its only dispatch site (recommendArtifacts in
-// lib/application/learning/learning-bottlenecks.ts:179) used an
+// workshop/learning/learning-bottlenecks.ts:179) used an
 // ad-hoc switch. Named fold gives compile-time exhaustiveness so
 // adding a new bottleneck signal variant breaks the build at every
 // dispatch site until the new case is handled.

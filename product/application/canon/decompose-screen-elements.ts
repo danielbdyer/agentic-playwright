@@ -11,7 +11,7 @@
  * This is the first concrete piece of Phase A of
  * `docs/cold-start-convergence-plan.md`. It is a peer of
  * `decomposeDiscoveryRun` at
- * `lib/application/discovery/decompose-discovery-run.ts`.
+ * `product/application/discovery/decompose-discovery-run.ts`.
  *
  * **Structure after the mint-helper refactor.** The decomposer is
  * now a pure fan-out function that returns `AtomCandidate`s; the
@@ -22,7 +22,7 @@
  * **Type reuse — no parallel content shapes.** Per
  * `docs/domain-class-decomposition.md` § Target row, the existing
  * domain types `ScreenElements` and `ElementSig` (defined at
- * `lib/domain/knowledge/types.ts:167-183`) ARE the element atom's
+ * `product/domain/knowledge/types.ts:167-183`) ARE the element atom's
  * canonical content shape. Per `docs/canon-and-derivation.md`
  * § 16.7 ("Already-existing types that map to atoms"), the atom
  * envelope stores instances of those existing types — it does NOT
@@ -43,10 +43,10 @@
  * canonical home (post-decomposition) is one file per element atom
  * under the canonical-artifact store.
  *
- * Pure application — depends only on `lib/application/canon/minting`
- * (shared envelope machinery), `lib/domain/pipeline` (typed
- * envelopes), `lib/domain/knowledge/types` (`ScreenElements`,
- * `ElementSig`), and `lib/domain/kernel/identity` (id constructors).
+ * Pure application — depends only on `product/application/canon/minting`
+ * (shared envelope machinery), `product/domain/pipeline` (typed
+ * envelopes), `product/domain/knowledge/types` (`ScreenElements`,
+ * `ElementSig`), and `product/domain/kernel/identity` (id constructors).
  * No Effect, no IO, no mutation.
  */
 

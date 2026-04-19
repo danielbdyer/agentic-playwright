@@ -1,14 +1,14 @@
 /**
  * Diagnostic Bridge — maps domain problem-matcher output to real VSCode diagnostics.
  *
- * The pure domain layer (lib/infrastructure/vscode/problem-matcher.ts) produces
+ * The pure domain layer (product/instruments/vscode/problem-matcher.ts) produces
  * VSCodeDiagnostic value objects. This bridge maps them to vscode.Diagnostic
  * instances in a real DiagnosticCollection.
  */
 
 import * as vscode from 'vscode';
-import { createProblemMatcher } from '../../lib/infrastructure/vscode/problem-matcher';
-import type { VSCodeDiagnostic, VSCodeDiagnosticSeverity } from '../../lib/infrastructure/vscode/types';
+import { createProblemMatcher } from '../../product/instruments/vscode/problem-matcher';
+import type { VSCodeDiagnostic, VSCodeDiagnosticSeverity } from '../../product/instruments/vscode/types';
 import type { ArtifactSnapshot } from './artifact-loader';
 
 const SEVERITY_MAP: Readonly<Record<VSCodeDiagnosticSeverity, vscode.DiagnosticSeverity>> = {

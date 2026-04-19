@@ -6,7 +6,7 @@
  *
  * Visitor implementations live in `./visitors/` (added in later commits)
  * and the runtime registry that binds them to receipt sources lives in
- * `lib/application/measurement/`.
+ * `workshop/measurement/`.
  */
 export * from './value';
 export * from './tree';

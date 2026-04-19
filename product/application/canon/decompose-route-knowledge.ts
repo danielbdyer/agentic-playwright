@@ -17,7 +17,7 @@
  * `RouteKnowledgeManifest` regardless of origin (YAML parsing or
  * `harvestDeclaredRoutes` live DOM harvest per § 16.4 of
  * canon-and-derivation). The existing `HarvestManifest` type
- * alias at `lib/domain/intent/routes.ts:69` is literally
+ * alias at `product/domain/intent/routes.ts:69` is literally
  * `RouteKnowledgeManifest` renamed — the domain recognized the
  * unification before the decomposer did.
  *
@@ -57,8 +57,8 @@
  * demotion machinery marks variants as candidates when EITHER
  * upstream changes.
  *
- * Pure application — depends only on `lib/application/canon/minting`,
- * `lib/domain/pipeline`, and `lib/domain/intent/routes`. No
+ * Pure application — depends only on `product/application/canon/minting`,
+ * `product/domain/pipeline`, and `product/domain/intent/routes`. No
  * Effect, no IO, no mutation.
  */
 

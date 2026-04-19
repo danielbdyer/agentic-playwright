@@ -9,7 +9,7 @@
  *   5. size tracks the current number of cached entries.
  */
 import { test, expect } from '@playwright/test';
-import { createSemanticDictCache } from '../../lib/runtime/resolution/semantic-dict-cache';
+import { createSemanticDictCache } from '../../product/runtime/resolution/semantic-dict-cache';
 
 test.describe('SemanticDictCache', () => {
   test('has() returns false for uncached keys', () => {

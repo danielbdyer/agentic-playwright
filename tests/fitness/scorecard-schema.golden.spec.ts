@@ -30,7 +30,7 @@
 import { readFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import type { PipelineScorecard } from '../../lib/domain/fitness/types';
+import type { PipelineScorecard } from '../../workshop/metrics/types';
 
 function loadBaseline(): PipelineScorecard {
   const p = path.join(__dirname, '..', 'fixtures', 'scorecards', 'baseline.json');
