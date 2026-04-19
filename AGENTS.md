@@ -14,6 +14,22 @@ The three things v2's `product/` ships (details in `docs/v2-direction.md §1`):
 The workshop's job (details in `docs/v2-direction.md §5` and `docs/v2-substrate.md §7`):
 - Derive **probes** from the manifest, run them through the product's normal authoring flow, derive metrics over run records, gate proposal activation against the trust policy, and append hypothesis receipts to the workshop's log. Graduate when probe coverage = 100% and `metric-hypothesis-confirmation-rate` sustains above floor.
 
+## If you're a fresh agent session, your next action is Step 0
+
+The v2.1 plan is doc-complete and execution-ready as of 2026-04-19. The next concrete action is **Step 0 — the compartmentalization commit** (atomic in-place reshape of `lib/` into `product/` + `workshop/` + `dashboard/`, no behavior changes).
+
+1. Read `docs/v2-direction.md §§1–2` (the three-folder shape and seam discipline). ~5 minutes.
+2. Read `docs/v2-readiness.md §1` (the day-by-day Step 0 playbook) and `§8` (the test-import rewrite audit). ~15 minutes.
+3. Verify preconditions in §1.1 of the readiness doc.
+4. Create the feature branch `claude/step-0-compartmentalization` off `main`.
+5. Execute §1.2 of the readiness doc in order. Expected duration: 6–8 hours for one engineer (or agent).
+
+If Step 0 has already landed (check `git log --oneline | grep "Step 0"` on `main`), your next action is Step 1 (reference-canon retirement + transitional probe set) per `v2-direction.md §6` and `v2-readiness.md §10`.
+
+If Step 1 has already landed, consult the construction order in `v2-direction.md §6` to find the next unfinished step; check `v2-readiness.md` for any section matching your step (most forcing-function steps have a named preprocessing section).
+
+If the plan itself has changed materially since 2026-04-19, read `v2-direction.md §§1–2` first and then this doc; reconcile any contradictions before acting.
+
 ## New-session orientation (read in this order)
 
 If you've just opened the repo, read this exact sequence before touching any code:
