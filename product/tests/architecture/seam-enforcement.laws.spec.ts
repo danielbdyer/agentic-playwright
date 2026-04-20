@@ -220,6 +220,7 @@ const RULE_2_GRANDFATHERED: ReadonlySet<string> = new Set([
   'dashboard/bridges/runtime-boundary.ts',
   'dashboard/bridges/ws-dashboard-adapter.ts',
   'dashboard/mcp/dashboard-mcp-server.ts',
+  'dashboard/mcp/server-config.ts',
   'dashboard/mcp/playwright-mcp-bridge.ts',
   'dashboard/mcp/resource-provider.ts',
   'dashboard/server.ts',
