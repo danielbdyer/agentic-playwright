@@ -141,7 +141,7 @@ function renderExecutableEmitArtifacts(
   const rendered = renderReadableSpecModule(flow, {
     imports: {
       fixtures: relativeModule(outputPath, path.join(paths.rootDir, 'fixtures', 'index.ts')).replace(/\.ts$/, ''),
-      scenarioContext: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'composition', 'scenario-context.ts')).replace(/\.ts$/, ''),
+      scenarioContext: relativeModule(outputPath, path.join(paths.rootDir, 'product', 'composition', 'scenario-context.ts')).replace(/\.ts$/, ''),
     },
   });
   const improvementSummary = projectionInput.improvementRuns.length === 0
@@ -269,7 +269,7 @@ function renderBlockedEmitArtifacts(
   const rendered = renderReadableSpecModule(blockedFlow, {
     imports: {
       fixtures: relativeModule(outputPath, path.join(paths.rootDir, 'fixtures', 'index.ts')).replace(/\.ts$/, ''),
-      scenarioContext: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'composition', 'scenario-context.ts')).replace(/\.ts$/, ''),
+      scenarioContext: relativeModule(outputPath, path.join(paths.rootDir, 'product', 'composition', 'scenario-context.ts')).replace(/\.ts$/, ''),
     },
   });
   const traceArtifact = {

@@ -73,7 +73,7 @@ function lifecycleStatements(lifecycle: ScenarioLifecycle): ReadonlyArray<ts.Sta
     : [];
 }
 
-interface ResolvedScreenMethod {
+export interface ResolvedScreenMethod {
   readonly screenId: string;
   readonly methodName: string;
   readonly stepIndex: number;
@@ -287,3 +287,135 @@ export function renderReadableSpecModule(
 
 /** @deprecated Use renderReadableSpecModule. Kept temporarily for migration. */
 export const renderGeneratedSpecModule = renderReadableSpecModule;
+
+// ─── Pre-generated screen facade (v2 §3.2) ───
+
+export interface ScreenFacadeModuleOptions {
+  /** The screen identifier the facade is for (e.g. 'policy-search'). */
+  readonly screenId: string;
+  /** Named methods on this screen, already deduplicated and ordered. */
+  readonly methods: ReadonlyArray<ResolvedScreenMethod>;
+  /** Relative module path (no .ts extension) that exports
+   *  `ScenarioContext` type. Imported by the facade module so method
+   *  argument is typed. */
+  readonly scenarioContextTypeModule: string;
+}
+
+/**
+ * Emit a per-screen facade module.
+ *
+ * Per v2-direction.md §3.2: "The facade switches from runtime-
+ * instantiated (via `lib/composition/scenario-context.ts`) to pre-
+ * generated per-screen modules regenerated from the facet catalog on
+ * every authoring pass."
+ *
+ * The emitted module exposes ONE factory function per screen. The
+ * factory takes a `ScenarioContext` and returns an object with named
+ * methods — the same shape the inline facade in `renderReadableSpecModule`
+ * produces, but as a standalone importable module. A spec that imports
+ * it looks like:
+ *
+ * ```ts
+ * import { policySearch } from './screens/policy-search';
+ * const search = policySearch(scenario);
+ * await search.navigate();
+ * ```
+ *
+ * The module is QA-legible in a way the inline facade isn't: it names
+ * each method on a screen and its step index / title, letting a human
+ * reader see the screen's surface without parsing spec file shape.
+ *
+ * Wiring: this emitter lives alongside `renderReadableSpecModule`.
+ * The full emit-pipeline migration from inline facade to pre-generated
+ * modules lands when the authoring pass gains facet-catalog-driven
+ * regeneration (see Step 7 of the v2 construction order).
+ */
+export function renderScreenFacadeModule(options: ScreenFacadeModuleOptions): {
+  readonly code: string;
+  readonly factoryName: string;
+} {
+  const factoryName = screenVarName(options.screenId);
+
+  const methodProperties = options.methods.map((m) =>
+    ts.factory.createPropertyAssignment(
+      identifier(m.methodName),
+      ts.factory.createArrowFunction(
+        undefined,
+        undefined,
+        [],
+        undefined,
+        ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+        callExpression(property(identifier('scenario'), 'executeStep'), [
+          ts.factory.createNumericLiteral(m.stepIndex),
+          stringLiteral(m.stepTitle),
+        ]),
+      ),
+    ),
+  );
+
+  const factoryDeclaration = ts.factory.createVariableStatement(
+    [ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
+    ts.factory.createVariableDeclarationList(
+      [
+        ts.factory.createVariableDeclaration(
+          identifier(factoryName),
+          undefined,
+          undefined,
+          ts.factory.createArrowFunction(
+            undefined,
+            undefined,
+            [
+              ts.factory.createParameterDeclaration(
+                undefined,
+                undefined,
+                identifier('scenario'),
+                undefined,
+                ts.factory.createTypeReferenceNode('ScenarioContext', undefined),
+              ),
+            ],
+            undefined,
+            ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+            ts.factory.createParenthesizedExpression(
+              ts.factory.createObjectLiteralExpression(methodProperties, true),
+            ),
+          ),
+        ),
+      ],
+      ts.NodeFlags.Const,
+    ),
+  );
+
+  const statements: ReadonlyArray<ts.Statement> = [
+    importDeclaration({
+      modulePath: options.scenarioContextTypeModule,
+      namedImports: ['ScenarioContext'],
+      isTypeOnly: true,
+    }),
+    factoryDeclaration,
+  ];
+
+  return {
+    code: printModule([...statements]),
+    factoryName,
+  };
+}
+
+/**
+ * Partition a GroundedSpecFlow's steps into per-screen method groups,
+ * ready to feed into `renderScreenFacadeModule`. Returns a map keyed
+ * by screen ID; the `__global__` bucket (steps without a screen) is
+ * omitted since those do not participate in per-screen facades.
+ */
+export function screenFacadesFromFlow(
+  flow: GroundedSpecFlow,
+): ReadonlyMap<string, ReadonlyArray<ResolvedScreenMethod>> {
+  const methods = resolveScreenMethods(flow.steps);
+  const byScreen = groupByMap(methods, (m) => m.screenId);
+  const result = new Map<string, ReadonlyArray<ResolvedScreenMethod>>();
+  for (const [screenId, screenMethods] of byScreen) {
+    if (screenId !== '__global__') {
+      result.set(screenId, screenMethods);
+    }
+  }
+  return result;
+}
