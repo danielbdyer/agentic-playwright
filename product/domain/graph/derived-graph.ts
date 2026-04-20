@@ -60,6 +60,15 @@ import {
   type StepGraphContext,
 } from './derived/utilities';
 import { capabilityTargetNodeId, finalize } from './derived/finalize';
+import {
+  stepScreenEdges,
+  stepTaskGroundingEdges,
+  stepSnapshotEdges,
+  stepKnowledgeRefEdges,
+  stepEvidenceRefEdges,
+  stepOverlayRefEdges,
+  type StepEdgeContext,
+} from './derived/step-edges';
 
 
 // ─── Carved-out sub-module — Step 4a ──────────────────────────
@@ -665,88 +674,8 @@ function runbookPhase(lookups: Lookups): PhaseResult {
 
 // --- Scenario step edge sub-functions (each pure, returns readonly GraphEdge[]) ---
 
-interface StepEdgeContext {
-  readonly stepNodeId: string;
-  readonly stepContext: StepGraphContext;
-  readonly artifactPath: string;
-  readonly explanation: ReturnType<typeof explainBoundScenario>['steps'][number] | undefined;
-  readonly program: ReturnType<typeof compileStepProgram>;
-  readonly trace: ReturnType<typeof traceStepProgram>;
-  readonly taskStep: { readonly grounding?: { readonly targetRefs?: readonly string[] } } | null;
-  readonly surface: ScenarioInterpretationSurface | null;
-}
 
-function stepScreenEdges(ctx: StepEdgeContext): readonly ConditionalEdge[] {
-  return ctx.trace.screens.map((screenId) => {
-    const screenNodeId = graphIds.screen(screenId);
-    return conditionalEdge(
-      createEdge({
-        kind: 'references',
-        from: ctx.stepNodeId,
-        to: screenNodeId,
-        provenance: { confidence: stepConfidence(ctx.stepContext), scenarioPath: ctx.artifactPath },
-      }),
-      screenNodeId,
-    );
-  });
-}
 
-function stepTaskGroundingEdges(ctx: StepEdgeContext): readonly ConditionalEdge[] {
-  if (!ctx.taskStep) return [];
-
-  const taskScreenEdges = (ctx.surface?.payload.knowledgeSlice.screenRefs ?? [])
-    .map((screenId) => {
-      const screenNodeId = graphIds.screen(screenId);
-      return conditionalEdge(
-        createEdge({
-          kind: 'references',
-          from: ctx.stepNodeId,
-          to: screenNodeId,
-          provenance: { confidence: stepConfidence(ctx.stepContext), scenarioPath: ctx.artifactPath },
-          payload: { source: 'task-packet-screen' },
-        }),
-        screenNodeId,
-      );
-    });
-
-  const groundingEdges = (ctx.taskStep.grounding?.targetRefs ?? []).flatMap((targetRef) => {
-    const targetNodeId = graphIds.target(targetRef);
-    const directEdge = conditionalEdge(
-      createEdge({
-        kind: 'uses',
-        from: ctx.stepNodeId,
-        to: targetNodeId,
-        provenance: { confidence: stepConfidence(ctx.stepContext), scenarioPath: ctx.artifactPath },
-        payload: { source: 'task-grounding' },
-      }),
-      targetNodeId,
-    );
-
-    const match = String(targetRef).match(/^target:(element|surface):([^:]+):(.+)$/);
-    const legacyEdges: readonly ConditionalEdge[] = match
-      ? (() => {
-          const [, kind, screenId, localId] = match;
-          const legacyNodeId = kind === 'element'
-            ? graphIds.element(screenId as never, localId as never)
-            : graphIds.surface(screenId as never, localId as never);
-          return [conditionalEdge(
-            createEdge({
-              kind: 'uses',
-              from: ctx.stepNodeId,
-              to: legacyNodeId,
-              provenance: { confidence: stepConfidence(ctx.stepContext), scenarioPath: ctx.artifactPath },
-              payload: { source: 'task-grounding' },
-            }),
-            legacyNodeId,
-          )];
-        })()
-      : [];
-
-    return [directEdge, ...legacyEdges];
-  });
-
-  return [...taskScreenEdges, ...groundingEdges];
-}
 
 function stepInstructionEdges(ctx: StepEdgeContext, lookups: Lookups): readonly ConditionalEdge[] {
   return ctx.program.instructions
@@ -808,41 +737,7 @@ function stepInstructionEdges(ctx: StepEdgeContext, lookups: Lookups): readonly 
     });
 }
 
-function stepSnapshotEdges(ctx: StepEdgeContext): readonly ConditionalEdge[] {
-  return ctx.trace.snapshotTemplates.map((template) => {
-    const snapshotNodeId = graphIds.snapshot.knowledge(template);
-    return conditionalEdge(
-      createEdge({
-        kind: 'asserts',
-        from: ctx.stepNodeId,
-        to: snapshotNodeId,
-        provenance: { confidence: stepConfidence(ctx.stepContext), scenarioPath: ctx.artifactPath },
-      }),
-      snapshotNodeId,
-    );
-  });
-}
 
-function stepKnowledgeRefEdges(ctx: StepEdgeContext): readonly ConditionalEdge[] {
-  const binding = stepBinding(ctx.stepContext);
-  return (binding?.knowledgeRefs ?? [])
-    .flatMap((ref) => {
-      const targetNodeId = mapKnowledgePathToNodeId(ref, ctx.stepContext);
-      return targetNodeId !== null ? [{ ref, targetNodeId }] : [];
-    })
-    .map(({ ref, targetNodeId }) =>
-      conditionalEdge(
-        createEdge({
-          kind: 'references',
-          from: ctx.stepNodeId,
-          to: targetNodeId,
-          provenance: { confidence: stepConfidence(ctx.stepContext), scenarioPath: ctx.artifactPath },
-          payload: { source: 'knowledge-ref', ref },
-        }),
-        targetNodeId,
-      ),
-    );
-}
 
 function stepSupplementEdges(ctx: StepEdgeContext, lookups: Lookups): readonly ConditionalEdge[] {
   const binding = stepBinding(ctx.stepContext);
@@ -867,40 +762,7 @@ function stepSupplementEdges(ctx: StepEdgeContext, lookups: Lookups): readonly C
   );
 }
 
-function stepEvidenceRefEdges(ctx: StepEdgeContext): readonly ConditionalEdge[] {
-  const binding = stepBinding(ctx.stepContext);
-  return (binding?.evidenceIds ?? [])
-    .map((evidenceId) => graphIds.evidence(evidenceId))
-    .map((evidenceNodeId) =>
-      conditionalEdge(
-        createEdge({
-          kind: 'references',
-          from: ctx.stepNodeId,
-          to: evidenceNodeId,
-          provenance: { confidence: stepConfidence(ctx.stepContext), scenarioPath: ctx.artifactPath },
-          payload: { source: 'evidence-ref' },
-        }),
-        evidenceNodeId,
-      ),
-    );
-}
 
-function stepOverlayRefEdges(ctx: StepEdgeContext): readonly ConditionalEdge[] {
-  return (ctx.explanation?.overlayRefs ?? [])
-    .map((overlayRef) => graphIds.confidenceOverlay(overlayRef))
-    .map((overlayNodeId) =>
-      conditionalEdge(
-        createEdge({
-          kind: 'references',
-          from: ctx.stepNodeId,
-          to: overlayNodeId,
-          provenance: { confidence: stepConfidence(ctx.stepContext), scenarioPath: ctx.artifactPath },
-          payload: { source: 'approved-equivalent-overlay' },
-        }),
-        overlayNodeId,
-      ),
-    );
-}
 
 // --- Scenario phase ---
 
