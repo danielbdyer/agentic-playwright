@@ -45,63 +45,30 @@ import type { RuntimeDomResolver } from '../domain/resolution/types';
 import { observeStateRefsOnPage, observeTransitionOnPage } from '../instruments/observation/state-topology';
 import { planExecutionStep } from '../domain/resolution/execution-planner';
 
-export interface RuntimeScenarioEnvironment {
-  mode: InterpreterMode;
-  provider: string;
-  posture?: ExecutionPosture | undefined;
-  controlSelection?: {
-    runbook?: string | null | undefined;
-    dataset?: string | null | undefined;
-    resolutionControl?: string | null | undefined;
-  } | undefined;
-  translator?: ((request: TranslationRequest) => Promise<TranslationReceipt>) | undefined;
-  fixtures: Record<string, unknown>;
-  screens: InterpreterScreenRegistry;
-  snapshotLoader: SnapshotTemplateLoader;
-  agent?: RuntimeStepAgent | undefined;
-  page?: Page | undefined;
-  domResolver?: RuntimeDomResolver | undefined;
-  agentInterpreter?: RuntimeAgentInterpreter | undefined;
-  executionBudgetThresholds?: ExecutionBudgetThresholds | undefined;
-  recoveryPolicy?: RecoveryPolicy | undefined;
-  /** Semantic dictionary catalog, loaded once per run and injected for all steps. */
-  semanticDictionary?: import('../domain/knowledge/semantic-dictionary-types').SemanticDictionaryCatalog | undefined;
-}
 
-export type { ScenarioRunState };
+// ─── Carved-out sub-module — Step 4a ──────────────────────────
+//
+// The scenario-environment types and the handshake helpers live
+// at ./scenario/environment.ts. Re-exported here so existing
+// callers that import from product/runtime/scenario.ts keep
+// working.
+export type {
+  RuntimeScenarioEnvironment,
+  ScenarioRunState,
+  ScenarioStepRunResult,
+  ScenarioStepHandshake,
+} from './scenario/environment';
+export {
+  stepHandshakeFromPlan,
+  createScenarioRunState,
+} from './scenario/environment';
+import {
+  executionDiagnosticsFromError,
+  type RuntimeScenarioEnvironment,
+  type ScenarioStepRunResult,
+  type ScenarioStepHandshake,
+} from './scenario/environment';
 
-export interface ScenarioStepRunResult {
-  interpretation: ResolutionReceipt;
-  execution: StepExecutionReceipt;
-  /** Semantic dictionary learning signal: accrual input when a later rung resolved. */
-  semanticAccrual?: SemanticDictionaryAccrualInput | null | undefined;
-  /** Entry ID of the dictionary entry that was used, for success/failure tracking. */
-  semanticDictionaryHitId?: string | null | undefined;
-}
-
-export interface ScenarioStepHandshake {
-  task: GroundedStep;
-  resolutionContext: InterfaceResolutionContext;
-  directive?: unknown;
-}
-
-export function stepHandshakeFromPlan(plan: ScenarioRunPlan, zeroBasedIndex: number): ScenarioStepHandshake {
-  const step = plan.steps[zeroBasedIndex] ?? null;
-  if (!step) {
-    throw new RuntimeError('runtime-missing-run-plan-step', `Missing run plan step ${zeroBasedIndex + 1} for ${plan.adoId}`);
-  }
-  return {
-    task: step,
-    directive: undefined,
-    resolutionContext: plan.resolutionContext,
-  };
-}
-
-export const createScenarioRunState = createScenarioRunStateAggregate;
-
-function executionDiagnosticsFromError(code: string, message: string, context?: Record<string, string>): ExecutionDiagnostic[] {
-  return [{ code, message, context }];
-}
 
 function activeRouteVariantRefs(state: ScenarioRunState, task: GroundedStep): readonly string[] {
   return state.observedStateSession.activeRouteVariantRefs.length > 0
