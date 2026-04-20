@@ -34,8 +34,26 @@ import {
 
 // ─── Provider Contract (Strategy interface) ───
 
+/**
+ * @deprecated v1 provider kind. New code should use the unified
+ *             `Reasoning` port (product/reasoning/reasoning.ts) and
+ *             adapter registry (product/reasoning/adapters/). Kept
+ *             for backward compat with existing callsites; retires
+ *             when the last v1 caller migrates.
+ */
 export type TranslationProviderKind = 'deterministic' | 'llm-api' | 'copilot';
 
+/**
+ * @deprecated v1 Translation port. Superseded by `Reasoning.Tag` +
+ *             `ReasoningService.select` at product/reasoning/
+ *             reasoning.ts. Existing implementations compose into the
+ *             unified port via `createCompositeReasoning(...)`; new
+ *             code should bypass this interface entirely.
+ *
+ *             Scheduled retirement: post-Step-4b, when the direct
+ *             copilot-live and openai-live Reasoning adapters land
+ *             and the composite bridge is no longer needed.
+ */
 export interface TranslationProvider {
   readonly id: string;
   readonly kind: TranslationProviderKind;

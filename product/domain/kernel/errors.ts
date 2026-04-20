@@ -66,6 +66,12 @@ export class PipelineError extends TesseractError {
   }
 }
 
+/**
+ * @deprecated v1 translation-provider error base. Superseded by
+ *             `ReasoningError` (five families). `classifyReasoningError`
+ *             lifts instances of this class into `ReasoningUnclassifiedError`
+ *             unless the cause matches a more specific family heuristic.
+ */
 export class TranslationProviderError extends TesseractError {
   override readonly _tag: string = 'TranslationProviderError';
   readonly provider?: string | undefined;
@@ -77,6 +83,8 @@ export class TranslationProviderError extends TesseractError {
   }
 }
 
+/** @deprecated Use `ReasoningUnavailableError`. `classifyReasoningError`
+ *              lifts this into the v2 family automatically. */
 export class TranslationProviderTimeoutError extends TranslationProviderError {
   override readonly _tag = 'TranslationProviderTimeoutError' as const;
 
@@ -86,6 +94,9 @@ export class TranslationProviderTimeoutError extends TranslationProviderError {
   }
 }
 
+/** @deprecated Use `ReasoningMalformedResponseError`.
+ *              `classifyReasoningError` lifts this into the v2 family
+ *              automatically. */
 export class TranslationProviderParseError extends TranslationProviderError {
   override readonly _tag = 'TranslationProviderParseError' as const;
 
@@ -95,6 +106,8 @@ export class TranslationProviderParseError extends TranslationProviderError {
   }
 }
 
+/** @deprecated v1 agent-interpreter error base. Superseded by
+ *              `ReasoningError` (five families). */
 export class AgentInterpreterProviderError extends TesseractError {
   override readonly _tag: string = 'AgentInterpreterProviderError';
   readonly provider?: string | undefined;
@@ -106,6 +119,7 @@ export class AgentInterpreterProviderError extends TesseractError {
   }
 }
 
+/** @deprecated Use `ReasoningUnavailableError`. */
 export class AgentInterpreterTimeoutError extends AgentInterpreterProviderError {
   override readonly _tag = 'AgentInterpreterTimeoutError' as const;
 
@@ -115,6 +129,7 @@ export class AgentInterpreterTimeoutError extends AgentInterpreterProviderError 
   }
 }
 
+/** @deprecated Use `ReasoningMalformedResponseError`. */
 export class AgentInterpreterParseError extends AgentInterpreterProviderError {
   override readonly _tag = 'AgentInterpreterParseError' as const;
 

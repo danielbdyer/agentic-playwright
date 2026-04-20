@@ -162,19 +162,6 @@ export interface ReasoningReceipt<Op extends ReasoningOp> {
   readonly payload: ReasoningPayloadByOp[Op];
 }
 
-// ─── Backward-compat alias ───
-
-/**
- * Legacy alias for the v1 `TranslationReceipt` type. Existing callsites
- * import this name; 4b.B.4 migrates them to `ReasoningReceipt<'select'>`
- * and this alias retires in 4b.B.5. Until then it makes the
- * intermediate states compile.
- *
- * @deprecated Use `ReasoningReceipt<'select'>`. Kept for callsite
- *             migration; retires in 4b.B.5.
- */
-export type LegacyTranslationReceipt = TranslationReceipt;
-
 // ─── Reasoning interface ───
 
 /**

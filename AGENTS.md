@@ -138,6 +138,26 @@ Use these terms consistently:
 
 Do not overload confidence with review state.
 
+## Reasoning port (post Step 4b)
+
+Every agent-cognition callsite routes through the unified `Reasoning` port at `product/reasoning/reasoning.ts`. Three operations:
+
+- `select(SelectRequest) → ReasoningReceipt<'select'>` — rung-5 structured match (v1 `TranslationProvider.translate`, renamed to `.select` per v2 §3.6).
+- `interpret(InterpretRequest) → ReasoningReceipt<'interpret'>` — rung-9 semantic judgment (v1 `AgentInterpreterPort.interpret`, method name unchanged, service tag changes).
+- `synthesize(SynthesisRequest) → ReasoningReceipt<'synthesize'>` — open-ended generation; port shape fixed, first production adapter pending.
+
+Every call produces a `ReasoningReceipt<Op>` carrying `{ provider, model, tokens, latencyMs, promptFingerprint, payload }`. The receipt log joins `product/`'s append-only log set; workshop reads it for cost / batting-average / token-consumption metrics.
+
+Errors classify into one of five families via `ReasoningError`: `rate-limited | context-exceeded | malformed-response | unavailable | unclassified`. `foldReasoningError(err, cases)` dispatches exhaustively; `classifyReasoningError(cause, provider?)` reconciles raw causes (and legacy v1 errors) into the unified surface.
+
+Adapter selection is a `Layer.succeed(Reasoning, <adapter>)` composition decision in `product/composition/local-services.ts`. Adapter priority:
+
+1. Explicit `LocalServiceOptions.reasoning` injection (for copilot-live, openai-live, test doubles).
+2. `ci-batch` profile → `createDeterministicReasoning()` (zero-cost).
+3. Default → `createCompositeReasoning({ translation, agent })` wrapping the legacy v1 providers.
+
+The v1 `TranslationProvider` and `AgentInterpreterPort` interfaces are marked `@deprecated`; they stay exported for backward compat with existing tests and will retire when direct Copilot / Azure OpenAI adapters land.
+
 ## Deterministic precedence
 
 Keep precedence concern-specific:
