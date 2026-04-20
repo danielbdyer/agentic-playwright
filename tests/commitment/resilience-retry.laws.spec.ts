@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
-import { createLlmApiProvider, DEFAULT_TRANSLATION_CONFIG } from '../../product/reasoning/translation-provider';
-import { DEFAULT_AGENT_INTERPRETER_CONFIG, resolveAgentInterpreterProvider } from '../../product/reasoning/agent-interpreter-provider';
+import { DEFAULT_AGENT_INTERPRETER_CONFIG, DEFAULT_TRANSLATION_CONFIG, resolveAgentInterpreterProvider } from '../../product/reasoning/adapters';
+import { createLlmApiProvider } from '../../product/reasoning/adapters/translation-backends';
 import type { TranslationRequest } from '../../product/domain/resolution/types';
 import { createElementId, createScreenId } from '../../product/domain/kernel/identity';
 import type { AgentInterpretationRequest } from '../../product/domain/interpretation/agent-interpreter';

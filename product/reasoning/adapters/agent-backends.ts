@@ -1,52 +1,74 @@
 /**
- * AgentInterpreterPort — Strategy pattern for pluggable agent interpretation backends.
+ * Agent interpretation backends — Reasoning.interpret() implementations.
  *
- * Three provider implementations share a single contract:
- *   1. disabled — stub that always declines (free, always available)
- *   2. llm-api — OpenAI-compatible API (Azure AI Foundry; token cost, requires config)
- *   3. session — interactive agent session (Claude Code CLI, VSCode Copilot Chat, MCP)
+ * Internal module: the `AgentInterpreterPort` interface is an
+ * implementation detail shared between this file and `translation-
+ * backends.ts` (via `createReasoning` at `adapters/index.ts`).
+ * External callers use `ReasoningService` and the `Reasoning.Tag`.
  *
- * The agent interpreter sits at rung 9 of the resolution ladder, after live-dom
- * and before needs-human. It receives the full context of what prior rungs attempted
- * and failed, plus the DOM state, and makes a semantic judgment about what the
- * QA tester's step text means.
+ * Four strategies share one contract:
+ *   1. disabled — stub that always declines (always available).
+ *   2. heuristic — context-aware scoring without LLM, for A/B
+ *      baselining and CI.
+ *   3. llm-api — OpenAI-compatible API (Azure AI Foundry; token
+ *      cost, requires config).
+ *   4. session — interactive agent session (Claude Code CLI, VSCode
+ *      Copilot Chat, MCP).
  *
- * The key property: the agent interprets once (expensive, ~2-5s), produces a
- * typed resolution target + proposal drafts. The proposals get compiled into
- * deterministic knowledge, so future runs with similar intent resolve at
- * rungs 1-6 (free, <1ms). The agent's cost amortizes to zero.
+ * The agent interpreter sits at rung 9 of the resolution ladder,
+ * after live-dom and before needs-human. It receives the full
+ * context of what prior rungs attempted and failed, plus the DOM
+ * state, and makes a semantic judgment about what the QA tester's
+ * step text means.
  *
- * Provider selection follows the same precedence as TranslationProvider:
- *   - `session` when an interactive agent is present (Claude Code, Copilot)
- *   - `llm-api` as a configurable fallback (Azure AI Foundry)
- *   - `disabled` when no agent capability is available (ci-batch profile)
+ * The key property: the agent interprets once (expensive, ~2-5s),
+ * produces a typed resolution target + proposal drafts. The proposals
+ * get compiled into deterministic knowledge, so future runs with
+ * similar intent resolve at rungs 1-6 (free, <1ms). The agent's
+ * cost amortizes to zero.
+ *
+ * Backend selection precedence mirrors translation-backends.ts:
+ *   - `session` when an interactive agent is present.
+ *   - `llm-api` as a configurable fallback.
+ *   - `heuristic` for A/B baseline in non-interactive contexts.
+ *   - `disabled` when no agent capability is available (ci-batch).
+ *
+ * Errors lift into the five-family `ReasoningError` surface at the
+ * adapter boundary (via `classifyReasoningError` + direct
+ * `ReasoningMalformedResponseError` throws on parse failure).
  */
 
 import { Effect, Duration } from 'effect';
 import {
-  agentInterpreterParseError,
-  agentInterpreterProviderError,
-  type AgentInterpreterParseError,
-  type AgentInterpreterTimeoutError,
-} from '../domain/kernel/errors';
-import type { ResolutionTarget } from '../domain/governance/workflow-types';
-import type { ResolutionProposalDraft } from '../domain/resolution/types';
-import type { StepAction } from '../domain/governance/workflow-types';
-import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../domain/kernel/identity';
-import { primaryAffordanceForRole } from '../domain/widgets/role-affordances';
-import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../domain/knowledge/inference';
-import { assignVariant, type ABTestConfig } from '../application/agency/agent-ab-testing';
+  ReasoningMalformedResponseError,
+  ReasoningUnavailableError,
+  classifyReasoningError,
+} from '../../domain/kernel/errors';
+import type { ReasoningError } from '../../domain/kernel/errors';
+import type { ResolutionTarget } from '../../domain/governance/workflow-types';
+import type { ResolutionProposalDraft } from '../../domain/resolution/types';
+import type { StepAction } from '../../domain/governance/workflow-types';
+import type { ScreenId, ElementId, PostureId, SnapshotTemplateId } from '../../domain/kernel/identity';
+import { primaryAffordanceForRole } from '../../domain/widgets/role-affordances';
+import { normalizeIntentText, bestAliasMatch, humanizeIdentifier } from '../../domain/knowledge/inference';
+import { assignVariant, type ABTestConfig } from '../../application/agency/agent-ab-testing';
 import {
   RETRY_POLICIES,
   formatRetryMetadata,
   retryMetadata,
   retryScheduleForTaggedErrors,
-} from '../application/resilience/schedules';
+} from '../../application/resilience/schedules';
 
-import type { AgentInterpretationRequest, AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
-import type { AgentInterpreterKind, AgentInterpreterPort } from '../domain/resolution/model';
+import type { AgentInterpretationRequest, AgentInterpretationResult } from '../../domain/interpretation/agent-interpreter';
+import type { AgentInterpreterKind, AgentInterpreterPort } from '../../domain/resolution/model';
 
-type ApplicationAgentInterpreterPort = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;
+/** An AgentInterpreterPort whose `interpret` returns an Effect with
+ *  `never` in the error channel — the shape every concrete backend
+ *  factory in this module produces. Exposed at the adapter boundary
+ *  for compose-time typing. */
+export type AgentInterpreterProvider = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;
+
+type ApplicationAgentInterpreterPort = AgentInterpreterProvider;
 
 // ─── Provider: Disabled (stub, always available) ───
 
@@ -425,7 +447,7 @@ interface AgentLlmResponse {
 function parseAgentResponse(raw: string, request: AgentInterpretationRequest, providerId: string): AgentInterpretationResult {
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    throw agentInterpreterParseError(new Error('No structured JSON found in agent response.'), providerId);
+    throw new ReasoningMalformedResponseError('No structured JSON found in agent response.', providerId);
   }
   const parsed = JSON.parse(jsonMatch[0]) as Partial<AgentLlmResponse>;
 
@@ -533,7 +555,7 @@ function agentProviderFailureResult(provider: string, rationale: string): AgentI
 function withAgentRetries(
   providerId: string,
   run: () => Promise<string>,
-): Effect.Effect<string, ReturnType<typeof agentInterpreterProviderError>> {
+): Effect.Effect<string, ReasoningError> {
   const startedAt = Date.now();
   let attempts = 0;
   const retryPolicy = RETRY_POLICIES.agentInterpreterTimeout;
@@ -542,16 +564,17 @@ function withAgentRetries(
       attempts += 1;
       return run();
     },
-    catch: (cause) => agentInterpreterProviderError(cause, providerId),
+    catch: (cause) => classifyReasoningError(cause, providerId),
   }).pipe(
     Effect.retryOrElse(
-      retryScheduleForTaggedErrors(retryPolicy, (error) => error._tag === 'AgentInterpreterTimeoutError'),
+      retryScheduleForTaggedErrors(retryPolicy, (error) => error._tag === 'ReasoningUnavailableError'),
       (error) => Effect.fail(error),
     ),
-    Effect.catchTag('AgentInterpreterTimeoutError', (error: AgentInterpreterTimeoutError) =>
-      Effect.fail(agentInterpreterProviderError(
-        new Error(`${error.message} (${formatRetryMetadata(retryMetadata(retryPolicy, attempts, startedAt, true))})`),
+    Effect.catchTag('ReasoningUnavailableError', (error: ReasoningUnavailableError) =>
+      Effect.fail(new ReasoningUnavailableError(
+        `${error.message} (${formatRetryMetadata(retryMetadata(retryPolicy, attempts, startedAt, true))})`,
         providerId,
+        error.cause,
       ))),
   );
 }
@@ -575,14 +598,14 @@ function createLlmApiAgentProvider(
       ).pipe(
         Effect.flatMap((raw) => Effect.try({
           try: () => parseAgentResponse(raw, request, `llm-api-${config.model}`),
-          catch: (cause) => agentInterpreterProviderError(cause, `llm-api-${config.model}`),
+          catch: (cause) => classifyReasoningError(cause, `llm-api-${config.model}`),
         })),
-        Effect.catchTag('AgentInterpreterTimeoutError', (error: AgentInterpreterTimeoutError) =>
+        Effect.catchTag('ReasoningUnavailableError', (error: ReasoningUnavailableError) =>
           Effect.succeed(agentProviderFailureResult(
             `llm-api-${config.model}`,
-            `Agent LLM API timed out (${error.message}). Escalating to needs-human.`,
+            `Agent LLM API unavailable (${error.message}). Escalating to needs-human.`,
           ))),
-        Effect.catchTag('AgentInterpreterParseError', (error: AgentInterpreterParseError) =>
+        Effect.catchTag('ReasoningMalformedResponseError', (error: ReasoningMalformedResponseError) =>
           Effect.succeed(agentProviderFailureResult(
             `llm-api-${config.model}`,
             `Agent LLM response parse failed (${error.message}). Escalating to needs-human.`,
@@ -660,14 +683,14 @@ function createSessionProvider(
       ).pipe(
         Effect.flatMap((raw) => Effect.try({
           try: () => parseAgentResponse(raw, request, 'session-agent'),
-          catch: (cause) => agentInterpreterProviderError(cause, 'session-agent'),
+          catch: (cause) => classifyReasoningError(cause, 'session-agent'),
         })),
-        Effect.catchTag('AgentInterpreterTimeoutError', (error: AgentInterpreterTimeoutError) =>
+        Effect.catchTag('ReasoningUnavailableError', (error: ReasoningUnavailableError) =>
           Effect.succeed(agentProviderFailureResult(
             'session-agent',
-            `Agent session timed out (${error.message}). Escalating to needs-human.`,
+            `Agent session unavailable (${error.message}). Escalating to needs-human.`,
           ))),
-        Effect.catchTag('AgentInterpreterParseError', (error: AgentInterpreterParseError) =>
+        Effect.catchTag('ReasoningMalformedResponseError', (error: ReasoningMalformedResponseError) =>
           Effect.succeed(agentProviderFailureResult(
             'session-agent',
             `Agent session response parse failed (${error.message}). Escalating to needs-human.`,

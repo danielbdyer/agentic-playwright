@@ -1,7 +1,7 @@
 ﻿import { Effect, Context } from 'effect';
 import type { AdoId } from '../domain/kernel/identity';
 import type { ResolutionEngine } from './resolution/resolution-engine';
-import type { TranslationProvider } from '../reasoning/translation-provider';
+import type { TranslationProvider } from '../reasoning/adapters/translation-backends';
 import { TesseractError } from '../domain/kernel/errors';
 import type { ApplicationInterfaceGraphRepository } from '../domain/interface/application-interface-graph-repository';
 import type { InterventionLedgerRepository } from '../domain/agency/intervention-ledger-repository';

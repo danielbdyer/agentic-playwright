@@ -28,9 +28,13 @@ import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpr
 import type { AgentInterpreterPort } from '../domain/resolution/model';
 import type { AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
 import { Reasoning, type ReasoningService } from '../reasoning/reasoning';
-import { createCompositeReasoning, createDeterministicReasoning } from '../reasoning/adapters';
-import { resolveTranslationProvider, DEFAULT_TRANSLATION_CONFIG } from '../reasoning/translation-provider';
-import { resolveAgentInterpreterPort } from '../reasoning/agent-interpreter-provider';
+import {
+  DEFAULT_TRANSLATION_CONFIG,
+  createDeterministicReasoning,
+  createReasoning,
+  resolveAgentInterpreterPort,
+  resolveTranslationProvider,
+} from '../reasoning/adapters';
 import { PlaywrightBridge, DisabledPlaywrightBridge } from '../../dashboard/mcp/playwright-mcp-bridge';
 import { dashboardEvent } from '../domain/observation/dashboard';
 import type { PipelineConfig } from '../domain/attention/pipeline-config';
@@ -131,7 +135,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
   const reasoning: ReasoningService = options?.reasoning ?? (
     posture.executionProfile === 'ci-batch'
       ? createDeterministicReasoning()
-      : createCompositeReasoning({
+      : createReasoning({
           translation: resolveTranslationProvider({ config: DEFAULT_TRANSLATION_CONFIG, profile: posture.executionProfile }),
           agent: options?.agentInterpreter ?? resolveAgentInterpreterPort(),
         })

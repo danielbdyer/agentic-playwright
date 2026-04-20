@@ -1,27 +1,27 @@
 /**
  * Reasoning Adapters — Law Tests
  *
- * Verifies the 4b.B.3 adapter layer:
+ * Verifies the unified Reasoning adapter layer:
  *   - deterministic adapter produces a select receipt via the shared
  *     translateIntentToOntology function
  *   - deterministic adapter's interpret/synthesize ops return the
  *     v1-equivalent "declined" shapes
- *   - composite adapter's select receipt payload equals the raw
- *     TranslationProvider payload (golden-compare, readiness §9.4 4b.3)
- *   - composite adapter's interpret receipt payload equals the raw
- *     AgentInterpreterPort payload
+ *   - createReasoning receipt payload equals the raw translation
+ *     backend payload (golden-compare)
+ *   - createReasoning receipt payload equals the raw agent backend
+ *     payload
  *   - receipt provider/latency fields populate from the underlying
- *     providers
+ *     backends
  */
 
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
 import {
-  createCompositeReasoning,
   createDeterministicReasoning,
+  createReasoning,
   deterministicReasoningProviderId,
+  type TranslationProvider,
 } from '../../product/reasoning/adapters';
-import type { TranslationProvider } from '../../product/reasoning/translation-provider';
 import type { AgentInterpretationRequest, AgentInterpretationResult } from '../../product/domain/interpretation/agent-interpreter';
 import type { AgentInterpreterPort } from '../../product/domain/resolution/model';
 import type { TranslationReceipt, TranslationRequest } from '../../product/domain/resolution/types';
@@ -115,10 +115,10 @@ function makeStubAgentPort(): AgentInterpreterPort<Effect.Effect<AgentInterpreta
   };
 }
 
-test('composite adapter select receipt payload equals the underlying TranslationProvider payload', async () => {
+test('createReasoning adapter select receipt payload equals the underlying TranslationProvider payload', async () => {
   const translation = makeStubTranslationProvider();
   const agent = makeStubAgentPort();
-  const reasoning = createCompositeReasoning({ translation, agent });
+  const reasoning = createReasoning({ translation, agent });
 
   const receipt = await Effect.runPromise(reasoning.select(makeTranslationRequest()));
   const rawPayload = await Effect.runPromise(translation.select(makeTranslationRequest()));
@@ -128,10 +128,10 @@ test('composite adapter select receipt payload equals the underlying Translation
   expect(receipt.op).toBe('select');
 });
 
-test('composite adapter interpret receipt payload equals the underlying AgentInterpreterPort payload', async () => {
+test('createReasoning adapter interpret receipt payload equals the underlying AgentInterpreterPort payload', async () => {
   const translation = makeStubTranslationProvider();
   const agent = makeStubAgentPort();
-  const reasoning = createCompositeReasoning({ translation, agent });
+  const reasoning = createReasoning({ translation, agent });
 
   const receipt = await Effect.runPromise(reasoning.interpret(makeInterpretRequest()));
   const rawPayload = await Effect.runPromise(agent.interpret(makeInterpretRequest()));
@@ -141,20 +141,20 @@ test('composite adapter interpret receipt payload equals the underlying AgentInt
   expect(receipt.op).toBe('interpret');
 });
 
-test('composite adapter synthesize returns a composite-no-op receipt (no v1 backing)', async () => {
+test('createReasoning adapter synthesize returns a no-op receipt (no backing)', async () => {
   const translation = makeStubTranslationProvider();
   const agent = makeStubAgentPort();
-  const reasoning = createCompositeReasoning({ translation, agent });
+  const reasoning = createReasoning({ translation, agent });
 
   const receipt = await Effect.runPromise(reasoning.synthesize({ prompt: 'x', purpose: 'test' }));
-  expect(receipt.provider).toBe('composite-no-op');
+  expect(receipt.provider).toBe('reasoning-no-op');
   expect(receipt.payload.text).toBe('');
 });
 
-test('composite adapter latencyMs is non-negative for every op', async () => {
+test('createReasoning adapter latencyMs is non-negative for every op', async () => {
   const translation = makeStubTranslationProvider();
   const agent = makeStubAgentPort();
-  const reasoning = createCompositeReasoning({ translation, agent });
+  const reasoning = createReasoning({ translation, agent });
 
   const select = await Effect.runPromise(reasoning.select(makeTranslationRequest()));
   const interpret = await Effect.runPromise(reasoning.interpret(makeInterpretRequest()));

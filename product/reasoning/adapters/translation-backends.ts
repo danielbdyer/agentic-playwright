@@ -1,55 +1,60 @@
 /**
- * TranslationProvider — Strategy pattern for pluggable translation backends.
+ * Translation backends — Reasoning.select() implementations.
  *
- * Three provider implementations share a single contract:
- *   1. deterministic — token-overlap scoring (free, always available)
- *   2. llm-api — OpenAI-compatible API (Azure OpenAI / Azure AI Foundry; token cost, requires config)
- *   3. mcp-tool — MCP tool invocation (future; stub)
+ * Internal module: the `TranslationProvider` interface is an
+ * implementation detail shared between this file and `agent-backends.ts`
+ * (via `createReasoning` at `adapters/index.ts`). External callers
+ * use `ReasoningService` and the `Reasoning.Tag`.
  *
- * The hybrid provider composes deterministic + fallback using the Composite pattern:
- * try deterministic first, escalate to LLM only when no confident match.
+ * Three strategies share one contract:
+ *   1. deterministic — token-overlap scoring (free, always available).
+ *   2. llm-api — OpenAI-compatible API (Azure OpenAI / Azure AI
+ *      Foundry; token cost, requires config).
+ *   3. copilot — VSCode GitHub Copilot via `vscode.lm.selectChatModels`.
  *
- * Resolution precedence: the translate callback is invoked at rung 5
- * (structured-translation) of the resolution ladder. Rungs 1–4 are deterministic
- * and never touch this code. Rung 6 (live-dom) is a separate concern.
+ * The hybrid provider composes deterministic + fallback using the
+ * Composite pattern: try deterministic first, escalate to LLM only
+ * when no confident match.
+ *
+ * Resolution precedence: the `select` callback fires at rung 5
+ * (structured-translation) of the resolution ladder. Rungs 1–4 are
+ * deterministic and never touch this code. Rung 6 (live-dom) is a
+ * separate concern.
+ *
+ * Errors lift into the five-family `ReasoningError` surface at the
+ * adapter boundary (via `classifyReasoningError` + direct
+ * `ReasoningMalformedResponseError` throws on parse failure).
  */
 
 import { Effect } from 'effect';
-import { translateIntentToOntology } from './translate';
-import type { ExecutionProfile } from '../domain/governance/workflow-types';
-import type { TranslationReceipt, TranslationRequest } from '../domain/resolution/types';
-import type { ElementId, ScreenId } from '../domain/kernel/identity';
+import { translateIntentToOntology } from '../translate';
+import type { ExecutionProfile } from '../../domain/governance/workflow-types';
+import type { TranslationReceipt, TranslationRequest } from '../../domain/resolution/types';
+import type { ElementId, ScreenId } from '../../domain/kernel/identity';
 import {
-  translationProviderError,
-  translationProviderParseError,
-  type TranslationProviderParseError,
-  type TranslationProviderTimeoutError,
-} from '../domain/kernel/errors';
+  ReasoningMalformedResponseError,
+  ReasoningUnavailableError,
+  classifyReasoningError,
+} from '../../domain/kernel/errors';
+import type { ReasoningError } from '../../domain/kernel/errors';
 import {
   RETRY_POLICIES,
   formatRetryMetadata,
   retryMetadata,
   retryScheduleForTaggedErrors,
-} from '../application/resilience/schedules';
+} from '../../application/resilience/schedules';
 
-// ─── Provider Contract (Strategy interface) ───
+// ─── Backend Contract (Strategy interface) ───
 
-/**
- * The backend kinds the v1 TranslationProvider chain supports. Lives
- * as the operand shape consumed by `createCompositeReasoning(...)`
- * through the 4b.B.* window. New adapter code bypasses this by
- * implementing `ReasoningService` directly at product/reasoning/
- * adapters/.
- */
 export type TranslationProviderKind = 'deterministic' | 'llm-api' | 'copilot';
 
 /**
- * The v1 Translation port. The composite bridge at product/reasoning/
- * adapters/composite.ts takes one of these (plus an AgentInterpreterPort)
- * and exposes them as a unified `Reasoning` adapter. Retirement
- * happens when direct copilot-live and openai-live ReasoningService
- * implementations replace the composite bridge entirely — at that
- * point this file is deleted, not marker-then-removed.
+ * The backend strategy contract consumed by `createReasoning(...)` at
+ * `product/reasoning/adapters/index.ts`. Implementations in this file
+ * are the canonical set; direct Copilot-live / Azure-live adapters
+ * that bypass this shape and implement `ReasoningService` natively
+ * can land alongside when their token-accounting + prompt-fingerprint
+ * surfaces come online.
  */
 export interface TranslationProvider {
   readonly id: string;
@@ -150,7 +155,7 @@ interface LlmTranslationResponse {
 function parseLlmResponse(raw: string, request: TranslationRequest): TranslationReceipt {
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    throw translationProviderParseError(new Error('No structured JSON found in LLM response.'), 'llm-api');
+    throw new ReasoningMalformedResponseError('No structured JSON found in LLM response.', 'llm-api');
   }
   const parsed = JSON.parse(jsonMatch[0]) as Partial<LlmTranslationResponse>;
 
@@ -219,7 +224,7 @@ function translationProviderFailureReceipt(rationale: string): TranslationReceip
 function withTranslationRetries(
   providerId: string,
   run: () => Promise<string>,
-): Effect.Effect<string, ReturnType<typeof translationProviderError>> {
+): Effect.Effect<string, ReasoningError> {
   const startedAt = Date.now();
   let attempts = 0;
   const retryPolicy = RETRY_POLICIES.translationTimeout;
@@ -228,16 +233,17 @@ function withTranslationRetries(
       attempts += 1;
       return run();
     },
-    catch: (cause) => translationProviderError(cause, providerId),
+    catch: (cause) => classifyReasoningError(cause, providerId),
   }).pipe(
     Effect.retryOrElse(
-      retryScheduleForTaggedErrors(retryPolicy, (error) => error._tag === 'TranslationProviderTimeoutError'),
+      retryScheduleForTaggedErrors(retryPolicy, (error) => error._tag === 'ReasoningUnavailableError'),
       (error) => Effect.fail(error),
     ),
-    Effect.catchTag('TranslationProviderTimeoutError', (error: TranslationProviderTimeoutError) =>
-      Effect.fail(translationProviderError(
-        new Error(`${error.message} (${formatRetryMetadata(retryMetadata(retryPolicy, attempts, startedAt, true))})`),
+    Effect.catchTag('ReasoningUnavailableError', (error: ReasoningUnavailableError) =>
+      Effect.fail(new ReasoningUnavailableError(
+        `${error.message} (${formatRetryMetadata(retryMetadata(retryPolicy, attempts, startedAt, true))})`,
         providerId,
+        error.cause,
       ))),
   );
 }
@@ -260,13 +266,13 @@ function createLlmApiProvider(
       ).pipe(
         Effect.flatMap((raw) => Effect.try({
           try: () => parseLlmResponse(raw, request),
-          catch: (cause) => translationProviderError(cause, `llm-api-${config.model}`),
+          catch: (cause) => classifyReasoningError(cause, `llm-api-${config.model}`),
         })),
-        Effect.catchTag('TranslationProviderTimeoutError', (error: TranslationProviderTimeoutError) =>
+        Effect.catchTag('ReasoningUnavailableError', (error: ReasoningUnavailableError) =>
           Effect.succeed(translationProviderFailureReceipt(
-            `LLM API timed out (${error.message}). Degrading to next resolution rung.`,
+            `LLM API unavailable (${error.message}). Degrading to next resolution rung.`,
           ))),
-        Effect.catchTag('TranslationProviderParseError', (error: TranslationProviderParseError) =>
+        Effect.catchTag('ReasoningMalformedResponseError', (error: ReasoningMalformedResponseError) =>
           Effect.succeed(translationProviderFailureReceipt(
             `LLM response parse failed (${error.message}). Degrading to next resolution rung.`,
           ))),
@@ -323,13 +329,13 @@ function createCopilotProvider(
       ).pipe(
         Effect.flatMap((raw) => Effect.try({
           try: () => parseLlmResponse(raw, request),
-          catch: (cause) => translationProviderError(cause, 'copilot'),
+          catch: (cause) => classifyReasoningError(cause, 'copilot'),
         })),
-        Effect.catchTag('TranslationProviderTimeoutError', (error: TranslationProviderTimeoutError) =>
+        Effect.catchTag('ReasoningUnavailableError', (error: ReasoningUnavailableError) =>
           Effect.succeed(translationProviderFailureReceipt(
-            `Copilot API timed out (${error.message}). Degrading to next resolution rung.`,
+            `Copilot API unavailable (${error.message}). Degrading to next resolution rung.`,
           ))),
-        Effect.catchTag('TranslationProviderParseError', (error: TranslationProviderParseError) =>
+        Effect.catchTag('ReasoningMalformedResponseError', (error: ReasoningMalformedResponseError) =>
           Effect.succeed(translationProviderFailureReceipt(
             `Copilot response parse failed (${error.message}). Degrading to next resolution rung.`,
           ))),

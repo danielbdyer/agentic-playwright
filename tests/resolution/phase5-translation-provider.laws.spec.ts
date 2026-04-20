@@ -1,17 +1,19 @@
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
 import {
-  createDeterministicProvider,
-  createLlmApiProvider,
-  createCopilotProvider,
-  createHybridProvider,
-  resolveTranslationProvider,
-  parseLlmResponse,
   DEFAULT_TRANSLATION_CONFIG,
-  type TranslationProvider,
+  resolveTranslationProvider,
   type LlmApiProviderDependencies,
   type TranslationConfig,
-} from '../../product/reasoning/translation-provider';
+  type TranslationProvider,
+} from '../../product/reasoning/adapters';
+import {
+  createCopilotProvider,
+  createDeterministicProvider,
+  createHybridProvider,
+  createLlmApiProvider,
+  parseLlmResponse,
+} from '../../product/reasoning/adapters/translation-backends';
 import { translateIntentToOntology } from '../../product/reasoning/translate';
 import type { TranslationRequest } from '../../product/domain/resolution/types';
 import { createScreenId, createElementId } from '../../product/domain/kernel/identity';

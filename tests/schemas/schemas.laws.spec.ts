@@ -23,8 +23,8 @@ import {
   BoundStepSchema,
   WorkflowEnvelopeHeaderSchema,
   TrustPolicySchema,
-} from '../product/domain/schemas';
-import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
+} from '../../product/domain/schemas';
+import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from '../support/random';
 
 // ─── Helpers ───
 
