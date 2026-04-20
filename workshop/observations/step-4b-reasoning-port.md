@@ -5,19 +5,21 @@
 
 ## Hypotheses (with predicted metric directions)
 
-Step 4b does not directly bind a verified metric receipt; no runtime consumer yet invokes `yield* Reasoning` in production. What changes is the *shape* of the measurement surface. When direct adapters land (copilot-live, openai-live) and sagas migrate off the composite bridge, the following deltas become measurable:
+Step 4b does not directly bind a verified metric receipt; no runtime consumer yet invokes `yield* Reasoning` in production. What changes is the *shape* of the measurement surface. When direct adapters land (copilot-live, openai-live) that populate `tokens` and `promptFingerprint` from provider telemetry, the following deltas become measurable:
 
-- **`metric-reasoning-token-consumption-p50` — `stable` then `decrease` once batching lands.** The first port-emitting adapter produces this metric with token counts populated from provider responses. Batching (per readiness §9.6) amortizes prompt-prefix cost across multiple requests; p50 should decrease when the first saga adopts `selectBatch` / `interpretBatch`.
+- **`metric-reasoning-token-consumption-p50` — `stable` then `decrease` once batching lands.** The first token-reporting adapter produces this metric with counts populated from provider responses. Batching (per readiness §9.6) amortizes prompt-prefix cost across multiple requests; p50 should decrease when the first saga adopts `selectBatch` / `interpretBatch`.
 - **`metric-reasoning-latency-p95` — `stable` then `decrease` once the idempotent navigation wrapper (4b.A.2) short-circuits repeat pre-navs.** Today's pre-navigation re-issues `page.goto` on the URL the page is already at; idempotent skip costs zero network time. p95 latency on scenarios with ≥2 same-screen steps should drop.
 - **`metric-hypothesis-confirmation-rate` — `stable`.** This receipt itself is a hypothesis; its confirmation is the above two metrics moving as predicted when their respective predicates are satisfied.
 
-## Why this is a proposal, not a retirement
+## Retirement status
 
-The v1 `TranslationProvider` and `AgentInterpreterPort` interfaces remain exported through the 4b.B.* window as live dependencies of the composite adapter (`product/reasoning/adapters/composite.ts`). They are NOT deprecated aliases — per `docs/coding-notes.md §17–26`, this codebase does not use `@deprecated` JSDoc markers or alias windows. A type is either actively in use or it is deleted.
+The v1 `TranslationProvider` / `AgentInterpreterPort` files retired at the step-4b.retirement commit. Their factory logic migrated into `product/reasoning/adapters/{translation-backends,agent-backends}.ts` as internal backend strategies. The two interface shapes survive as implementation-detail contracts shared between the two backend files via `adapters/index.ts`, not as public APIs.
 
-Callsites at the Step 4b.B.4 rename boundary — `local-runtime-scenario-runner.ts:46` and the test surfaces — call `provider.select(...)` on the v1 provider object (method renamed on the v1 interface); only the verb name flips, the interface remains v1-shaped.
+The composite bridge at `product/reasoning/adapters/composite.ts` deleted; `createReasoning({ translation, agent })` at `adapters/index.ts` replaces it with the same shape.
 
-The v1 interfaces retire in a future deletion commit that migrates their factory logic (`createDeterministicProvider`, `createLlmApiProvider`, `createCopilotProvider`, `createHybridProvider`, and the agent-interpreter equivalents) directly into the `product/reasoning/adapters/` surface as `ReasoningService` implementations. That commit is a pure deletion-plus-migration, not a marker-then-remove sequence.
+The six v1 error classes (`TranslationProviderError`, `TranslationProviderTimeoutError`, `TranslationProviderParseError`, `AgentInterpreterProviderError`, `AgentInterpreterTimeoutError`, `AgentInterpreterParseError`) and their factory functions deleted. Internal backends throw `ReasoningError` subclasses directly; `classifyReasoningError` simplified to inspect raw `Error` causes only.
+
+Per `docs/coding-notes.md §17–26`, this codebase does not use `@deprecated` JSDoc markers or alias windows. A type is either actively in use or it is deleted.
 
 ## Seam graduation
 
@@ -28,7 +30,7 @@ The v1 interfaces retire in a future deletion commit that migrates their factory
 - A `product/reasoning/adapters/copilot-live.ts` commit adds the VSCode Copilot adapter with token accounting + prompt fingerprint population. This is the first adapter that actually emits non-zero telemetry on `ReasoningReceipt<Op>.tokens` and `promptFingerprint`.
 - A `product/reasoning/adapters/openai-live.ts` commit adds the Azure AI Foundry adapter (same telemetry surface).
 - A `workshop/metrics/` visitor for `metric-reasoning-token-consumption-p50` lights up when the first live adapter emits a receipt with populated token counts.
-- The composite bridge retires when the above two adapters cover the full saga surface.
+- The per-adapter token-consumption receipts let the workshop's metric visitor produce its first non-zero measurement.
 
 ## Pointers
 
