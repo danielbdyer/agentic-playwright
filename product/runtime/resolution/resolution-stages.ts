@@ -30,111 +30,37 @@ import {
 import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
 import { isRung8Applicable, attemptRung8Resolution } from './rung8-llm-dom';
 
-/** Maximum characters for the DOM snapshot passed to the agent interpreter. */
-const DOM_SNAPSHOT_MAX_CHARS = 2048;
-type PlaywrightPageLike = Parameters<typeof createPlaywrightDomResolver>[0];
 
-function isPlaywrightPageLike(page: unknown): page is PlaywrightPageLike {
-  return typeof page === 'object' && page !== null && 'accessibility' in page && 'locator' in page;
-}
+// ─── Carved-out sub-modules — Step 4a ──────────────────────────
+//
+// Screenshot + ARIA-snapshot capture helpers live at
+// ./screenshot-capture.ts; the resolution-accumulator interfaces
+// live at ./accumulator.ts. Re-exported here so existing callers
+// that import from resolution-stages.ts keep working.
+import {
+  capturePageScreenshot,
+  captureTruncatedAriaSnapshot,
+  isPlaywrightPageLike,
+} from './screenshot-capture';
+export {
+  DOM_SNAPSHOT_MAX_CHARS,
+  capturePageScreenshotBuffer,
+  capturePageScreenshot,
+  captureTruncatedAriaSnapshot,
+} from './screenshot-capture';
+export type {
+  ResolutionAccumulator,
+  StageResult,
+  LatticeResult,
+  AccumulatorStageResult,
+} from './accumulator';
+import type {
+  ResolutionAccumulator,
+  StageResult,
+  LatticeResult,
+  AccumulatorStageResult,
+} from './accumulator';
 
-type PlaywrightScreenshotLike = { screenshot: (opts: { readonly type: 'jpeg'; readonly quality: number; readonly fullPage: boolean }) => Promise<Buffer> };
-
-function isPlaywrightScreenshotCapable(page: unknown): page is PlaywrightScreenshotLike {
-  return typeof page === 'object' && page !== null && 'screenshot' in page;
-}
-
-/**
- * Capture a raw JPEG screenshot buffer from a live Playwright page.
- * Returns null when no page is available or when capture fails.
- * Used by the deferred screenshot collector to delay base64 encoding.
- */
-export async function capturePageScreenshotBuffer(
-  page: unknown,
-  options?: { readonly quality?: number },
-): Promise<Buffer | null> {
-  if (!isPlaywrightScreenshotCapable(page)) return null;
-  try {
-    return await page.screenshot({
-      type: 'jpeg',
-      quality: options?.quality ?? 50,
-      fullPage: false,
-    });
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Capture a JPEG screenshot from a live Playwright page as a base64 string.
- * Returns null when no page is available, when capture fails, or when vision is disabled.
- * Uses JPEG at configurable quality (default 50) to minimise vision token cost.
- */
-export async function capturePageScreenshot(
-  page: unknown,
-  options?: { readonly quality?: number },
-): Promise<string | null> {
-  const buffer = await capturePageScreenshotBuffer(page, options);
-  return buffer ? buffer.toString('base64') : null;
-}
-
-/**
- * Capture a truncated ARIA/accessibility snapshot from a live Playwright page.
- * Returns null when no page is available or when capture fails.
- * Pure truncation: slices to `maxChars` without splitting mid-line when possible.
- */
-export async function captureTruncatedAriaSnapshot(
-  page: unknown,
-  maxChars: number = DOM_SNAPSHOT_MAX_CHARS,
-): Promise<string | null> {
-  if (!isPlaywrightPageLike(page)) return null;
-  try {
-    const snapshot = await page.accessibility.snapshot({ interestingOnly: true });
-    if (!snapshot) return null;
-    const text = JSON.stringify(snapshot, null, 2);
-    if (text.length <= maxChars) return text;
-    // Truncate at the last newline boundary within maxChars to avoid mid-line cuts
-    const truncated = text.slice(0, maxChars);
-    const lastNewline = truncated.lastIndexOf('\n');
-    return lastNewline > maxChars * 0.5
-      ? truncated.slice(0, lastNewline) + '\n...'
-      : truncated + '...';
-  } catch {
-    return null;
-  }
-}
-
-export interface ResolutionAccumulator {
-  action: StepAction | null;
-  screen: StepTaskScreenCandidate | null;
-  element: StepTaskElementCandidate | null;
-  posture: PostureId | null;
-  snapshotTemplate: SnapshotTemplateId | null;
-  override: { source: string; override: string | null };
-  actionLattice: RankedLattice<StepAction>;
-  screenLattice: RankedLattice<StepTaskScreenCandidate>;
-  elementLattice: RankedLattice<StepTaskElementCandidate>;
-  postureLattice: RankedLattice<PostureId>;
-  snapshotLattice: RankedLattice<SnapshotTemplateId>;
-  overlayResult: ReturnType<typeof resolveWithConfidenceOverlay>;
-  translated: Awaited<ReturnType<typeof resolveWithTranslation>>;
-}
-
-export interface StageResult<R = ResolutionReceipt | null> {
-  receipt: R;
-  effects: StageEffects;
-}
-
-export interface LatticeResult {
-  accumulator: ResolutionAccumulator;
-  effects: StageEffects;
-}
-
-export interface AccumulatorStageResult {
-  receipt: ResolutionReceipt | null;
-  effects: StageEffects;
-  accumulator: ResolutionAccumulator;
-}
 
 function summaryForValue<T>(concern: ResolutionCandidateSummary['concern'], ranked: Array<LatticeCandidate<T>>, topN = 3): { topCandidates: ResolutionCandidateSummary[]; rejectedCandidates: ResolutionCandidateSummary[] } {
   const normalizeValue = (value: unknown): string => {
