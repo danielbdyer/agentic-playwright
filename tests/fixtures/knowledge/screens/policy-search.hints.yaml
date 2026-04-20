@@ -42,7 +42,7 @@ elements:
     locator:
       - kind: test-id
         value: policy-number-input
-      - kind: role-name
+      - kind: role
         role: textbox
         name: Policy Number
   searchButton:
@@ -105,12 +105,12 @@ elements:
     role: button
     widget: os-button
     locator:
-      - kind: role-name
+      - kind: role
         role: button
         name: Search
       - kind: test-id
         value: search-button
-      - kind: role-name
+      - kind: role
         role: button
         name: Search
   resultsTable:
@@ -184,7 +184,7 @@ elements:
     locator:
       - kind: test-id
         value: search-results-table
-      - kind: role-name
+      - kind: role
         role: table
         name: Search Results
   validationSummary:
@@ -230,6 +230,6 @@ elements:
     locator:
       - kind: test-id
         value: validation-summary
-      - kind: role-name
+      - kind: role
         role: alert
         name: null

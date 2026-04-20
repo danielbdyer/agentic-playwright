@@ -89,7 +89,7 @@ export interface DiscoveryObservedElement {
   readonly testId: string | null;
   readonly widget: string;
   readonly required: boolean;
-  readonly locatorHint: 'test-id' | 'role-name' | 'css';
+  readonly locatorHint: 'role' | 'label' | 'placeholder' | 'text' | 'test-id' | 'css';
   readonly locatorCandidates: readonly LocatorStrategy[];
 }
 

@@ -511,8 +511,11 @@ test('all discriminated unions with kind fields have corresponding fold function
     'StepInstructionObserveStructure',
     'StepInstructionCustomEscapeHatch',
     // Locator strategy variants — used as discriminated data, not fold-dispatched
+    'LocatorStrategyRole',
+    'LocatorStrategyLabel',
+    'LocatorStrategyPlaceholder',
+    'LocatorStrategyText',
     'LocatorStrategyTestId',
-    'LocatorStrategyRoleName',
     'LocatorStrategyCss',
   ]);
 

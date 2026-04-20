@@ -116,20 +116,29 @@ export function foldStepInstruction<R>(instruction: StepInstruction, cases: Step
 
 // ─── LocatorStrategy ───
 
+export type LocatorStrategyRole = Extract<LocatorStrategy, { kind: 'role' }>;
+export type LocatorStrategyLabel = Extract<LocatorStrategy, { kind: 'label' }>;
+export type LocatorStrategyPlaceholder = Extract<LocatorStrategy, { kind: 'placeholder' }>;
+export type LocatorStrategyText = Extract<LocatorStrategy, { kind: 'text' }>;
 export type LocatorStrategyTestId = Extract<LocatorStrategy, { kind: 'test-id' }>;
-export type LocatorStrategyRoleName = Extract<LocatorStrategy, { kind: 'role-name' }>;
 export type LocatorStrategyCss = Extract<LocatorStrategy, { kind: 'css' }>;
 
 export interface LocatorStrategyCases<R> {
+  readonly role: (strategy: LocatorStrategyRole) => R;
+  readonly label: (strategy: LocatorStrategyLabel) => R;
+  readonly placeholder: (strategy: LocatorStrategyPlaceholder) => R;
+  readonly text: (strategy: LocatorStrategyText) => R;
   readonly testId: (strategy: LocatorStrategyTestId) => R;
-  readonly roleName: (strategy: LocatorStrategyRoleName) => R;
   readonly css: (strategy: LocatorStrategyCss) => R;
 }
 
 export function foldLocatorStrategy<R>(strategy: LocatorStrategy, cases: LocatorStrategyCases<R>): R {
   switch (strategy.kind) {
+    case 'role': return cases.role(strategy);
+    case 'label': return cases.label(strategy);
+    case 'placeholder': return cases.placeholder(strategy);
+    case 'text': return cases.text(strategy);
     case 'test-id': return cases.testId(strategy);
-    case 'role-name': return cases.roleName(strategy);
     case 'css': return cases.css(strategy);
   }
 }

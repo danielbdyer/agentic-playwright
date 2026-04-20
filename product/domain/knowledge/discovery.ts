@@ -60,10 +60,13 @@ interface DiscoveryElementReport {
   name: string | null;
   testId: string | null;
   widgetSuggestion: string;
-  locatorHint: 'test-id' | 'role-name' | 'css';
+  locatorHint: 'role' | 'label' | 'placeholder' | 'text' | 'test-id' | 'css';
   locatorCandidates: Array<
+    | { kind: 'role'; role: string; name: string | null }
+    | { kind: 'label'; value: string; exact?: boolean }
+    | { kind: 'placeholder'; value: string; exact?: boolean }
+    | { kind: 'text'; value: string; exact?: boolean }
     | { kind: 'test-id'; value: string }
-    | { kind: 'role-name'; role: string; name: string | null }
     | { kind: 'css'; value: string }
   >;
   supportedActions: ('click' | 'input' | 'assert-snapshot')[];
@@ -112,8 +115,11 @@ export interface DiscoverySectionArtifact {
       testId: string | null;
       cssFallback: string | null;
       locator: Array<
+        | { kind: 'role'; role: string; name: string | null }
+        | { kind: 'label'; value: string; exact?: boolean }
+        | { kind: 'placeholder'; value: string; exact?: boolean }
+        | { kind: 'text'; value: string; exact?: boolean }
         | { kind: 'test-id'; value: string }
-        | { kind: 'role-name'; role: string; name: string | null }
         | { kind: 'css'; value: string }
       >;
       surface: string;
@@ -166,8 +172,11 @@ export interface DiscoveryArtifacts {
       testId: string | null;
       cssFallback: string | null;
       locator: Array<
+        | { kind: 'role'; role: string; name: string | null }
+        | { kind: 'label'; value: string; exact?: boolean }
+        | { kind: 'placeholder'; value: string; exact?: boolean }
+        | { kind: 'text'; value: string; exact?: boolean }
         | { kind: 'test-id'; value: string }
-        | { kind: 'role-name'; role: string; name: string | null }
         | { kind: 'css'; value: string }
       >;
       surface: string;
@@ -248,11 +257,11 @@ function supportedActionsForRole(role: string, widget: string): ('click' | 'inpu
 }
 
 function selectLocatorHint(testId: string | null, name: string | null): DiscoveryElementReport['locatorHint'] {
+  if (name) {
+    return 'role';
+  }
   if (testId) {
     return 'test-id';
-  }
-  if (name) {
-    return 'role-name';
   }
   return 'css';
 }
@@ -264,9 +273,9 @@ function locatorCandidatesForElement(input: {
   testId: string | null;
 }): DiscoveryElementReport['locatorCandidates'] {
   return [
+    { kind: 'role' as const, role: input.role, name: input.name },
     ...(input.testId ? [{ kind: 'test-id' as const, value: input.testId }] : []),
-    { kind: 'role-name' as const, role: input.role, name: input.name },
-    ...(!input.testId ? [{ kind: 'css' as const, value: input.selector }] : []),
+    ...(!input.testId && !input.name ? [{ kind: 'css' as const, value: input.selector }] : []),
   ];
 }
 
@@ -525,15 +534,7 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
         name: element.name,
         testId: element.testId,
         cssFallback: element.locatorHint === 'css' ? element.selector : null,
-        locator: element.locatorCandidates.map((candidate) => {
-          if (candidate.kind === 'test-id') {
-            return candidate;
-          }
-          if (candidate.kind === 'role-name') {
-            return candidate;
-          }
-          return candidate;
-        }),
+        locator: element.locatorCandidates.map((candidate) => candidate),
         surface: element.surfaceId,
         widget: element.widgetSuggestion,
         required: element.required,

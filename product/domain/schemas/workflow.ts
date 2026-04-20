@@ -163,15 +163,33 @@ export const TrustPolicyEvaluationSchema = Schema.Struct({
 
 // ─── Locator Strategy (discriminated union) ───
 
+export const LocatorStrategyRoleSchema = Schema.Struct({
+  kind: Schema.Literal('role'),
+  role: Schema.String,
+  name: Schema.optionalWith(NullableString, { default: () => null }),
+});
+
+export const LocatorStrategyLabelSchema = Schema.Struct({
+  kind: Schema.Literal('label'),
+  value: Schema.String,
+  exact: Schema.optional(Schema.Boolean),
+});
+
+export const LocatorStrategyPlaceholderSchema = Schema.Struct({
+  kind: Schema.Literal('placeholder'),
+  value: Schema.String,
+  exact: Schema.optional(Schema.Boolean),
+});
+
+export const LocatorStrategyTextSchema = Schema.Struct({
+  kind: Schema.Literal('text'),
+  value: Schema.String,
+  exact: Schema.optional(Schema.Boolean),
+});
+
 export const LocatorStrategyTestIdSchema = Schema.Struct({
   kind: Schema.Literal('test-id'),
   value: Schema.String,
-});
-
-export const LocatorStrategyRoleNameSchema = Schema.Struct({
-  kind: Schema.Literal('role-name'),
-  role: Schema.String,
-  name: Schema.optionalWith(NullableString, { default: () => null }),
 });
 
 export const LocatorStrategyCssSchema = Schema.Struct({
@@ -180,8 +198,11 @@ export const LocatorStrategyCssSchema = Schema.Struct({
 });
 
 export const LocatorStrategySchema = Schema.Union(
+  LocatorStrategyRoleSchema,
+  LocatorStrategyLabelSchema,
+  LocatorStrategyPlaceholderSchema,
+  LocatorStrategyTextSchema,
   LocatorStrategyTestIdSchema,
-  LocatorStrategyRoleNameSchema,
   LocatorStrategyCssSchema,
 );
 

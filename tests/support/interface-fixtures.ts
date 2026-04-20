@@ -38,7 +38,7 @@ export function createPolicySearchElement(overrides: Partial<StepTaskElementCand
     defaultValueRef: null,
     parameter: null,
     snapshotAliases: {},
-    selectorRefs: [createSelectorRef(`selector:${targetRef}:role-name:0:textbox:Policy Number`)],
+    selectorRefs: [createSelectorRef(`selector:${targetRef}:role:0:textbox:Policy Number`)],
     ...overrides,
   };
 }

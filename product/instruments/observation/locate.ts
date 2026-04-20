@@ -13,7 +13,7 @@ export interface ResolvedLocator {
 
 function fallbackRoleStrategy(element: ElementSig): LocatorStrategy {
   return {
-    kind: 'role-name',
+    kind: 'role',
     role: element.role,
     name: element.name ?? null,
   };
@@ -29,8 +29,11 @@ export function describeLocatorStrategy(strategy: LocatorStrategy): string {
   return pipe(
     Match.type<LocatorStrategy>(),
     Match.discriminatorsExhaustive('kind')({
+      'role': (s) => s.name ? `role:${s.role}[name=${s.name}]` : `role:${s.role}`,
+      'label': (s) => `label:${s.value}`,
+      'placeholder': (s) => `placeholder:${s.value}`,
+      'text': (s) => `text:${s.value}`,
       'test-id': (s) => `test-id:${s.value}`,
-      'role-name': (s) => s.name ? `role:${s.role}[name=${s.name}]` : `role:${s.role}`,
       'css': (s) => `css:${s.value}`,
     }),
   )(strategy);
@@ -40,8 +43,11 @@ function locatorForStrategy(page: Page, strategy: LocatorStrategy): Locator {
   return pipe(
     Match.type<LocatorStrategy>(),
     Match.discriminatorsExhaustive('kind')({
+      'role': (s) => page.getByRole(s.role as never, s.name ? { name: s.name } : undefined),
+      'label': (s) => page.getByLabel(s.value, s.exact !== undefined ? { exact: s.exact } : undefined),
+      'placeholder': (s) => page.getByPlaceholder(s.value, s.exact !== undefined ? { exact: s.exact } : undefined),
+      'text': (s) => page.getByText(s.value, s.exact !== undefined ? { exact: s.exact } : undefined),
       'test-id': (s) => page.getByTestId(s.value),
-      'role-name': (s) => page.getByRole(s.role as never, s.name ? { name: s.name } : undefined),
       'css': (s) => page.locator(s.value),
     }),
   )(strategy);

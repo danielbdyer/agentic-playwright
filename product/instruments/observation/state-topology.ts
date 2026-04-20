@@ -45,7 +45,7 @@ const browserObservationConcurrency = resolveEffectConcurrency({ ceiling: 4 });
 
 function fallbackLocatorStrategy(candidate: Pick<StepTaskElementCandidate, 'role' | 'name'>): LocatorStrategy {
   return {
-    kind: 'role-name',
+    kind: 'role',
     role: candidate.role,
     name: candidate.name ?? null,
   };
@@ -57,16 +57,22 @@ function candidateStrategies(candidate: Pick<StepTaskElementCandidate, 'role' | 
 
 function locatorForStrategy(page: Page, strategy: LocatorStrategy): Locator {
   return foldLocatorStrategy(strategy, {
+    role: (s) => page.getByRole(s.role as never, s.name ? { name: s.name } : undefined),
+    label: (s) => page.getByLabel(s.value, s.exact !== undefined ? { exact: s.exact } : undefined),
+    placeholder: (s) => page.getByPlaceholder(s.value, s.exact !== undefined ? { exact: s.exact } : undefined),
+    text: (s) => page.getByText(s.value, s.exact !== undefined ? { exact: s.exact } : undefined),
     testId: (s) => page.getByTestId(s.value),
-    roleName: (s) => page.getByRole(s.role as never, s.name ? { name: s.name } : undefined),
     css: (s) => page.locator(s.value),
   });
 }
 
 function describeLocatorStrategy(strategy: LocatorStrategy): string {
   return foldLocatorStrategy(strategy, {
+    role: (s) => s.name ? `role:${s.role}[name=${s.name}]` : `role:${s.role}`,
+    label: (s) => `label:${s.value}`,
+    placeholder: (s) => `placeholder:${s.value}`,
+    text: (s) => `text:${s.value}`,
     testId: (s) => `test-id:${s.value}`,
-    roleName: (s) => s.name ? `role:${s.role}[name=${s.name}]` : `role:${s.role}`,
     css: (s) => `css:${s.value}`,
   });
 }

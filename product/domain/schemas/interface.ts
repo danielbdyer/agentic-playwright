@@ -120,7 +120,7 @@ export const DiscoveryObservedElementSchema = Schema.Struct({
   testId: Schema.optionalWith(NullableString, { default: () => null }),
   widget: Schema.String,
   required: Schema.Boolean,
-  locatorHint: Schema.Literal('test-id', 'role-name', 'css'),
+  locatorHint: Schema.Literal('role', 'label', 'placeholder', 'text', 'test-id', 'css'),
   locatorCandidates: Schema.optionalWith(Schema.Array(LocatorStrategySchema), { default: () => [] as readonly (typeof LocatorStrategySchema.Type)[] }),
 });
 

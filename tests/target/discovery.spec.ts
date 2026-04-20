@@ -75,11 +75,11 @@ test('buildDiscoveryArtifacts emits deterministic selector and action scaffolds 
   expect(first.surfaceScaffold).toEqual(second.surfaceScaffold);
   expect(first.elementsScaffold).toEqual(second.elementsScaffold);
   expect(first.report.elements.find((element) => element.id === 'continueToCoverageButton')).toEqual(expect.objectContaining({
-    locatorHint: 'test-id',
+    locatorHint: 'role',
     supportedActions: ['click'],
     locatorCandidates: [
+      { kind: 'role', role: 'button', name: 'Continue to Coverage' },
       { kind: 'test-id', value: 'continue-to-coverage-button' },
-      { kind: 'role-name', role: 'button', name: 'Continue to Coverage' },
     ],
   }));
   expect(first.report.elements.find((element) => element.id === 'policyNumberInput')).toEqual(expect.objectContaining({
@@ -96,8 +96,8 @@ test('buildDiscoveryArtifacts emits deterministic selector and action scaffolds 
   ]));
   expect(first.surfaceScaffold.surfaces.eligibilityStep?.parents).toEqual(['journeyShell']);
   expect(first.elementsScaffold.elements.policyNumberInput?.locator).toEqual([
+    { kind: 'role', role: 'textbox', name: 'Policy Number' },
     { kind: 'test-id', value: 'journey-policy-number-input' },
-    { kind: 'role-name', role: 'textbox', name: 'Policy Number' },
   ]);
   expect(first.sectionArtifacts.eligibilityStep).toEqual(expect.objectContaining({
     id: 'eligibilityStep',

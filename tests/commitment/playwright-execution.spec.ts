@@ -59,7 +59,7 @@ function buildPolicySearchScreen(): LoadedScreen {
         affordance: 'text-entry',
         locator: [
           { kind: 'test-id', value: 'policy-number-input' },
-          { kind: 'role-name', role: 'textbox', name: 'Policy Number' },
+          { kind: 'role', role: 'textbox', name: 'Policy Number' },
         ],
       },
       [createElementId('searchButton')]: {
@@ -71,7 +71,7 @@ function buildPolicySearchScreen(): LoadedScreen {
         affordance: 'action',
         locator: [
           { kind: 'test-id', value: 'search-button' },
-          { kind: 'role-name', role: 'button', name: 'Search' },
+          { kind: 'role', role: 'button', name: 'Search' },
         ],
       },
       [createElementId('validationSummary')]: {
@@ -82,7 +82,7 @@ function buildPolicySearchScreen(): LoadedScreen {
         widget: createWidgetId('os-region'),
         locator: [
           { kind: 'test-id', value: 'validation-summary' },
-          { kind: 'role-name', role: 'alert' },
+          { kind: 'role', role: 'alert' },
         ],
       },
       [createElementId('resultsTable')]: {
@@ -93,7 +93,7 @@ function buildPolicySearchScreen(): LoadedScreen {
         widget: createWidgetId('os-region'),
         locator: [
           { kind: 'test-id', value: 'search-results-table' },
-          { kind: 'role-name', role: 'table', name: 'Search Results' },
+          { kind: 'role', role: 'table', name: 'Search Results' },
         ],
       },
     },

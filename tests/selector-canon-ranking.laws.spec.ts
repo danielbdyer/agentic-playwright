@@ -2,9 +2,16 @@
  * Selector Canon Ranking — Law Tests (W2.19)
  *
  * Verifies that selector ranking within the SelectorCanon is a well-defined
- * total order based on locator strategy specificity:
+ * total order based on locator strategy specificity (v2 order per
+ * `docs/v2-direction.md §3.2`):
  *
- *   test-id > role-name > css
+ *   role > label > placeholder > text > test-id > css
+ *
+ * The v2 reorder flips v1's (test-id > role > css) inversion. The v2 ladder
+ * leads with semantic role because (a) the observable surface is usually
+ * role-bearing, (b) test-id is an authoring convenience not present on all
+ * customer apps, and (c) the placeholder/label/text variants admit
+ * accessible-name matching without requiring a test-id contract.
  *
  * The rung field on SelectorProbe defines the intra-strategy ordering.
  * The locator strategy kind defines the inter-strategy specificity ordering.
@@ -26,11 +33,18 @@ import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from './supp
 // ─── Specificity order ───
 
 /**
- * The canonical specificity ranking for locator strategy kinds.
- * test-id is the most specific (lowest index = highest rank).
- * css is the least specific (highest index = lowest rank).
+ * The canonical specificity ranking for locator strategy kinds per v2
+ * direction §3.2. Role leads the ladder; css is the last resort.
+ * Lowest index = highest rank.
  */
-const SPECIFICITY_ORDER: readonly LocatorStrategyKind[] = ['test-id', 'role-name', 'css'];
+const SPECIFICITY_ORDER: readonly LocatorStrategyKind[] = [
+  'role',
+  'label',
+  'placeholder',
+  'text',
+  'test-id',
+  'css',
+];
 
 function specificityRank(kind: LocatorStrategyKind): number {
   const index = SPECIFICITY_ORDER.indexOf(kind);
@@ -41,10 +55,16 @@ function specificityRank(kind: LocatorStrategyKind): number {
 
 function makeStrategy(kind: LocatorStrategyKind, value?: string): LocatorStrategy {
   switch (kind) {
+    case 'role':
+      return { kind: 'role', role: value ?? 'textbox', name: value ?? 'Policy Number' };
+    case 'label':
+      return { kind: 'label', value: value ?? 'Policy Number' };
+    case 'placeholder':
+      return { kind: 'placeholder', value: value ?? 'Enter policy number' };
+    case 'text':
+      return { kind: 'text', value: value ?? 'Continue' };
     case 'test-id':
       return { kind: 'test-id', value: value ?? 'data-testid-field' };
-    case 'role-name':
-      return { kind: 'role-name', role: value ?? 'textbox', name: value ?? 'Policy Number' };
     case 'css':
       return { kind: 'css', value: value ?? '.form-control' };
   }
@@ -59,7 +79,7 @@ function makeProbe(overrides: {
 }): SelectorProbe {
   const strategy = makeStrategy(overrides.kind, overrides.value);
   const rung = overrides.rung ?? 0;
-  const strategyValue = strategy.kind === 'role-name' ? strategy.role : strategy.value;
+  const strategyValue = strategy.kind === 'role' ? strategy.role : strategy.value;
   return {
     id: `target:probe:${strategy.kind}:${rung}:${strategyValue}`,
     selectorRef: `selector:target:${strategy.kind}:${rung}:${strategyValue}` as SelectorRef,
@@ -109,13 +129,16 @@ function rankProbes(probes: readonly SelectorProbe[]): readonly SelectorProbe[] 
 // ─── Law 1: Specificity is a total order ───
 
 test.describe('Law 1: Specificity ordering is a total order', () => {
-  test('test-id > role-name > css', () => {
-    expect(specificityRank('test-id')).toBeGreaterThan(specificityRank('role-name'));
-    expect(specificityRank('role-name')).toBeGreaterThan(specificityRank('css'));
+  test('role > label > placeholder > text > test-id > css', () => {
+    expect(specificityRank('role')).toBeGreaterThan(specificityRank('label'));
+    expect(specificityRank('label')).toBeGreaterThan(specificityRank('placeholder'));
+    expect(specificityRank('placeholder')).toBeGreaterThan(specificityRank('text'));
+    expect(specificityRank('text')).toBeGreaterThan(specificityRank('test-id'));
+    expect(specificityRank('test-id')).toBeGreaterThan(specificityRank('css'));
   });
 
-  test('transitivity: test-id > css follows from the chain', () => {
-    expect(specificityRank('test-id')).toBeGreaterThan(specificityRank('css'));
+  test('transitivity: role > css follows from the chain', () => {
+    expect(specificityRank('role')).toBeGreaterThan(specificityRank('css'));
   });
 
   test('reflexivity: each kind has a consistent rank', () => {
@@ -145,22 +168,22 @@ test.describe('Law 1: Specificity ordering is a total order', () => {
 // ─── Law 2: More specific selectors rank higher ───
 
 test.describe('Law 2: More specific selectors rank higher', () => {
-  test('test-id probe ranks above role-name probe', () => {
+  test('role probe ranks above test-id probe (v2 inversion of v1)', () => {
     const probes = [
-      makeProbe({ kind: 'role-name' }),
       makeProbe({ kind: 'test-id' }),
+      makeProbe({ kind: 'role' }),
     ];
     const ranked = rankProbes(probes);
-    expect(ranked[0]!.strategy.kind).toBe('test-id');
+    expect(ranked[0]!.strategy.kind).toBe('role');
   });
 
-  test('role-name probe ranks above css probe', () => {
+  test('role probe ranks above css probe', () => {
     const probes = [
       makeProbe({ kind: 'css' }),
-      makeProbe({ kind: 'role-name' }),
+      makeProbe({ kind: 'role' }),
     ];
     const ranked = rankProbes(probes);
-    expect(ranked[0]!.strategy.kind).toBe('role-name');
+    expect(ranked[0]!.strategy.kind).toBe('role');
   });
 
   test('ranking across 20 random probe sets', () => {
@@ -191,12 +214,12 @@ test.describe('Law 3: Deterministic under alias expansion', () => {
     const probesA = [
       makeProbe({ kind: 'css', value: '.alpha' }),
       makeProbe({ kind: 'test-id', value: 'field-alpha' }),
-      makeProbe({ kind: 'role-name', value: 'Alpha Input' }),
+      makeProbe({ kind: 'role', value: 'Alpha Input' }),
     ];
     const probesB = [
       makeProbe({ kind: 'css', value: '.beta' }),
       makeProbe({ kind: 'test-id', value: 'field-beta' }),
-      makeProbe({ kind: 'role-name', value: 'Beta Input' }),
+      makeProbe({ kind: 'role', value: 'Beta Input' }),
     ];
 
     const rankedA = rankProbes(probesA);
@@ -211,7 +234,7 @@ test.describe('Law 3: Deterministic under alias expansion', () => {
       const next = mulberry32(seed);
 
       // Same set of kinds, different alias values
-      const kinds: readonly LocatorStrategyKind[] = ['test-id', 'role-name', 'css'];
+      const kinds: readonly LocatorStrategyKind[] = ['role', 'test-id', 'css'];
       const probesX = kinds.map((kind, i) =>
         makeProbe({ kind, rung: i, value: randomWord(next) }),
       );
@@ -253,28 +276,28 @@ test.describe('Law 4: test-id selectors rank above CSS selectors', () => {
   });
 });
 
-// ─── Law 5: role-name selectors rank above CSS selectors ───
+// ─── Law 5: role selectors rank above CSS selectors ───
 
-test.describe('Law 5: role-name selectors rank above CSS selectors', () => {
-  test('role-name always wins over css in any permutation', () => {
+test.describe('Law 5: role selectors rank above CSS selectors', () => {
+  test('role always wins over css in any permutation', () => {
     const permutations = [
-      [makeProbe({ kind: 'role-name' }), makeProbe({ kind: 'css' })],
-      [makeProbe({ kind: 'css' }), makeProbe({ kind: 'role-name' })],
+      [makeProbe({ kind: 'role' }), makeProbe({ kind: 'css' })],
+      [makeProbe({ kind: 'css' }), makeProbe({ kind: 'role' })],
     ];
     for (const probes of permutations) {
       const ranked = rankProbes(probes);
-      expect(ranked[0]!.strategy.kind).toBe('role-name');
+      expect(ranked[0]!.strategy.kind).toBe('role');
     }
   });
 
-  test('role-name beats css across 20 random seeds with varying values', () => {
+  test('role beats css across 20 random seeds with varying values', () => {
     for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
-      const roleProbe = makeProbe({ kind: 'role-name', value: randomWord(next), rung: randomInt(next, 10) });
+      const roleProbe = makeProbe({ kind: 'role', value: randomWord(next), rung: randomInt(next, 10) });
       const cssProbe = makeProbe({ kind: 'css', value: `.${randomWord(next)}`, rung: randomInt(next, 10) });
 
       const ranked = rankProbes([cssProbe, roleProbe]);
-      expect(ranked[0]!.strategy.kind).toBe('role-name');
+      expect(ranked[0]!.strategy.kind).toBe('role');
     }
   });
 });
@@ -317,7 +340,7 @@ test.describe('Law 7: Ranking stability under input permutation', () => {
     const probes = [
       makeProbe({ kind: 'css', rung: 0, value: '.z' }),
       makeProbe({ kind: 'test-id', rung: 0, value: 'a' }),
-      makeProbe({ kind: 'role-name', rung: 0, value: 'Button' }),
+      makeProbe({ kind: 'role', rung: 0, value: 'Button' }),
       makeProbe({ kind: 'test-id', rung: 1, value: 'b' }),
       makeProbe({ kind: 'css', rung: 1, value: '.y' }),
     ];

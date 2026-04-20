@@ -79,20 +79,33 @@ test('foldStepInstruction dispatches each variant to the correct case', () => {
 
 test('foldLocatorStrategy dispatches each variant to the correct case', () => {
   const variants: readonly LocatorStrategy[] = [
+    { kind: 'role', role: 'button', name: 'Submit' },
+    { kind: 'label', value: 'Username' },
+    { kind: 'placeholder', value: 'Type here' },
+    { kind: 'text', value: 'Continue' },
     { kind: 'test-id', value: 'btn-submit' },
-    { kind: 'role-name', role: 'button', name: 'Submit' },
     { kind: 'css', value: '.btn-primary' },
   ];
 
   const results = variants.map((v) =>
     foldLocatorStrategy(v, {
+      role: (s) => `role:${s.role}`,
+      label: (s) => `label:${s.value}`,
+      placeholder: (s) => `placeholder:${s.value}`,
+      text: (s) => `text:${s.value}`,
       testId: (s) => `test-id:${s.value}`,
-      roleName: (s) => `role:${s.role}`,
       css: (s) => `css:${s.value}`,
     }),
   );
 
-  expect(results).toEqual(['test-id:btn-submit', 'role:button', 'css:.btn-primary']);
+  expect(results).toEqual([
+    'role:button',
+    'label:Username',
+    'placeholder:Type here',
+    'text:Continue',
+    'test-id:btn-submit',
+    'css:.btn-primary',
+  ]);
 });
 
 // ─── ResolutionReceipt ───
@@ -313,19 +326,25 @@ test('foldValueRef never returns undefined when all cases return defined values'
 // ─── Law: fold composes — mapping then folding = fold with mapped cases ───
 
 test('foldLocatorStrategy composes with map: fold(map(x)) = fold_mapped(x)', () => {
-  const strategy: LocatorStrategy = { kind: 'role-name', role: 'button', name: 'Save' };
+  const strategy: LocatorStrategy = { kind: 'role', role: 'button', name: 'Save' };
 
   // Direct fold to string then measure length
   const direct = foldLocatorStrategy(strategy, {
+    role: (s) => (s.name ?? '').length,
+    label: (s) => s.value.length,
+    placeholder: (s) => s.value.length,
+    text: (s) => s.value.length,
     testId: (s) => s.value.length,
-    roleName: (s) => (s.name ?? '').length,
     css: (s) => s.value.length,
   });
 
   // Two-step: fold to string, then measure
   const description = foldLocatorStrategy(strategy, {
+    role: (s) => s.name ?? '',
+    label: (s) => s.value,
+    placeholder: (s) => s.value,
+    text: (s) => s.value,
     testId: (s) => s.value,
-    roleName: (s) => s.name ?? '',
     css: (s) => s.value,
   });
 

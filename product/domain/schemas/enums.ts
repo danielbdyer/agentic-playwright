@@ -140,7 +140,7 @@ export const GovernanceSchema = Schema.Literal(...governanceStates);
 export const certificationStates = ['uncertified', 'certified'] as const;
 export const CertificationStatusSchema = Schema.Literal(...certificationStates);
 
-export const locatorStrategyKinds = ['test-id', 'role-name', 'css'] as const;
+export const locatorStrategyKinds = ['role', 'label', 'placeholder', 'text', 'test-id', 'css'] as const;
 export const LocatorStrategyKindSchema = Schema.Literal(...locatorStrategyKinds);
 
 export const effectStates = ['validation-error', 'required-error', 'disabled', 'enabled', 'visible', 'hidden'] as const;
