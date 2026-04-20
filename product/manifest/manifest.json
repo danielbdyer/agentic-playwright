@@ -1,8 +1,71 @@
 {
   "kind": "product-manifest",
   "version": 1,
-  "generatedAt": "2026-04-20T02:27:16.495Z",
+  "generatedAt": "2026-04-20T03:22:55.796Z",
   "verbs": [
+    {
+      "name": "facet-enrich",
+      "category": "memory",
+      "summary": "Extend an existing FacetRecord with additional evidence (new aliases, locator-strategy observations, refined predicates). Does not rewrite the stable ID.",
+      "inputs": {
+        "typeName": "FacetEnrichmentProposal",
+        "declaredIn": "product/domain/memory/facet-record.ts",
+        "summary": "A proposal envelope carrying the facet ID and the evidence to append."
+      },
+      "outputs": {
+        "typeName": "FacetRecord",
+        "declaredIn": "product/domain/memory/facet-record.ts",
+        "summary": "The record reflecting the applied enrichment (on-read derivation; evidence log is source of truth)."
+      },
+      "errorFamilies": [
+        "assertion-like",
+        "unclassified"
+      ],
+      "sinceVersion": "2.1.0",
+      "declaredIn": "product/domain/memory/facet-record.ts"
+    },
+    {
+      "name": "facet-mint",
+      "category": "memory",
+      "summary": "Mint a new FacetRecord with atomic-at-mint provenance and a stable ID. Fails when an existing facet at the same stable ID is already present.",
+      "inputs": {
+        "typeName": "FacetMintRequest",
+        "declaredIn": "product/domain/memory/facet-record.ts",
+        "summary": "The facet payload plus a MintingInstrument tag and run context."
+      },
+      "outputs": {
+        "typeName": "FacetRecord",
+        "declaredIn": "product/domain/memory/facet-record.ts",
+        "summary": "The newly minted record with provenance header."
+      },
+      "errorFamilies": [
+        "not-visible",
+        "assertion-like",
+        "unclassified"
+      ],
+      "sinceVersion": "2.1.0",
+      "declaredIn": "product/domain/memory/facet-record.ts"
+    },
+    {
+      "name": "facet-query",
+      "category": "memory",
+      "summary": "Resolve one or more FacetRecords by stable ID, by intent phrase, or by kind-scoped predicate.",
+      "inputs": {
+        "typeName": "FacetQueryRequest",
+        "declaredIn": "product/domain/memory/facet-record.ts",
+        "summary": "A lookup discriminator: { by: \"id\" | \"intent-phrase\" | \"kind\" }."
+      },
+      "outputs": {
+        "typeName": "FacetQueryResult",
+        "declaredIn": "product/domain/memory/facet-record.ts",
+        "summary": "Zero or more matching FacetRecords with per-match evidence counts."
+      },
+      "errorFamilies": [
+        "unclassified"
+      ],
+      "sinceVersion": "2.1.0",
+      "declaredIn": "product/domain/memory/facet-record.ts"
+    },
     {
       "name": "intent-fetch",
       "category": "intent",
@@ -49,6 +112,26 @@
       ],
       "sinceVersion": "2.1.0",
       "declaredIn": "product/runtime/widgets/interact.ts"
+    },
+    {
+      "name": "locator-health-track",
+      "category": "memory",
+      "summary": "Record a locator-strategy attempt against an element facet, updating the co-located per-strategy health aggregate.",
+      "inputs": {
+        "typeName": "LocatorHealthAttempt",
+        "declaredIn": "product/domain/memory/locator-health.ts",
+        "summary": "The facet ID, the strategy kind, and the attempt outcome."
+      },
+      "outputs": {
+        "typeName": "LocatorStrategyHealth",
+        "declaredIn": "product/domain/memory/locator-health.ts",
+        "summary": "The updated health aggregate for the named strategy."
+      },
+      "errorFamilies": [
+        "unclassified"
+      ],
+      "sinceVersion": "2.1.0",
+      "declaredIn": "product/domain/memory/locator-health.ts"
     },
     {
       "name": "observe",

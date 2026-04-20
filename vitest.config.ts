@@ -27,5 +27,10 @@ export default defineConfig({
       'tests/**/*.spec.ts-snapshots/**',
     ],
     reporters: ['default'],
+    // The dogfood-loop and memory-maturity e2e specs routinely run
+    // 7–12s per test on this harness. Bump the default (5s) to 30s
+    // so they are not falsely classified as timeouts.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
   },
 });

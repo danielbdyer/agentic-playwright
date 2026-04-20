@@ -52,4 +52,24 @@ export const CANONICAL_TASKS: readonly CanonicalTask[] = [
     prompt: 'Compose a Playwright test from a three-step grounded flow.',
     rationale: 'Smallest case for the test-compose verb — one flow, three facet-referenced steps, pre-generated facade.',
   },
+  {
+    verb: 'facet-mint',
+    prompt: 'Mint a new element facet for the policy-search "Clear" button observed once.',
+    rationale: 'Smallest case for facet-mint — one element facet, one observation, deterministic stable ID.',
+  },
+  {
+    verb: 'facet-query',
+    prompt: 'Find the facet whose displayName or alias matches "Policy Number field".',
+    rationale: 'Smallest case for facet-query — intent-phrase lookup returning exactly one match.',
+  },
+  {
+    verb: 'facet-enrich',
+    prompt: 'Add the observed alias "Claim Ref" to the existing `claims-search:claimIdInput` facet.',
+    rationale: 'Smallest case for facet-enrich — append one alias without rewriting the facet ID.',
+  },
+  {
+    verb: 'locator-health-track',
+    prompt: 'Record a successful role-based locator resolution for the policy-search "Search" button.',
+    rationale: 'Smallest case for locator-health-track — one success on the role rung updates the co-located health aggregate.',
+  },
 ];
