@@ -61,72 +61,48 @@ import {
 } from './derived/utilities';
 import { capabilityTargetNodeId, finalize } from './derived/finalize';
 
-interface ArtifactEnvelope<T> {
-  readonly artifact: T;
-  readonly artifactPath: string;
-}
 
-export interface ScenarioGraphArtifact extends ArtifactEnvelope<Scenario> {
-  readonly generatedSpecPath: string;
-  readonly generatedSpecExists: boolean;
-  readonly generatedTracePath: string;
-  readonly generatedTraceExists: boolean;
-  readonly generatedReviewPath: string;
-  readonly generatedReviewExists: boolean;
-}
+// ─── Carved-out sub-module — Step 4a ──────────────────────────
+//
+// The artifact-envelope interfaces (ScenarioGraphArtifact,
+// EvidenceArtifact, GraphBuildInput, etc.) live at
+// ./derived/artifact-envelopes.ts. Re-exported here so existing
+// callers importing from derived-graph.ts keep working.
+export {
+  type ArtifactEnvelope,
+  type ScenarioGraphArtifact,
+  type BoundScenarioGraphArtifact,
+  type InterpretationSurfaceGraphArtifact,
+  type ImprovementRunGraphArtifact,
+  type KnowledgeSnapshotArtifact,
+  type ScreenHintsArtifact,
+  type SharedPatternsArtifact,
+  type DatasetControlArtifact,
+  type ResolutionControlArtifact,
+  type RunbookControlArtifact,
+  type ConfidenceOverlayArtifact,
+  type EvidenceArtifact,
+  type PolicyDecisionArtifact,
+  type GraphBuildInput,
+} from './derived/artifact-envelopes';
+import type {
+  ArtifactEnvelope,
+  ScenarioGraphArtifact,
+  BoundScenarioGraphArtifact,
+  InterpretationSurfaceGraphArtifact,
+  ImprovementRunGraphArtifact,
+  KnowledgeSnapshotArtifact,
+  ScreenHintsArtifact,
+  SharedPatternsArtifact,
+  DatasetControlArtifact,
+  ResolutionControlArtifact,
+  RunbookControlArtifact,
+  ConfidenceOverlayArtifact,
+  EvidenceArtifact,
+  PolicyDecisionArtifact,
+  GraphBuildInput,
+} from './derived/artifact-envelopes';
 
-export interface BoundScenarioGraphArtifact extends ArtifactEnvelope<BoundScenario> {}
-
-export interface InterpretationSurfaceGraphArtifact extends ArtifactEnvelope<ScenarioInterpretationSurface> {}
-export interface ImprovementRunGraphArtifact extends ArtifactEnvelope<ImprovementRun> {}
-
-export interface KnowledgeSnapshotArtifact {
-  readonly relativePath: SnapshotTemplateId;
-  readonly artifactPath: string;
-}
-
-export interface ScreenHintsArtifact extends ArtifactEnvelope<ScreenHints> {}
-
-export interface SharedPatternsArtifact extends ArtifactEnvelope<PatternDocument> {}
-export interface DatasetControlArtifact extends ArtifactEnvelope<DatasetControl> {}
-export interface ResolutionControlArtifact extends ArtifactEnvelope<ResolutionControl> {}
-export interface RunbookControlArtifact extends ArtifactEnvelope<RunbookControl> {}
-export interface ConfidenceOverlayArtifact extends ArtifactEnvelope<ConfidenceOverlayCatalog> {}
-
-export interface EvidenceArtifact {
-  readonly artifactPath: string;
-  readonly targetNodeId?: string;
-}
-
-export interface PolicyDecisionArtifact {
-  readonly id: string;
-  readonly decision: 'allow' | 'review' | 'deny';
-  readonly artifactPath: string;
-  readonly targetNodeId: string;
-  readonly reasons: readonly string[];
-}
-
-export interface GraphBuildInput {
-  readonly snapshots: readonly ArtifactEnvelope<AdoSnapshot>[];
-  readonly surfaceGraphs: readonly ArtifactEnvelope<SurfaceGraph>[];
-  readonly knowledgeSnapshots: readonly KnowledgeSnapshotArtifact[];
-  readonly screenElements: readonly ArtifactEnvelope<ScreenElements>[];
-  readonly screenPostures: readonly ArtifactEnvelope<ScreenPostures>[];
-  readonly screenHints?: readonly ScreenHintsArtifact[];
-  readonly sharedPatterns?: readonly SharedPatternsArtifact[];
-  readonly datasets?: readonly DatasetControlArtifact[];
-  readonly resolutionControls?: readonly ResolutionControlArtifact[];
-  readonly runbooks?: readonly RunbookControlArtifact[];
-  readonly confidenceOverlays?: readonly ConfidenceOverlayArtifact[];
-  readonly scenarios: readonly ScenarioGraphArtifact[];
-  readonly boundScenarios?: readonly BoundScenarioGraphArtifact[];
-  readonly interpretationSurfaces?: readonly InterpretationSurfaceGraphArtifact[];
-  readonly runRecords?: readonly ArtifactEnvelope<RunRecord>[];
-  readonly improvementRuns?: readonly ImprovementRunGraphArtifact[];
-  readonly interpretationDriftRecords?: readonly ArtifactEnvelope<InterpretationDriftRecord>[];
-  readonly evidence: readonly EvidenceArtifact[];
-  readonly policyDecisions?: readonly PolicyDecisionArtifact[];
-}
 
 export {
   EMPTY_GRAPH,
