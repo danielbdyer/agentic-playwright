@@ -1,0 +1,48 @@
+# Fixture specification for the `test-compose` verb.
+# Grammar: docs/v2-readiness.md §4.
+
+verb: test-compose
+schemaVersion: 1
+
+fixtures:
+  - name: three-step-grounded-flow
+    description: |
+      Compose a Playwright test from a minimal 3-step grounded
+      flow. Exercises the pre-generated facade emission path and
+      the referenced-facet tracker.
+    input:
+      flow:
+        name: policy-search-happy-path
+        screen: policy-search
+        steps:
+          - kind: navigate
+            route: /policy-search
+          - kind: enter
+            facet: policy-search:policyNumberInput
+            value: POL-001
+          - kind: click
+            facet: policy-search:searchButton
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: pregenerated-facade
+      - error-family: null
+
+  - name: unknown-facet-fails-assertion
+    description: |
+      Compose should fail with assertion-like when a referenced
+      facet is unknown. Exercises the facet-ref validator that
+      runs before emission.
+    input:
+      flow:
+        name: policy-search-broken-path
+        screen: policy-search
+        steps:
+          - kind: click
+            facet: policy-search:DOES_NOT_EXIST
+    expected:
+      classification: failed
+      error-family: assertion-like
+    exercises:
+      - error-family: assertion-like

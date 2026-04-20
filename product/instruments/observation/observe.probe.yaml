@@ -1,0 +1,44 @@
+# Fixture specification for the `observe` verb.
+# Grammar: docs/v2-readiness.md §4.
+
+verb: observe
+schemaVersion: 1
+
+fixtures:
+  - name: visible-button-on-known-screen
+    description: |
+      Observe a visible button on the policy-search screen.
+      Exercises the role-first locator ladder's top rung.
+    input:
+      surface:
+        screen: policy-search
+        facet-kind: element
+      target:
+        role: button
+        name: "Search"
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - error-family: null
+
+  - name: hidden-target-fails-not-visible
+    description: |
+      Observation should fail with not-visible when the target is
+      hidden. Exercises the not-visible error family on the
+      observe surface.
+    input:
+      surface:
+        screen: policy-search
+        facet-kind: element
+      target:
+        role: button
+        name: "Advanced Options"
+      world-setup:
+        hide-target: true
+    expected:
+      classification: failed
+      error-family: not-visible
+    exercises:
+      - error-family: not-visible

@@ -35,7 +35,6 @@ import {
   SOURCE_PRECEDENCE,
   isCanonicalArtifact,
   isCanonicalSource,
-  isReferenceCanon,
   isDerivedOutput,
   isPromotable,
   isDemotable,
@@ -137,12 +136,13 @@ test('stage enumerations have no overlap', () => {
 
 // ─── Source classifier ──────────────────────────────────────────
 
-test('source precedence has all six slots in canonical order', () => {
+test('source precedence has all five slots in canonical order', () => {
+  // Step 1 retired the transitional `reference-canon` slot; the chain
+  // is now five slots deep.
   expect(SOURCE_PRECEDENCE).toEqual([
     'operator-override',
     'agentic-override',
     'deterministic-observation',
-    'reference-canon',
     'live-derivation',
     'cold-derivation',
   ]);
@@ -152,7 +152,6 @@ test('canonical source predicate matches only operator-override', () => {
   expect(isCanonicalSource('operator-override')).toBe(true);
   expect(isCanonicalSource('agentic-override')).toBe(false);
   expect(isCanonicalSource('deterministic-observation')).toBe(false);
-  expect(isCanonicalSource('reference-canon')).toBe(false);
   expect(isCanonicalSource('live-derivation')).toBe(false);
   expect(isCanonicalSource('cold-derivation')).toBe(false);
 });
@@ -161,30 +160,14 @@ test('canonical artifact predicate matches agentic-override and deterministic-ob
   expect(isCanonicalArtifact('operator-override')).toBe(false);
   expect(isCanonicalArtifact('agentic-override')).toBe(true);
   expect(isCanonicalArtifact('deterministic-observation')).toBe(true);
-  // Reference canon is DELIBERATELY excluded — it is pre-gate
-  // fallback content, not a canonical artifact. See source.ts
-  // docblock and canon-and-derivation § 3.2a.
-  expect(isCanonicalArtifact('reference-canon')).toBe(false);
   expect(isCanonicalArtifact('live-derivation')).toBe(false);
   expect(isCanonicalArtifact('cold-derivation')).toBe(false);
-});
-
-test('reference canon predicate matches only reference-canon', () => {
-  expect(isReferenceCanon('operator-override')).toBe(false);
-  expect(isReferenceCanon('agentic-override')).toBe(false);
-  expect(isReferenceCanon('deterministic-observation')).toBe(false);
-  expect(isReferenceCanon('reference-canon')).toBe(true);
-  expect(isReferenceCanon('live-derivation')).toBe(false);
-  expect(isReferenceCanon('cold-derivation')).toBe(false);
 });
 
 test('derived output predicate matches live and cold derivation', () => {
   expect(isDerivedOutput('operator-override')).toBe(false);
   expect(isDerivedOutput('agentic-override')).toBe(false);
   expect(isDerivedOutput('deterministic-observation')).toBe(false);
-  // Reference canon is NOT derived — it is committed pre-gate
-  // content, not generated fresh per run.
-  expect(isDerivedOutput('reference-canon')).toBe(false);
   expect(isDerivedOutput('live-derivation')).toBe(true);
   expect(isDerivedOutput('cold-derivation')).toBe(true);
 });
@@ -195,38 +178,32 @@ test('promotable iff derived output', () => {
   }
 });
 
-test('demotable iff canonical artifact or reference canon', () => {
-  // Canonical artifacts are demoted via operator review; reference
-  // canon is demoted via the automatic sweep in synthetic feature
-  // completion plan Commit 5.
+test('demotable iff canonical artifact (reference-canon-slot-equivalent retired)', () => {
+  // Canonical artifacts are demoted via operator review. Step 1
+  // retired the reference-canon slot, so isDemotable collapses to
+  // an alias of isCanonicalArtifact.
   for (const source of SOURCE_PRECEDENCE) {
-    expect(isDemotable(source)).toBe(
-      isCanonicalArtifact(source) || isReferenceCanon(source),
-    );
+    expect(isDemotable(source)).toBe(isCanonicalArtifact(source));
   }
 });
 
 test('source partition is total and disjoint', () => {
-  // Every source belongs to exactly one category: canonical source,
-  // canonical artifact, reference canon, or derived output. No
-  // overlaps, no gaps.
+  // After Step 1 every source belongs to exactly one of three
+  // categories: canonical source, canonical artifact, or derived
+  // output. No transitional middle.
   for (const source of SOURCE_PRECEDENCE) {
     const categories = [
       isCanonicalSource(source),
       isCanonicalArtifact(source),
-      isReferenceCanon(source),
       isDerivedOutput(source),
     ].filter(Boolean);
     expect(categories.length).toBe(1);
   }
 });
 
-test('reference canon ranks between deterministic observation and live derivation', () => {
+test('deterministic observation ranks above live derivation (no transitional middle)', () => {
   expect(
-    compareSourcePrecedence('deterministic-observation', 'reference-canon'),
-  ).toBeLessThan(0);
-  expect(
-    compareSourcePrecedence('reference-canon', 'live-derivation'),
+    compareSourcePrecedence('deterministic-observation', 'live-derivation'),
   ).toBeLessThan(0);
 });
 
@@ -243,17 +220,16 @@ test('compareSourcePrecedence is consistent with the precedence order', () => {
   }
 });
 
-test('foldPhaseOutputSource is exhaustive over all six sources', () => {
+test('foldPhaseOutputSource is exhaustive over all five sources', () => {
   for (const source of SOURCE_PRECEDENCE) {
     const result = foldPhaseOutputSource(source, {
       operatorOverride: () => 'op',
       agenticOverride: () => 'ag',
       deterministicObservation: () => 'det',
-      referenceCanon: () => 'ref',
       liveDerivation: () => 'live',
       coldDerivation: () => 'cold',
     });
-    expect(['op', 'ag', 'det', 'ref', 'live', 'cold']).toContain(result);
+    expect(['op', 'ag', 'det', 'live', 'cold']).toContain(result);
   }
 });
 

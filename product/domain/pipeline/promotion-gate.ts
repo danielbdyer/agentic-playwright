@@ -62,22 +62,13 @@ export type PromotionCandidateSource =
   | 'live-derivation';
 
 /** Sources that constitute "existing" content at a canon-shaped
- *  address — what a promotion candidate might supplant.
- *
- *  NOTE: This type is named `CanonicalSource` for historical
- *  reasons but now includes `'reference-canon'`, which is NOT a
- *  canonical artifact in the doctrinal sense (see
- *  canon-and-derivation § 3.2a). Reference canon is included
- *  because the gate must handle the case where the "existing" at
- *  an address is a pre-gate entry — in that case the gate's
- *  verdict drives the supersession-by-real-canon path that the
- *  demotion sweep (synthetic feature completion plan Commit 5)
- *  uses to shrink the reference canon slot over time. */
+ *  address — what a promotion candidate might supplant. After Step 1
+ *  this is the full canonical-source set with the transitional
+ *  reference-canon slot removed. */
 export type CanonicalSource =
   | 'operator-override'
   | 'agentic-override'
-  | 'deterministic-observation'
-  | 'reference-canon';
+  | 'deterministic-observation';
 
 // ─── Gate interface ──────────────────────────────────────────────
 

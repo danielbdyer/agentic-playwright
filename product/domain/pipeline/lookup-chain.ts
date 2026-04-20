@@ -4,27 +4,15 @@
  *
  * Per the canon-and-derivation doctrine § 6 The lookup precedence
  * chain and § 6.6 Qualifier-aware lookup, every consumer of a
- * canonical artifact reads through the lookup chain. The chain
- * walks six slots in precedence order during the reference-canon
- * transition:
+ * canonical artifact reads through the lookup chain. After Step 1
+ * (reference-canon retirement) the chain walks five slots in
+ * precedence order:
  *
  *   1. operator-override         (slot 1, canonical source)
  *   2. agentic-override          (slot 2, canonical artifact)
  *   3. deterministic-observation (slot 3, canonical artifact)
- *   4. reference-canon           (slot 4, TRANSITIONAL pre-gate fallback)
- *   5. live-derivation           (slot 5, derived cache)
- *   6. cold-derivation           (slot 6, runs the discovery engine)
- *
- * Slot 4 retires when the reference-canon population is empty
- * (see canon-and-derivation § 14.0 for the graduation condition);
- * at that point the chain collapses back to five slots.
- *
- * Lookups can skip slot 4 via the optional `skipReferenceCanon`
- * flag on the input — this is the measurement-discipline mode
- * that answers "how much of my hit rate comes from real canon
- * versus pre-gate fallback?" The delta between a default warm
- * run and a warm run under `skipReferenceCanon` is the measurable
- * migration debt.
+ *   4. live-derivation           (slot 4, derived cache)
+ *   5. cold-derivation           (slot 5, runs the discovery engine)
  *
  * When called with a QualifierBag, the chain runs in two passes:
  *   pass 1 — atom resolution
@@ -53,19 +41,14 @@ import type { PhaseOutputSource } from './source';
 // ─── Lookup mode ─────────────────────────────────────────────────
 
 /** Which slots of the precedence chain to consult. The default mode
- *  is `'warm'` which walks the full chain (slots 1–6 in order).
- *  Other modes deliberately skip slots to test the discovery engine
- *  or to challenge the cache.
- *
- *  Orthogonal to mode is the `skipReferenceCanon` flag (see
- *  `LookupInput` below), which additionally skips slot 4 regardless
- *  of the chosen mode. The combination `mode: 'warm' +
- *  skipReferenceCanon: true` is the migration-debt measurement. */
+ *  is `'warm'` which walks the full five-slot chain. Other modes
+ *  deliberately skip slots to test the discovery engine or to
+ *  challenge the cache. */
 export type LookupMode =
-  | 'warm'      // walk slots 1–6 in order (the default)
-  | 'cold'      // skip slots 3, 4, and 5; respect operator/agentic overrides; run discovery
+  | 'warm'      // walk all five slots in order (the default)
+  | 'cold'      // skip slots 3 and 4; respect operator/agentic overrides; run discovery
   | 'compare'   // walk to slot 3, ALSO run discovery, return both for diff
-  | 'no-overrides'; // skip slots 1 and 2; trust only deterministic/reference/derived
+  | 'no-overrides'; // skip slots 1 and 2; trust only deterministic/derived
 
 // ─── Lookup result shape ─────────────────────────────────────────
 
@@ -94,20 +77,13 @@ export interface LookupResult<A> {
 
 /** The pure typed contract for the lookup chain. The application
  *  layer implements this with Effect-based IO; consumers depend on
- *  this interface so they can be tested with stub implementations.
- *
- *  Every lookup call accepts an optional `skipReferenceCanon` flag
- *  that additionally skips slot 4 regardless of the chosen `mode`.
- *  A warm run with `skipReferenceCanon: true` produces the hit rate
- *  you'd get from real canonical artifacts alone; the delta against
- *  a default warm run is the migration-debt signal. */
+ *  this interface so they can be tested with stub implementations. */
 export interface LookupChain {
   /** Resolve a Tier 1 atom by typed address. */
   lookupAtom<C extends AtomClass>(input: {
     readonly class: C;
     readonly address: AtomAddressOf<C>;
     readonly mode?: LookupMode;
-    readonly skipReferenceCanon?: boolean;
     readonly qualifiers?: QualifierBag;
   }): Promise<LookupResult<Atom<C, unknown, PhaseOutputSource>>>;
 
@@ -116,7 +92,6 @@ export interface LookupChain {
     readonly subType: S;
     readonly address: CompositionAddressOf<S>;
     readonly mode?: LookupMode;
-    readonly skipReferenceCanon?: boolean;
   }): Promise<LookupResult<Composition<S, unknown, PhaseOutputSource>>>;
 
   /** Resolve a Tier 3 projection by typed address. */
@@ -124,7 +99,6 @@ export interface LookupChain {
     readonly subType: S;
     readonly address: ProjectionAddressOf<S>;
     readonly mode?: LookupMode;
-    readonly skipReferenceCanon?: boolean;
   }): Promise<LookupResult<Projection<S, PhaseOutputSource>>>;
 }
 
@@ -146,30 +120,13 @@ export function modeConsultsDeterministicObservations(mode: LookupMode): boolean
   return mode === 'warm' || mode === 'compare' || mode === 'no-overrides';
 }
 
-/** True when the mode consults the reference canon slot (slot 4).
- *  Reference canon is the transitional pre-gate fallback; modes that
- *  run a cold challenge (`'cold'`, `'compare'`) skip it to avoid
- *  contaminating the discovery measurement.
- *
- *  The optional `skipReferenceCanon` flag lets the caller ALSO skip
- *  slot 4 regardless of mode — set it to true to measure "real canon
- *  hit rate" vs. "warm-with-reference-canon hit rate." The delta is
- *  the migration debt. */
-export function modeConsultsReferenceCanon(
-  mode: LookupMode,
-  skipReferenceCanon?: boolean,
-): boolean {
-  if (skipReferenceCanon === true) return false;
-  return mode === 'warm' || mode === 'no-overrides';
-}
-
-/** True when the mode runs the discovery engine (slot 6). True for
+/** True when the mode runs the discovery engine (slot 5). True for
  *  cold and compare modes that exercise discovery directly. */
 export function modeRunsDiscovery(mode: LookupMode): boolean {
   return mode === 'cold' || mode === 'compare' || mode === 'no-overrides';
 }
 
-/** True when the mode consults the live cache (slot 5). False for
+/** True when the mode consults the live cache (slot 4). False for
  *  cold modes that bypass the cache to challenge discovery. */
 export function modeConsultsLiveCache(mode: LookupMode): boolean {
   return mode === 'warm' || mode === 'no-overrides';

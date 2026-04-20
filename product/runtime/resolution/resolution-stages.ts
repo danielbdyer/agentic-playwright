@@ -30,138 +30,46 @@ import {
 import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
 import { isRung8Applicable, attemptRung8Resolution } from './rung8-llm-dom';
 
-/** Maximum characters for the DOM snapshot passed to the agent interpreter. */
-const DOM_SNAPSHOT_MAX_CHARS = 2048;
-type PlaywrightPageLike = Parameters<typeof createPlaywrightDomResolver>[0];
 
-function isPlaywrightPageLike(page: unknown): page is PlaywrightPageLike {
-  return typeof page === 'object' && page !== null && 'accessibility' in page && 'locator' in page;
-}
+// ─── Carved-out sub-modules — Step 4a ──────────────────────────
+//
+// Screenshot + ARIA-snapshot capture helpers live at
+// ./screenshot-capture.ts; the resolution-accumulator interfaces
+// live at ./accumulator.ts. Re-exported here so existing callers
+// that import from resolution-stages.ts keep working.
+import {
+  capturePageScreenshot,
+  captureTruncatedAriaSnapshot,
+  isPlaywrightPageLike,
+} from './screenshot-capture';
+export {
+  DOM_SNAPSHOT_MAX_CHARS,
+  capturePageScreenshotBuffer,
+  capturePageScreenshot,
+  captureTruncatedAriaSnapshot,
+} from './screenshot-capture';
+export type {
+  ResolutionAccumulator,
+  StageResult,
+  LatticeResult,
+  AccumulatorStageResult,
+} from './accumulator';
+import type {
+  ResolutionAccumulator,
+  StageResult,
+  LatticeResult,
+  AccumulatorStageResult,
+} from './accumulator';
 
-type PlaywrightScreenshotLike = { screenshot: (opts: { readonly type: 'jpeg'; readonly quality: number; readonly fullPage: boolean }) => Promise<Buffer> };
 
-function isPlaywrightScreenshotCapable(page: unknown): page is PlaywrightScreenshotLike {
-  return typeof page === 'object' && page !== null && 'screenshot' in page;
-}
-
-/**
- * Capture a raw JPEG screenshot buffer from a live Playwright page.
- * Returns null when no page is available or when capture fails.
- * Used by the deferred screenshot collector to delay base64 encoding.
- */
-export async function capturePageScreenshotBuffer(
-  page: unknown,
-  options?: { readonly quality?: number },
-): Promise<Buffer | null> {
-  if (!isPlaywrightScreenshotCapable(page)) return null;
-  try {
-    return await page.screenshot({
-      type: 'jpeg',
-      quality: options?.quality ?? 50,
-      fullPage: false,
-    });
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Capture a JPEG screenshot from a live Playwright page as a base64 string.
- * Returns null when no page is available, when capture fails, or when vision is disabled.
- * Uses JPEG at configurable quality (default 50) to minimise vision token cost.
- */
-export async function capturePageScreenshot(
-  page: unknown,
-  options?: { readonly quality?: number },
-): Promise<string | null> {
-  const buffer = await capturePageScreenshotBuffer(page, options);
-  return buffer ? buffer.toString('base64') : null;
-}
-
-/**
- * Capture a truncated ARIA/accessibility snapshot from a live Playwright page.
- * Returns null when no page is available or when capture fails.
- * Pure truncation: slices to `maxChars` without splitting mid-line when possible.
- */
-export async function captureTruncatedAriaSnapshot(
-  page: unknown,
-  maxChars: number = DOM_SNAPSHOT_MAX_CHARS,
-): Promise<string | null> {
-  if (!isPlaywrightPageLike(page)) return null;
-  try {
-    const snapshot = await page.accessibility.snapshot({ interestingOnly: true });
-    if (!snapshot) return null;
-    const text = JSON.stringify(snapshot, null, 2);
-    if (text.length <= maxChars) return text;
-    // Truncate at the last newline boundary within maxChars to avoid mid-line cuts
-    const truncated = text.slice(0, maxChars);
-    const lastNewline = truncated.lastIndexOf('\n');
-    return lastNewline > maxChars * 0.5
-      ? truncated.slice(0, lastNewline) + '\n...'
-      : truncated + '...';
-  } catch {
-    return null;
-  }
-}
-
-export interface ResolutionAccumulator {
-  action: StepAction | null;
-  screen: StepTaskScreenCandidate | null;
-  element: StepTaskElementCandidate | null;
-  posture: PostureId | null;
-  snapshotTemplate: SnapshotTemplateId | null;
-  override: { source: string; override: string | null };
-  actionLattice: RankedLattice<StepAction>;
-  screenLattice: RankedLattice<StepTaskScreenCandidate>;
-  elementLattice: RankedLattice<StepTaskElementCandidate>;
-  postureLattice: RankedLattice<PostureId>;
-  snapshotLattice: RankedLattice<SnapshotTemplateId>;
-  overlayResult: ReturnType<typeof resolveWithConfidenceOverlay>;
-  translated: Awaited<ReturnType<typeof resolveWithTranslation>>;
-}
-
-export interface StageResult<R = ResolutionReceipt | null> {
-  receipt: R;
-  effects: StageEffects;
-}
-
-export interface LatticeResult {
-  accumulator: ResolutionAccumulator;
-  effects: StageEffects;
-}
-
-export interface AccumulatorStageResult {
-  receipt: ResolutionReceipt | null;
-  effects: StageEffects;
-  accumulator: ResolutionAccumulator;
-}
-
-function summaryForValue<T>(concern: ResolutionCandidateSummary['concern'], ranked: Array<LatticeCandidate<T>>, topN = 3): { topCandidates: ResolutionCandidateSummary[]; rejectedCandidates: ResolutionCandidateSummary[] } {
-  const normalizeValue = (value: unknown): string => {
-    if (value === null || value === undefined) {
-      return '(none)';
-    }
-    if (typeof value === 'string') {
-      return value;
-    }
-    if (typeof value === 'object' && value !== null) {
-      const cast = value as { screen?: string; element?: string };
-      return cast.element ?? cast.screen ?? JSON.stringify(value);
-    }
-    return String(value);
-  };
-  const toSummary = (candidate: LatticeCandidate<T>): ResolutionCandidateSummary => ({
-    concern,
-    source: candidate.source,
-    value: normalizeValue(candidate.value),
-    score: candidate.score,
-    reason: candidate.summary,
-  });
-  return {
-    topCandidates: ranked.slice(0, topN).map(toSummary),
-    rejectedCandidates: ranked.slice(1, topN + 1).map(toSummary),
-  };
-}
+// ─── Carved-out sub-module — Step 4a (round 2) ────────────────
+//
+// Lattice construction lives at ./lattice-accumulator.ts.
+import {
+  summaryForValue,
+  buildLatticeAccumulator,
+} from './lattice-accumulator';
+export { buildLatticeAccumulator } from './lattice-accumulator';
 
 export function tryExplicitResolution(stage: RuntimeAgentStageContext): StageResult {
   const explicit = stage.task.explicitResolution;
@@ -178,89 +86,6 @@ export function tryExplicitResolution(stage: RuntimeAgentStageContext): StageRes
       ...EMPTY_EFFECTS,
       exhaustion: [exhaustionEntry('explicit', explicit ? 'attempted' : 'skipped', explicit ? 'Explicit constraints were partial and used as priors' : 'No explicit constraints present')],
     },
-  };
-}
-
-export function buildLatticeAccumulator(stage: RuntimeAgentStageContext): LatticeResult {
-  const { task, context, controlResolution, memory } = stage;
-
-  const actionLattice = rankActionCandidates(task, controlResolution, context.resolutionContext);
-  const action = actionLattice.selected?.value ?? null;
-  const actionCandidates = summaryForValue('action', actionLattice.ranked);
-
-  const screenLattice = rankScreenCandidates(task, action, controlResolution, context.previousResolution, context.resolutionContext, memory);
-  const screen = screenLattice.selected?.value ?? null;
-
-  const elementLattice = rankElementCandidates(task, screen, controlResolution, memory);
-  const element = elementLattice.selected?.value ?? null;
-
-  const postureLattice = rankPostureCandidates(task, element, controlResolution, context.resolutionContext);
-  const posture = postureLattice.selected?.value ?? null;
-
-  const override = resolveOverride(task, screen, element, posture, controlResolution, context);
-  const snapshotLattice = rankSnapshotCandidates(task, screen, element, controlResolution);
-  const snapshotTemplate = snapshotLattice.selected?.value ?? null;
-
-  const supplementRefs = [
-    ...(actionLattice.selected?.refs ?? []),
-    ...(screen?.supplementRefs ?? []),
-    ...(elementLattice.selected?.refs ?? []),
-    ...(postureLattice.selected?.refs ?? []),
-    ...(snapshotLattice.selected?.refs ?? []),
-  ];
-  const knowledgeRefs = screen ? [...screen.knowledgeRefs] : [];
-
-  const exhaustion = [
-    screen
-      ? exhaustionEntry('approved-screen-knowledge', 'attempted', `Selected screen ${screen.screen}`, summaryForValue('screen', screenLattice.ranked))
-      : exhaustionEntry('approved-screen-knowledge', 'failed', 'No screen candidate matched approved screen knowledge priors', summaryForValue('screen', screenLattice.ranked)),
-    element
-      ? exhaustionEntry('approved-screen-knowledge', 'attempted', `Matched element ${element.element}`, summaryForValue('element', elementLattice.ranked))
-      : exhaustionEntry('approved-screen-knowledge', 'failed', 'No element candidate matched approved screen knowledge', summaryForValue('element', elementLattice.ranked)),
-    exhaustionEntry('shared-patterns', posture ? 'attempted' : 'skipped', posture ? `Matched posture ${posture}` : 'No shared posture pattern required', summaryForValue('posture', postureLattice.ranked)),
-    exhaustionEntry(
-      'prior-evidence',
-      context.resolutionContext.evidenceRefs.length > 0 ? 'attempted' : 'skipped',
-      context.resolutionContext.evidenceRefs.length > 0 ? 'Prior evidence refs were available to the agent task' : 'No prior evidence refs available',
-    ),
-  ];
-
-  const latticeObservation = {
-    source: 'approved-screen-knowledge' as const,
-    summary: 'Deterministic lattice ranked approved candidates across action, screen, element, posture, and snapshot concerns.',
-    topCandidates: [
-      ...actionCandidates.topCandidates.slice(0, 1),
-      ...summaryForValue('screen', screenLattice.ranked).topCandidates.slice(0, 1),
-      ...summaryForValue('element', elementLattice.ranked).topCandidates.slice(0, 1),
-      ...summaryForValue('posture', postureLattice.ranked).topCandidates.slice(0, 1),
-      ...summaryForValue('snapshot', snapshotLattice.ranked).topCandidates.slice(0, 1),
-    ],
-    rejectedCandidates: [
-      ...actionCandidates.rejectedCandidates,
-      ...summaryForValue('screen', screenLattice.ranked).rejectedCandidates,
-      ...summaryForValue('element', elementLattice.ranked).rejectedCandidates,
-      ...summaryForValue('posture', postureLattice.ranked).rejectedCandidates,
-      ...summaryForValue('snapshot', snapshotLattice.ranked).rejectedCandidates,
-    ],
-  };
-
-  return {
-    accumulator: {
-      action,
-      screen,
-      element,
-      posture,
-      snapshotTemplate,
-      override,
-      actionLattice,
-      screenLattice,
-      elementLattice,
-      postureLattice,
-      snapshotLattice,
-      overlayResult: { screen: null, element: null, posture: null, snapshotTemplate: null, overlayRefs: [] },
-      translated: { translation: null, screen: null, element: null, overlayRefs: [] },
-    },
-    effects: { exhaustion, observations: [latticeObservation], knowledgeRefs, supplementRefs },
   };
 }
 

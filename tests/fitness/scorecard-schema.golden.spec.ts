@@ -45,7 +45,12 @@ test('baseline scorecard has the expected top-level shape', () => {
   expect(scorecard.version).toBe(1);
   expect(scorecard.highWaterMark).toBeDefined();
   expect(Array.isArray(scorecard.history)).toBe(true);
-  expect(scorecard.history.length).toBeGreaterThan(0);
+  // Step 1 reset cleared the pre-probe-surface history. The array is
+  // empty at the Step 1 epoch boundary; it repopulates as runs under
+  // the new cohort-key era land. See workshop/observations/
+  // step-1-cohort-reset.md for the rationale.
+  expect(scorecard.cohortKeyEra).toBe('probe-surface');
+  expect(scorecard.history.length).toBeGreaterThanOrEqual(0);
 });
 
 // ─── Phase 1.1: memoryMaturity wiring ──────────────────────────────
