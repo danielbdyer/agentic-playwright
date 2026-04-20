@@ -1,0 +1,49 @@
+# Fixture specification for the `facet-query` verb.
+# Grammar: docs/v2-readiness.md §4.
+
+verb: facet-query
+schemaVersion: 1
+
+fixtures:
+  - name: lookup-by-id
+    description: |
+      Resolve a known facet by its stable ID. Exercises the
+      primary ID index path (O(1) map lookup).
+    input:
+      by: id
+      id: policy-search:policyNumberInput
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: id-index
+      - error-family: null
+
+  - name: lookup-by-intent-phrase
+    description: |
+      Resolve a facet by an observed intent phrase. Exercises the
+      alias-index path and the per-alias evidence-count ordering.
+    input:
+      by: intent-phrase
+      phrase: "Policy Number field"
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: alias-index
+      - error-family: null
+
+  - name: missing-id-returns-empty
+    description: |
+      Query for an ID that is not in the catalog. Expected to
+      return zero matches without raising an error — the empty
+      result is a `matched` classification with an empty set.
+    input:
+      by: id
+      id: nonexistent:facet
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: id-index
+      - error-family: null

@@ -100,6 +100,12 @@ function readManifestAllowlist(): readonly string[] {
 const ALWAYS_ALLOWED_PRODUCT_PATHS: readonly string[] = [
   'product/logs',
   'product/manifest',
+  // The manifest SHAPE type itself — workshop/dashboard need to
+  // type-check against the manifest envelope and verb entries.
+  // Per `docs/v2-direction.md §2`, the manifest is half of the seam;
+  // the type definitions at product/domain/manifest/ are the
+  // compile-time half of that contract.
+  'product/domain/manifest',
 ];
 
 function isManifestDeclaredOrLogPath(
