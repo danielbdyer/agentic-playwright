@@ -300,8 +300,11 @@ const RULE_3_GRANDFATHERED: ReadonlySet<string> = new Set([
   'product/composition/local-runtime-scenario-runner.ts',
   'product/composition/local-services.ts',
   'product/composition/scenario-context.ts',
-  'product/reasoning/agent-interpreter-provider.ts',
-  'product/reasoning/translation-provider.ts',
+  // product/reasoning/agent-interpreter-provider.ts: GRADUATED at Step 4b
+  // — the v1 provider no longer imports across the seam; the unified
+  // Reasoning port stays in product/ and the composite adapter bridges
+  // without reaching out.
+  // product/reasoning/translation-provider.ts: same graduation at Step 4b.
   // Additional product/ files reaching into workshop/ or dashboard/ at Step 0
   'product/domain/improvement/experiment.ts',
   'product/domain/improvement/types.ts',

@@ -1,7 +1,7 @@
 {
   "kind": "product-manifest",
   "version": 1,
-  "generatedAt": "2026-04-20T03:22:55.796Z",
+  "generatedAt": "2026-04-20T16:20:39.979Z",
   "verbs": [
     {
       "name": "facet-enrich",
