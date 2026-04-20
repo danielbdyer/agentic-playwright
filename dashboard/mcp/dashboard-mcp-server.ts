@@ -187,31 +187,18 @@ const getFitnessMetrics: ToolHandler = (_args, options) => {
   return scorecard?.highWaterMark ?? { error: 'No scorecard available yet' };
 };
 
-type JsonRecord = Record<string, unknown>;
-
-function asRecord(value: unknown): JsonRecord | null {
-  return typeof value === 'object' && value !== null ? value as JsonRecord : null;
-}
-
-function asString(value: unknown): string | null {
-  return typeof value === 'string' && value.length > 0 ? value : null;
-}
-
-function asNumber(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
-function asBoolean(value: unknown): boolean | null {
-  return typeof value === 'boolean' ? value : null;
-}
-
-function asArray(value: unknown): readonly unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function asStringArray(value: unknown): readonly string[] {
-  return asArray(value).filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
-}
+// ─── Carved-out sub-module — Step 4a (round 2) ────────────────
+//
+// JSON coercion helpers live at ./coercers.ts.
+import {
+  type JsonRecord,
+  asRecord,
+  asString,
+  asNumber,
+  asBoolean,
+  asArray,
+  asStringArray,
+} from './coercers';
 
 function matchesScreenFilter(node: Record<string, unknown>, screen: string): boolean {
   const nodeScreen = asString(node.screen);
