@@ -124,6 +124,143 @@ export class AgentInterpreterParseError extends AgentInterpreterProviderError {
   }
 }
 
+// ─── Unified ReasoningError (v2 §3.6 + readiness §9) ───
+//
+// Five named families consolidating v1's TranslationProvider* and
+// AgentInterpreter* hierarchies. The legacy classes above stay
+// `@deprecated` through 4b.B.5; callsites migrate via
+// `classifyReasoningError` in 4b.B.4.
+
+export type ReasoningErrorFamily =
+  | 'rate-limited'
+  | 'context-exceeded'
+  | 'malformed-response'
+  | 'unavailable'
+  | 'unclassified';
+
+export class ReasoningError extends TesseractError {
+  override readonly _tag: string = 'ReasoningError';
+  readonly family: ReasoningErrorFamily;
+  readonly provider?: string | undefined;
+
+  constructor(family: ReasoningErrorFamily, message: string, provider?: string, cause?: unknown) {
+    super(`reasoning-${family}`, message, cause);
+    this.name = 'ReasoningError';
+    this.family = family;
+    this.provider = provider;
+  }
+}
+
+export class ReasoningRateLimitedError extends ReasoningError {
+  override readonly _tag = 'ReasoningRateLimitedError' as const;
+  constructor(message: string, provider?: string, cause?: unknown) {
+    super('rate-limited', message, provider, cause);
+    this.name = 'ReasoningRateLimitedError';
+  }
+}
+
+export class ReasoningContextExceededError extends ReasoningError {
+  override readonly _tag = 'ReasoningContextExceededError' as const;
+  constructor(message: string, provider?: string, cause?: unknown) {
+    super('context-exceeded', message, provider, cause);
+    this.name = 'ReasoningContextExceededError';
+  }
+}
+
+export class ReasoningMalformedResponseError extends ReasoningError {
+  override readonly _tag = 'ReasoningMalformedResponseError' as const;
+  constructor(message: string, provider?: string, cause?: unknown) {
+    super('malformed-response', message, provider, cause);
+    this.name = 'ReasoningMalformedResponseError';
+  }
+}
+
+export class ReasoningUnavailableError extends ReasoningError {
+  override readonly _tag = 'ReasoningUnavailableError' as const;
+  constructor(message: string, provider?: string, cause?: unknown) {
+    super('unavailable', message, provider, cause);
+    this.name = 'ReasoningUnavailableError';
+  }
+}
+
+export class ReasoningUnclassifiedError extends ReasoningError {
+  override readonly _tag = 'ReasoningUnclassifiedError' as const;
+  constructor(message: string, provider?: string, cause?: unknown) {
+    super('unclassified', message, provider, cause);
+    this.name = 'ReasoningUnclassifiedError';
+  }
+}
+
+/** Exhaustive fold over the five families. Use for dispatch that must
+ *  handle every case — the switch's return-type proves exhaustiveness
+ *  at compile time. */
+export interface ReasoningErrorCases<R> {
+  readonly rateLimited: (error: ReasoningRateLimitedError) => R;
+  readonly contextExceeded: (error: ReasoningContextExceededError) => R;
+  readonly malformedResponse: (error: ReasoningMalformedResponseError) => R;
+  readonly unavailable: (error: ReasoningUnavailableError) => R;
+  readonly unclassified: (error: ReasoningUnclassifiedError) => R;
+}
+
+export function foldReasoningError<R>(error: ReasoningError, cases: ReasoningErrorCases<R>): R {
+  switch (error.family) {
+    case 'rate-limited':
+      return cases.rateLimited(error as ReasoningRateLimitedError);
+    case 'context-exceeded':
+      return cases.contextExceeded(error as ReasoningContextExceededError);
+    case 'malformed-response':
+      return cases.malformedResponse(error as ReasoningMalformedResponseError);
+    case 'unavailable':
+      return cases.unavailable(error as ReasoningUnavailableError);
+    case 'unclassified':
+      return cases.unclassified(error as ReasoningUnclassifiedError);
+  }
+}
+
+/** Classify a raw cause into the unified ReasoningError surface.
+ *
+ *  Conversion rules:
+ *   - `TranslationProviderTimeoutError` / `AgentInterpreterTimeoutError`
+ *     → `ReasoningUnavailableError` (timeout means provider didn't
+ *     respond in the allocated window; treat as availability failure).
+ *   - `TranslationProviderParseError` / `AgentInterpreterParseError`
+ *     → `ReasoningMalformedResponseError`.
+ *   - `ReasoningError` (any subclass) — passes through unchanged.
+ *   - Rate-limit signals and context-exceeded signals come from
+ *     adapter-specific parsing (HTTP 429, OpenAI error body codes).
+ *     The raw `cause` is inspected for the standard signatures.
+ *   - Anything else → `ReasoningUnclassifiedError`.
+ *
+ *  Adapters should prefer throwing the specific v2 class directly
+ *  (e.g. `new ReasoningRateLimitedError(...)`) so this reconciler is
+ *  only used on legacy errors during the 4b.B.* migration window.
+ */
+export function classifyReasoningError(cause: unknown, provider?: string): ReasoningError {
+  if (cause instanceof ReasoningError) {
+    return cause;
+  }
+  if (cause instanceof TranslationProviderTimeoutError || cause instanceof AgentInterpreterTimeoutError) {
+    return new ReasoningUnavailableError(cause.message, provider ?? cause.provider, cause);
+  }
+  if (cause instanceof TranslationProviderParseError || cause instanceof AgentInterpreterParseError) {
+    return new ReasoningMalformedResponseError(cause.message, provider ?? cause.provider, cause);
+  }
+  if (cause instanceof Error) {
+    const message = cause.message;
+    if (/429|rate limit|too many requests/i.test(message)) {
+      return new ReasoningRateLimitedError(message, provider, cause);
+    }
+    if (/context length|context window|token.*exceed|maximum.*tokens/i.test(message)) {
+      return new ReasoningContextExceededError(message, provider, cause);
+    }
+    if (/unavailable|service down|econnrefused|connection reset|5\d\d/i.test(message)) {
+      return new ReasoningUnavailableError(message, provider, cause);
+    }
+    return new ReasoningUnclassifiedError(message, provider, cause);
+  }
+  return new ReasoningUnclassifiedError(String(cause), provider, cause);
+}
+
 export class FileSystemTransientIoError extends FileSystemError {
   override readonly _tag = 'FileSystemTransientIoError' as const;
   readonly operation: string;
