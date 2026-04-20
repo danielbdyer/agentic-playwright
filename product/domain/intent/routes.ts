@@ -60,10 +60,3 @@ export interface RouteKnowledgeManifest {
   readonly baseUrl?: string | null | undefined;
   readonly routes: readonly RouteKnowledgeRoute[];
 }
-
-/** @deprecated Use RouteKnowledgeVariant. */
-export type HarvestRouteVariant = RouteKnowledgeVariant;
-/** @deprecated Use RouteKnowledgeRoute. */
-export type HarvestRouteDefinition = RouteKnowledgeRoute;
-/** @deprecated Use RouteKnowledgeManifest. */
-export type HarvestManifest = RouteKnowledgeManifest;

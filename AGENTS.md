@@ -156,7 +156,7 @@ Adapter selection is a `Layer.succeed(Reasoning, <adapter>)` composition decisio
 2. `ci-batch` profile → `createDeterministicReasoning()` (zero-cost).
 3. Default → `createCompositeReasoning({ translation, agent })` wrapping the legacy v1 providers.
 
-The v1 `TranslationProvider` and `AgentInterpreterPort` interfaces are marked `@deprecated`; they stay exported for backward compat with existing tests and will retire when direct Copilot / Azure OpenAI adapters land.
+Note on retirement: v1 `TranslationProvider` and `AgentInterpreterPort` remain internal as the composite bridge's dependencies through the 4b.B.* window, but they are not deprecated aliases — they are the bridge's operands. Per `docs/coding-notes.md §17–26` ("adopt the new path forward fully and delete the old one; no deprecated-alias window"), retirement is a deletion commit that migrates their logic into direct Reasoning adapters, not a marker-then-remove sequence.
 
 ## Deterministic precedence
 

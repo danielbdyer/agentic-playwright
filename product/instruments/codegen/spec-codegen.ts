@@ -26,12 +26,6 @@ export interface ReadableSpecModuleOptions {
   readonly imports: ReadableSpecImports;
 }
 
-/** @deprecated Use ReadableSpecImports. Alias for migration. */
-export type GeneratedSpecImports = ReadableSpecImports;
-
-/** @deprecated Use ReadableSpecModuleOptions. Alias for migration. */
-export type GeneratedSpecModuleOptions = ReadableSpecModuleOptions;
-
 function titleWithTags(title: string, tags: ReadonlyArray<string>): string {
   return tags.length === 0
     ? title
@@ -284,9 +278,6 @@ export function renderReadableSpecModule(
     lifecycle: metadata.lifecycle,
   };
 }
-
-/** @deprecated Use renderReadableSpecModule. Kept temporarily for migration. */
-export const renderGeneratedSpecModule = renderReadableSpecModule;
 
 // ─── Pre-generated screen facade (v2 §3.2) ───
 

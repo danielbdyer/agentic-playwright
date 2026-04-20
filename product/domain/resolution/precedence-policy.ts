@@ -1,10 +1,5 @@
 import type { PrecedenceLadder } from './precedence';
 
-/** @deprecated Use `PrecedenceLadder<TRung>` directly. Retained
- *  as a type alias for source-compatibility with existing callers
- *  until the next rename pass. */
-export type OrderedPrecedencePolicy<TRung extends string> = PrecedenceLadder<TRung>;
-
 export const resolutionPrecedencePolicy = {
   concern: 'resolution',
   rungs: [
@@ -20,7 +15,7 @@ export const resolutionPrecedencePolicy = {
     'agent-interpreted',
     'needs-human',
   ],
-} as const satisfies OrderedPrecedencePolicy<
+} as const satisfies PrecedenceLadder<
   | 'explicit'
   | 'control'
   | 'approved-screen-knowledge'
@@ -44,7 +39,7 @@ export const dataResolutionPrecedencePolicy = {
     'posture-sample',
     'generated-token',
   ],
-} as const satisfies OrderedPrecedencePolicy<
+} as const satisfies PrecedenceLadder<
   | 'explicit'
   | 'runbook-dataset-binding'
   | 'dataset-default'
@@ -60,7 +55,7 @@ export const runSelectionPrecedencePolicy = {
     'runbook',
     'repo-default',
   ],
-} as const satisfies OrderedPrecedencePolicy<'cli-flag' | 'runbook' | 'repo-default'>;
+} as const satisfies PrecedenceLadder<'cli-flag' | 'runbook' | 'repo-default'>;
 
 export const precedencePolicies = {
   resolution: resolutionPrecedencePolicy,

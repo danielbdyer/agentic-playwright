@@ -13,9 +13,11 @@ Step 4b does not directly bind a verified metric receipt; no runtime consumer ye
 
 ## Why this is a proposal, not a retirement
 
-The v1 `TranslationProvider` and `AgentInterpreterPort` interfaces remain exported and `@deprecated`-marked. The composite adapter (`product/reasoning/adapters/composite.ts`) bridges them into the unified port. Callsites at the Step 4b.B.4 rename boundary — `local-runtime-scenario-runner.ts:46` and the test surfaces — now call `provider.select(...)` but retain the v1 provider object; only the verb name flips.
+The v1 `TranslationProvider` and `AgentInterpreterPort` interfaces remain exported through the 4b.B.* window as live dependencies of the composite adapter (`product/reasoning/adapters/composite.ts`). They are NOT deprecated aliases — per `docs/coding-notes.md §17–26`, this codebase does not use `@deprecated` JSDoc markers or alias windows. A type is either actively in use or it is deleted.
 
-The v1 files retire in a later commit when the direct Copilot and Azure OpenAI adapters land and the composite bridge is no longer needed. Marking the interfaces `@deprecated` now is a signal to future authors, not a removal.
+Callsites at the Step 4b.B.4 rename boundary — `local-runtime-scenario-runner.ts:46` and the test surfaces — call `provider.select(...)` on the v1 provider object (method renamed on the v1 interface); only the verb name flips, the interface remains v1-shaped.
+
+The v1 interfaces retire in a future deletion commit that migrates their factory logic (`createDeterministicProvider`, `createLlmApiProvider`, `createCopilotProvider`, `createHybridProvider`, and the agent-interpreter equivalents) directly into the `product/reasoning/adapters/` surface as `ReasoningService` implementations. That commit is a pure deletion-plus-migration, not a marker-then-remove sequence.
 
 ## Seam graduation
 

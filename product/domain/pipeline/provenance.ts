@@ -1,13 +1,6 @@
 /**
  * Shared provenance shape for Tier 1/2/3 canonical artifacts.
  *
- * Previously `AtomProvenance`, `CompositionProvenance`, and
- * `ProjectionProvenance` were three byte-identical interfaces
- * defined in `atom.ts`, `composition.ts`, and `projection.ts`.
- * This module is their canonical home; the three original names
- * survive as type aliases for source-compatibility with existing
- * consumers, but they all refer to the same shape.
- *
  * Every mint helper in `product/application/canon/minting.ts` and
  * every decomposer in `product/application/canon/` threads a
  * `CanonProvenance` through to the output envelopes via
