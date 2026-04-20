@@ -15,6 +15,7 @@ import {
   ZERO_TOKENS,
   buildReceipt,
   type ReasoningReceipt,
+  type ReasoningService,
   type SelectPayload,
   type SynthesisPayload,
 } from '../../product/reasoning/reasoning';
@@ -73,7 +74,7 @@ test('ZERO_TOKENS has all fields at 0 and total === prompt + completion', () => 
 // ─── Law 4: Reasoning.Tag resolves via Layer.succeed ───
 
 test('Reasoning.Tag resolves the provided adapter from an Effect program', async () => {
-  const stubAdapter: Reasoning = {
+  const stubAdapter: ReasoningService = {
     select: () => Effect.succeed(buildReceipt({
       op: 'select',
       provider: 'stub',

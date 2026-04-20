@@ -190,13 +190,25 @@ export type LegacyTranslationReceipt = TranslationReceipt;
  * to surface errors at the Effect channel can do so on a per-op
  * basis.
  */
-export interface Reasoning {
+// ─── Reasoning service contract + DI tag ───
+
+/** The interface every Reasoning adapter implements. Distinct from
+ *  the `Reasoning` Tag so adapters can `satisfies ReasoningService`
+ *  without conflating the service shape with the Tag's Id/Type/
+ *  TagTypeId members. `yield* Reasoning` returns a ReasoningService
+ *  per the Tag's second type argument.
+ *
+ *  Note: error channel typed as `never` for parity with v1's
+ *  Translation/Agent providers, both of which catch all errors
+ *  internally and return failure-shaped receipts. 4b.B.2 introduced
+ *  the `ReasoningError` typed error union; adapters that prefer to
+ *  surface typed errors on the Effect channel can do so per-op by
+ *  lifting their signatures locally. */
+export interface ReasoningService {
   readonly select: (request: SelectRequest) => Effect.Effect<ReasoningReceipt<'select'>, never, never>;
   readonly interpret: (request: InterpretRequest) => Effect.Effect<ReasoningReceipt<'interpret'>, never, never>;
   readonly synthesize: (request: SynthesisRequest) => Effect.Effect<ReasoningReceipt<'synthesize'>, never, never>;
 }
-
-// ─── Effect Context.Tag for DI ───
 
 /**
  * Effect Context tag for the Reasoning port. Compose via:
@@ -215,7 +227,7 @@ export interface Reasoning {
  * Adapter selection at composition lives in
  * `product/composition/local-services.ts` (4b.B.4).
  */
-export class Reasoning extends Context.Tag('product/reasoning/Reasoning')<Reasoning, Reasoning>() {}
+export class Reasoning extends Context.Tag('product/reasoning/Reasoning')<Reasoning, ReasoningService>() {}
 
 // ─── Helpers ───
 
