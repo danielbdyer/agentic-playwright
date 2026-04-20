@@ -35,24 +35,21 @@ import {
 // ─── Provider Contract (Strategy interface) ───
 
 /**
- * @deprecated v1 provider kind. New code should use the unified
- *             `Reasoning` port (product/reasoning/reasoning.ts) and
- *             adapter registry (product/reasoning/adapters/). Kept
- *             for backward compat with existing callsites; retires
- *             when the last v1 caller migrates.
+ * The backend kinds the v1 TranslationProvider chain supports. Lives
+ * as the operand shape consumed by `createCompositeReasoning(...)`
+ * through the 4b.B.* window. New adapter code bypasses this by
+ * implementing `ReasoningService` directly at product/reasoning/
+ * adapters/.
  */
 export type TranslationProviderKind = 'deterministic' | 'llm-api' | 'copilot';
 
 /**
- * @deprecated v1 Translation port. Superseded by `Reasoning.Tag` +
- *             `ReasoningService.select` at product/reasoning/
- *             reasoning.ts. Existing implementations compose into the
- *             unified port via `createCompositeReasoning(...)`; new
- *             code should bypass this interface entirely.
- *
- *             Scheduled retirement: post-Step-4b, when the direct
- *             copilot-live and openai-live Reasoning adapters land
- *             and the composite bridge is no longer needed.
+ * The v1 Translation port. The composite bridge at product/reasoning/
+ * adapters/composite.ts takes one of these (plus an AgentInterpreterPort)
+ * and exposes them as a unified `Reasoning` adapter. Retirement
+ * happens when direct copilot-live and openai-live ReasoningService
+ * implementations replace the composite bridge entirely — at that
+ * point this file is deleted, not marker-then-removed.
  */
 export interface TranslationProvider {
   readonly id: string;

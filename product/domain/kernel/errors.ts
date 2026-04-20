@@ -67,10 +67,11 @@ export class PipelineError extends TesseractError {
 }
 
 /**
- * @deprecated v1 translation-provider error base. Superseded by
- *             `ReasoningError` (five families). `classifyReasoningError`
- *             lifts instances of this class into `ReasoningUnclassifiedError`
- *             unless the cause matches a more specific family heuristic.
+ * Thrown by the v1 TranslationProvider chain (translation-provider.ts
+ * retry wrappers). Lifted to `ReasoningError` via
+ * `classifyReasoningError` at the composite-bridge boundary. Class
+ * retires when direct Reasoning adapters replace the v1 provider
+ * chain and the composite bridge is deleted.
  */
 export class TranslationProviderError extends TesseractError {
   override readonly _tag: string = 'TranslationProviderError';
@@ -83,8 +84,9 @@ export class TranslationProviderError extends TesseractError {
   }
 }
 
-/** @deprecated Use `ReasoningUnavailableError`. `classifyReasoningError`
- *              lifts this into the v2 family automatically. */
+/** Translation-provider timeout. `classifyReasoningError` lifts this
+ *  to `ReasoningUnavailableError` when the composite bridge surfaces
+ *  the error through the unified port. */
 export class TranslationProviderTimeoutError extends TranslationProviderError {
   override readonly _tag = 'TranslationProviderTimeoutError' as const;
 
@@ -94,9 +96,9 @@ export class TranslationProviderTimeoutError extends TranslationProviderError {
   }
 }
 
-/** @deprecated Use `ReasoningMalformedResponseError`.
- *              `classifyReasoningError` lifts this into the v2 family
- *              automatically. */
+/** Translation-provider parse failure (malformed structured output).
+ *  `classifyReasoningError` lifts this to `ReasoningMalformedResponseError`
+ *  at the composite-bridge boundary. */
 export class TranslationProviderParseError extends TranslationProviderError {
   override readonly _tag = 'TranslationProviderParseError' as const;
 
@@ -106,8 +108,9 @@ export class TranslationProviderParseError extends TranslationProviderError {
   }
 }
 
-/** @deprecated v1 agent-interpreter error base. Superseded by
- *              `ReasoningError` (five families). */
+/** Thrown by the v1 AgentInterpreterPort chain (agent-interpreter-
+ *  provider.ts retry wrappers). Lifted to `ReasoningError` via
+ *  `classifyReasoningError` at the composite-bridge boundary. */
 export class AgentInterpreterProviderError extends TesseractError {
   override readonly _tag: string = 'AgentInterpreterProviderError';
   readonly provider?: string | undefined;
@@ -119,7 +122,8 @@ export class AgentInterpreterProviderError extends TesseractError {
   }
 }
 
-/** @deprecated Use `ReasoningUnavailableError`. */
+/** Agent-interpreter timeout. Lifts to `ReasoningUnavailableError`
+ *  at the composite-bridge boundary. */
 export class AgentInterpreterTimeoutError extends AgentInterpreterProviderError {
   override readonly _tag = 'AgentInterpreterTimeoutError' as const;
 
@@ -129,7 +133,9 @@ export class AgentInterpreterTimeoutError extends AgentInterpreterProviderError 
   }
 }
 
-/** @deprecated Use `ReasoningMalformedResponseError`. */
+/** Agent-interpreter parse failure (malformed structured output).
+ *  Lifts to `ReasoningMalformedResponseError` at the composite-bridge
+ *  boundary. */
 export class AgentInterpreterParseError extends AgentInterpreterProviderError {
   override readonly _tag = 'AgentInterpreterParseError' as const;
 
@@ -142,9 +148,11 @@ export class AgentInterpreterParseError extends AgentInterpreterProviderError {
 // ─── Unified ReasoningError (v2 §3.6 + readiness §9) ───
 //
 // Five named families consolidating v1's TranslationProvider* and
-// AgentInterpreter* hierarchies. The legacy classes above stay
-// `@deprecated` through 4b.B.5; callsites migrate via
-// `classifyReasoningError` in 4b.B.4.
+// AgentInterpreter* hierarchies. The v1 classes above remain the
+// live throwables inside the v1 provider chain; they lift to this
+// surface via `classifyReasoningError` at the composite-bridge
+// boundary. The v1 classes retire when direct Reasoning adapters
+// replace the composite bridge.
 
 export type ReasoningErrorFamily =
   | 'rate-limited'
