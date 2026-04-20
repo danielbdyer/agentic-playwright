@@ -32,7 +32,7 @@ import {
   fingerprintProjectionOutput,
   type ProjectionInputFingerprint,
 } from '../projections/cache';
-import { renderReview } from '../projections/review';
+import { buildReviewDocument, renderReviewMarkdown } from '../projections/review';
 import { type ProjectionIncremental } from '../projections/runner';
 import { runIncrementalStage } from '../pipeline';
 
@@ -164,7 +164,7 @@ function renderExecutableEmitArtifacts(
     ...explainBoundScenario(boundScenario, rendered.lifecycle, latestRun),
     improvement: improvementSummary,
   };
-  const reviewText = renderReview(traceArtifact, proposalBundle, inboxItems, latestRun, projectionInput);
+  const reviewText = renderReviewMarkdown(buildReviewDocument(traceArtifact, proposalBundle, inboxItems, latestRun, projectionInput));
 
   return {
     outputPath,
@@ -276,7 +276,7 @@ function renderBlockedEmitArtifacts(
     ...explainBoundScenario(boundScenario, 'skip', latestRun),
     improvement: null,
   };
-  const reviewText = renderReview(traceArtifact, proposalBundle, inboxItems, latestRun, projectionInput);
+  const reviewText = renderReviewMarkdown(buildReviewDocument(traceArtifact, proposalBundle, inboxItems, latestRun, projectionInput));
 
   return {
     outputPath,
