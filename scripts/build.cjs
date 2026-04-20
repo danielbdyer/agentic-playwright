@@ -6,7 +6,7 @@ const fs = require('fs');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const CONFIG_PATH = path.join(ROOT_DIR, 'tsconfig.build.json');
-const GENERATED_KNOWLEDGE_PATH = path.join(ROOT_DIR, 'lib', 'generated', 'tesseract-knowledge.ts');
+const GENERATED_KNOWLEDGE_PATH = path.join(ROOT_DIR, 'product', 'generated', 'tesseract-knowledge.ts');
 
 /**
  * Ensure product/generated/tesseract-knowledge.ts exists so the build can bootstrap.
