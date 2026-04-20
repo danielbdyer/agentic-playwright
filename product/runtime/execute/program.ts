@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { Match, pipe } from 'effect';
-import { navigationOptionsForUrl } from '../adapters/navigation-strategy';
+import { performNavigation } from '../adapters/navigation-strategy';
 import { createDiagnostic } from '../../domain/governance/diagnostics';
 import { runtimeEscapeHatchError, toTesseractError, unknownScreenError } from '../../domain/kernel/errors';
 import type { ScreenId } from '../../domain/kernel/identity';
@@ -79,11 +79,7 @@ async function runInstruction(
           if (!screen.ok) {
             return screen;
           }
-          const navOpts = navigationOptionsForUrl(screen.value.screen.url);
-          await environment.page.goto(screen.value.screen.url, {
-            waitUntil: navOpts.waitUntil,
-            timeout: navOpts.timeout,
-          });
+          await performNavigation(environment.page, screen.value.screen.url);
           return runtimeOk({ observedEffects: ['effect-applied'] });
         },
         'enter': async (i) => {
