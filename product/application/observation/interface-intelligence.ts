@@ -150,145 +150,40 @@ function manifestPath(paths: ProjectPaths): string {
   return path.join(paths.interfaceDir, 'manifest.json');
 }
 
-function sortStrings(values: Iterable<string>): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
-}
+// ─── Carved-out sub-module — Step 4a ──────────────────────────
+//
+// Shared string/ref helpers live at ./interface-helpers.ts.
+// Imported here so the remaining body of interface-intelligence
+// can use them unchanged while the catalog-screen-index
+// extraction can share them without a circular import.
+import {
+  sortStrings,
+  selectorValue,
+  stateNodeGraphId,
+  eventSignatureGraphId,
+  transitionGraphId,
+  routeRef,
+  routeVariantRef,
+  surfaceTargetRef,
+  elementTargetRef,
+  snapshotTargetRef,
+  discoveredTargetRef,
+  selectorProbeId,
+  selectorRefForProbe,
+} from './interface-helpers';
 
-function selectorValue(strategy: LocatorStrategy): string {
-  return 'value' in strategy ? strategy.value : `${strategy.role}:${strategy.name ?? ''}`;
-}
-
-function stateNodeGraphId(ref: StateNodeRef): string {
-  return `state:${ref}`;
-}
-
-function eventSignatureGraphId(ref: EventSignatureRef): string {
-  return `event-signature:${ref}`;
-}
-
-function transitionGraphId(ref: TransitionRef): string {
-  return `transition:${ref}`;
-}
-
-function routeRef(app: string, routeId: RouteId): string {
-  return `route:${app}:${routeId}`;
-}
-
-function routeVariantRef(app: string, routeId: RouteId, variantId: RouteVariantId): string {
-  return `route-variant:${app}:${routeId}:${variantId}`;
-}
-
-function surfaceTargetRef(screen: ScreenId, surfaceId: SurfaceId): CanonicalTargetRef {
-  return createCanonicalTargetRef(`target:surface:${screen}:${surfaceId}`);
-}
-
-function elementTargetRef(screen: ScreenId, elementId: ElementId): CanonicalTargetRef {
-  return createCanonicalTargetRef(`target:element:${screen}:${elementId}`);
-}
-
-function snapshotTargetRef(screen: ScreenId, snapshotTemplate: SnapshotTemplateId): CanonicalTargetRef {
-  return createCanonicalTargetRef(`target:snapshot:${screen}:${snapshotTemplate}`);
-}
-
-function discoveredTargetRef(screen: ScreenId, kind: string, stableDiscoveryId: string): CanonicalTargetRef {
-  return createCanonicalTargetRef(`target:discovered:${screen}:${kind}:${stableDiscoveryId}`);
-}
-
-function selectorProbeId(targetRef: CanonicalTargetRef, strategy: LocatorStrategy, rung: number): string {
-  return `${targetRef}:probe:${strategy.kind}:${rung}:${selectorValue(strategy)}`;
-}
-
-function selectorRefForProbe(targetRef: CanonicalTargetRef, strategy: LocatorStrategy, rung: number) {
-  return createSelectorRef(`selector:${targetRef}:${strategy.kind}:${rung}:${selectorValue(strategy)}`);
-}
-
-function nodeFingerprint(kind: InterfaceGraphNode['kind'], id: string, payload?: Record<string, unknown>) {
-  return fingerprintProjectionOutput({ kind, id, payload: payload ?? null });
-}
-
-function edgeFingerprint(kind: InterfaceGraphEdge['kind'], from: string, to: string, payload?: Record<string, unknown>) {
-  return fingerprintProjectionOutput({ kind, from, to, payload: payload ?? null });
-}
-
-function createNode(input: {
-  id: string;
-  kind: InterfaceGraphNode['kind'];
-  label: string;
-  artifactPaths: readonly string[];
-  source: InterfaceGraphNode['source'];
-  route?: RouteId | null | undefined;
-  variant?: RouteVariantId | null | undefined;
-  screen?: ScreenId | null | undefined;
-  surface?: SurfaceId | null | undefined;
-  element?: ElementId | null | undefined;
-  snapshotTemplate?: SnapshotTemplateId | null | undefined;
-  targetRef?: CanonicalTargetRef | null | undefined;
-  payload?: Record<string, unknown> | undefined;
-}): InterfaceGraphNode {
-  return {
-    id: input.id,
-    kind: input.kind,
-    label: input.label,
-    fingerprint: nodeFingerprint(input.kind, input.id, input.payload),
-    route: input.route ?? null,
-    variant: input.variant ?? null,
-    screen: input.screen ?? null,
-    section: null,
-    surface: input.surface ?? null,
-    element: input.element ?? null,
-    snapshotTemplate: input.snapshotTemplate ?? null,
-    targetRef: input.targetRef ?? null,
-    artifactPaths: sortStrings(input.artifactPaths),
-    source: input.source,
-    payload: input.payload,
-  };
-}
-
-function createEdge(input: {
-  kind: InterfaceGraphEdge['kind'];
-  from: string;
-  to: string;
-  lineage: readonly string[];
-  payload?: Record<string, unknown> | undefined;
-}): InterfaceGraphEdge {
-  return {
-    id: `${input.kind}:${input.from}->${input.to}`,
-    kind: input.kind,
-    from: input.from,
-    to: input.to,
-    fingerprint: edgeFingerprint(input.kind, input.from, input.to, input.payload),
-    lineage: sortStrings(input.lineage),
-    payload: input.payload,
-  };
-}
-
-function upsertNode(map: Map<string, InterfaceGraphNode>, node: InterfaceGraphNode) {
-  const existing = map.get(node.id);
-  if (!existing) {
-    map.set(node.id, node);
-    return;
-  }
-  map.set(node.id, createNode({
-    ...existing,
-    artifactPaths: [...existing.artifactPaths, ...node.artifactPaths],
-    payload: { ...(existing.payload ?? {}), ...(node.payload ?? {}) },
-  }));
-}
-
-function upsertEdge(map: Map<string, InterfaceGraphEdge>, edge: InterfaceGraphEdge) {
-  const existing = map.get(edge.id);
-  if (!existing) {
-    map.set(edge.id, edge);
-    return;
-  }
-  map.set(edge.id, createEdge({
-    kind: edge.kind,
-    from: edge.from,
-    to: edge.to,
-    lineage: [...existing.lineage, ...edge.lineage],
-    payload: { ...(existing.payload ?? {}), ...(edge.payload ?? {}) },
-  }));
-}
+// ─── Carved-out sub-module — Step 4a (round 2) ────────────────
+//
+// Graph node/edge builders + fingerprint helpers live at
+// ./interface-graph-builders.ts.
+import {
+  createNode,
+  createEdge,
+  upsertNode,
+  upsertEdge,
+  nodeFingerprint,
+  edgeFingerprint,
+} from './interface-graph-builders';
 
 function latestDeterministicTimestamp(input: {
   discoveryRuns: readonly ArtifactEnvelope<DiscoveryRun>[];
