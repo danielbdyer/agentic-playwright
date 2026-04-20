@@ -1,0 +1,96 @@
+/**
+ * Manifest declarations — the centralized registry of verb entries
+ * the manifest emitter reads at build time.
+ *
+ * Convention: each verb is declared here as a named `declareVerb(...)`
+ * call. Declarations reference their implementation modules via
+ * `declaredIn`; the fluency harness uses this to verify dispatch.
+ *
+ * As the construction order progresses, new verb declarations land
+ * in this file (or, at Step 3+, move to co-located declaration
+ * modules under their home folders). Step 2's seed set is the four
+ * verbs the agent's core authoring loop already exercises in v1:
+ * `intent-fetch`, `observe`, `interact`, `test-compose`. Additional
+ * verbs — `navigate`, facet operations, reasoning operations, drift
+ * — land at the step that introduces their shape.
+ *
+ * See `docs/v2-direction.md §6 Step 2` for the seed-set rationale.
+ */
+
+import { declareVerb } from '../domain/manifest/declare-verb';
+
+export const intentFetchVerb = declareVerb({
+  name: 'intent-fetch',
+  category: 'intent',
+  summary: 'Fetch a single work item from the configured intent source (ADO REST, testbed, or a file) and return its raw payload plus revision metadata.',
+  inputs: {
+    typeName: 'IntentFetchRequest',
+    declaredIn: 'product/instruments/intent/live-ado-source.ts',
+    summary: 'The work-item address (`{ source: "ado" | "testbed" | "probe"; id: string }`).',
+  },
+  outputs: {
+    typeName: 'WorkItemEnvelope',
+    declaredIn: 'product/instruments/intent/live-ado-source.ts',
+    summary: 'The fetched work item wrapped with source-text provenance and revision.',
+  },
+  errorFamilies: ['rate-limited', 'unavailable', 'malformed-response', 'unclassified'],
+  sinceVersion: '2.1.0',
+  declaredIn: 'product/instruments/intent/live-ado-source.ts',
+});
+
+export const observeVerb = declareVerb({
+  name: 'observe',
+  category: 'observe',
+  summary: 'Capture an accessibility-tree snapshot of the current page and return it as a structured ARIA node.',
+  inputs: {
+    typeName: 'ObserveRequest',
+    declaredIn: 'product/instruments/observation/aria.ts',
+    summary: 'The page handle plus an optional observation scope (element / region).',
+  },
+  outputs: {
+    typeName: 'AriaSnapshot',
+    declaredIn: 'product/instruments/observation/aria.ts',
+    summary: 'The ARIA snapshot with timestamp and source fingerprint.',
+  },
+  errorFamilies: ['timeout', 'not-visible', 'unclassified'],
+  sinceVersion: '2.1.0',
+  declaredIn: 'product/instruments/observation/aria.ts',
+});
+
+export const interactVerb = declareVerb({
+  name: 'interact',
+  category: 'interact',
+  summary: 'Dispatch a single action (click, input, select, wait) at a facet-referenced locator and return the outcome envelope.',
+  inputs: {
+    typeName: 'InteractRequest',
+    declaredIn: 'product/runtime/widgets/interact.ts',
+    summary: 'The action kind + affordance + locator descriptor.',
+  },
+  outputs: {
+    typeName: 'InteractOutcome',
+    declaredIn: 'product/runtime/widgets/interact.ts',
+    summary: 'The outcome envelope carrying success/failure classification and observed post-state.',
+  },
+  errorFamilies: ['not-visible', 'not-enabled', 'timeout', 'assertion-like', 'unclassified'],
+  sinceVersion: '2.1.0',
+  declaredIn: 'product/runtime/widgets/interact.ts',
+});
+
+export const testComposeVerb = declareVerb({
+  name: 'test-compose',
+  category: 'compose',
+  summary: 'Emit a QA-legible Playwright test from a grounded flow spec, referencing facets by name (not selectors).',
+  inputs: {
+    typeName: 'GroundedSpecFlow',
+    declaredIn: 'product/domain/intent/types.ts',
+    summary: 'The grounded flow whose steps have resolved to facet references and programs.',
+  },
+  outputs: {
+    typeName: 'ComposedTestFile',
+    declaredIn: 'product/instruments/codegen/spec-codegen.ts',
+    summary: 'The emitted spec file path, the AST digest, and the referenced-facet index.',
+  },
+  errorFamilies: ['malformed-response', 'unclassified'],
+  sinceVersion: '2.1.0',
+  declaredIn: 'product/instruments/codegen/spec-codegen.ts',
+});

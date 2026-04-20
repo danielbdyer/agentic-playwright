@@ -169,8 +169,29 @@ async function buildDashboard() {
   }
 }
 
+const { execSync } = require('child_process');
+
+function runManifestDriftCheck() {
+  // The drift check is a Node-level TS module under product/build/. Run
+  // it via tsx so the CJS build harness can stay free of ESM loaders.
+  // Exit non-zero from the check fails the build.
+  const args = shouldSkipTypeScript(process.argv.slice(2)) ? ['--allow-additive'] : [];
+  try {
+    execSync(`npx tsx product/build/emitter/drift-check.ts ${args.join(' ')}`, {
+      stdio: 'inherit',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function main() {
   ensureGeneratedKnowledgeStub();
+  if (!runManifestDriftCheck()) {
+    process.exitCode = 1;
+    return;
+  }
   if (!shouldSkipTypeScript(process.argv.slice(2)) && !runTypeScriptBuild()) {
     return;
   }
