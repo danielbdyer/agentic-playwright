@@ -39,7 +39,11 @@ export type TranslationProviderKind = 'deterministic' | 'llm-api' | 'copilot';
 export interface TranslationProvider {
   readonly id: string;
   readonly kind: TranslationProviderKind;
-  readonly translate: (request: TranslationRequest) => Effect.Effect<TranslationReceipt, never, never>;
+  /** Structured match against a candidate set. Renamed from v1 `translate`
+   *  per v2 §3.6 — the rung-5 operation is conceptually a select, not a
+   *  translate. The underlying behavior is unchanged; this is surface
+   *  vocabulary alignment. */
+  readonly select: (request: TranslationRequest) => Effect.Effect<TranslationReceipt, never, never>;
 }
 
 // ─── Translation Configuration ───
@@ -74,7 +78,7 @@ function createDeterministicProvider(): TranslationProvider {
   return {
     id: 'deterministic-token-overlap',
     kind: 'deterministic',
-    translate: (request) => Effect.succeed(translateIntentToOntology(request)),
+    select: (request) => Effect.succeed(translateIntentToOntology(request)),
   };
 }
 
@@ -230,7 +234,7 @@ function createLlmApiProvider(
   return {
     id: `llm-api-${config.model}`,
     kind: 'llm-api',
-    translate: (request) => withTranslationRetries(
+    select: (request) => withTranslationRetries(
         `llm-api-${config.model}`,
         () => deps.createChatCompletion({
           model: config.model,
@@ -277,7 +281,7 @@ function createCopilotProvider(
     return {
       id: 'copilot-stub',
       kind: 'copilot',
-      translate: () => Effect.succeed({
+      select: () => Effect.succeed({
         kind: 'translation-receipt' as const,
         version: 1 as const,
         mode: 'structured-translation' as const,
@@ -293,7 +297,7 @@ function createCopilotProvider(
   return {
     id: 'copilot-vscode',
     kind: 'copilot',
-    translate: (request) => withTranslationRetries(
+    select: (request) => withTranslationRetries(
         'copilot',
         () => deps.createChatCompletion({
           model: 'copilot',
@@ -331,11 +335,11 @@ function createHybridProvider(
   return {
     id: `hybrid-${primary.id}-${fallback.id}`,
     kind: fallback.kind,
-    translate: (request) => Effect.gen(function* () {
-      const primaryResult = yield* primary.translate(request);
+    select: (request) => Effect.gen(function* () {
+      const primaryResult = yield* primary.select(request);
       return primaryResult.matched
         ? primaryResult
-        : yield* fallback.translate(request);
+        : yield* fallback.select(request);
     }),
   };
 }

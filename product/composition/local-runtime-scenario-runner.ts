@@ -43,7 +43,7 @@ export function buildCachedTranslator(
       }
     }
 
-    const translated = yield* provider.translate(request);
+    const translated = yield* provider.select(request);
     const computed = {
       ...translated,
       translationProvider: provider.id,

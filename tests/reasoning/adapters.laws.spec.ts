@@ -95,7 +95,7 @@ function makeStubTranslationProvider(): TranslationProvider {
   return {
     id: 'stub-translation',
     kind: 'deterministic',
-    translate: () => Effect.succeed(receipt),
+    select: () => Effect.succeed(receipt),
   };
 }
 
@@ -121,7 +121,7 @@ test('composite adapter select receipt payload equals the underlying Translation
   const reasoning = createCompositeReasoning({ translation, agent });
 
   const receipt = await Effect.runPromise(reasoning.select(makeTranslationRequest()));
-  const rawPayload = await Effect.runPromise(translation.translate(makeTranslationRequest()));
+  const rawPayload = await Effect.runPromise(translation.select(makeTranslationRequest()));
 
   expect(receipt.payload).toEqual(rawPayload);
   expect(receipt.provider).toBe(translation.id);

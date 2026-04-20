@@ -58,7 +58,7 @@ test.describe('retry resilience laws', () => {
       },
     });
 
-    const receipt = await Effect.runPromise(provider.translate(request));
+    const receipt = await Effect.runPromise(provider.select(request));
     expect(receipt.matched).toBe(false);
     expect(receipt.failureClass).toBe('translator-error');
     expect(receipt.rationale).toContain('retry[');
@@ -74,7 +74,7 @@ test.describe('retry resilience laws', () => {
       },
     });
 
-    const receipt = await Effect.runPromise(provider.translate(request));
+    const receipt = await Effect.runPromise(provider.select(request));
     expect(receipt.failureClass).toBe('translator-error');
     expect(calls).toBe(1);
   });

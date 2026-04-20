@@ -27,6 +27,10 @@ import { makeLocalVersionControl } from '../instruments/tooling/local-version-co
 import { LocalRuntimeScenarioRunner, createLocalRuntimeScenarioRunnerWithInterpreter, createLocalRuntimeScenarioRunnerWithPool } from './local-runtime-scenario-runner';
 import type { AgentInterpreterPort } from '../domain/resolution/model';
 import type { AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
+import { Reasoning, type ReasoningService } from '../reasoning/reasoning';
+import { createCompositeReasoning, createDeterministicReasoning } from '../reasoning/adapters';
+import { resolveTranslationProvider, DEFAULT_TRANSLATION_CONFIG } from '../reasoning/translation-provider';
+import { resolveAgentInterpreterPort } from '../reasoning/agent-interpreter-provider';
 import { PlaywrightBridge, DisabledPlaywrightBridge } from '../../dashboard/mcp/playwright-mcp-bridge';
 import { dashboardEvent } from '../domain/observation/dashboard';
 import type { PipelineConfig } from '../domain/attention/pipeline-config';
@@ -61,6 +65,14 @@ export interface LocalServiceOptions {
    *  When provided, the runtime scenario runner acquires/releases pages from the pool
    *  instead of launching a new browser per scenario. */
   readonly browserPool?: import('../application/runtime-support/browser-pool').BrowserPoolPort | undefined;
+  /** Inject a Reasoning adapter directly (v2 §3.6). When provided, this
+   *  wins over the composite built from the separate translation /
+   *  agent-interpreter providers. Callers that have already built a
+   *  unified adapter (copilot-live, openai-live, a test double) pass
+   *  it here; callers without one get the composite-of-v1-providers
+   *  automatically. Either way the `Reasoning.Tag` is wired into the
+   *  layer so sagas can `yield* Reasoning`. */
+  readonly reasoning?: ReasoningService | undefined;
 }
 
 export interface LocalServiceContext {
@@ -113,6 +125,17 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     : options?.agentInterpreter
       ? createLocalRuntimeScenarioRunnerWithInterpreter(options.agentInterpreter)
       : LocalRuntimeScenarioRunner;
+
+  // Reasoning port (v2 §3.6). Adapter priority: explicit option → composite
+  // of v1 providers → deterministic fallback for ci-batch.
+  const reasoning: ReasoningService = options?.reasoning ?? (
+    posture.executionProfile === 'ci-batch'
+      ? createDeterministicReasoning()
+      : createCompositeReasoning({
+          translation: resolveTranslationProvider({ config: DEFAULT_TRANSLATION_CONFIG, profile: posture.executionProfile }),
+          agent: options?.agentInterpreter ?? resolveAgentInterpreterPort(),
+        })
+  );
   const dashboard = options?.dashboard ?? DisabledDashboard;
   const stageTracer: StageTracerPort = options?.dashboard
     ? {
@@ -141,6 +164,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     Layer.succeed(ApplicationInterfaceGraphStore, LocalApplicationInterfaceGraphRepository),
     Layer.succeed(InterventionLedgerStore, LocalInterventionLedgerRepository),
     Layer.succeed(ImprovementRunStore, LocalImprovementRunRepository),
+    Layer.succeed(Reasoning, reasoning),
   );
 
   return {
@@ -148,7 +172,7 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
     writeJournal: () => executionContext.writeJournal(),
     provide<A, E, R>(program: Effect.Effect<A, E, R>): Effect.Effect<A, E, never> {
       return Effect.provide(
-        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | StageTracer | McpServer | PlaywrightBridge | ApplicationInterfaceGraphStore | InterventionLedgerStore | ImprovementRunStore>,
+        program as Effect.Effect<A, E, FileSystem | AdoSource | RuntimeScenarioRunner | ExecutionContext | PipelineConfigService | VersionControl | Dashboard | StageTracer | McpServer | PlaywrightBridge | ApplicationInterfaceGraphStore | InterventionLedgerStore | ImprovementRunStore | Reasoning>,
         layer,
       ) as Effect.Effect<A, E, never>;
     },

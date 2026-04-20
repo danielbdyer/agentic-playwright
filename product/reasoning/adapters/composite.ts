@@ -68,7 +68,7 @@ export function createCompositeReasoning(deps: CompositeReasoningDependencies): 
   const select = (request: SelectRequest): Effect.Effect<ReasoningReceipt<'select'>, never, never> =>
     Effect.gen(function* () {
       const start = Date.now();
-      const payload = yield* translation.translate(request);
+      const payload = yield* translation.select(request);
       return buildReceipt({
         op: 'select',
         provider: translation.id,
