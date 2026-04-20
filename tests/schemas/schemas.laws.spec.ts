@@ -18,12 +18,12 @@
 import { expect, test } from '@playwright/test';
 import { Schema } from 'effect';
 import {
-  GovernanceSemanticSchema,
-  ScreenIdSemanticSchema,
-  BoundStepSemanticSchema,
-  WorkflowEnvelopeSemanticSchema,
-  TrustPolicySemanticSchema,
-} from '../product/domain/validation/schema-validators';
+  GovernanceSchema,
+  ScreenIdSchema,
+  BoundStepSchema,
+  WorkflowEnvelopeHeaderSchema,
+  TrustPolicySchema,
+} from '../product/domain/schemas';
 import { mulberry32, pick, randomWord, randomInt , LAW_SEED_COUNT } from './support/random';
 
 // ─── Helpers ───
@@ -124,14 +124,14 @@ function makeValidTrustPolicy(next: () => number) {
 test.describe('Law 1: Governance enum exhaustiveness', () => {
   test('all three canonical governance values are accepted', () => {
     for (const g of GOVERNANCE_VALUES) {
-      expect(decodeSync(GovernanceSemanticSchema, g)).toBe(g);
+      expect(decodeSync(GovernanceSchema, g)).toBe(g);
     }
   });
 
   test('non-governance strings are rejected', () => {
     const invalids = ['approve', 'APPROVED', 'blocked!', '', 'pending', 'denied', null, undefined, 42];
     for (const invalid of invalids) {
-      expect(decodeSafe(GovernanceSemanticSchema, invalid)).toBe(false);
+      expect(decodeSafe(GovernanceSchema, invalid)).toBe(false);
     }
   });
 
@@ -139,8 +139,8 @@ test.describe('Law 1: Governance enum exhaustiveness', () => {
     for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const value = pick(next, GOVERNANCE_VALUES);
-      const decoded = decodeSync(GovernanceSemanticSchema, value);
-      const encoded = Schema.encodeSync(GovernanceSemanticSchema)(decoded);
+      const decoded = decodeSync(GovernanceSchema, value);
+      const encoded = Schema.encodeSync(GovernanceSchema)(decoded);
       expect(encoded).toBe(value);
     }
   });
@@ -152,30 +152,30 @@ test.describe('Law 2: ScreenId brand safety', () => {
   test('valid screen IDs are accepted', () => {
     const valid = ['login', 'dashboard/main', 'work-items', 'screen_1'];
     for (const id of valid) {
-      expect(decodeSafe(ScreenIdSemanticSchema, id)).toBe(true);
+      expect(decodeSafe(ScreenIdSchema, id)).toBe(true);
     }
   });
 
   test('empty string is rejected', () => {
-    expect(decodeSafe(ScreenIdSemanticSchema, '')).toBe(false);
+    expect(decodeSafe(ScreenIdSchema, '')).toBe(false);
   });
 
   test('absolute paths are rejected', () => {
-    expect(decodeSafe(ScreenIdSemanticSchema, '/absolute/path')).toBe(false);
-    expect(decodeSafe(ScreenIdSemanticSchema, '\\windows\\path')).toBe(false);
-    expect(decodeSafe(ScreenIdSemanticSchema, 'C:\\drive')).toBe(false);
+    expect(decodeSafe(ScreenIdSchema, '/absolute/path')).toBe(false);
+    expect(decodeSafe(ScreenIdSchema, '\\windows\\path')).toBe(false);
+    expect(decodeSafe(ScreenIdSchema, 'C:\\drive')).toBe(false);
   });
 
   test('path traversal is rejected', () => {
-    expect(decodeSafe(ScreenIdSemanticSchema, 'foo/../bar')).toBe(false);
-    expect(decodeSafe(ScreenIdSemanticSchema, '../escape')).toBe(false);
+    expect(decodeSafe(ScreenIdSchema, 'foo/../bar')).toBe(false);
+    expect(decodeSafe(ScreenIdSchema, '../escape')).toBe(false);
   });
 
   test('random valid screen IDs round-trip (20 seeds)', () => {
     for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const id = `screen-${randomWord(next)}`;
-      const decoded = decodeSync(ScreenIdSemanticSchema, id);
+      const decoded = decodeSync(ScreenIdSchema, id);
       expect(String(decoded)).toBe(id);
     }
   });
@@ -188,26 +188,26 @@ test.describe('Law 3: BoundStep semantic invariants', () => {
     for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const step = makeValidBoundStep(next);
-      expect(decodeSafe(BoundStepSemanticSchema, step)).toBe(true);
+      expect(decodeSafe(BoundStepSchema, step)).toBe(true);
     }
   });
 
   test('negative index is rejected', () => {
     const next = mulberry32(42);
     const step = { ...makeValidBoundStep(next), index: -1 };
-    expect(decodeSafe(BoundStepSemanticSchema, step)).toBe(false);
+    expect(decodeSafe(BoundStepSchema, step)).toBe(false);
   });
 
   test('empty intent is rejected', () => {
     const next = mulberry32(43);
     const step = { ...makeValidBoundStep(next), intent: '' };
-    expect(decodeSafe(BoundStepSemanticSchema, step)).toBe(false);
+    expect(decodeSafe(BoundStepSchema, step)).toBe(false);
   });
 
   test('whitespace-only intent is rejected', () => {
     const next = mulberry32(44);
     const step = { ...makeValidBoundStep(next), intent: '   ' };
-    expect(decodeSafe(BoundStepSemanticSchema, step)).toBe(false);
+    expect(decodeSafe(BoundStepSchema, step)).toBe(false);
   });
 
   test('bound step with blocked governance is rejected', () => {
@@ -217,7 +217,7 @@ test.describe('Law 3: BoundStep semantic invariants', () => {
       ...step,
       binding: { ...step.binding, kind: 'bound' as const, governance: 'blocked' as const, reviewReasons: [] },
     };
-    expect(decodeSafe(BoundStepSemanticSchema, invalid)).toBe(false);
+    expect(decodeSafe(BoundStepSchema, invalid)).toBe(false);
   });
 
   test('unbound step with non-null screen is rejected', () => {
@@ -228,7 +228,7 @@ test.describe('Law 3: BoundStep semantic invariants', () => {
       screen: 'some-screen',
       binding: { ...step.binding, kind: 'unbound' as const, governance: 'approved' as const, reviewReasons: [] },
     };
-    expect(decodeSafe(BoundStepSemanticSchema, invalid)).toBe(false);
+    expect(decodeSafe(BoundStepSchema, invalid)).toBe(false);
   });
 
   test('review-required with empty reviewReasons is rejected', () => {
@@ -238,13 +238,13 @@ test.describe('Law 3: BoundStep semantic invariants', () => {
       ...step,
       binding: { ...step.binding, kind: 'deferred' as const, governance: 'review-required' as const, reviewReasons: [] },
     };
-    expect(decodeSafe(BoundStepSemanticSchema, invalid)).toBe(false);
+    expect(decodeSafe(BoundStepSchema, invalid)).toBe(false);
   });
 
   test('index zero is accepted (boundary)', () => {
     const next = mulberry32(48);
     const step = { ...makeValidBoundStep(next), index: 0 };
-    expect(decodeSafe(BoundStepSemanticSchema, step)).toBe(true);
+    expect(decodeSafe(BoundStepSchema, step)).toBe(true);
   });
 });
 
@@ -255,20 +255,20 @@ test.describe('Law 4: WorkflowEnvelope semantic invariants', () => {
     for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const envelope = makeValidEnvelope(next);
-      expect(decodeSafe(WorkflowEnvelopeSemanticSchema, envelope)).toBe(true);
+      expect(decodeSafe(WorkflowEnvelopeHeaderSchema, envelope)).toBe(true);
     }
   });
 
   test('empty artifact fingerprint is rejected', () => {
     const next = mulberry32(42);
     const envelope = { ...makeValidEnvelope(next), fingerprints: { artifact: '' } };
-    expect(decodeSafe(WorkflowEnvelopeSemanticSchema, envelope)).toBe(false);
+    expect(decodeSafe(WorkflowEnvelopeHeaderSchema, envelope)).toBe(false);
   });
 
   test('whitespace-only artifact fingerprint is rejected', () => {
     const next = mulberry32(43);
     const envelope = { ...makeValidEnvelope(next), fingerprints: { artifact: '   ' } };
-    expect(decodeSafe(WorkflowEnvelopeSemanticSchema, envelope)).toBe(false);
+    expect(decodeSafe(WorkflowEnvelopeHeaderSchema, envelope)).toBe(false);
   });
 
   test('blocked governance at execution stage is rejected', () => {
@@ -281,7 +281,7 @@ test.describe('Law 4: WorkflowEnvelope semantic invariants', () => {
       lineage: {},
       governance: 'blocked' as const,
     };
-    expect(decodeSafe(WorkflowEnvelopeSemanticSchema, envelope)).toBe(false);
+    expect(decodeSafe(WorkflowEnvelopeHeaderSchema, envelope)).toBe(false);
   });
 
   test('blocked governance at projection stage is rejected', () => {
@@ -294,7 +294,7 @@ test.describe('Law 4: WorkflowEnvelope semantic invariants', () => {
       lineage: {},
       governance: 'blocked' as const,
     };
-    expect(decodeSafe(WorkflowEnvelopeSemanticSchema, envelope)).toBe(false);
+    expect(decodeSafe(WorkflowEnvelopeHeaderSchema, envelope)).toBe(false);
   });
 
   test('blocked governance at preparation stage is accepted', () => {
@@ -307,13 +307,13 @@ test.describe('Law 4: WorkflowEnvelope semantic invariants', () => {
       lineage: {},
       governance: 'blocked' as const,
     };
-    expect(decodeSafe(WorkflowEnvelopeSemanticSchema, envelope)).toBe(true);
+    expect(decodeSafe(WorkflowEnvelopeHeaderSchema, envelope)).toBe(true);
   });
 
   test('round-trip: version field preserved', () => {
     const next = mulberry32(99);
     const envelope = makeValidEnvelope(next);
-    const decoded = decodeSync(WorkflowEnvelopeSemanticSchema, envelope);
+    const decoded = decodeSync(WorkflowEnvelopeHeaderSchema, envelope);
     expect(decoded.version).toBe(1);
   });
 });
@@ -325,7 +325,7 @@ test.describe('Law 5: TrustPolicy semantic invariants', () => {
     for (let seed = 1; seed <= LAW_SEED_COUNT; seed += 1) {
       const next = mulberry32(seed);
       const policy = makeValidTrustPolicy(next);
-      expect(decodeSafe(TrustPolicySemanticSchema, policy)).toBe(true);
+      expect(decodeSafe(TrustPolicySchema, policy)).toBe(true);
     }
   });
 
@@ -342,7 +342,7 @@ test.describe('Law 5: TrustPolicy semantic invariants', () => {
         },
       },
     };
-    expect(decodeSafe(TrustPolicySemanticSchema, invalid)).toBe(false);
+    expect(decodeSafe(TrustPolicySchema, invalid)).toBe(false);
   });
 
   test('minimumConfidence < 0 is rejected', () => {
@@ -358,7 +358,7 @@ test.describe('Law 5: TrustPolicy semantic invariants', () => {
         },
       },
     };
-    expect(decodeSafe(TrustPolicySemanticSchema, invalid)).toBe(false);
+    expect(decodeSafe(TrustPolicySchema, invalid)).toBe(false);
   });
 
   test('negative minCount is rejected', () => {
@@ -377,7 +377,7 @@ test.describe('Law 5: TrustPolicy semantic invariants', () => {
         },
       },
     };
-    expect(decodeSafe(TrustPolicySemanticSchema, invalid)).toBe(false);
+    expect(decodeSafe(TrustPolicySchema, invalid)).toBe(false);
   });
 
   test('duplicate forbiddenAutoHealClasses are rejected', () => {
@@ -387,7 +387,7 @@ test.describe('Law 5: TrustPolicy semantic invariants', () => {
       ...policy,
       forbiddenAutoHealClasses: ['class-a', 'class-a'],
     };
-    expect(decodeSafe(TrustPolicySemanticSchema, invalid)).toBe(false);
+    expect(decodeSafe(TrustPolicySchema, invalid)).toBe(false);
   });
 
   test('minimumConfidence of 0 is accepted (boundary)', () => {
@@ -403,7 +403,7 @@ test.describe('Law 5: TrustPolicy semantic invariants', () => {
         },
       },
     };
-    expect(decodeSafe(TrustPolicySemanticSchema, boundary)).toBe(true);
+    expect(decodeSafe(TrustPolicySchema, boundary)).toBe(true);
   });
 
   test('minimumConfidence of 1 is accepted (boundary)', () => {
@@ -419,13 +419,13 @@ test.describe('Law 5: TrustPolicy semantic invariants', () => {
         },
       },
     };
-    expect(decodeSafe(TrustPolicySemanticSchema, boundary)).toBe(true);
+    expect(decodeSafe(TrustPolicySchema, boundary)).toBe(true);
   });
 
   test('empty forbiddenAutoHealClasses is accepted', () => {
     const next = mulberry32(48);
     const policy = { ...makeValidTrustPolicy(next), forbiddenAutoHealClasses: [] };
-    expect(decodeSafe(TrustPolicySemanticSchema, policy)).toBe(true);
+    expect(decodeSafe(TrustPolicySchema, policy)).toBe(true);
   });
 });
 
@@ -434,16 +434,16 @@ test.describe('Law 5: TrustPolicy semantic invariants', () => {
 test.describe('Law 6: Schema composition — filter layering', () => {
   test('structural errors are caught before semantic filters', () => {
     // Missing required fields in BoundStep should fail structurally
-    expect(decodeSafe(BoundStepSemanticSchema, {})).toBe(false);
-    expect(decodeSafe(BoundStepSemanticSchema, { index: 'not-a-number' })).toBe(false);
-    expect(decodeSafe(BoundStepSemanticSchema, null)).toBe(false);
+    expect(decodeSafe(BoundStepSchema, {})).toBe(false);
+    expect(decodeSafe(BoundStepSchema, { index: 'not-a-number' })).toBe(false);
+    expect(decodeSafe(BoundStepSchema, null)).toBe(false);
   });
 
   test('type coercion: non-object inputs are uniformly rejected', () => {
     const schemas = [
-      BoundStepSemanticSchema,
-      WorkflowEnvelopeSemanticSchema,
-      TrustPolicySemanticSchema,
+      BoundStepSchema,
+      WorkflowEnvelopeHeaderSchema,
+      TrustPolicySchema,
     ] as const;
 
     const nonObjects = [42, 'string', true, [], null, undefined];
