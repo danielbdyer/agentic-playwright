@@ -62,32 +62,14 @@ import type {
 } from './accumulator';
 
 
-function summaryForValue<T>(concern: ResolutionCandidateSummary['concern'], ranked: Array<LatticeCandidate<T>>, topN = 3): { topCandidates: ResolutionCandidateSummary[]; rejectedCandidates: ResolutionCandidateSummary[] } {
-  const normalizeValue = (value: unknown): string => {
-    if (value === null || value === undefined) {
-      return '(none)';
-    }
-    if (typeof value === 'string') {
-      return value;
-    }
-    if (typeof value === 'object' && value !== null) {
-      const cast = value as { screen?: string; element?: string };
-      return cast.element ?? cast.screen ?? JSON.stringify(value);
-    }
-    return String(value);
-  };
-  const toSummary = (candidate: LatticeCandidate<T>): ResolutionCandidateSummary => ({
-    concern,
-    source: candidate.source,
-    value: normalizeValue(candidate.value),
-    score: candidate.score,
-    reason: candidate.summary,
-  });
-  return {
-    topCandidates: ranked.slice(0, topN).map(toSummary),
-    rejectedCandidates: ranked.slice(1, topN + 1).map(toSummary),
-  };
-}
+// ─── Carved-out sub-module — Step 4a (round 2) ────────────────
+//
+// Lattice construction lives at ./lattice-accumulator.ts.
+import {
+  summaryForValue,
+  buildLatticeAccumulator,
+} from './lattice-accumulator';
+export { buildLatticeAccumulator } from './lattice-accumulator';
 
 export function tryExplicitResolution(stage: RuntimeAgentStageContext): StageResult {
   const explicit = stage.task.explicitResolution;
@@ -104,89 +86,6 @@ export function tryExplicitResolution(stage: RuntimeAgentStageContext): StageRes
       ...EMPTY_EFFECTS,
       exhaustion: [exhaustionEntry('explicit', explicit ? 'attempted' : 'skipped', explicit ? 'Explicit constraints were partial and used as priors' : 'No explicit constraints present')],
     },
-  };
-}
-
-export function buildLatticeAccumulator(stage: RuntimeAgentStageContext): LatticeResult {
-  const { task, context, controlResolution, memory } = stage;
-
-  const actionLattice = rankActionCandidates(task, controlResolution, context.resolutionContext);
-  const action = actionLattice.selected?.value ?? null;
-  const actionCandidates = summaryForValue('action', actionLattice.ranked);
-
-  const screenLattice = rankScreenCandidates(task, action, controlResolution, context.previousResolution, context.resolutionContext, memory);
-  const screen = screenLattice.selected?.value ?? null;
-
-  const elementLattice = rankElementCandidates(task, screen, controlResolution, memory);
-  const element = elementLattice.selected?.value ?? null;
-
-  const postureLattice = rankPostureCandidates(task, element, controlResolution, context.resolutionContext);
-  const posture = postureLattice.selected?.value ?? null;
-
-  const override = resolveOverride(task, screen, element, posture, controlResolution, context);
-  const snapshotLattice = rankSnapshotCandidates(task, screen, element, controlResolution);
-  const snapshotTemplate = snapshotLattice.selected?.value ?? null;
-
-  const supplementRefs = [
-    ...(actionLattice.selected?.refs ?? []),
-    ...(screen?.supplementRefs ?? []),
-    ...(elementLattice.selected?.refs ?? []),
-    ...(postureLattice.selected?.refs ?? []),
-    ...(snapshotLattice.selected?.refs ?? []),
-  ];
-  const knowledgeRefs = screen ? [...screen.knowledgeRefs] : [];
-
-  const exhaustion = [
-    screen
-      ? exhaustionEntry('approved-screen-knowledge', 'attempted', `Selected screen ${screen.screen}`, summaryForValue('screen', screenLattice.ranked))
-      : exhaustionEntry('approved-screen-knowledge', 'failed', 'No screen candidate matched approved screen knowledge priors', summaryForValue('screen', screenLattice.ranked)),
-    element
-      ? exhaustionEntry('approved-screen-knowledge', 'attempted', `Matched element ${element.element}`, summaryForValue('element', elementLattice.ranked))
-      : exhaustionEntry('approved-screen-knowledge', 'failed', 'No element candidate matched approved screen knowledge', summaryForValue('element', elementLattice.ranked)),
-    exhaustionEntry('shared-patterns', posture ? 'attempted' : 'skipped', posture ? `Matched posture ${posture}` : 'No shared posture pattern required', summaryForValue('posture', postureLattice.ranked)),
-    exhaustionEntry(
-      'prior-evidence',
-      context.resolutionContext.evidenceRefs.length > 0 ? 'attempted' : 'skipped',
-      context.resolutionContext.evidenceRefs.length > 0 ? 'Prior evidence refs were available to the agent task' : 'No prior evidence refs available',
-    ),
-  ];
-
-  const latticeObservation = {
-    source: 'approved-screen-knowledge' as const,
-    summary: 'Deterministic lattice ranked approved candidates across action, screen, element, posture, and snapshot concerns.',
-    topCandidates: [
-      ...actionCandidates.topCandidates.slice(0, 1),
-      ...summaryForValue('screen', screenLattice.ranked).topCandidates.slice(0, 1),
-      ...summaryForValue('element', elementLattice.ranked).topCandidates.slice(0, 1),
-      ...summaryForValue('posture', postureLattice.ranked).topCandidates.slice(0, 1),
-      ...summaryForValue('snapshot', snapshotLattice.ranked).topCandidates.slice(0, 1),
-    ],
-    rejectedCandidates: [
-      ...actionCandidates.rejectedCandidates,
-      ...summaryForValue('screen', screenLattice.ranked).rejectedCandidates,
-      ...summaryForValue('element', elementLattice.ranked).rejectedCandidates,
-      ...summaryForValue('posture', postureLattice.ranked).rejectedCandidates,
-      ...summaryForValue('snapshot', snapshotLattice.ranked).rejectedCandidates,
-    ],
-  };
-
-  return {
-    accumulator: {
-      action,
-      screen,
-      element,
-      posture,
-      snapshotTemplate,
-      override,
-      actionLattice,
-      screenLattice,
-      elementLattice,
-      postureLattice,
-      snapshotLattice,
-      overlayResult: { screen: null, element: null, posture: null, snapshotTemplate: null, overlayRefs: [] },
-      translated: { translation: null, screen: null, element: null, overlayRefs: [] },
-    },
-    effects: { exhaustion, observations: [latticeObservation], knowledgeRefs, supplementRefs },
   };
 }
 
