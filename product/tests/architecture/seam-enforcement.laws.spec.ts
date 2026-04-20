@@ -132,11 +132,19 @@ function isManifestDeclaredOrLogPath(
 // it graduates off the list.
 
 const RULE_1_GRANDFATHERED: ReadonlySet<string> = new Set([
-  // workshop/ files that reach into product/ at the Step 0 baseline
+  // workshop/ files that reach into product/ at the Step 0 baseline.
+  //
+  // Graduations removed at step-4b.cleanup.5 after audit:
+  //  - 26 files whose current imports no longer reach into product/
+  //    (mostly workshop/metrics/* visitor modules that were
+  //    already structurally clean at Step 0 but got swept in).
+  //  - 6 stale entries for deleted files (workshop/orchestration/
+  //    dogfood/{activation,iteration,metrics,planner,reporting}.ts
+  //    were never moved in with the dogfood.ts parent, and
+  //    workshop/policy/escalation-policy.ts retired at cleanup.4).
+
   'workshop/convergence/types.ts',
-  'workshop/convergence/index.ts',
   'workshop/measurement/baseline-store.ts',
-  'workshop/measurement/index.ts',
   'workshop/measurement/score.ts',
   'workshop/learning/learning-bottlenecks.ts',
   'workshop/learning/learning-health.ts',
@@ -146,26 +154,18 @@ const RULE_1_GRANDFATHERED: ReadonlySet<string> = new Set([
   'workshop/learning/learning.ts',
   'workshop/learning/signal-maturation.ts',
   'workshop/synthesis/cohort-generator.ts',
-  'workshop/synthesis/fixture-extractor.ts',
   'workshop/synthesis/interface-fuzzer.ts',
   'workshop/synthesis/scenario-generator.ts',
   'workshop/policy/approve.ts',
   'workshop/policy/auto-approval.ts',
-  'workshop/policy/escalation-policy.ts',
   'workshop/policy/governance-intelligence.ts',
   'workshop/policy/intervention-kernel.ts',
   'workshop/policy/trust-policy.ts',
   'workshop/orchestration/benchmark.ts',
   'workshop/orchestration/clean-slate.ts',
-  'workshop/orchestration/compounding-projection.ts',
   'workshop/orchestration/convergence-proof.ts',
   'workshop/orchestration/dogfood-orchestrator.ts',
   'workshop/orchestration/dogfood.ts',
-  'workshop/orchestration/dogfood/activation.ts',
-  'workshop/orchestration/dogfood/iteration.ts',
-  'workshop/orchestration/dogfood/metrics.ts',
-  'workshop/orchestration/dogfood/planner.ts',
-  'workshop/orchestration/dogfood/reporting.ts',
   'workshop/orchestration/evolve.ts',
   'workshop/orchestration/experiment-registry.ts',
   'workshop/orchestration/fingerprint-stability-probe.ts',
@@ -173,7 +173,6 @@ const RULE_1_GRANDFATHERED: ReadonlySet<string> = new Set([
   'workshop/orchestration/hotspots.ts',
   'workshop/orchestration/improvement-intelligence.ts',
   'workshop/orchestration/improvement.ts',
-  'workshop/orchestration/iteration-journal.ts',
   'workshop/orchestration/knob-search.ts',
   'workshop/orchestration/knowledge-coverage.ts',
   'workshop/orchestration/memory-maturity-projection.ts',
@@ -181,57 +180,32 @@ const RULE_1_GRANDFATHERED: ReadonlySet<string> = new Set([
   'workshop/orchestration/scorecard.ts',
   'workshop/orchestration/speedrun.ts',
   'workshop/orchestration/strategic-intelligence.ts',
-  'workshop/metrics/architecture-fitness.ts',
-  'workshop/metrics/cohort.ts',
-  'workshop/metrics/compounding.ts',
-  'workshop/metrics/fingerprint-stability.ts',
-  'workshop/metrics/memory-maturity-trajectory.ts',
-  'workshop/metrics/memory-maturity.ts',
-  'workshop/metrics/metric/baseline.ts',
-  'workshop/metrics/metric/catalogue-discovery.ts',
-  'workshop/metrics/metric/catalogue.ts',
-  'workshop/metrics/metric/delta.ts',
-  'workshop/metrics/metric/tree.ts',
   'workshop/metrics/metric/value.ts',
-  'workshop/metrics/metric/visitor.ts',
-  'workshop/metrics/metric/visitors/compounding-economics.ts',
-  'workshop/metrics/metric/visitors/extraction-ratio.ts',
-  'workshop/metrics/metric/visitors/handshake-density.ts',
-  'workshop/metrics/metric/visitors/intervention-cost.ts',
-  'workshop/metrics/metric/visitors/intervention-marginal-value.ts',
-  'workshop/metrics/metric/visitors/memory-worthiness-ratio.ts',
-  'workshop/metrics/metric/visitors/rung-distribution.ts',
   'workshop/metrics/metric/visitors-discovery/fidelity.ts',
-  'workshop/metrics/outcome-metrics.ts',
   'workshop/metrics/risk-formula.ts',
-  'workshop/metrics/risk-weights.ts',
-  'workshop/metrics/targets.ts',
   'workshop/metrics/types.ts',
   'workshop/metrics/metric/visitors-discovery/index.ts',
 ]);
 
 const RULE_2_GRANDFATHERED: ReadonlySet<string> = new Set([
-  // dashboard/ files that reach into product/ at the Step 0 baseline
+  // dashboard/ files that reach into product/ at the Step 0 baseline.
+  //
+  // Graduations removed at step-4b.cleanup.5: 7 dashboard server /
+  // bridge files that no longer import from product/.
   'dashboard/bridges/cdp-screencast.ts',
   'dashboard/bridges/file-dashboard-port.ts',
   'dashboard/bridges/file-decision-bridge.ts',
   'dashboard/bridges/journal-writer.ts',
   'dashboard/bridges/pipeline-event-bus.ts',
-  'dashboard/bridges/runtime-boundary.ts',
   'dashboard/bridges/ws-dashboard-adapter.ts',
   'dashboard/mcp/dashboard-mcp-server.ts',
   'dashboard/mcp/server-config.ts',
   'dashboard/mcp/playwright-mcp-bridge.ts',
   'dashboard/mcp/resource-provider.ts',
   'dashboard/server.ts',
-  'dashboard/server/config.ts',
-  'dashboard/server/http-router.ts',
-  'dashboard/server/mcp-tools.ts',
-  'dashboard/server/runtime-state.ts',
-  'dashboard/server/ws-hub.ts',
-  'dashboard/server/infrastructure/file-access.ts',
   // dashboard/src/ is the web UI; it reaches into product/domain/ widely.
-  // These are all grandfathered at Step 0.
+  // These are all grandfathered at Step 0 pending the full dashboard/src/
+  // projection rewrite at Step 4c+.
   'dashboard/src/bookmark-system.ts',
   'dashboard/src/hooks/dashboard-event-observer.ts',
   'dashboard/src/hooks/flywheel-dispatch-handlers.ts',
@@ -247,12 +221,29 @@ const RULE_2_GRANDFATHERED: ReadonlySet<string> = new Set([
 ]);
 
 const RULE_3_GRANDFATHERED: ReadonlySet<string> = new Set([
-  // product/ files that reach into workshop/ or dashboard/ at the Step 0 baseline
+  // product/ files that reach into workshop/ or dashboard/ at the Step 0 baseline.
+  //
+  // NOTE: 29 entries graduated at step-4b.cleanup.5 after audit showed
+  // they no longer carry cross-seam imports (all of the CLI commands
+  // that only consumed workshop-side helpers at Step 0 now import
+  // from product/ only; the composition modules stopped needing
+  // workshop/learning after Step 1's reference-canon retirement; the
+  // reasoning ports retired at step-4b.retirement). The entries
+  // remaining below still carry live cross-seam imports — their
+  // retirement waits on the corresponding workshop/dashboard reshape.
+
+  // product/application/agency/agent-workbench.ts — imports from
+  //   workshop/orchestration/hotspots + workshop/learning/learning-shared.
   'product/application/agency/agent-workbench.ts',
-  'product/application/agency/dashboard-decider.ts',
+  // product/application/agency/inbox.ts — workshop/orchestration/hotspots.
   'product/application/agency/inbox.ts',
+  // product/application/agency/operator.ts — workshop/orchestration/hotspots (type).
   'product/application/agency/operator.ts',
+  // product/application/catalog/workspace-catalog.ts —
+  //   workshop/orchestration/improvement.
   'product/application/catalog/workspace-catalog.ts',
+  // product/application/commitment/build-proposals.ts —
+  //   workshop/policy/trust-policy.
   'product/application/commitment/build-proposals.ts',
   'product/application/commitment/replay/replay-evaluation.ts',
   'product/application/commitment/replay/replay-interpretation.ts',
@@ -260,51 +251,19 @@ const RULE_3_GRANDFATHERED: ReadonlySet<string> = new Set([
   'product/application/commitment/run.ts',
   'product/application/drift/execution-coherence.ts',
   'product/application/graph/graph.ts',
-  'product/application/graph/impact.ts',
   'product/application/knowledge/activate-proposals.ts',
   'product/application/projections/workflow.ts',
+  // product/application/resolution/compile.ts — workshop/learning/learning.
   'product/application/resolution/compile.ts',
   'product/cli/commands/approve.ts',
   'product/cli/commands/benchmark.ts',
-  'product/cli/commands/bind.ts',
-  'product/cli/commands/capture.ts',
   'product/cli/commands/certify.ts',
-  'product/cli/commands/compile.ts',
-  'product/cli/commands/discover.ts',
   'product/cli/commands/dogfood.ts',
-  'product/cli/commands/emit.ts',
   'product/cli/commands/evolve.ts',
   'product/cli/commands/experiments.ts',
   'product/cli/commands/generate.ts',
-  'product/cli/commands/graph.ts',
-  'product/cli/commands/harvest.ts',
-  'product/cli/commands/impact.ts',
-  'product/cli/commands/inbox.ts',
-  'product/cli/commands/parse.ts',
-  'product/cli/commands/paths.ts',
-  'product/cli/commands/refresh.ts',
-  'product/cli/commands/replay.ts',
-  'product/cli/commands/rerun-plan.ts',
-  'product/cli/commands/run.ts',
   'product/cli/commands/scorecard.ts',
-  'product/cli/commands/surface.ts',
-  'product/cli/commands/sync.ts',
-  'product/cli/commands/trace.ts',
-  'product/cli/commands/types.ts',
-  'product/cli/commands/workbench.ts',
-  'product/cli/commands/workflow.ts',
-  'product/cli/registry.ts',
-  'product/cli/shared.ts',
-  'product/composition/env.ts',
-  'product/composition/layers.ts',
-  'product/composition/local-runtime-scenario-runner.ts',
   'product/composition/local-services.ts',
-  'product/composition/scenario-context.ts',
-  // product/reasoning/{translation-provider.ts,agent-interpreter-provider.ts}:
-  // GRADUATED at Step 4b and RETIRED at step-4b.retirement — the files
-  // moved to product/reasoning/adapters/{translation,agent}-backends.ts
-  // and do not import across the seam. The unified Reasoning port
-  // stays entirely in product/.
   // Additional product/ files reaching into workshop/ or dashboard/ at Step 0
   'product/domain/improvement/experiment.ts',
   'product/domain/improvement/types.ts',
