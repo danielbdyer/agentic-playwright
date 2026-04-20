@@ -79,6 +79,11 @@ import {
   selectRouteForNavigate,
   type RouteSelection,
 } from './scenario/route';
+import {
+  recoveryDiagnostics,
+  recoveryAttemptResult,
+  wait,
+} from './scenario/recovery';
 
 
 function resolvedScenarioStep(task: GroundedStep, target: ResolutionTarget, confidence: ScenarioStep['confidence']): ScenarioStep {
@@ -98,9 +103,6 @@ function resolvedScenarioStep(task: GroundedStep, target: ResolutionTarget, conf
   };
 }
 
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 async function executeRecoveryAttempts(input: {
   family: StepExecutionReceipt['failure']['family'];
@@ -159,43 +161,6 @@ async function executeRecoveryAttempts(input: {
   return tryStrategy(enabledStrategies, []);
 }
 
-function recoveryDiagnostics(strategy: RecoveryStrategy, input: {
-  preconditionFailures: readonly string[];
-  diagnostics: readonly ExecutionDiagnostic[];
-  degraded: boolean;
-}): string[] {
-  const base = strategy.diagnostics ?? [];
-  if (strategy.id === 'verify-prerequisites') {
-    return [...base, ...input.preconditionFailures.map((entry) => `precondition:${entry}`)].slice(0, 5);
-  }
-  if (strategy.id === 'force-alternate-locator-rungs' || strategy.id === 'snapshot-guided-reresolution') {
-    return [...base, input.degraded ? 'degraded-locator-observed' : 'no-degraded-locator-observed'];
-  }
-  return [...base, ...input.diagnostics.map((entry) => `${entry.code}:${entry.message}`).slice(0, 3)];
-}
-
-function recoveryAttemptResult(strategy: RecoveryStrategy, input: {
-  preconditionFailures: readonly string[];
-  diagnostics: readonly ExecutionDiagnostic[];
-  degraded: boolean;
-}): RecoveryAttempt['result'] {
-  if (strategy.id === 'verify-prerequisites') {
-    return input.preconditionFailures.length === 0 ? 'recovered' : 'failed';
-  }
-  if (strategy.id === 'execute-prerequisite-actions') {
-    return input.preconditionFailures.length > 0 ? 'recovered' : 'skipped';
-  }
-  if (strategy.id === 'force-alternate-locator-rungs' || strategy.id === 'snapshot-guided-reresolution') {
-    return input.degraded ? 'recovered' : 'skipped';
-  }
-  if (strategy.id === 'bounded-retry-with-backoff') {
-    return input.diagnostics.length > 0 ? 'recovered' : 'skipped';
-  }
-  if (strategy.id === 'refresh-runtime') {
-    return input.diagnostics.length > 0 ? 'recovered' : 'skipped';
-  }
-  return 'failed';
-}
 
 export async function runScenarioStep(
   task: GroundedStep,
