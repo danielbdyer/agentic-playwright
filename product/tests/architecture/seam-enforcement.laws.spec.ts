@@ -122,6 +122,13 @@ const ALWAYS_ALLOWED_PRODUCT_PATHS: readonly string[] = [
   // dashboard/workshop file that does `yield* FileSystem` would
   // need to be grandfathered.
   'product/application/ports',
+  // Manifest invoker — the handler-registry surface that binds
+  // manifest-verb invocations to their runtime implementations.
+  // Dashboard MCP server (and any future MCP host) imports this to
+  // construct + consume the handler registry. Part of the manifest
+  // seam contract (dashboard routes manifest-verb MCP tool calls
+  // through this invoker), analogous to product/domain/manifest.
+  'product/application/manifest',
 ];
 
 function isManifestDeclaredOrLogPath(

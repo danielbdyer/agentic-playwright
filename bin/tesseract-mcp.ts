@@ -421,7 +421,7 @@ async function handleRequest(request: JsonRpcRequest): Promise<void> {
         break;
       }
 
-      const result = Effect.runSync(mcpServer.handleToolCall({
+      const result = await Effect.runPromise(mcpServer.handleToolCall({
         tool: params.name,
         arguments: params.arguments ?? {},
       }));

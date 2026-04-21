@@ -112,14 +112,14 @@ test.describe('URI Parsing — Invalid URIs', () => {
 // ─── Law 3: URI Parsing Determinism ───
 
 test.describe('URI Parsing — Determinism', () => {
-  test('same URI always produces same parse result', () => {
+  test('same URI always produces same parse result', async () => {
     const uri = 'tesseract://proposal/abc-123';
     const a = parseResourceUri(uri);
     const b = parseResourceUri(uri);
     expect(a).toEqual(b);
   });
 
-  test('same invalid URI always produces null', () => {
+  test('same invalid URI always produces null', async () => {
     const uri = 'not-a-uri';
     const a = parseResourceUri(uri);
     const b = parseResourceUri(uri);
@@ -147,7 +147,7 @@ test.describe('buildResourceUri round-trip', () => {
 // ─── Law 5: Resource Resolution — Proposal ───
 
 test.describe('Resource Resolution — Proposal', () => {
-  test('resolves proposal from learning/proposals index', () => {
+  test('resolves proposal from learning/proposals index', async () => {
     const reader = artifactReader({
       '.tesseract/learning/proposals.json': { proposals: [mockProposal('p-001')] },
     });
@@ -157,7 +157,7 @@ test.describe('Resource Resolution — Proposal', () => {
     expect(result.uri).toBe('tesseract://proposal/p-001');
   });
 
-  test('resolves proposal from individual file', () => {
+  test('resolves proposal from individual file', async () => {
     const reader = artifactReader({
       '.tesseract/learning/proposals/p-002.json': mockProposal('p-002', { status: 'approved' }),
     });
@@ -166,14 +166,14 @@ test.describe('Resource Resolution — Proposal', () => {
     expect((result.data as { status: string }).status).toBe('approved');
   });
 
-  test('returns found=false for missing proposal', () => {
+  test('returns found=false for missing proposal', async () => {
     const result = resolveResource('tesseract://proposal/missing', emptyReader());
     expect(result.found).toBe(false);
     expect(result.kind).toBe('proposal');
     expect(result.uri).toBe('tesseract://proposal/missing');
   });
 
-  test('proposals index takes precedence over individual file', () => {
+  test('proposals index takes precedence over individual file', async () => {
     const reader = artifactReader({
       '.tesseract/learning/proposals.json': { proposals: [mockProposal('dup-001', { source: 'index' })] },
       '.tesseract/learning/proposals/dup-001.json': mockProposal('dup-001', { source: 'file' }),
@@ -187,7 +187,7 @@ test.describe('Resource Resolution — Proposal', () => {
 // ─── Law 6: Resource Resolution — Bottleneck ───
 
 test.describe('Resource Resolution — Bottleneck', () => {
-  test('returns bottleneck data with task-based scoring', () => {
+  test('returns bottleneck data with task-based scoring', async () => {
     const reader = artifactReader({
       '.tesseract/tasks/index.json': {
         tasks: [
@@ -207,14 +207,14 @@ test.describe('Resource Resolution — Bottleneck', () => {
     expect(data.bottleneckScore).toBeCloseTo(2 / 3);
   });
 
-  test('bottleneck score is zero when no tasks exist', () => {
+  test('bottleneck score is zero when no tasks exist', async () => {
     const result = resolveResource('tesseract://bottleneck/login', emptyReader());
     expect(result.found).toBe(true); // always found, just with zero data
     const data = result.data as { bottleneckScore: number };
     expect(data.bottleneckScore).toBe(0);
   });
 
-  test('bottleneck score is zero for fully resolved screen', () => {
+  test('bottleneck score is zero for fully resolved screen', async () => {
     const reader = artifactReader({
       '.tesseract/tasks/index.json': {
         tasks: [
@@ -231,7 +231,7 @@ test.describe('Resource Resolution — Bottleneck', () => {
 // ─── Law 7: Resource Resolution — Run ───
 
 test.describe('Resource Resolution — Run', () => {
-  test('resolves run from direct file', () => {
+  test('resolves run from direct file', async () => {
     const reader = artifactReader({
       '.tesseract/runs/run-001.json': mockRunRecord('run-001'),
     });
@@ -241,7 +241,7 @@ test.describe('Resource Resolution — Run', () => {
     expect((result.data as { runId: string }).runId).toBe('run-001');
   });
 
-  test('resolves "latest" from speedrun progress JSONL', () => {
+  test('resolves "latest" from speedrun progress JSONL', async () => {
     const reader = artifactReader({
       '.tesseract/runs/speedrun-progress.jsonl': `{"runId":"sr-001","phase":"compile"}\n{"runId":"sr-002","phase":"execute"}`,
     });
@@ -250,7 +250,7 @@ test.describe('Resource Resolution — Run', () => {
     expect((result.data as { runId: string }).runId).toBe('sr-002');
   });
 
-  test('resolves run from session file', () => {
+  test('resolves run from session file', async () => {
     const reader = artifactReader({
       '.tesseract/sessions/sess-001.json': { sessionId: 'sess-001', status: 'completed' },
     });
@@ -258,12 +258,12 @@ test.describe('Resource Resolution — Run', () => {
     expect(result.found).toBe(true);
   });
 
-  test('returns found=false for missing run', () => {
+  test('returns found=false for missing run', async () => {
     const result = resolveResource('tesseract://run/missing', emptyReader());
     expect(result.found).toBe(false);
   });
 
-  test('direct file takes precedence over session', () => {
+  test('direct file takes precedence over session', async () => {
     const reader = artifactReader({
       '.tesseract/runs/run-001.json': mockRunRecord('run-001', { source: 'direct' }),
       '.tesseract/sessions/run-001.json': { source: 'session' },
@@ -291,7 +291,7 @@ test.describe('Response Structure', () => {
     });
   }
 
-  test('not-found response has data with error message', () => {
+  test('not-found response has data with error message', async () => {
     const result = resolveResource('tesseract://proposal/missing', emptyReader());
     expect(result.found).toBe(false);
     expect(result.data).toHaveProperty('error');
@@ -318,7 +318,7 @@ test.describe('Round-Trip URI Preservation', () => {
 // ─── Law 10: Invalid URI resolution returns found=false ───
 
 test.describe('Invalid URI resolution', () => {
-  test('invalid URI returns found=false with error', () => {
+  test('invalid URI returns found=false with error', async () => {
     const result = resolveResource('invalid-uri', emptyReader());
     expect(result.found).toBe(false);
   });
@@ -327,7 +327,7 @@ test.describe('Invalid URI resolution', () => {
 // ─── Law 11: Tool Catalog Expansion ───
 
 test.describe('Tool Catalog Expansion', () => {
-  test('catalog contains at least 15 tools (8 core + 6 browser + 7 resource)', () => {
+  test('catalog contains at least 15 tools (8 core + 6 browser + 7 resource)', async () => {
     expect(dashboardMcpTools.length).toBeGreaterThanOrEqual(15);
   });
 
@@ -351,25 +351,25 @@ test.describe('Tool Catalog Expansion', () => {
     });
   }
 
-  test('all tools have unique names', () => {
+  test('all tools have unique names', async () => {
     const names = dashboardMcpTools.map((t) => t.name);
     expect(new Set(names).size).toBe(names.length);
   });
 
-  test('every tool has a valid category', () => {
+  test('every tool has a valid category', async () => {
     const validCategories = new Set(['observe', 'decide', 'control']);
     for (const tool of dashboardMcpTools) {
       expect(validCategories.has(tool.category)).toBe(true);
     }
   });
 
-  test('every tool has a non-empty description', () => {
+  test('every tool has a non-empty description', async () => {
     for (const tool of dashboardMcpTools) {
       expect(tool.description.length).toBeGreaterThan(10);
     }
   });
 
-  test('every tool has an inputSchema with type=object', () => {
+  test('every tool has an inputSchema with type=object', async () => {
     for (const tool of dashboardMcpTools) {
       expect(tool.inputSchema.type).toBe('object');
     }
@@ -379,44 +379,44 @@ test.describe('Tool Catalog Expansion', () => {
 // ─── Law 12: Tool Handler Routing — New Tools ───
 
 test.describe('Tool Handler Routing', () => {
-  test('get_proposal routes to proposal resolution', () => {
+  test('get_proposal routes to proposal resolution', async () => {
     const options = mockMcpServerOptions({
       '.tesseract/learning/proposals/p-001.json': mockProposal('p-001'),
     });
     const server = createDashboardMcpServer(options);
-    const result = Effect.runSync(server.handleToolCall({ tool: 'get_proposal', arguments: { proposalId: 'p-001' } }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'get_proposal', arguments: { proposalId: 'p-001' } }));
     expect(result.isError).toBe(false);
   });
 
-  test('get_bottleneck routes to bottleneck analysis', () => {
+  test('get_bottleneck routes to bottleneck analysis', async () => {
     const options = mockMcpServerOptions({
       '.tesseract/tasks/index.json': { tasks: [{ screen: 'login', status: 'resolved' }] },
     });
     const server = createDashboardMcpServer(options);
-    const result = Effect.runSync(server.handleToolCall({ tool: 'get_bottleneck', arguments: { screen: 'login' } }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'get_bottleneck', arguments: { screen: 'login' } }));
     expect(result.isError).toBe(false);
   });
 
-  test('get_run routes to run resolution', () => {
+  test('get_run routes to run resolution', async () => {
     const options = mockMcpServerOptions({
       '.tesseract/runs/run-001.json': mockRunRecord('run-001'),
     });
     const server = createDashboardMcpServer(options);
-    const result = Effect.runSync(server.handleToolCall({ tool: 'get_run', arguments: { runId: 'run-001' } }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'get_run', arguments: { runId: 'run-001' } }));
     expect(result.isError).toBe(false);
   });
 
-  test('get_resolution_graph returns graph data', () => {
+  test('get_resolution_graph returns graph data', async () => {
     const options = mockMcpServerOptions({
       '.tesseract/graph/index.json': { nodes: [{ id: 'login/btn', screen: 'login', confidence: 0.5 }], edges: [] },
     });
     const server = createDashboardMcpServer(options);
-    const result = Effect.runSync(server.handleToolCall({ tool: 'get_resolution_graph', arguments: {} }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'get_resolution_graph', arguments: {} }));
     expect(result.isError).toBe(false);
     expect((result.result as { totalNodes: number }).totalNodes).toBe(1);
   });
 
-  test('get_resolution_graph filters by screen', () => {
+  test('get_resolution_graph filters by screen', async () => {
     const options = mockMcpServerOptions({
       '.tesseract/graph/index.json': {
         nodes: [
@@ -427,46 +427,46 @@ test.describe('Tool Handler Routing', () => {
       },
     });
     const server = createDashboardMcpServer(options);
-    const result = Effect.runSync(server.handleToolCall({ tool: 'get_resolution_graph', arguments: { screen: 'login' } }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'get_resolution_graph', arguments: { screen: 'login' } }));
     expect(result.isError).toBe(false);
     expect((result.result as { totalNodes: number }).totalNodes).toBe(1);
   });
 
-  test('list_proposals returns all proposals', () => {
+  test('list_proposals returns all proposals', async () => {
     const options = mockMcpServerOptions({
       '.tesseract/learning/proposals/index.json': {
         proposals: [mockProposal('p-001'), mockProposal('p-002', { status: 'approved' })],
       },
     });
     const server = createDashboardMcpServer(options);
-    const result = Effect.runSync(server.handleToolCall({ tool: 'list_proposals', arguments: {} }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'list_proposals', arguments: {} }));
     expect(result.isError).toBe(false);
     expect((result.result as { count: number }).count).toBe(2);
   });
 
-  test('list_proposals filters by status', () => {
+  test('list_proposals filters by status', async () => {
     const options = mockMcpServerOptions({
       '.tesseract/learning/proposals/index.json': {
         proposals: [mockProposal('p-001'), mockProposal('p-002', { status: 'approved' })],
       },
     });
     const server = createDashboardMcpServer(options);
-    const result = Effect.runSync(server.handleToolCall({ tool: 'list_proposals', arguments: { status: 'approved' } }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'list_proposals', arguments: { status: 'approved' } }));
     expect(result.isError).toBe(false);
     expect((result.result as { count: number }).count).toBe(1);
   });
 
-  test('get_task_resolution returns resolution data', () => {
+  test('get_task_resolution returns resolution data', async () => {
     const options = mockMcpServerOptions({
       '.tesseract/tasks/10001.resolution.json': { adoId: '10001', winningSource: 'compiler-derived', confidence: 0.95 },
     });
     const server = createDashboardMcpServer(options);
-    const result = Effect.runSync(server.handleToolCall({ tool: 'get_task_resolution', arguments: { taskId: '10001' } }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'get_task_resolution', arguments: { taskId: '10001' } }));
     expect(result.isError).toBe(false);
     expect((result.result as { winningSource: string }).winningSource).toBe('compiler-derived');
   });
 
-  test('list_screens returns screen summaries', () => {
+  test('list_screens returns screen summaries', async () => {
     const options = mockMcpServerOptions({
       '.tesseract/graph/index.json': {
         nodes: [
@@ -477,7 +477,7 @@ test.describe('Tool Handler Routing', () => {
       },
     });
     const server = createDashboardMcpServer(options);
-    const result = Effect.runSync(server.handleToolCall({ tool: 'list_screens', arguments: {} }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'list_screens', arguments: {} }));
     expect(result.isError).toBe(false);
     const data = result.result as { screens: readonly { screen: string; elementCount: number }[]; count: number };
     expect(data.count).toBe(2);
@@ -486,7 +486,7 @@ test.describe('Tool Handler Routing', () => {
     expect(loginScreen!.elementCount).toBe(2);
   });
 
-  test('list_screens exposes route knowledge summary when screen nodes carry route variants', () => {
+  test('list_screens exposes route knowledge summary when screen nodes carry route variants', async () => {
     const options = mockMcpServerOptions({
       '.tesseract/graph/index.json': {
         nodes: [
@@ -507,7 +507,7 @@ test.describe('Tool Handler Routing', () => {
       },
     });
     const server = createDashboardMcpServer(options);
-    const result = Effect.runSync(server.handleToolCall({ tool: 'list_screens', arguments: {} }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'list_screens', arguments: {} }));
     expect(result.isError).toBe(false);
     const data = result.result as {
       screens: readonly {
@@ -523,7 +523,7 @@ test.describe('Tool Handler Routing', () => {
     expect(loginScreen?.totalRecordedRouteSuccess).toBe(5);
   });
 
-  test('get_knowledge_state returns route-entry summary for a specific screen', () => {
+  test('get_knowledge_state returns route-entry summary for a specific screen', async () => {
     const options = mockMcpServerOptions({
       '.tesseract/graph/index.json': {
         nodes: [
@@ -547,7 +547,7 @@ test.describe('Tool Handler Routing', () => {
       },
     });
     const server = createDashboardMcpServer(options);
-    const result = Effect.runSync(server.handleToolCall({ tool: 'get_knowledge_state', arguments: { screen: 'policy-search' } }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'get_knowledge_state', arguments: { screen: 'policy-search' } }));
     expect(result.isError).toBe(false);
     const data = result.result as {
       screenSummary: {
@@ -566,34 +566,34 @@ test.describe('Tool Handler Routing', () => {
 // ─── Law 13: Tool Handler Error Cases ───
 
 test.describe('Tool Handler Error Cases', () => {
-  test('get_proposal without proposalId returns error', () => {
+  test('get_proposal without proposalId returns error', async () => {
     const server = createDashboardMcpServer(mockMcpServerOptions());
-    const result = Effect.runSync(server.handleToolCall({ tool: 'get_proposal', arguments: {} }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'get_proposal', arguments: {} }));
     expect(result.isError).toBe(false); // handler returns error in result, not isError on envelope
     expect((result.result as { isError: boolean }).isError).toBe(true);
   });
 
-  test('get_bottleneck without screen returns error', () => {
+  test('get_bottleneck without screen returns error', async () => {
     const server = createDashboardMcpServer(mockMcpServerOptions());
-    const result = Effect.runSync(server.handleToolCall({ tool: 'get_bottleneck', arguments: {} }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'get_bottleneck', arguments: {} }));
     expect((result.result as { isError: boolean }).isError).toBe(true);
   });
 
-  test('get_run without runId returns error', () => {
+  test('get_run without runId returns error', async () => {
     const server = createDashboardMcpServer(mockMcpServerOptions());
-    const result = Effect.runSync(server.handleToolCall({ tool: 'get_run', arguments: {} }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'get_run', arguments: {} }));
     expect((result.result as { isError: boolean }).isError).toBe(true);
   });
 
-  test('get_task_resolution without taskId returns error', () => {
+  test('get_task_resolution without taskId returns error', async () => {
     const server = createDashboardMcpServer(mockMcpServerOptions());
-    const result = Effect.runSync(server.handleToolCall({ tool: 'get_task_resolution', arguments: {} }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'get_task_resolution', arguments: {} }));
     expect((result.result as { isError: boolean }).isError).toBe(true);
   });
 
-  test('unknown tool returns isError=true on envelope', () => {
+  test('unknown tool returns isError=true on envelope', async () => {
     const server = createDashboardMcpServer(mockMcpServerOptions());
-    const result = Effect.runSync(server.handleToolCall({ tool: 'nonexistent_tool', arguments: {} }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'nonexistent_tool', arguments: {} }));
     expect(result.isError).toBe(true);
   });
 });
@@ -601,7 +601,7 @@ test.describe('Tool Handler Error Cases', () => {
 // ─── Law 14: Server listTools Returns Expanded Catalog ───
 
 test.describe('Server listTools', () => {
-  test('listTools returns all tools including new ones', () => {
+  test('listTools returns all tools including new ones', async () => {
     const server = createDashboardMcpServer(mockMcpServerOptions());
     const tools = Effect.runSync(server.listTools());
     expect(tools.length).toBeGreaterThanOrEqual(15);
@@ -616,23 +616,23 @@ test.describe('Server listTools', () => {
 // ─── Law 15: Empty Artifact Graceful Degradation ───
 
 test.describe('Empty Artifact Graceful Degradation', () => {
-  test('get_resolution_graph with no graph returns empty', () => {
+  test('get_resolution_graph with no graph returns empty', async () => {
     const server = createDashboardMcpServer(mockMcpServerOptions());
-    const result = Effect.runSync(server.handleToolCall({ tool: 'get_resolution_graph', arguments: {} }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'get_resolution_graph', arguments: {} }));
     expect(result.isError).toBe(false);
     expect((result.result as { totalNodes: number }).totalNodes).toBe(0);
   });
 
-  test('list_proposals with no proposals returns empty', () => {
+  test('list_proposals with no proposals returns empty', async () => {
     const server = createDashboardMcpServer(mockMcpServerOptions());
-    const result = Effect.runSync(server.handleToolCall({ tool: 'list_proposals', arguments: {} }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'list_proposals', arguments: {} }));
     expect(result.isError).toBe(false);
     expect((result.result as { count: number }).count).toBe(0);
   });
 
-  test('list_screens with no graph returns empty', () => {
+  test('list_screens with no graph returns empty', async () => {
     const server = createDashboardMcpServer(mockMcpServerOptions());
-    const result = Effect.runSync(server.handleToolCall({ tool: 'list_screens', arguments: {} }));
+    const result = await Effect.runPromise(server.handleToolCall({ tool: 'list_screens', arguments: {} }));
     expect(result.isError).toBe(false);
     expect((result.result as { count: number }).count).toBe(0);
   });
@@ -641,7 +641,7 @@ test.describe('Empty Artifact Graceful Degradation', () => {
 // ─── Law 16: Bottleneck Score Monotonicity ───
 
 test.describe('Bottleneck Score Monotonicity', () => {
-  test('more unresolved tasks produce higher bottleneck score', () => {
+  test('more unresolved tasks produce higher bottleneck score', async () => {
     const readerA = artifactReader({
       '.tesseract/tasks/index.json': {
         tasks: [
@@ -677,9 +677,9 @@ test.describe('Existing Tools Unbroken', () => {
   ];
 
   for (const toolName of existingTools) {
-    test(`${toolName} still routes correctly`, () => {
+    test(`${toolName} still routes correctly`, async () => {
       const server = createDashboardMcpServer(mockMcpServerOptions());
-      const result = Effect.runSync(server.handleToolCall({ tool: toolName, arguments: {} }));
+      const result = await Effect.runPromise(server.handleToolCall({ tool: toolName, arguments: {} }));
       expect(result.isError).toBe(false);
     });
   }

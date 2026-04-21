@@ -41,7 +41,7 @@ function mockOptions(
 }
 
 function callTool(options: DashboardMcpServerOptions, tool: string) {
-  return Effect.runSync(createDashboardMcpServer(options).handleToolCall({
+  return Effect.runPromise(createDashboardMcpServer(options).handleToolCall({
     tool,
     arguments: {},
   }));
@@ -99,7 +99,7 @@ function inboxItem(input: {
 
 // ─── A: single-actor chain has no coherence requirement ───────────
 
-test('single-actor chain (depth 1) does not drag coherence down', () => {
+test('single-actor chain (depth 1) does not drag coherence down', async () => {
   const artifacts = {
     '.tesseract/benchmarks/convergence-proof.json': emptyConvergenceProof,
     '.tesseract/inbox/index.json': {
@@ -117,7 +117,7 @@ test('single-actor chain (depth 1) does not drag coherence down', () => {
       ],
     },
   };
-  const result = callTool(mockOptions(artifacts), 'get_convergence_proof') as any;
+  const result = await callTool(mockOptions(artifacts), 'get_convergence_proof') as any;
   expect(result.isError).toBeFalsy();
   const obligations = (result.result?.proofObligations ?? []) as Array<{ obligation: string; status: string; score: number }>;
   const actorChain = obligations.find((o) => o.obligation === 'actor-chain-coherence');
@@ -127,7 +127,7 @@ test('single-actor chain (depth 1) does not drag coherence down', () => {
 
 // ─── B: multi-actor chain with preserved semantic core → coherent ──
 
-test('multi-actor chain with preserved semantic core is coherent', () => {
+test('multi-actor chain with preserved semantic core is coherent', async () => {
   const artifacts = {
     '.tesseract/benchmarks/convergence-proof.json': emptyConvergenceProof,
     '.tesseract/inbox/index.json': {
@@ -145,7 +145,7 @@ test('multi-actor chain with preserved semantic core is coherent', () => {
       ],
     },
   };
-  const result = callTool(mockOptions(artifacts), 'get_convergence_proof') as any;
+  const result = await callTool(mockOptions(artifacts), 'get_convergence_proof') as any;
   const obligations = (result.result?.proofObligations ?? []) as Array<{ obligation: string; status: string; score: number }>;
   const actorChain = obligations.find((o) => o.obligation === 'actor-chain-coherence');
   expect(actorChain).toBeDefined();
@@ -155,7 +155,7 @@ test('multi-actor chain with preserved semantic core is coherent', () => {
 
 // ─── C: detected-but-UNACKNOWLEDGED drift → Phase 1.6 invariant ────
 
-test('multi-actor chain with UNACKNOWLEDGED drift fails coherence (Phase 1.6)', () => {
+test('multi-actor chain with UNACKNOWLEDGED drift fails coherence (Phase 1.6)', async () => {
   const artifacts = {
     '.tesseract/benchmarks/convergence-proof.json': emptyConvergenceProof,
     '.tesseract/inbox/index.json': {
@@ -174,7 +174,7 @@ test('multi-actor chain with UNACKNOWLEDGED drift fails coherence (Phase 1.6)', 
       ],
     },
   };
-  const result = callTool(mockOptions(artifacts), 'get_convergence_proof') as any;
+  const result = await callTool(mockOptions(artifacts), 'get_convergence_proof') as any;
   const obligations = (result.result?.proofObligations ?? []) as Array<{ obligation: string; status: string; score: number }>;
   const actorChain = obligations.find((o) => o.obligation === 'actor-chain-coherence');
   expect(actorChain).toBeDefined();
@@ -186,7 +186,7 @@ test('multi-actor chain with UNACKNOWLEDGED drift fails coherence (Phase 1.6)', 
 
 // ─── D: detected drift WITH acknowledgement → coherent again ───────
 
-test('multi-actor chain with ACKNOWLEDGED drift is coherent', () => {
+test('multi-actor chain with ACKNOWLEDGED drift is coherent', async () => {
   const artifacts = {
     '.tesseract/benchmarks/convergence-proof.json': emptyConvergenceProof,
     '.tesseract/inbox/index.json': {
@@ -209,7 +209,7 @@ test('multi-actor chain with ACKNOWLEDGED drift is coherent', () => {
       ],
     },
   };
-  const result = callTool(mockOptions(artifacts), 'get_convergence_proof') as any;
+  const result = await callTool(mockOptions(artifacts), 'get_convergence_proof') as any;
   const obligations = (result.result?.proofObligations ?? []) as Array<{ obligation: string; status: string; score: number }>;
   const actorChain = obligations.find((o) => o.obligation === 'actor-chain-coherence');
   expect(actorChain).toBeDefined();
@@ -219,7 +219,7 @@ test('multi-actor chain with ACKNOWLEDGED drift is coherent', () => {
 
 // ─── Sanity: the unacked case strictly dominates the acked case ────
 
-test('acknowledged drift scores strictly better than unacknowledged drift', () => {
+test('acknowledged drift scores strictly better than unacknowledged drift', async () => {
   const base = (ack: boolean) => ({
     '.tesseract/benchmarks/convergence-proof.json': emptyConvergenceProof,
     '.tesseract/inbox/index.json': {
@@ -240,8 +240,8 @@ test('acknowledged drift scores strictly better than unacknowledged drift', () =
       ],
     },
   });
-  const acked = callTool(mockOptions(base(true)), 'get_convergence_proof') as any;
-  const unacked = callTool(mockOptions(base(false)), 'get_convergence_proof') as any;
+  const acked = await callTool(mockOptions(base(true)), 'get_convergence_proof') as any;
+  const unacked = await callTool(mockOptions(base(false)), 'get_convergence_proof') as any;
   const ackedActor = ((acked.result?.proofObligations ?? []) as any[]).find(
     (o) => o.obligation === 'actor-chain-coherence',
   );

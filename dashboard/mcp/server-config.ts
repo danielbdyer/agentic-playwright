@@ -11,6 +11,7 @@
  */
 
 import type { ScreenCapturedEvent, WorkItemDecision } from '../../product/domain/observation/dashboard';
+import type { ManifestVerbHandlerRegistry } from '../../product/application/manifest/invoker';
 import type { PlaywrightBridgePort } from './playwright-mcp-bridge';
 
 export interface DashboardMcpServerOptions {
@@ -24,6 +25,12 @@ export interface DashboardMcpServerOptions {
   readonly broadcast: (event: unknown) => void;
   /** Optional Playwright bridge for live browser interaction (headed mode). */
   readonly playwrightBridge?: PlaywrightBridgePort;
+  /** Optional manifest verb handler registry. When provided, MCP tool
+   *  invocations for manifest-derived tools route through the registered
+   *  handler; when absent or when a verb has no handler registered, the
+   *  invocation falls through to the legacy toolHandlers dispatch,
+   *  which returns an "Unknown tool" error. */
+  readonly manifestVerbHandlers?: ManifestVerbHandlerRegistry;
 
   // ─── Lifecycle callbacks (host-mode only) ───
 
