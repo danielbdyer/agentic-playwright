@@ -1,4 +1,4 @@
-import { approveProposal } from '../../../workshop/policy/approve';
+import { approveProposal } from '../../application/policy/approve';
 import { createCommandSpec } from '../shared';
 import { requireProposalId } from '../shared';
 

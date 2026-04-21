@@ -26,7 +26,7 @@ import {
   weightedScoringRule,
   round4,
   type ScoringRule,
-} from '../../../workshop/learning/learning-shared';
+} from '../learning/learning-shared';
 import type {
   AgentWorkItem,
   AgentWorkbenchProjection,

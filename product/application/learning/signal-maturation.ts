@@ -15,7 +15,7 @@
  */
 
 import { round4 } from './learning-shared';
-import type { LearningSignalsSummary } from '../../product/domain/improvement/types';
+import type { LearningSignalsSummary } from '../../domain/improvement/types';
 
 /** Half-saturation constant: iteration at which maturity reaches 0.5. */
 const HALF_SATURATION_ITERATION = 3;

@@ -1,18 +1,18 @@
 import { Effect } from 'effect';
-import { TesseractError } from '../../product/domain/kernel/errors';
-import { foldGovernance } from '../../product/domain/governance/workflow-types';
-import type { Approved } from '../../product/domain/governance/workflow-types';
+import { TesseractError } from '../../domain/kernel/errors';
+import { foldGovernance } from '../../domain/governance/workflow-types';
+import type { Approved } from '../../domain/governance/workflow-types';
 import type {
   InterventionCommandAction,
   InterventionCommandBatch,
   InterventionLineageProjection,
   InterventionReceipt,
   InterventionStatus,
-} from '../../product/domain/handshake/intervention';
-import { epistemicStatusForSource } from '../../product/domain/handshake/epistemic-brand';
-import { createSemanticCore } from '../../product/domain/handshake/semantic-core';
-import type { ProjectPaths } from '../../product/application/paths';
-import { FileSystem } from '../../product/application/ports';
+} from '../../domain/handshake/intervention';
+import { epistemicStatusForSource } from '../../domain/handshake/epistemic-brand';
+import { createSemanticCore } from '../../domain/handshake/semantic-core';
+import type { ProjectPaths } from '../../application/paths';
+import { FileSystem } from '../../application/ports';
 
 interface ActionExecutionContext {
   readonly action: Approved<InterventionCommandAction>;

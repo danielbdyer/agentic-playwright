@@ -18,10 +18,10 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type { ProposalBundle } from '../../product/domain/execution/types';
-import type { ArchitectureFitnessReport } from '../metrics/architecture-fitness';
-import type { PipelineFitnessReport } from '../metrics/types';
-import type { ContradictionReport, ContradictionSeverity } from '../../product/domain/knowledge/contradiction-types';
+import type { ProposalBundle } from '../../domain/execution/types';
+import type { ArchitectureFitnessReport } from '../../../workshop/metrics/architecture-fitness';
+import type { PipelineFitnessReport } from '../../../workshop/metrics/types';
+import type { ContradictionReport, ContradictionSeverity } from '../../domain/knowledge/contradiction-types';
 
 // ─── Types ───
 
@@ -278,7 +278,7 @@ export function isGovernanceHealthy(
 //   A = GovernanceIntelligenceReport (the aggregate report)
 //   S = number (overall governance health score)
 
-import type { ObservationCollapse } from '../../product/domain/kernel/observation-collapse';
+import type { ObservationCollapse } from '../../domain/kernel/observation-collapse';
 
 export const governanceIntelligenceCollapse: ObservationCollapse<
   GovernanceIntelligenceInput,

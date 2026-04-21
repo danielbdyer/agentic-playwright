@@ -6,9 +6,9 @@ import type {
   RuntimeCoverageEntry,
   ScreenCoverageEntry,
   TrainingCorpusManifest,
-} from '../../product/domain/learning/types';
-import { fingerprintFor } from '../../product/domain/kernel/hash';
-import { groupBy, uniqueSorted } from '../../product/domain/kernel/collections';
+} from '../../domain/learning/types';
+import { fingerprintFor } from '../../domain/kernel/hash';
+import { groupBy, uniqueSorted } from '../../domain/kernel/collections';
 import { round4, screenFromGraphNodeIds, actionFamilyOf } from './learning-shared';
 
 const THIN_SCREEN_THRESHOLD = 3;

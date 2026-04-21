@@ -4,10 +4,10 @@ import { activateProposalBundle, autoApproveEligibleProposals, quarantineToxicPr
 import { isActivated, isPending } from '../../product/domain/proposal/lifecycle';
 import { deltaReloadProposalsAndRuns, loadWorkspaceCatalog } from '../../product/application/catalog';
 import { buildPartialFitnessMetrics } from './fitness';
-import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';
-import { aggregateLearningState, type LearningState } from '../learning/learning-state';
+import { calibrateWeightsFromCorrelations } from '../../product/application/learning/learning-bottlenecks';
+import { aggregateLearningState, type LearningState } from '../../product/application/learning/learning-state';
 import { buildExecutionCoherence } from '../../product/application/drift/execution-coherence';
-import { signalMaturity, buildLearningSignalsSummary, countDegradingSignals } from '../learning/signal-maturation';
+import { signalMaturity, buildLearningSignalsSummary, countDegradingSignals } from '../../product/application/learning/signal-maturation';
 import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from '../../product/application/agency/agent-workbench';
 import { createDashboardDecider } from '../../product/application/agency/dashboard-decider';
 import { createDualModeDecider, createAgentDecider } from '../../product/application/agency/agent-decider';
@@ -23,7 +23,7 @@ import { runScenarioSelection } from '../../product/application/commitment/run';
 import { FileSystem } from '../../product/application/ports';
 import { runStateMachine } from '../../product/application/resilience/state-machine';
 import { pruneTranslationCache } from '../../product/reasoning/translation-cache';
-import { round4 } from '../learning/learning-shared';
+import { round4 } from '../../product/application/learning/learning-shared';
 import type { BrowserPoolPort, BrowserPoolStats } from '../../product/application/runtime-support/browser-pool';
 import {
   readSemanticDictionary,

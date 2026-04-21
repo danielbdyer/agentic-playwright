@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { expect, test } from '@playwright/test';
-import { approveProposal } from '../../workshop/policy/approve';
+import { approveProposal } from '../../product/application/policy/approve';
 import { projectBenchmarkScorecard } from '../../workshop/orchestration/benchmark';
 import { emitOperatorInbox } from '../../product/application/agency/inbox';
 import { generatedProposalsPath } from '../../product/application/paths';

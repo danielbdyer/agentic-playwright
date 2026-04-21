@@ -23,7 +23,7 @@ import {
   defaultAutoApprovalPolicy,
   isWithinAutoApprovalLimit,
   type AutoApprovalPolicy,
-} from '../../workshop/policy/auto-approval';
+} from '../../product/application/policy/auto-approval';
 import type {
   ProposedChangeMetadata,
   TrustPolicy,

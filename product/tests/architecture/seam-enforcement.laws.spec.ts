@@ -168,33 +168,20 @@ function isManifestDeclaredOrLogPath(
 const RULE_1_GRANDFATHERED: ReadonlySet<string> = new Set([
   // workshop/ files that reach into product/ at the Step 0 baseline.
   //
-  // Graduations removed at step-4b.cleanup.5 after audit:
-  //  - 26 files whose current imports no longer reach into product/
-  //    (mostly workshop/metrics/* visitor modules that were
-  //    already structurally clean at Step 0 but got swept in).
-  //  - 6 stale entries for deleted files (workshop/orchestration/
-  //    dogfood/{activation,iteration,metrics,planner,reporting}.ts
-  //    were never moved in with the dogfood.ts parent, and
-  //    workshop/policy/escalation-policy.ts retired at cleanup.4).
+  // Graduation history:
+  //  - step-4b.cleanup.5: 26 files graduated + 6 stale entries
+  //    removed (deleted dogfood sub-files + escalation-policy).
+  //  - step-4c.rule3-sweep: workshop/policy/* + workshop/learning/*
+  //    directories MOVED to product/application/{policy,learning}/;
+  //    12 entries removed here (files no longer exist in workshop/).
+  //    hotspots.ts also moved at step-4b.cleanup.6.
 
   'workshop/convergence/types.ts',
   'workshop/measurement/baseline-store.ts',
   'workshop/measurement/score.ts',
-  'workshop/learning/learning-bottlenecks.ts',
-  'workshop/learning/learning-health.ts',
-  'workshop/learning/learning-rankings.ts',
-  'workshop/learning/learning-shared.ts',
-  'workshop/learning/learning-state.ts',
-  'workshop/learning/learning.ts',
-  'workshop/learning/signal-maturation.ts',
   'workshop/synthesis/cohort-generator.ts',
   'workshop/synthesis/interface-fuzzer.ts',
   'workshop/synthesis/scenario-generator.ts',
-  'workshop/policy/approve.ts',
-  'workshop/policy/auto-approval.ts',
-  'workshop/policy/governance-intelligence.ts',
-  'workshop/policy/intervention-kernel.ts',
-  'workshop/policy/trust-policy.ts',
   'workshop/orchestration/benchmark.ts',
   'workshop/orchestration/clean-slate.ts',
   'workshop/orchestration/convergence-proof.ts',
@@ -204,7 +191,6 @@ const RULE_1_GRANDFATHERED: ReadonlySet<string> = new Set([
   'workshop/orchestration/experiment-registry.ts',
   'workshop/orchestration/fingerprint-stability-probe.ts',
   'workshop/orchestration/fitness.ts',
-  'workshop/orchestration/hotspots.ts',
   'workshop/orchestration/improvement-intelligence.ts',
   'workshop/orchestration/improvement.ts',
   'workshop/orchestration/knob-search.ts',
@@ -258,39 +244,31 @@ const RULE_2_GRANDFATHERED: ReadonlySet<string> = new Set([
 const RULE_3_GRANDFATHERED: ReadonlySet<string> = new Set([
   // product/ files that reach into workshop/ or dashboard/ at the Step 0 baseline.
   //
-  // NOTE: 29 entries graduated at step-4b.cleanup.5 after audit showed
-  // they no longer carry cross-seam imports (all of the CLI commands
-  // that only consumed workshop-side helpers at Step 0 now import
-  // from product/ only; the composition modules stopped needing
-  // workshop/learning after Step 1's reference-canon retirement; the
-  // reasoning ports retired at step-4b.retirement). The entries
-  // remaining below still carry live cross-seam imports — their
-  // retirement waits on the corresponding workshop/dashboard reshape.
+  // Graduation history:
+  //  - step-4b.cleanup.5: 29 entries graduated after cross-seam
+  //    imports retired during earlier cleanups.
+  //  - step-4b.cleanup.6: hotspots.ts moved to
+  //    product/application/projections/; inbox + operator graduated.
+  //  - step-4c.rule3-sweep: workshop/policy/* + workshop/learning/*
+  //    directories MOVED to product/application/{policy,learning}/;
+  //    12 product files graduated (agent-workbench, build-proposals,
+  //    run, activate-proposals, compile, drift/execution-coherence,
+  //    graph/graph, knowledge/activate-proposals, replay-evaluation,
+  //    rerun-plan, projections/workflow, cli/commands/approve,
+  //    cli/commands/certify).
 
-  // product/application/agency/agent-workbench.ts — imports from
-  //   workshop/learning/learning-shared. (hotspots graduated when
-  //   hotspots.ts moved to product/application/projections/ —
-  //   inbox and operator graduated at the same time.)
-  'product/application/agency/agent-workbench.ts',
   // product/application/catalog/workspace-catalog.ts —
   //   workshop/orchestration/improvement.
   'product/application/catalog/workspace-catalog.ts',
-  // product/application/commitment/build-proposals.ts —
-  //   workshop/policy/trust-policy.
-  'product/application/commitment/build-proposals.ts',
-  'product/application/commitment/replay/replay-evaluation.ts',
+  // product/application/commitment/replay/replay-interpretation.ts —
+  //   workshop/orchestration/benchmark.
   'product/application/commitment/replay/replay-interpretation.ts',
-  'product/application/commitment/replay/rerun-plan.ts',
-  'product/application/commitment/run.ts',
-  'product/application/drift/execution-coherence.ts',
-  'product/application/graph/graph.ts',
-  'product/application/knowledge/activate-proposals.ts',
-  'product/application/projections/workflow.ts',
-  // product/application/resolution/compile.ts — workshop/learning/learning.
-  'product/application/resolution/compile.ts',
-  'product/cli/commands/approve.ts',
+  // The migrated policy + learning modules still reach into
+  // workshop/metrics/types for fitness-report shapes. They follow
+  // when fitness types graduate into product/domain/fitness/.
+  'product/application/learning/learning-bottlenecks.ts',
+  'product/application/policy/governance-intelligence.ts',
   'product/cli/commands/benchmark.ts',
-  'product/cli/commands/certify.ts',
   'product/cli/commands/dogfood.ts',
   'product/cli/commands/evolve.ts',
   'product/cli/commands/experiments.ts',

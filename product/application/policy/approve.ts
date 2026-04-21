@@ -1,18 +1,18 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { TesseractError } from '../../product/domain/kernel/errors';
-import { mapPayload } from '../../product/domain/governance/workflow-types';
-import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../../product/application/catalog';
-import { emitOperatorInbox } from '../../product/application/agency/inbox';
-import { buildOperatorInboxItems, findProposalById } from '../../product/application/agency/operator';
-import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from '../../product/application/knowledge/proposal-patches';
+import { TesseractError } from '../../domain/kernel/errors';
+import { mapPayload } from '../../domain/governance/workflow-types';
+import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../../application/catalog';
+import { emitOperatorInbox } from '../../application/agency/inbox';
+import { buildOperatorInboxItems, findProposalById } from '../../application/agency/operator';
+import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from '../../application/knowledge/proposal-patches';
 import { executeInterventionBatch } from './intervention-kernel';
-import { buildRerunPlan } from '../../product/application/commitment/replay/rerun-plan';
-import type { ProjectPaths } from '../../product/application/paths';
-import { approvalReceiptPath, relativeProjectPath } from '../../product/application/paths';
-import { ExecutionContext, FileSystem } from '../../product/application/ports';
-import type { ProposalEntry } from '../../product/domain/execution/types';
-import type { ApprovalReceipt, RerunPlan } from '../../product/domain/resolution/types';
+import { buildRerunPlan } from '../../application/commitment/replay/rerun-plan';
+import type { ProjectPaths } from '../../application/paths';
+import { approvalReceiptPath, relativeProjectPath } from '../../application/paths';
+import { ExecutionContext, FileSystem } from '../../application/ports';
+import type { ProposalEntry } from '../../domain/execution/types';
+import type { ApprovalReceipt, RerunPlan } from '../../domain/resolution/types';
 import type { ActionExecutionResult } from './intervention-kernel';
 
 export function approveProposal(options: {

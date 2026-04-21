@@ -12,7 +12,7 @@ import { trySync } from '../effect';
 import { applyProposalPatch, parseProposalArtifact, serializeProposalArtifact, validatePatchedProposalArtifact } from './proposal-patches';
 import { evaluateAutoApproval } from '../../domain/governance/trust-policy';
 import { findToxicAliases, type AliasOutcome } from '../../domain/proposal/quality';
-import { scoreProposalByBottleneck } from '../../../workshop/learning/learning-bottlenecks';
+import { scoreProposalByBottleneck } from '../learning/learning-bottlenecks';
 import type { FileSystemPort } from '../ports';
 import {
   transitionProposal,

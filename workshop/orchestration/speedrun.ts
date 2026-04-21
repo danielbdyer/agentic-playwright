@@ -33,7 +33,7 @@ import { loadExperimentRegistry, recordExperiment } from './experiment-registry'
 import { summarizeKnowledgeCoverage } from './knowledge-coverage';
 import { projectMemoryMaturityCounts } from './memory-maturity-projection';
 import { runFingerprintStabilityProbe } from './fingerprint-stability-probe';
-import { calibrateWeightsFromCorrelations } from '../learning/learning-bottlenecks';
+import { calibrateWeightsFromCorrelations } from '../../product/application/learning/learning-bottlenecks';
 import { loadWorkspaceCatalog } from '../../product/application/catalog';
 import { cleanSlateProgram } from './clean-slate';
 import { Dashboard, FileSystem, VersionControl } from '../../product/application/ports';

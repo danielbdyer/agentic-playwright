@@ -7,10 +7,10 @@ import type {
   TrainingCorpusManifest,
 } from '../../product/domain/learning/types';
 import type { ResolutionReceipt } from '../../product/domain/resolution/types';
-import { projectCorpusHealth } from '../../workshop/learning/learning-health';
+import { projectCorpusHealth } from '../../product/application/learning/learning-health';
 import { evaluateReplayExample, buildReplayEvaluationSummary } from '../../product/application/commitment/replay/replay-evaluation';
-import { projectBottlenecks } from '../../workshop/learning/learning-bottlenecks';
-import { rankProposals } from '../../workshop/learning/learning-rankings';
+import { projectBottlenecks } from '../../product/application/learning/learning-bottlenecks';
+import { rankProposals } from '../../product/application/learning/learning-rankings';
 
 // ─── Fixtures ───
 

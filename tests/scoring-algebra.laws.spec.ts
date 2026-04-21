@@ -23,8 +23,8 @@ import {
   combineScoringRules,
   weightedScoringRule,
   contramapScoringRule,
-} from '../workshop/learning/learning-shared';
-import type { ScoringRule } from '../workshop/learning/learning-shared';
+} from '../product/application/learning/learning-shared';
+import type { ScoringRule } from '../product/application/learning/learning-shared';
 import {
   identityScoringRule,
   annihilatorScoringRule,

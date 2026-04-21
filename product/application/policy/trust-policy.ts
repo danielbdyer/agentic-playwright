@@ -1,19 +1,19 @@
 import path from 'path';
 import { Effect } from 'effect';
-import { createTrustPolicyDiagnostic } from '../../product/domain/governance/diagnostics';
-import { evaluateTrustPolicy } from '../../product/domain/governance/trust-policy';
-import type { AdoId } from '../../product/domain/kernel/identity';
-import { createScreenId } from '../../product/domain/kernel/identity';
-import { graphIds } from '../../product/domain/kernel/ids';
+import { createTrustPolicyDiagnostic } from '../../domain/governance/diagnostics';
+import { evaluateTrustPolicy } from '../../domain/governance/trust-policy';
+import type { AdoId } from '../../domain/kernel/identity';
+import { createScreenId } from '../../domain/kernel/identity';
+import { graphIds } from '../../domain/kernel/ids';
 import type {
   EvidenceDescriptor,
   ProposedChangeMetadata,
   TrustPolicy,
   TrustPolicyEvaluation,
-} from '../../product/domain/governance/workflow-types';
-import type { EvidenceRecord } from '../../product/domain/resolution/types';
-import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../../product/application/catalog';
-import type { ProjectPaths } from '../../product/application/paths';
+} from '../../domain/governance/workflow-types';
+import type { EvidenceRecord } from '../../domain/resolution/types';
+import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../../application/catalog';
+import type { ProjectPaths } from '../../application/paths';
 
 export interface LoadedEvidenceRecord {
   artifactPath: string;
