@@ -1,0 +1,39 @@
+# Fixture specification for the `facet-mint` verb.
+# Grammar: docs/v2-readiness.md §4.
+
+verb: facet-mint
+schemaVersion: 1
+
+fixtures:
+  - name: mint-new-facet-succeeds
+    description: |
+      Mint a fresh element-kind facet with a never-seen stable ID.
+      Exercises the happy mint path: ID check clears, provenance
+      header stamps, record lands with atomic-at-mint evidence.
+    input:
+      facet-kind: element
+      stable-id: policy-search:applyFilterButton
+      display-name: Apply Filter
+      minting-instrument: agent-observation
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: mint
+      - error-family: null
+
+  - name: mint-duplicate-id-fails-assertion
+    description: |
+      Minting at a stable ID already present in the catalog fails
+      with assertion-like. The pre-image collision is detected
+      before provenance stamping; no partial write lands.
+    input:
+      facet-kind: element
+      stable-id: policy-search:policyNumberInput
+      display-name: Policy Number
+      minting-instrument: agent-observation
+    expected:
+      classification: failed
+      error-family: assertion-like
+    exercises:
+      - error-family: assertion-like

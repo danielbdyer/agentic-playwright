@@ -115,7 +115,10 @@ export const facetMintVerb = declareVerb({
     declaredIn: 'product/domain/memory/facet-record.ts',
     summary: 'The newly minted record with provenance header.',
   },
-  errorFamilies: ['not-visible', 'assertion-like', 'unclassified'],
+  // A pure in-memory mint has no visibility surface — `not-visible`
+  // was a stale holdover from an earlier draft. Gap 1 in
+  // workshop/observations/probe-spike-verdict-01.md.
+  errorFamilies: ['assertion-like', 'unclassified'],
   sinceVersion: '2.1.0',
   declaredIn: 'product/domain/memory/facet-record.ts',
 });

@@ -63,7 +63,11 @@ describe('probe IR fixture-loader laws', () => {
     );
     expect(doc).not.toBeNull();
     expect(doc!.verb).toBe('test-compose');
-    expect(doc!.fixtures.some((f) => f.expected.errorFamily === 'assertion-like')).toBe(true);
+    // The failed-path fixture's error-family is `unclassified` —
+    // test-compose's manifest entry does not declare
+    // assertion-like. Shape-validation failures route to the
+    // closest named family (unclassified) per Step 5.5 scope 3d.
+    expect(doc!.fixtures.some((f) => f.expected.errorFamily === 'unclassified')).toBe(true);
   });
 
   test('loads the facet-query.probe.yaml fixture', () => {
@@ -250,23 +254,18 @@ describe('spike coverage verdict', () => {
       totalDeclaredVerbs: manifest.verbs.length,
       probesCompletingAsExpected: derivation.probes.length, // Step 5 stub: assume all complete
     });
-    // The current manifest has 8 verbs; Step 5 covers 3 of them
-    // (observe, test-compose, facet-query). The remaining 5 land
-    // as uncovered. Coverage percentage = 3/8 = 37.5%.
+    // The current manifest has 8 verbs; Step 5 now covers all 8.
+    // Coverage = 8/8 = 100% ≥ 80% — gate PASSES. Every declared
+    // verb has a fixture YAML; the probe-IR surface is complete
+    // for the manifest v1 seed set.
     expect(report.totalDeclaredVerbs).toBe(manifest.verbs.length);
-    expect(report.coveredVerbs).toBe(3);
-    expect(report.uncoveredVerbs).toEqual([
-      'facet-enrich',
-      'facet-mint',
-      'intent-fetch',
-      'interact',
-      'locator-health-track',
-    ]);
-    // The spike is intentionally under the 80% gate at Step 5;
-    // we confirm the report structure works and that the gate
-    // shows failing — this is the "IR needs more fixtures" verdict
-    // the plan anticipated.
-    expect(report.passesGate).toBe(false);
+    expect(report.coveredVerbs).toBe(8);
+    expect(report.uncoveredVerbs).toEqual([]);
+    // The coverage gate is passing at the maximum — the probe IR's
+    // structural floor is live and its ceiling for the seed manifest
+    // is reached. Per docs/v2-probe-ir-spike.md §7, this is one
+    // of three graduation verdicts the spike must produce.
+    expect(report.passesGate).toBe(true);
     // Every synthesized probe carries its fixture's expected
     // classification and a valid probe ID.
     for (const probe of derivation.probes) {

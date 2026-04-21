@@ -1,0 +1,95 @@
+# Fixture specification for the `interact` verb.
+# Grammar: docs/v2-readiness.md §4.
+#
+# The widest error surface in the seed manifest — four named error
+# families plus a happy path. Each fixture pins one cell of the
+# (facet-kind × error-family) coverage matrix for the interact verb.
+
+verb: interact
+schemaVersion: 1
+
+fixtures:
+  - name: click-visible-enabled-button
+    description: |
+      Happy-path click on a button that satisfies both visible and
+      enabled preconditions. The role-based dispatcher resolves the
+      button affordance and Playwright's click() completes.
+    input:
+      action: click
+      facet-id: policy-search:searchButton
+      role: button
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role-dispatcher
+      - error-family: null
+
+  - name: click-hidden-button-fails-not-visible
+    description: |
+      The `visible` precondition fails before dispatch. The
+      precondition-failure path classifies to the not-visible
+      family (see preconditionFamily in interact.ts).
+    input:
+      action: click
+      facet-id: policy-search:advancedOptionsButton
+      role: button
+    world-setup:
+      hide-target: true
+    expected:
+      classification: failed
+      error-family: not-visible
+    exercises:
+      - error-family: not-visible
+
+  - name: input-disabled-field-fails-not-enabled
+    description: |
+      The `editable` precondition fails because the target textbox
+      is disabled. Routes through preconditionFamily to the
+      not-enabled family.
+    input:
+      action: input
+      facet-id: policy-search:policyNumberInput
+      role: textbox
+      value: "POL-001"
+    world-setup:
+      disable-target: true
+    expected:
+      classification: failed
+      error-family: not-enabled
+    exercises:
+      - error-family: not-enabled
+
+  - name: click-never-resolves-fails-timeout
+    description: |
+      Playwright's click() throws TimeoutError because the locator
+      never resolves. classifyThrownError matches on error.name and
+      returns the timeout family.
+    input:
+      action: click
+      facet-id: policy-search:searchButton
+      role: button
+    world-setup:
+      detach-target-after-ms: 1
+    expected:
+      classification: failed
+      error-family: timeout
+    exercises:
+      - error-family: timeout
+
+  - name: input-non-input-fails-assertion
+    description: |
+      fill() dispatched against a non-input node (e.g., a div with
+      role="textbox" but no underlying input element). Playwright
+      raises an internal assertion whose message matches the
+      "Element is not" regex → assertion-like family.
+    input:
+      action: input
+      facet-id: policy-search:freeformRegion
+      role: textbox
+      value: "anything"
+    expected:
+      classification: failed
+      error-family: assertion-like
+    exercises:
+      - error-family: assertion-like

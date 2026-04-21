@@ -19,9 +19,9 @@
  *       non-empty.
  *   S7. Manifest drift (a verb without a fixture) lowers the
  *       coverage percentage monotonically.
- *   S8. For the 3 currently-fixtured verbs (observe, test-compose,
- *       facet-query), the spike synthesizes the expected fixture
- *       count (2 + 2 + 3 = 7 probes).
+ *   S8. For the currently-fixtured verbs, the spike synthesizes the
+ *       expected fixture count. The per-verb expectation is the
+ *       source of truth; the aggregate count is derived from it.
  */
 
 import { describe, test, expect } from 'vitest';
@@ -137,11 +137,14 @@ describe('Probe IR Spike — end-to-end laws', () => {
     expect(coverageNone.passesGate).toBe(false);
   });
 
-  test('S8: the 3 fixtured verbs synthesize 7 probes (2+2+3)', async () => {
+  test('S8: each fixtured verb synthesizes its declared fixture count', async () => {
     const { derivation } = await runSpikeUnderDryHarness();
-    // observe.probe.yaml → 2, test-compose.probe.yaml → 2,
-    // facet-query.probe.yaml → 3. Total = 7.
-    expect(derivation.probes).toHaveLength(7);
+    // observe: 2, test-compose: 2, facet-query: 3, facet-mint: 2,
+    // facet-enrich: 2, locator-health-track: 2, intent-fetch: 4,
+    // interact: 5. Total = 22 across all 8 declared verbs.
+    // intent-fetch grew to 4 probes when the malformed-response
+    // fixture landed (scope 4 closing Gap 2 from verdict-01).
+    expect(derivation.probes).toHaveLength(22);
     const byVerb = new Map<string, number>();
     for (const probe of derivation.probes) {
       byVerb.set(probe.verb, (byVerb.get(probe.verb) ?? 0) + 1);
@@ -149,15 +152,24 @@ describe('Probe IR Spike — end-to-end laws', () => {
     expect(byVerb.get('observe')).toBe(2);
     expect(byVerb.get('test-compose')).toBe(2);
     expect(byVerb.get('facet-query')).toBe(3);
+    expect(byVerb.get('facet-mint')).toBe(2);
+    expect(byVerb.get('facet-enrich')).toBe(2);
+    expect(byVerb.get('locator-health-track')).toBe(2);
+    expect(byVerb.get('intent-fetch')).toBe(4);
+    expect(byVerb.get('interact')).toBe(5);
   });
 
-  test('The current spike at Step-5 entry does NOT pass the 80% gate', async () => {
-    // Current state (post Step-4c): 8 verbs, 3 fixtured.
-    // Covered = 3/8 = 37.5%. Gate fails by design; the spike's
-    // verdict at entry is "author more fixtures then re-run."
+  test('S9: the spike at full 8/8 coverage passes the 80% gate', async () => {
+    // Step 5 coverage gate at 100%: every declared verb has a
+    // fixture YAML. This is the structural floor for Step 5
+    // graduation per docs/v2-probe-ir-spike.md §7.1 — fixture
+    // economy and reproducibility are the two remaining
+    // verdicts (Step 5.5 reproducibility lands with the
+    // fixture-replay harness).
     const { verdict } = await runSpikeUnderDryHarness();
-    expect(verdict.coverage.coveragePercentage).toBeCloseTo(3 / 8, 6);
-    expect(verdict.passesGate).toBe(false);
-    expect(verdict.summary).toMatch(/FAIL/);
+    expect(verdict.coverage.coveragePercentage).toBeCloseTo(1.0, 6);
+    expect(verdict.passesGate).toBe(true);
+    expect(verdict.summary).toMatch(/PASS/);
+    expect(verdict.coverage.uncoveredVerbs).toEqual([]);
   });
 });

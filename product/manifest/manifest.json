@@ -1,7 +1,7 @@
 {
   "kind": "product-manifest",
   "version": 1,
-  "generatedAt": "2026-04-20T16:20:39.979Z",
+  "generatedAt": "2026-04-21T23:17:01.409Z",
   "verbs": [
     {
       "name": "facet-enrich",
@@ -39,7 +39,6 @@
         "summary": "The newly minted record with provenance header."
       },
       "errorFamilies": [
-        "not-visible",
         "assertion-like",
         "unclassified"
       ],
