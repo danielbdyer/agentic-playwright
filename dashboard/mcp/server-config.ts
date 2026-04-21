@@ -10,7 +10,12 @@
  * handler implementation module.
  */
 
-import type { ScreenCapturedEvent, WorkItemDecision } from '../../product/domain/observation/dashboard';
+import type {
+  HintContribution,
+  LocatorAliasContribution,
+  ScreenCapturedEvent,
+  WorkItemDecision,
+} from '../../product/domain/observation/dashboard';
 import type { ManifestVerbHandlerRegistry } from '../../product/application/manifest/invoker';
 import type { PlaywrightBridgePort } from './playwright-mcp-bridge';
 
@@ -81,18 +86,8 @@ export interface LoopStatus {
   readonly lastProgress?: unknown;
 }
 
-/** Hint contribution from an agent. */
-export interface HintContribution {
-  readonly screen: string;
-  readonly element: string;
-  readonly hint: string;
-  readonly confidence?: number | undefined;
-}
-
-/** Locator alias contribution from an agent. */
-export interface LocatorAliasContribution {
-  readonly screen: string;
-  readonly element: string;
-  readonly alias: string;
-  readonly source?: string | undefined;
-}
+// Contribution payload types moved to product/domain/observation/dashboard
+// at step-4c.final-sweep so product contributors (hints-writer) can
+// emit them without crossing the seam. Re-export for in-dashboard
+// consumers that still import from this module.
+export type { HintContribution, LocatorAliasContribution } from '../../product/domain/observation/dashboard';

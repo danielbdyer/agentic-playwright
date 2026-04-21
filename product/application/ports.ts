@@ -215,3 +215,54 @@ export const DisabledMcpServer: McpServerPort = {
 };
 
 export class McpServer extends Context.Tag('tesseract/McpServer')<McpServer, McpServerPort>() {}
+
+// ─── Playwright bridge port ───
+//
+// The seam for live browser interaction. Dashboard's MCP server
+// provides the adapter implementation (createPlaywrightBridge in
+// dashboard/mcp/playwright-mcp-bridge.ts); product code consumes
+// the port through the Context.Tag at composition time. Types live
+// here because both product/ (consumer) and dashboard/ (provider)
+// must type-check against them.
+
+/** A browser action that can be performed via Playwright or CDP. */
+export interface BrowserAction {
+  readonly kind: 'click' | 'fill' | 'navigate' | 'screenshot' | 'query' | 'aria-snapshot';
+  readonly selector?: string;
+  readonly value?: string;
+  readonly url?: string;
+}
+
+/** Result of a browser action. */
+export interface BrowserActionResult {
+  readonly success: boolean;
+  readonly action: BrowserAction['kind'];
+  readonly data: unknown;
+  readonly error?: string;
+}
+
+/** Port for browser interaction via Playwright or MCP. */
+export interface PlaywrightBridgePort {
+  /** Whether a live browser session is available. */
+  readonly isAvailable: () => Effect.Effect<boolean, never, never>;
+  /** Execute a browser action. Returns result or error. */
+  readonly execute: (action: BrowserAction) => Effect.Effect<BrowserActionResult, TesseractError>;
+  /** Get the current page URL. */
+  readonly currentUrl: () => Effect.Effect<string | null, never, never>;
+  /** Optional release hook for lifecycle-managed bridge handles. */
+  readonly release?: () => Effect.Effect<void, never, never>;
+}
+
+/** Disabled adapter for environments without a live Playwright page. */
+export const DisabledPlaywrightBridge: PlaywrightBridgePort = {
+  isAvailable: () => Effect.succeed(false),
+  execute: (action) => Effect.succeed({
+    success: false,
+    action: action.kind,
+    data: null,
+    error: 'Playwright bridge not available (headless mode)',
+  }),
+  currentUrl: () => Effect.succeed(null),
+};
+
+export class PlaywrightBridge extends Context.Tag('tesseract/PlaywrightBridge')<PlaywrightBridge, PlaywrightBridgePort>() {}

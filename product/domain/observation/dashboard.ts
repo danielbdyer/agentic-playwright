@@ -9,6 +9,22 @@ import type { ActorKind } from './events';
 export * from './events';
 export * from './factory';
 
+/** Hint contribution from an agent. */
+export interface HintContribution {
+  readonly screen: string;
+  readonly element: string;
+  readonly hint: string;
+  readonly confidence?: number | undefined;
+}
+
+/** Locator alias contribution from an agent. */
+export interface LocatorAliasContribution {
+  readonly screen: string;
+  readonly element: string;
+  readonly alias: string;
+  readonly source?: string | undefined;
+}
+
 export interface WorkItemDecision {
   readonly workItemId: string;
   readonly status: 'completed' | 'skipped';

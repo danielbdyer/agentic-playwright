@@ -12,7 +12,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseProposalArtifact, serializeProposalArtifact } from '../../application/knowledge/proposal-patches';
-import type { HintContribution, LocatorAliasContribution } from '../../../dashboard/mcp/dashboard-mcp-server';
+import type { HintContribution, LocatorAliasContribution } from '../../domain/observation/dashboard';
 
 /** Read a screen's hints.yaml file, returning a mutable record. Returns empty hints if not found. */
 function readHintsFile(suiteRoot: string, screen: string): Record<string, unknown> {

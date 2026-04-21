@@ -35,14 +35,14 @@ import {
   resolveAgentInterpreterPort,
   resolveTranslationProvider,
 } from '../reasoning/adapters';
-import { PlaywrightBridge, DisabledPlaywrightBridge } from '../../dashboard/mcp/playwright-mcp-bridge';
+import { PlaywrightBridge, DisabledPlaywrightBridge } from '../application/ports';
 import { dashboardEvent } from '../domain/observation/dashboard';
 import type { PipelineConfig } from '../domain/attention/pipeline-config';
 import type { ExecutionPosture, WriteJournalEntry } from '../domain/governance/workflow-types';
 import { DEFAULT_PIPELINE_CONFIG } from '../domain/attention/pipeline-config';
 import type { DashboardPort, McpServerPort, StageTracerPort } from '../application/ports';
 import { enrichEventDataWithExecutionContext } from '../application/commitment/execution-context';
-import type { PlaywrightBridgePort } from '../../dashboard/mcp/playwright-mcp-bridge';
+import type { PlaywrightBridgePort } from '../application/ports';
 
 type EffectfulAgentInterpreterPort = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;
 

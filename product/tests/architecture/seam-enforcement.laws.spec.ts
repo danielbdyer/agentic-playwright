@@ -264,25 +264,29 @@ const RULE_3_GRANDFATHERED: ReadonlySet<string> = new Set([
   //    rerun-plan, projections/workflow, cli/commands/approve,
   //    cli/commands/certify).
 
-  // product/application/catalog/workspace-catalog.ts —
-  //   workshop/orchestration/improvement.
-  'product/application/catalog/workspace-catalog.ts',
   // product/application/commitment/replay/replay-interpretation.ts —
-  //   workshop/orchestration/benchmark.
+  //   workshop/orchestration/benchmark. Legitimate: benchmark is a
+  //   workshop measurement concern that replay-interpretation consults
+  //   post-hoc. Retires when projectBenchmarkScorecard either moves
+  //   into product/ or exposes its output via the shared log set.
   'product/application/commitment/replay/replay-interpretation.ts',
+  // product/cli/commands/{benchmark,dogfood,evolve,experiments,
+  //   generate,scorecard}.ts — CLI commands that orchestrate
+  //   workshop surfaces. Each retires when either the corresponding
+  //   workshop orchestrator moves to product/ (already done for
+  //   policy + learning) or the CLI splits into product/cli +
+  //   workshop/cli. Kept grandfathered as CLI-is-orchestration.
   'product/cli/commands/benchmark.ts',
   'product/cli/commands/dogfood.ts',
   'product/cli/commands/evolve.ts',
   'product/cli/commands/experiments.ts',
   'product/cli/commands/generate.ts',
   'product/cli/commands/scorecard.ts',
-  'product/composition/local-services.ts',
-  // Additional product/ files reaching into workshop/ or dashboard/ at Step 0
-  'product/domain/improvement/experiment.ts',
-  'product/domain/improvement/types.ts',
-  'product/domain/kernel/visitors.ts',
-  'product/domain/projection/types.ts',
-  'product/instruments/catalog/hints-writer.ts',
+  // product/instruments/tooling/headed-harness.ts — imports
+  //   createPlaywrightBridge from dashboard/mcp/playwright-mcp-bridge.
+  //   The factory wraps a Playwright Page; types already migrated to
+  //   product/application/ports, but the factory itself stays in
+  //   dashboard for now. Graduates when the factory moves too.
   'product/instruments/tooling/headed-harness.ts',
 ]);
 

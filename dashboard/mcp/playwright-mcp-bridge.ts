@@ -21,57 +21,28 @@
  */
 
 import { Effect } from 'effect';
-import { Context } from 'effect';
 import { TesseractError } from '../../product/domain/kernel/errors';
 import { navigationOptionsForUrl } from '../../product/runtime/adapters/navigation-strategy';
 import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../product/application/resilience/schedules';
+import {
+  DisabledPlaywrightBridge,
+  PlaywrightBridge,
+  type BrowserAction,
+  type BrowserActionResult,
+  type PlaywrightBridgePort,
+} from '../../product/application/ports';
 
-// ─── Port Interface ───
-
-/** A browser action that can be performed via Playwright or CDP. */
-export interface BrowserAction {
-  readonly kind: 'click' | 'fill' | 'navigate' | 'screenshot' | 'query' | 'aria-snapshot';
-  readonly selector?: string;
-  readonly value?: string;
-  readonly url?: string;
-}
-
-/** Result of a browser action. */
-export interface BrowserActionResult {
-  readonly success: boolean;
-  readonly action: BrowserAction['kind'];
-  readonly data: unknown;
-  readonly error?: string;
-}
-
-/** Port for browser interaction via Playwright or MCP. */
-export interface PlaywrightBridgePort {
-  /** Whether a live browser session is available. */
-  readonly isAvailable: () => Effect.Effect<boolean, never, never>;
-  /** Execute a browser action. Returns result or error. */
-  readonly execute: (action: BrowserAction) => Effect.Effect<BrowserActionResult, TesseractError>;
-  /** Get the current page URL. */
-  readonly currentUrl: () => Effect.Effect<string | null, never, never>;
-  /** Optional release hook for lifecycle-managed bridge handles. */
-  readonly release?: () => Effect.Effect<void, never, never>;
-}
-
-// ─── Disabled Adapter (no Playwright available) ───
-
-export const DisabledPlaywrightBridge: PlaywrightBridgePort = {
-  isAvailable: () => Effect.succeed(false),
-  execute: (action) => Effect.succeed({
-    success: false,
-    action: action.kind,
-    data: null,
-    error: 'Playwright bridge not available (headless mode)',
-  }),
-  currentUrl: () => Effect.succeed(null),
+// Re-export the seam-contract types for in-dashboard consumers that
+// still import from this module. The canonical definitions live in
+// product/application/ports.ts so product-side callers don't cross
+// the seam to reach them.
+export {
+  DisabledPlaywrightBridge,
+  PlaywrightBridge,
+  type BrowserAction,
+  type BrowserActionResult,
+  type PlaywrightBridgePort,
 };
-
-// ─── Context Tag ───
-
-export class PlaywrightBridge extends Context.Tag('tesseract/PlaywrightBridge')<PlaywrightBridge, PlaywrightBridgePort>() {}
 
 class PlaywrightBridgeTransientError extends TesseractError {
   override readonly _tag = 'PlaywrightBridgeTransientError' as const;
