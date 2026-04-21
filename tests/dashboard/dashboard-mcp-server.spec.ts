@@ -499,3 +499,32 @@ test('get_suggested_action considers stale and approval-oriented handoffs', () =
   expect(payload.suggestions.some((entry) => entry.action === 'triage-handoffs')).toBe(true);
   expect(payload.suggestions.some((entry) => entry.action === 'refresh-stale-handoffs')).toBe(true);
 });
+
+// ─── v2 §6 Step 4c: manifest verbs project into the MCP tool catalog ───
+
+test('listTools surfaces one MCP tool per declared manifest verb', async () => {
+  const server = createDashboardMcpServer(mockOptions({}));
+  const tools = await Effect.runPromise(server.listTools());
+  const names = new Set(tools.map((t) => t.name));
+
+  // Each of the 8 declared manifest verbs (as of Step 4b) must
+  // appear in the catalog. Adding a verb to
+  // product/manifest/declarations.ts should extend this set
+  // automatically — the test fails when the wire-up breaks.
+  const expectedVerbs = [
+    'facet-enrich', 'facet-mint', 'facet-query', 'intent-fetch',
+    'interact', 'locator-health-track', 'observe', 'test-compose',
+  ];
+  for (const verb of expectedVerbs) {
+    expect(names.has(verb)).toBe(true);
+  }
+});
+
+test('manifest-derived tools carry the input-type reference in inputSchema', async () => {
+  const server = createDashboardMcpServer(mockOptions({}));
+  const tools = await Effect.runPromise(server.listTools());
+  const facetEnrich = tools.find((t) => t.name === 'facet-enrich');
+  expect(facetEnrich).toBeDefined();
+  expect(facetEnrich!.inputSchema['x-tesseract-input-type']).toBe('FacetEnrichmentProposal');
+  expect(facetEnrich!.inputSchema['x-tesseract-declared-in']).toBe('product/domain/memory/facet-record.ts');
+});

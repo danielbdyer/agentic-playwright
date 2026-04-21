@@ -128,12 +128,18 @@ test.describe('MCP tool catalog completeness laws', () => {
     expect((result.result as { error: string }).error).toContain('Unknown tool');
   });
 
-  // ─── Law 7: listTools returns the full catalog ───
+  // ─── Law 7: listTools includes every hand-curated dashboard tool ───
+  //
+  // Per v2 §6 Step 4c (step-4b.step-4c commit), listTools also includes
+  // manifest-derived tools — one per declared verb. The dashboard set
+  // is still a subset of the returned catalog, but it's no longer the
+  // whole catalog. The invariant the law asserts is the subset
+  // relationship, not length equality.
 
-  test('Law 7: listTools returns the full catalog', async () => {
+  test('Law 7: listTools includes every hand-curated dashboard tool', async () => {
     const server = createDashboardMcpServer(stubOptions());
     const tools = await Effect.runPromise(server.listTools());
-    expect(tools.length).toBe(dashboardMcpTools.length);
+    expect(tools.length).toBeGreaterThanOrEqual(dashboardMcpTools.length);
 
     const serverNames = new Set(tools.map((t) => t.name));
     for (const tool of dashboardMcpTools) {
