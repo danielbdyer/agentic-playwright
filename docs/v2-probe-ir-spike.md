@@ -394,6 +394,92 @@ The gap between what synthetic probes prove and what customer-facing correctness
 
 The synthetic substrate does the cheap work. The substrate ladder, the incident backfill, and the hypothesis loop do the expensive work. Together they compose to a claim stronger than any one alone: *the product does what it says it does, and when it doesn't, we find out fast and codify the lesson into a probe.*
 
+### 8.5 Customer incidents as fixture sources — the ratchet that narrows the substrate gap
+
+The gap between the synthetic probe set and the space of all customer DOM shapes does not stay constant. It narrows over time via a deliberate mechanism: **every customer-reported incident becomes a probe fixture**.
+
+The ratchet works like this:
+
+1. A customer reports an issue. The issue represents a world-shape the synthetic probe set did not anticipate — by definition, because if the probe set had anticipated it, the probe would have caught the regression before release.
+2. The incident investigation produces a **world capture**: a DOM snapshot or structured description of the customer surface that elicited the issue.
+3. The investigation produces a **classification verdict**: what the product *should* have done on that world-shape.
+4. A workshop commit lands a new fixture entry under the relevant verb's `.probe.yaml`, encoding the captured world + expected classification as a probe.
+5. The next CI run includes that probe. Every subsequent product change must pass it or explicitly carry a hypothesis that predicts the metric movement.
+
+The mechanism is a **monotonic ratchet** in two senses. First, fixtures never get removed — once a customer world-shape is captured as a probe, it stays captured (subject to the same append-only discipline every other log honors). Second, coverage can only grow: each incident narrows the space of uncovered customer world-shapes by exactly one shape.
+
+**Why this matters for the first-principles defense**: the synthetic substrate at any given moment is a *lower bound* on customer coverage, and the bound rises monotonically as incidents are incorporated. A new agent reading this memo should understand that "what synthetic probes prove" is not a static claim — it is a claim that grows over time as the fixture set grows. The workshop's graduation condition (100% verb coverage + sustained hypothesis-confirmation rate) is explicitly a *moving target*: it shifts as customer reality educates the fixture set.
+
+**Concrete authorship pattern for incident-to-fixture**:
+
+```yaml
+# product/instruments/observation/observe.probe.yaml
+# (adding a new fixture)
+  - name: outsystems-form-validation-region
+    description: |
+      CUSTOMER-DERIVED: customer tenant acme-corp presented a
+      validation message element that synthetic fixtures did not
+      anticipate — the element was role="alert" with no accessible
+      name and a dynamic test-id. observe mis-classified as
+      ambiguous; correct behavior was matched with the role-rung.
+      Originally reported 2026-05-XX, incident ref: TESS-417.
+      Now a probe; any regression on this shape breaks CI.
+    input:
+      surface:
+        screen: customer-home
+        facet-kind: element
+      target:
+        role: alert
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+```
+
+### 8.6 Substrate-drift detection — keeping new substrates honest
+
+As the workshop adds substrates (fixture-replay captures, synthetic app versions, production customers), each new substrate introduces a failure mode: it may not faithfully represent the world its fixtures claim. A React synthetic app upgrade might render role semantics differently than its predecessor; a captured DOM snapshot might lose event-listener state; a customer tenant's update might change ARIA conventions. The workshop must detect these **substrate drifts** before they masquerade as product regressions.
+
+The detection discipline is a **substrate parity test**: when a new substrate is introduced at rung N, it is run against the existing probe set, and its receipts are compared to the same probes' receipts at rung N-1 (the previous-rung substrate). Receipts that mismatch across rungs within a tolerance band are substrate-drift, not product drift.
+
+```
+           probes                       probes
+             │                            │
+             ▼                            ▼
+     fixture-replay  ────  compare  ────  playwright-live
+         receipts          fail if       receipts
+                           disagreement     │
+                           exceeds band     ▼
+                                        substrate-drift
+                                        OR product-drift?
+                                              │
+                                              ├─ product change in between?
+                                              │    YES → hypothesis-confirmation
+                                              │           loop adjudicates
+                                              │    NO  → substrate drift; investigate
+                                              └─
+```
+
+The tolerance band exists because substrate-variant properties (latency, event timing, pixel layout) legitimately differ across rungs. The invariant-band properties (classification, error-family, rung) should not differ within a tolerance. A new substrate that produces a classification mismatch on a probe that worked on the prior substrate is a substrate regression, and the workshop's response is to **either** fix the substrate **or** explicitly downgrade the probe's substrate-ladder claim (e.g., "this probe is valid at fixture-replay but not at playwright-live because of a known React-upgrade difference").
+
+The substrate-drift detection is itself proposal-gated: new substrates land through the same trust-policy gate that knowledge proposals use. A substrate proposal must include its parity test results and name any probes whose receipts it invalidates. This keeps the substrate ladder honest across time — new rungs cannot silently invalidate old proofs.
+
+**Roadmap for substrate addition**:
+
+| Stage | New substrate added | Parity gate |
+|---|---|---|
+| Step 5.5 | FixtureReplayProbeHarness + captured-DOM snapshots | vs dry-harness |
+| Step 6.0 | PlaywrightLiveProbeHarness + minimal synthetic React app | vs fixture-replay |
+| Step 6.1 | Additional screens on synthetic React app | vs previous synthetic-app version |
+| Step 6.2 | First customer-authorized DOM capture | vs synthetic-app playwright-live |
+| Step 7.0 | L1 memory substrate (facet catalog with evidence log) | vs Step 6 baseline |
+| Step 10.0 | Production probe against live customer tenant | vs customer-authorized captures |
+
+Each stage's parity gate is a law the new substrate must satisfy before it becomes authoritative. A failed gate is a naming event — the problem gets diagnosed and either the new substrate earns its place or the rollout blocks until it does.
+
+**What this buys us**: confidence that growing the substrate ladder over time does not erode the probe set's validity. A probe that was meaningful at Step 5 stays meaningful at Step 10, or it gets explicitly retired with a commit record. No silent drift. No substrate-induced flakiness passed off as product flakiness. The measurement substrate grows monotonically in fidelity.
+
 You are picking up the Probe IR spike on top of commit `step-5.scaffold-2` (SHA visible in `git log --oneline`). The scaffolding exists; the spike runs; the gate fails at 37.5%; the fix is authoring 5 fixtures. Here's how to orient and land your first contribution in under two hours.
 
 ### 8.1 Read in this order (~40 minutes total)
