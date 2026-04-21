@@ -46,7 +46,7 @@ export type DerivedFoldCases<U extends { readonly kind: string }, R> = {
   readonly [K in U['kind'] as KebabToCamel<K>]: (variant: Extract<U, { readonly kind: K }>) => R;
 };
 
-import type { PipelineFailureClass, PipelineImprovementTarget } from '../../../workshop/metrics/types';
+import type { PipelineFailureClass, PipelineImprovementTarget } from '../fitness/types';
 import type { LocatorStrategy } from '../governance/workflow-types';
 import type {
   StepInstruction,

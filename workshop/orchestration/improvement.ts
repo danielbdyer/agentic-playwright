@@ -3,7 +3,7 @@ import { Effect } from 'effect';
 import { ImprovementRunStore } from '../../product/application/ports';
 import type { ProjectPaths } from '../../product/application/paths';
 import type { PipelineConfig } from '../../product/domain/attention/pipeline-config';
-import type { PipelineFitnessReport, PipelineImprovementTarget } from '../metrics/types';
+import type { PipelineFitnessReport, PipelineImprovementTarget } from '../../product/domain/fitness/types';
 import { foldImprovementTarget } from '../../product/domain/kernel/visitors';
 import type {
   InterventionReceipt,

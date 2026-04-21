@@ -13,7 +13,7 @@
  */
 
 import type { PipelineConfig } from '../../product/domain/attention/pipeline-config';
-import type { PipelineFailureClass } from '../metrics/types';
+import type { PipelineFailureClass } from '../../product/domain/fitness/types';
 import { mergePipelineConfig } from '../../product/domain/attention/pipeline-config';
 
 // ─── Failure-to-Parameter Mapping ───

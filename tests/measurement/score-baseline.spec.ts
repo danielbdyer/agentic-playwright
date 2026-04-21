@@ -14,7 +14,7 @@ import {
 } from '../../workshop/measurement/baseline-store';
 import { score, findLatestFitnessReport } from '../../workshop/measurement/score';
 import { buildPipelineMetricTree } from '../../workshop/metrics/metric/visitors';
-import type { PipelineFitnessReport, PipelineFitnessMetrics } from '../../workshop/metrics/types';
+import type { PipelineFitnessReport, PipelineFitnessMetrics } from '../../product/domain/fitness/types';
 
 function withFileSystem<A, E>(program: Effect.Effect<A, E, FileSystem>): Promise<A> {
   return Effect.runPromise(program.pipe(Effect.provideService(FileSystem, LocalFileSystem)) as Effect.Effect<A, E, never>);

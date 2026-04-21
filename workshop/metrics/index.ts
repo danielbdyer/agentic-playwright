@@ -3,8 +3,8 @@
  *
  * Measuring the gap — failure modes, metrics, scorecards, and Pareto objectives.
  */
-export * from './architecture-fitness';
-export * from './types';
+export * from '../../product/domain/fitness/architecture-fitness';
+export * from '../../product/domain/fitness/types';
 
 // ─── L4 measurement primitives (phantom-branded, hierarchical) ───
 //

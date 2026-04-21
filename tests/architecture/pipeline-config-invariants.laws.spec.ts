@@ -13,7 +13,7 @@ import {
   validatePipelineConfig,
 } from '../../product/domain/attention/pipeline-config';
 import { calibrateWeightsFromCorrelations } from '../../product/application/learning/learning-bottlenecks';
-import type { BottleneckWeightCorrelation } from '../../workshop/metrics/types';
+import type { BottleneckWeightCorrelation } from '../../product/domain/fitness/types';
 
 // ─── Helpers ───
 

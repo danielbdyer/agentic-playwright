@@ -31,7 +31,7 @@ import type {
   LogicalProofObligation,
   LogicalProofObligationName,
   LogicalTheoremGroup,
-} from './types';
+} from '../../product/domain/fitness/types';
 
 // ─── Risk signal primitives ────────────────────────────────────────
 

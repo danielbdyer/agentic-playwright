@@ -18,11 +18,11 @@ import { TesseractError } from '../../product/domain/kernel/errors';
 import type {
   LogicalProofObligationName,
   TheoremBaselineCoverage,
-} from '../../workshop/metrics/types';
+} from '../../product/domain/fitness/types';
 import {
   summarizeTheoremBaseline,
   theoremBaselineCoverageForNames,
-} from '../../workshop/metrics/types';
+} from '../../product/domain/fitness/types';
 import type { McpToolDefinition, ScreenCapturedEvent, WorkItemDecision } from '../../product/domain/observation/dashboard';
 import { dashboardEvent, dashboardMcpTools } from '../../product/domain/observation/dashboard';
 import { projectManifestVerbsToMcpTools } from '../../product/domain/manifest/mcp-projection';

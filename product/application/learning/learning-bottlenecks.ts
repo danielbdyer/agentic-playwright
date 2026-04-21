@@ -1,5 +1,5 @@
 import type { BottleneckWeights } from '../../domain/attention/pipeline-config';
-import type { BottleneckWeightCorrelation } from '../../../workshop/metrics/types';
+import type { BottleneckWeightCorrelation } from '../../domain/fitness/types';
 import type {
   BottleneckSignal,
   CorpusHealthReport,

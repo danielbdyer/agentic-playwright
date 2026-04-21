@@ -16,7 +16,7 @@
  * history filtered by cohort into the input shape.
  */
 
-import type { LogicalProofObligation, LogicalTheoremGroup, LogicalProofObligationName } from './types';
+import type { LogicalProofObligation, LogicalTheoremGroup, LogicalProofObligationName } from '../../product/domain/fitness/types';
 
 // ─── Inputs ────────────────────────────────────────────────────────
 

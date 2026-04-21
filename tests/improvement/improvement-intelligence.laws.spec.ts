@@ -4,7 +4,7 @@ import {
   extractTopPriorities,
   computeImprovementTrends,
 } from '../../workshop/orchestration/improvement-intelligence';
-import type { PipelineFitnessReport } from '../../workshop/metrics/types';
+import type { PipelineFitnessReport } from '../../product/domain/fitness/types';
 
 function makeFitnessReport(overrides?: Partial<{
   failureModes: PipelineFitnessReport['failureModes'];

@@ -19,8 +19,8 @@
  */
 
 import type { ProposalBundle } from '../../domain/execution/types';
-import type { ArchitectureFitnessReport } from '../../../workshop/metrics/architecture-fitness';
-import type { PipelineFitnessReport } from '../../../workshop/metrics/types';
+import type { ArchitectureFitnessReport } from '../../domain/fitness/architecture-fitness';
+import type { PipelineFitnessReport } from '../../domain/fitness/types';
 import type { ContradictionReport, ContradictionSeverity } from '../../domain/knowledge/contradiction-types';
 
 // ─── Types ───

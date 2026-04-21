@@ -109,6 +109,14 @@ const ALWAYS_ALLOWED_PRODUCT_PATHS: readonly string[] = [
   // the type definitions at product/domain/manifest/ are the
   // compile-time half of that contract.
   'product/domain/manifest',
+  // Fitness types. Product-domain concepts that describe what's
+  // measured (pipeline failure classes, improvement targets, proof
+  // obligations, the scorecard shape). Workshop is the producer of
+  // measurements; product emits the concepts that workshop measures
+  // against. Moved out of workshop/metrics/types at step-4c.fitness-
+  // sweep so product/domain/* can depend on them without crossing
+  // into workshop/.
+  'product/domain/fitness',
   // Dashboard projection types + MCP tool contract. product/ emits
   // DashboardEvent, WorkItemDecision, McpToolDefinition, etc.;
   // dashboard/ hosts the view layer + MCP server that consumes them.
@@ -203,7 +211,6 @@ const RULE_1_GRANDFATHERED: ReadonlySet<string> = new Set([
   'workshop/metrics/metric/value.ts',
   'workshop/metrics/metric/visitors-discovery/fidelity.ts',
   'workshop/metrics/risk-formula.ts',
-  'workshop/metrics/types.ts',
   'workshop/metrics/metric/visitors-discovery/index.ts',
 ]);
 
@@ -263,11 +270,6 @@ const RULE_3_GRANDFATHERED: ReadonlySet<string> = new Set([
   // product/application/commitment/replay/replay-interpretation.ts —
   //   workshop/orchestration/benchmark.
   'product/application/commitment/replay/replay-interpretation.ts',
-  // The migrated policy + learning modules still reach into
-  // workshop/metrics/types for fitness-report shapes. They follow
-  // when fitness types graduate into product/domain/fitness/.
-  'product/application/learning/learning-bottlenecks.ts',
-  'product/application/policy/governance-intelligence.ts',
   'product/cli/commands/benchmark.ts',
   'product/cli/commands/dogfood.ts',
   'product/cli/commands/evolve.ts',

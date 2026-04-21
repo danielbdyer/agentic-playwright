@@ -17,7 +17,7 @@ import {
   countMetricNodes,
 } from '../../workshop/metrics/metric/tree';
 import { diffMetricTrees, deltaVerdict } from '../../workshop/metrics/metric/delta';
-import type { PipelineFitnessMetrics, LogicalProofObligation } from '../../workshop/metrics/types';
+import type { PipelineFitnessMetrics, LogicalProofObligation } from '../../product/domain/fitness/types';
 
 // ─── Synthetic fitness metrics fixture ──────────────────────────
 

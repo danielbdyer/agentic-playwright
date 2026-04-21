@@ -5,7 +5,7 @@ import {
   isGovernanceHealthy,
 } from '../../product/application/policy/governance-intelligence';
 import type { ContradictionReport } from '../../product/domain/knowledge/contradiction-types';
-import type { ArchitectureFitnessReport } from '../../workshop/metrics/architecture-fitness';
+import type { ArchitectureFitnessReport } from '../../product/domain/fitness/architecture-fitness';
 import type { ProposalBundle } from '../../product/domain/execution/types';
 
 function makeContradictionReport(overrides?: Partial<{

@@ -7,7 +7,7 @@ import { buildImprovementRun, improvementLedgerPath } from '../../workshop/orche
 import { createProjectPaths } from '../../product/application/paths';
 import { runWithLocalServices } from '../../product/composition/local-services';
 import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
-import { PipelineFitnessReport } from '../../workshop/metrics/types';
+import { PipelineFitnessReport } from '../../product/domain/fitness/types';
 
 function sampleFitnessReport(): PipelineFitnessReport {
   return {

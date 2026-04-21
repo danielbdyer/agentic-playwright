@@ -10,7 +10,7 @@
  * Polarity: higher is better.
  */
 
-import type { PipelineFitnessMetrics, LogicalProofObligation } from '../../types';
+import type { PipelineFitnessMetrics, LogicalProofObligation } from '../../../../product/domain/fitness/types';
 import { metric, type MetricProvenance } from '../value';
 import { metricNode } from '../tree';
 import type { MetricVisitor } from '../visitor';

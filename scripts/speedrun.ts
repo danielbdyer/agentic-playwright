@@ -56,7 +56,7 @@ import { findLatestFitnessReport } from '../workshop/measurement/score';
 import { foldMetricTree } from '../workshop/metrics/metric/tree';
 import { runWithLocalServices } from '../product/composition/local-services';
 import type { PipelineConfig } from '../product/domain/attention/pipeline-config';
-import type { PipelineFitnessReport } from '../workshop/metrics/types';
+import type { PipelineFitnessReport } from '../product/domain/fitness/types';
 import type { KnowledgePosture } from '../product/domain/governance/workflow-types';
 import type { SpeedrunProgressEvent } from '../product/domain/improvement/types';
 import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../product/domain/attention/pipeline-config';

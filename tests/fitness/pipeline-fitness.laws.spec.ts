@@ -6,7 +6,7 @@ import {
   type FitnessInputData,
 } from '../../workshop/orchestration/fitness';
 import type { ProposalBundle, StepExecutionReceipt } from '../../product/domain/execution/types';
-import type { PipelineScorecard } from '../../workshop/metrics/types';
+import type { PipelineScorecard } from '../../product/domain/fitness/types';
 import type { ResolutionReceipt } from '../../product/domain/resolution/types';
 import type { DogfoodIterationResult, DogfoodLedger } from '../../workshop/orchestration/dogfood';
 

@@ -14,7 +14,7 @@
  * record inputs.
  */
 
-import type { LogicalProofObligation } from './types';
+import type { LogicalProofObligation } from '../../product/domain/fitness/types';
 
 /** Stable string fingerprint for an artifact (typically a SHA-256 hash). */
 export type ArtifactFingerprint = string;

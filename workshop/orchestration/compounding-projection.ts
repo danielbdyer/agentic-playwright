@@ -29,7 +29,7 @@ import {
   type CompoundingSample,
   type CompoundingTrajectory,
 } from '../metrics/compounding';
-import type { ScorecardHistoryEntry } from '../metrics/types';
+import type { ScorecardHistoryEntry } from '../../product/domain/fitness/types';
 
 export interface CompoundingProjectionOptions {
   readonly history: readonly ScorecardHistoryEntry[];

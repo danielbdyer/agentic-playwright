@@ -26,7 +26,7 @@ import type {
   PipelineFitnessMetrics,
   PipelineFitnessReport,
   PipelineScorecard,
-} from '../../workshop/metrics/types';
+} from '../../product/domain/fitness/types';
 
 function baseMetrics(overrides: Partial<PipelineFitnessMetrics> = {}): PipelineFitnessMetrics {
   return {

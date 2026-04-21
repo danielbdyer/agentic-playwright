@@ -20,7 +20,7 @@ import { WINNING_SOURCE_TO_RUNG } from '../../product/domain/kernel/visitors';
 import { concatAll } from '../../product/domain/algebra/monoid';
 import { numberRecordSumMonoid, structMonoid, sumMonoid } from '../../product/domain/algebra/envelope-mergers';
 import type { InterpretationDriftRecord, ProposalBundle } from '../../product/domain/execution/types';
-import type { LogicalProofObligation } from '../metrics/types';
+import type { LogicalProofObligation } from '../../product/domain/fitness/types';
 import type { ImprovementRun } from '../../product/domain/improvement/types';
 import type { LearningScorecard } from '../../product/domain/learning/types';
 import type {
@@ -297,7 +297,7 @@ function proofObligation(input: {
 }
 
 function benchmarkProofObligations(input: {
-  knowledgeCoverage: import('../metrics/types').KnowledgeCoverageSummary;
+  knowledgeCoverage: import('../../product/domain/fitness/types').KnowledgeCoverageSummary;
   firstPassScreenResolutionRate: number;
   firstPassElementResolutionRate: number;
   effectiveHitRate: number;
@@ -591,7 +591,7 @@ function scorecardForBenchmark(input: {
   }>;
   interpretationDriftRecords: InterpretationDriftRecord[];
   learningScorecard?: LearningScorecard | null | undefined;
-  knowledgeCoverage: import('../metrics/types').KnowledgeCoverageSummary;
+  knowledgeCoverage: import('../../product/domain/fitness/types').KnowledgeCoverageSummary;
 }): BenchmarkScorecard {
   const uniqueScreens = uniqueSorted(input.benchmark.fieldCatalog.flatMap((field) => field.screen.length > 0 ? [field.screen] : []));
   const driftCount = input.benchmark.driftEvents.length;

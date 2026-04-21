@@ -16,7 +16,7 @@ import {
   objectivesFromMetrics,
   summarizeTheoremBaseline,
   theoremBaselineCoverageForObligations,
-} from '../metrics/types';
+} from '../../product/domain/fitness/types';
 import {
   computeMemoryMaturity,
   memoryMaturityEntryCount,
@@ -41,7 +41,7 @@ import type {
   ScorecardHighWaterMark,
   ScorecardHistoryEntry,
   ScoringEffectiveness,
-} from '../metrics/types';
+} from '../../product/domain/fitness/types';
 import type { StepWinningSource } from '../../product/domain/governance/workflow-types';
 import type { ExperimentRecord } from '../../product/domain/improvement/experiment';
 import type { ImprovementLoopLedger } from '../../product/domain/improvement/types';
@@ -50,7 +50,7 @@ import { groupByMap } from '../../product/domain/kernel/collections';
 import { foldPipelineFailureClass, WINNING_SOURCE_TO_RUNG } from '../../product/domain/kernel/visitors';
 import { isBlocked } from '../../product/domain/proposal/lifecycle';
 import { resolutionPrecedenceLaw, type ResolutionPrecedenceRung } from '../../product/domain/resolution/precedence';
-import type { BottleneckWeightCorrelation, GeneralizationMetrics } from '../metrics/types';
+import type { BottleneckWeightCorrelation, GeneralizationMetrics } from '../../product/domain/fitness/types';
 
 // ─── Step-level classification ───
 
@@ -157,7 +157,7 @@ export interface FitnessInputData {
    *  whose `measurementClass: 'direct'` is earned through real structural
    *  measurement rather than heuristic risk scoring. Merged into the
    *  runtime obligation set and passed through to the scorecard. */
-  readonly extraObligations?: readonly import('../metrics/types').LogicalProofObligation[] | undefined;
+  readonly extraObligations?: readonly import('../../product/domain/fitness/types').LogicalProofObligation[] | undefined;
   /** Operational `MemoryMaturity(τ)` counts derived from the catalog at the
    *  time the fitness report is built. Used by C-family obligations and the
    *  scorecard history to track compounding direction across cohorts. */

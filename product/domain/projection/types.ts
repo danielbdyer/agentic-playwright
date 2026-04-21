@@ -24,7 +24,7 @@ import type { ResolutionExhaustionEntry, TranslationReceipt } from '../resolutio
 import type { ProposalBundle, RunRecord } from '../execution/types';
 import type { ScenarioInterpretationSurface } from '../resolution/types';
 import type { WorkflowLane } from '../governance/workflow-types';
-import type { LogicalProofObligation } from '../../../workshop/metrics/types';
+import type { LogicalProofObligation } from '../fitness/types';
 
 export interface BenchmarkField {
   readonly id: string;

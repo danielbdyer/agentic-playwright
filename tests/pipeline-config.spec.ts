@@ -6,7 +6,7 @@ import {
   addToParetoFrontier,
   isAcceptedByParetoFrontier,
   paretoDominates,
-} from '../workshop/metrics/types';
+} from '../product/domain/fitness/types';
 import {
   ExperimentRecord,
   acceptedExperiments,

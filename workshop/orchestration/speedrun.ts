@@ -41,7 +41,7 @@ import { validateRunRecord } from '../../product/domain/validation';
 import { decodeUnknownEither } from '../../product/domain/schemas/decode';
 import type { PipelineConfig } from '../../product/domain/attention/pipeline-config';
 import type { ProposalBundle } from '../../product/domain/execution/types';
-import type { PipelineFitnessReport, PipelineScorecard } from '../metrics/types';
+import type { PipelineFitnessReport, PipelineScorecard } from '../../product/domain/fitness/types';
 import type { KnowledgePosture } from '../../product/domain/governance/workflow-types';
 import type { ExperimentRecord } from '../../product/domain/improvement/experiment';
 import type {
@@ -327,7 +327,7 @@ export function speedrunProgram(input: SpeedrunInput): Effect.Effect<SpeedrunRes
     // through `extraObligations`. This is the live path that graduates
     // fingerprint-stability from slot-only to measured.
     const probeResult = yield* runFingerprintStabilityProbe({ paths: input.paths }).pipe(
-      Effect.catchAll(() => Effect.succeed(null as { obligation: import('../metrics/types').LogicalProofObligation; artifactCount: number } | null)),
+      Effect.catchAll(() => Effect.succeed(null as { obligation: import('../../product/domain/fitness/types').LogicalProofObligation; artifactCount: number } | null)),
     );
 
     const fitnessData: FitnessInputData = {
@@ -648,7 +648,7 @@ export function reportPhase(input: ReportPhaseInput) {
 
     const existingScorecard = yield* loadScorecard(input.paths);
     const reportPhaseProbe = yield* runFingerprintStabilityProbe({ paths: input.paths }).pipe(
-      Effect.catchAll(() => Effect.succeed(null as { obligation: import('../metrics/types').LogicalProofObligation; artifactCount: number } | null)),
+      Effect.catchAll(() => Effect.succeed(null as { obligation: import('../../product/domain/fitness/types').LogicalProofObligation; artifactCount: number } | null)),
     );
     const fitnessReport = buildFitnessReport({
       pipelineVersion,

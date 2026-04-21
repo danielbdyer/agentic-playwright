@@ -22,7 +22,7 @@ import { Effect } from 'effect';
 import { FileSystem } from '../../product/application/ports';
 import type { ProjectPaths } from '../../product/application/paths';
 import { TesseractError } from '../../product/domain/kernel/errors';
-import type { PipelineFitnessReport } from '../metrics/types';
+import type { PipelineFitnessReport } from '../../product/domain/fitness/types';
 import { buildPipelineMetricTree } from '../metrics/metric/visitors';
 import { buildDiscoveryMetricTree } from '../metrics/metric/visitors-discovery';
 import type { MetricNode } from '../metrics/metric/tree';

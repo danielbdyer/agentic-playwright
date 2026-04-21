@@ -27,7 +27,7 @@ import {
   foldResolutionEvent,
   foldPipelineFailureClass,
 } from '../../product/domain/kernel/visitors';
-import type { PipelineFailureClass, PipelineImprovementTarget } from '../../workshop/metrics/types';
+import type { PipelineFailureClass, PipelineImprovementTarget } from '../../product/domain/fitness/types';
 import type { LocatorStrategy } from '../../product/domain/governance/workflow-types';
 import type { StepInstruction, ValueRef } from '../../product/domain/intent/types';
 import type { ResolutionEvent, ResolutionReceipt } from '../../product/domain/resolution/types';

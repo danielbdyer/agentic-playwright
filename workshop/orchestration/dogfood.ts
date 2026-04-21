@@ -11,7 +11,7 @@ import { signalMaturity, buildLearningSignalsSummary, countDegradingSignals } fr
 import { emitAgentWorkbench, processWorkItems, emitInterventionLineage } from '../../product/application/agency/agent-workbench';
 import { createDashboardDecider } from '../../product/application/agency/dashboard-decider';
 import { createDualModeDecider, createAgentDecider } from '../../product/application/agency/agent-decider';
-import type { BottleneckWeightCorrelation } from '../metrics/types';
+import type { BottleneckWeightCorrelation } from '../../product/domain/fitness/types';
 import type { AgentWorkItem, WorkItemCompletion } from '../../product/domain/handshake/workbench';
 import { detectAliasConflicts } from '../../product/domain/knowledge/inference';
 import { dashboardEvent } from '../../product/domain/observation/dashboard';
@@ -54,7 +54,7 @@ import type {
 import { DEFAULT_AUTO_APPROVAL_POLICY } from '../../product/domain/governance/trust-policy';
 import { matureComponentKnowledge, type ComponentEvidence } from '../../product/domain/projection/component-maturation';
 import { aggregateQualityMetrics, findToxicAliases, type AliasOutcome } from '../../product/domain/proposal/quality';
-import type { RungRate } from '../metrics/types';
+import type { RungRate } from '../../product/domain/fitness/types';
 import type { ScreenGroupDecider, WorkItemDecider } from '../../product/application/agency/agent-workbench';
 import { collectPendingProposals } from './dogfood/activation';
 import {
