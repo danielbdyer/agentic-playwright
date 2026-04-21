@@ -140,9 +140,11 @@ describe('Probe IR Spike — end-to-end laws', () => {
   test('S8: each fixtured verb synthesizes its declared fixture count', async () => {
     const { derivation } = await runSpikeUnderDryHarness();
     // observe: 2, test-compose: 2, facet-query: 3, facet-mint: 2,
-    // facet-enrich: 2, locator-health-track: 2, intent-fetch: 3,
-    // interact: 5. Total = 21 across all 8 declared verbs.
-    expect(derivation.probes).toHaveLength(21);
+    // facet-enrich: 2, locator-health-track: 2, intent-fetch: 4,
+    // interact: 5. Total = 22 across all 8 declared verbs.
+    // intent-fetch grew to 4 probes when the malformed-response
+    // fixture landed (scope 4 closing Gap 2 from verdict-01).
+    expect(derivation.probes).toHaveLength(22);
     const byVerb = new Map<string, number>();
     for (const probe of derivation.probes) {
       byVerb.set(probe.verb, (byVerb.get(probe.verb) ?? 0) + 1);
@@ -153,7 +155,7 @@ describe('Probe IR Spike — end-to-end laws', () => {
     expect(byVerb.get('facet-mint')).toBe(2);
     expect(byVerb.get('facet-enrich')).toBe(2);
     expect(byVerb.get('locator-health-track')).toBe(2);
-    expect(byVerb.get('intent-fetch')).toBe(3);
+    expect(byVerb.get('intent-fetch')).toBe(4);
     expect(byVerb.get('interact')).toBe(5);
   });
 

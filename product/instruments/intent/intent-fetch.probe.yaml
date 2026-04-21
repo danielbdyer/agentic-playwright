@@ -47,3 +47,24 @@ fixtures:
       error-family: unavailable
     exercises:
       - error-family: unavailable
+
+  - name: fetch-malformed-payload-fails-malformed-response
+    description: |
+      Resolves Gap 2 from probe-spike-verdict-01. ADO responds with
+      HTTP 200 but the payload violates the expected schema (e.g.
+      missing fields, wrong types). Classification routes through
+      the malformed-response family. Under rung-2 (fixture-replay)
+      the classifier honors the `inject-malformed-payload` world-
+      setup hook to simulate this path deterministically — no
+      live network, no schema-break injection machinery needed
+      until the classifier lands at Step 5.6.
+    input:
+      source: ado
+      id: "7"
+    world-setup:
+      inject-malformed-payload: true
+    expected:
+      classification: failed
+      error-family: malformed-response
+    exercises:
+      - error-family: malformed-response
