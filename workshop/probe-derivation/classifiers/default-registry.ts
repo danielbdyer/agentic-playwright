@@ -27,10 +27,13 @@
  */
 
 import { verbClassifierRegistry, type VerbClassifierRegistry } from '../verb-classifier';
+import { testComposeClassifier } from './test-compose';
 
-/** Build the default classifier registry. Starts empty at scope 3c;
- *  scope 3d registers test-compose; later scopes register per-verb
- *  classifiers as their handler surfaces land. */
+/** Build the default classifier registry. Scope 3d registers
+ *  test-compose (the one verb with a runtime handler in
+ *  product/application/manifest/default-handlers.ts today). Later
+ *  scopes register per-verb classifiers as each verb's runtime
+ *  handler gains a standalone Layer-injectable surface. */
 export function createDefaultVerbClassifierRegistry(): VerbClassifierRegistry {
-  return verbClassifierRegistry([]);
+  return verbClassifierRegistry([testComposeClassifier]);
 }

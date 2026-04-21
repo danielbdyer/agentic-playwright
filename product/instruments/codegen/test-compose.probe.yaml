@@ -8,8 +8,10 @@ fixtures:
   - name: three-step-grounded-flow
     description: |
       Compose a Playwright test from a minimal 3-step grounded
-      flow. Exercises the pre-generated facade emission path and
-      the referenced-facet tracker.
+      flow. Exercises the handler-level shape validator: input
+      carries the required `{ flow, imports }` pair at top level.
+      Rung-2 (fixture-replay) classifies on shape; rung-3+ will
+      validate the GroundedSpecFlow metadata and the emitted AST.
     input:
       flow:
         name: policy-search-happy-path
@@ -22,6 +24,9 @@ fixtures:
             value: POL-001
           - kind: click
             facet: policy-search:searchButton
+      imports:
+        fixtures: ./fixtures
+        scenarioContext: ./scenario-context
     expected:
       classification: matched
       error-family: null
@@ -29,11 +34,13 @@ fixtures:
       - rung: pregenerated-facade
       - error-family: null
 
-  - name: unknown-facet-fails-assertion
+  - name: missing-imports-fails-shape-validation
     description: |
-      Compose should fail with assertion-like when a referenced
-      facet is unknown. Exercises the facet-ref validator that
-      runs before emission.
+      Input omits the required `imports` object. The handler's
+      shape validator rejects — classification: failed, error-
+      family: unclassified (matches test-compose's declared error
+      families in the manifest, which do NOT include
+      assertion-like; shape failures route to unclassified).
     input:
       flow:
         name: policy-search-broken-path
@@ -43,6 +50,6 @@ fixtures:
             facet: policy-search:DOES_NOT_EXIST
     expected:
       classification: failed
-      error-family: assertion-like
+      error-family: unclassified
     exercises:
-      - error-family: assertion-like
+      - error-family: unclassified

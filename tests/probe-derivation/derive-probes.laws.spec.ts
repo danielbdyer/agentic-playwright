@@ -63,7 +63,11 @@ describe('probe IR fixture-loader laws', () => {
     );
     expect(doc).not.toBeNull();
     expect(doc!.verb).toBe('test-compose');
-    expect(doc!.fixtures.some((f) => f.expected.errorFamily === 'assertion-like')).toBe(true);
+    // The failed-path fixture's error-family is `unclassified` —
+    // test-compose's manifest entry does not declare
+    // assertion-like. Shape-validation failures route to the
+    // closest named family (unclassified) per Step 5.5 scope 3d.
+    expect(doc!.fixtures.some((f) => f.expected.errorFamily === 'unclassified')).toBe(true);
   });
 
   test('loads the facet-query.probe.yaml fixture', () => {
