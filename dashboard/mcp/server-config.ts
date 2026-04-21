@@ -17,7 +17,7 @@ import type {
   WorkItemDecision,
 } from '../../product/domain/observation/dashboard';
 import type { ManifestVerbHandlerRegistry } from '../../product/application/manifest/invoker';
-import type { PlaywrightBridgePort } from './playwright-mcp-bridge';
+import type { PlaywrightBridgePort } from '../../product/application/ports';
 
 export interface DashboardMcpServerOptions {
   /** Read a JSON artifact from the .tesseract/ directory. Returns null if not found. */

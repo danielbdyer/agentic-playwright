@@ -10,7 +10,6 @@ import { createScenarioEnvelopeFingerprints } from '../../catalog/envelope';
 import { loadScenarioInterpretationSurfaceFromCatalog, prepareScenarioRunPlan } from '../select-run-context';
 import { interpretScenarioFromPlan } from '../interpret';
 import { emitOperatorInbox } from '../../agency/inbox';
-import { projectBenchmarkScorecard } from '../../../../workshop/orchestration/benchmark';
 import { buildDerivedGraph } from '../../graph/graph';
 
 interface InterpretationRecord {
@@ -216,8 +215,6 @@ export function replayInterpretation(options: {
 
     const inbox = yield* emitOperatorInbox({ paths: options.paths, filter: { adoId: options.adoId } });
     const graph = yield* buildDerivedGraph({ paths: options.paths });
-    yield* Effect.forEach(catalog.benchmarks, (benchmark) =>
-      projectBenchmarkScorecard({ paths: options.paths, benchmarkName: benchmark.artifact.name, includeExecution: false }));
 
     return {
       runId: plan.runId,

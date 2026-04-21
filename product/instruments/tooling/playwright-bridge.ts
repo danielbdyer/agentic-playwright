@@ -1,48 +1,31 @@
 /**
- * Playwright MCP Bridge — seam for integrating Playwright's browser tools
- * alongside the dashboard's observation tools.
+ * Playwright Bridge Factory — Effect-based adapter that wraps a
+ * Playwright Page in the PlaywrightBridgePort (declared in
+ * product/application/ports.ts).
+ *
+ * Graduated from dashboard/mcp/playwright-mcp-bridge.ts at
+ * step-4c.headed-harness-graduate: the port types already moved to
+ * product/application/ports at step-4c.final-sweep; the factory now
+ * joins them so the headed harness and any future product-internal
+ * consumer can construct a live bridge without reaching into dashboard/.
  *
  * Architecture:
  *   Dashboard MCP: structured observation (knowledge, queue, fitness)
  *   Playwright MCP: live DOM interaction (click, fill, navigate, screenshot)
- *   This bridge: coordinates both, routes tool calls to the right handler
+ *   This factory: wraps Page methods in the BrowserAction / BrowserActionResult
+ *                 interface, with transient-error classification + retry +
+ *                 a per-page action queue that serializes calls.
  *
  * The bridge is a progressive enhancement: when Playwright is available
  * in headed mode, agents get direct DOM access in addition to the
  * dashboard's observation surface.
- *
- * Integration options:
- *   1. Playwright CLI (`npx playwright`) — direct browser control, simpler
- *   2. Playwright MCP server (`@playwright/mcp`) — structured tool access
- *   3. CDP bridge — Chrome DevTools Protocol for low-level control
- *
- * This module provides the port interface and a disabled adapter.
- * The live adapter is created when a Playwright Page is available.
  */
 
 import { Effect } from 'effect';
-import { TesseractError } from '../../product/domain/kernel/errors';
-import { navigationOptionsForUrl } from '../../product/runtime/adapters/navigation-strategy';
-import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../product/application/resilience/schedules';
-import {
-  DisabledPlaywrightBridge,
-  PlaywrightBridge,
-  type BrowserAction,
-  type BrowserActionResult,
-  type PlaywrightBridgePort,
-} from '../../product/application/ports';
-
-// Re-export the seam-contract types for in-dashboard consumers that
-// still import from this module. The canonical definitions live in
-// product/application/ports.ts so product-side callers don't cross
-// the seam to reach them.
-export {
-  DisabledPlaywrightBridge,
-  PlaywrightBridge,
-  type BrowserAction,
-  type BrowserActionResult,
-  type PlaywrightBridgePort,
-};
+import { TesseractError } from '../../domain/kernel/errors';
+import { navigationOptionsForUrl } from '../../runtime/adapters/navigation-strategy';
+import { RETRY_POLICIES, retryScheduleForTaggedErrors } from '../../application/resilience/schedules';
+import type { BrowserAction, PlaywrightBridgePort } from '../../application/ports';
 
 class PlaywrightBridgeTransientError extends TesseractError {
   override readonly _tag = 'PlaywrightBridgeTransientError' as const;
@@ -58,10 +41,8 @@ function isPlaywrightTransient(cause: unknown): boolean {
   if (!(cause instanceof Error)) {
     return false;
   }
-  // Check for known Playwright error class names (version-resilient)
   const name = cause.name ?? '';
   if (name === 'TimeoutError' || name === 'NavigationTimedoutError') return true;
-  // Pattern matching on message as fallback — covers network and lifecycle errors
   return /timeout|timed?\s*out|closed|disconnected|target page|target closed|session closed|connection refused|ECONNRESET|ECONNREFUSED|net::ERR_/i.test(cause.message);
 }
 
@@ -80,10 +61,6 @@ function createActionQueue() {
   };
 }
 
-// ─── Live Adapter Factory (for headed mode with Playwright Page) ───
-// This factory is called when a Playwright Page is available.
-// It wraps Page methods in the BrowserAction/BrowserActionResult interface.
-
 /** Create a live Playwright bridge from a Playwright Page object.
  *  Only used in headed mode when a real browser is controlled by Playwright.
  *
@@ -101,7 +78,6 @@ export function createPlaywrightBridge(page: {
   readonly url: () => string;
   readonly content: () => Promise<string>;
 }): PlaywrightBridgePort {
-  // Action queue serializes all page operations to prevent concurrent corruption
   const queue = createActionQueue();
 
   return {
@@ -129,7 +105,6 @@ export function createPlaywrightBridge(page: {
 
           case 'screenshot': {
             const buffer = await page.screenshot({ fullPage: false });
-            // Cap screenshot payload at 5MB to prevent oversized JSON-RPC frames
             const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024;
             if (buffer.length > MAX_SCREENSHOT_BYTES) {
               return { success: true, action: 'screenshot' as const, data: { error: `Screenshot too large (${buffer.length} bytes, max ${MAX_SCREENSHOT_BYTES})`, truncated: true, sizeBytes: buffer.length } };

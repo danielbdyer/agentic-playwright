@@ -35,7 +35,7 @@ import { invokeManifestVerb } from '../../product/application/manifest/invoker';
 import '../../product/manifest/declarations';
 import { resolveResource, buildResourceUri } from './resource-provider';
 import type { ResourceArtifactReader } from './resource-provider';
-import type { PlaywrightBridgePort, BrowserAction } from './playwright-mcp-bridge';
+import type { PlaywrightBridgePort, BrowserAction } from '../../product/application/ports';
 import { RETRY_POLICIES, formatRetryMetadata, retryMetadata, retryScheduleForTaggedErrors } from '../../product/application/resilience/schedules';
 import { writeDecisionFile } from '../bridges/file-decision-bridge';
 

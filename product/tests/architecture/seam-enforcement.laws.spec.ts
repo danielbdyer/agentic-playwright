@@ -265,7 +265,11 @@ const RULE_2_GRANDFATHERED: ReadonlySet<string> = new Set([
   // contract allowlist (product/domain/kernel/errors for
   // TesseractError, product/application/resilience for retry
   // utilities, plus the already-allowed manifest / ports paths).
-  'dashboard/mcp/playwright-mcp-bridge.ts',
+  // dashboard/mcp/playwright-mcp-bridge.ts DELETED at
+  // step-4c.headed-harness-graduate: factory logic moved to
+  // product/instruments/tooling/playwright-bridge.ts; remaining
+  // dashboard consumers now import port types directly from
+  // product/application/ports.
   'dashboard/server.ts',
   // dashboard/src/ is the web UI; it reaches into product/domain/ widely.
   // These are grandfathered at Step 0 pending the full dashboard/src/
@@ -301,19 +305,19 @@ const RULE_3_GRANDFATHERED: ReadonlySet<string> = new Set([
   //    (bin/cli-registry.ts) composes product + workshop command
   //    registries. product/cli/shared + product/cli/registry added
   //    to ALWAYS_ALLOWED_PRODUCT_PATHS as the shared CLI contract.
+  //  - step-4c.replay-sever: replayInterpretation stopped calling
+  //    projectBenchmarkScorecard after core replay. Users already
+  //    have a dedicated workshop CLI command for that projection
+  //    (tesseract benchmark --benchmark X); bundling the
+  //    side-effect was a coupling-for-convenience that no test
+  //    depended on. replay-interpretation.ts graduated.
+  //  - step-4c.headed-harness-graduate: createPlaywrightBridge
+  //    factory moved from dashboard/mcp/playwright-mcp-bridge.ts
+  //    to product/instruments/tooling/playwright-bridge.ts; the
+  //    old dashboard module deleted. headed-harness.ts graduated
+  //    off RULE_3, playwright-mcp-bridge.ts graduated off RULE_2
+  //    (file deleted). Zero RULE_3 entries remain.
 
-  // product/application/commitment/replay/replay-interpretation.ts —
-  //   workshop/orchestration/benchmark. Legitimate: benchmark is a
-  //   workshop measurement concern that replay-interpretation consults
-  //   post-hoc. Retires when projectBenchmarkScorecard either moves
-  //   into product/ or exposes its output via the shared log set.
-  'product/application/commitment/replay/replay-interpretation.ts',
-  // product/instruments/tooling/headed-harness.ts — imports
-  //   createPlaywrightBridge from dashboard/mcp/playwright-mcp-bridge.
-  //   The factory wraps a Playwright Page; types already migrated to
-  //   product/application/ports, but the factory itself stays in
-  //   dashboard for now. Graduates when the factory moves too.
-  'product/instruments/tooling/headed-harness.ts',
 ]);
 
 function isGrandfathered(file: string, allowlist: ReadonlySet<string>): boolean {
