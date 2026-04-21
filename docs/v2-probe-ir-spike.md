@@ -46,3 +46,42 @@ The atomic claim rides on four invariants the scaffolding enforces:
 Together, I1–I4 make one probe-receipt a **proof token** in the Curry–Howard sense: a concrete witness that some proposition — "verb V under fixture F exercised rung R and emitted error family E as declared" — either holds or doesn't. The proof is local (one probe), reproducible (pure probe + deterministic harness produces identical receipt), and composable (receipts join in the metric tree). This is the atomic unit that makes the workshop's measurement substrate honest.
 
 What an individual probe does **not** prove: anything about other probes, the verb's behavior outside the fixture's world, or the product's improvement trajectory. Those are compositional claims the next section elaborates.
+
+## 3. The compositional claim — what probes prove when composed
+
+Composition is where probes earn their keep. One receipt confirms one cell in the coverage matrix; many receipts — composed via a few carefully-chosen algebraic operations — confirm the product's measurement substrate as a whole. Three compositions matter, in increasing order of what they prove.
+
+### 3.1 Horizontal composition: the coverage matrix as a colimit
+
+Each probe pins one cell of the **coverage matrix**: rows indexed by verb, columns indexed by the triple (facet-kind × error-family × exercise-rung). Filling a cell means "at least one probe exercises this surface and produces a confirming receipt." The coverage matrix is exactly the colimit of the per-probe proof tokens under disjoint-union: independent cells compose by set union; coverage percentage is `|filled cells| / |total cells|`.
+
+This composition is trivially a **commutative monoid** over `Set<CoverageCell>`: identity is the empty set, combine is set-union, associative and commutative because sets are. The spike harness's `summarizeSpike` is precisely the `foldMap` of that monoid over the receipt stream. The law "missing fixtures lower the coverage percentage monotonically" (test S7 in `spike-harness.laws.spec.ts`) is the monoid's monotonicity property in disguise.
+
+Consequence: the coverage matrix grows *additively*. Adding a new fixture never regresses coverage for an existing fixture. Adding a new verb drops coverage percentage but raises the denominator honestly — this is a feature, not a bug: the spike's job is to make product incompleteness visible, and a newly-declared verb without a fixture is precisely product incompleteness the workshop should report.
+
+### 3.2 Vertical composition: the metric tree reduction
+
+Receipts aren't just cells in a coverage matrix; they're inputs to the seven-visitor metric tree. Each visitor (extraction-ratio, handshake-density, rung-distribution, intervention-cost, compounding-economics, memory-worthiness-ratio / M5, intervention-marginal-value / C6) is a pure function from a receipt stream to a `MetricNode<Kind>`. The metric tree itself is the Cartesian product of all seven visitor outputs, wrapped in a parent node.
+
+The important structural fact: each visitor's output depends on *a subset of receipt fields*, and different visitors care about different subsets. `extraction-ratio` reads success/failure classifications; `handshake-density` reads agent-fallback events; `rung-distribution` reads exercise-rung tags; M5 reads the probe-surface cohort triple to index trajectory points. Separation of concerns is enforced at the typeclass level — the `MetricVisitor<Input, Kind>` interface carries its own `inputDescription` field.
+
+This gives the composition a **phantom-branded natural transformation** shape: receipts (source functor) map into metric nodes (target functor) via the visitor's `visit` method, with the phantom `Kind` parameter enforcing that the visitor's declared output kind matches what it actually emits. Adding a new metric is adding a new visitor; no existing visitor changes; the receipt stream stays pure over the visitor set.
+
+### 3.3 Longitudinal composition: the hypothesis-confirmation loop
+
+The third composition is across *time*: receipts tagged with `hypothesisId` feed `metric-hypothesis-confirmation-rate` — the batting average of product changes predicting their own metric movement correctly. This is C6 (workshop graduation gate) in probe-IR language per `docs/v2-substrate.md §8a`.
+
+The loop has four stations:
+
+1. A product change ships under the `ProposalKind = 'hypothesis'` discriminator carrying a `PredictedDelta { metric, direction, magnitude? }`.
+2. The next spike run produces receipts tagged with the proposal's hypothesisId.
+3. `metric-hypothesis-confirmation-rate` reads (prediction, actual) pairs over a rolling window.
+4. A verification receipt `{ hypothesis, predictedDelta, actualDelta, confirmed }` appends to the receipt log. The receipt log is append-only; contradiction never overwrites.
+
+Composition-wise this is a **free monoid over (hypothesis, verification) pairs** projected through a rolling-window fold to a scalar. The hypothesisId ties prediction to verification without requiring either side to know the other's identity in advance. Prediction without verification is not a hypothesis; verification without prediction is noise — the compositional discipline forces both sides to commit.
+
+### 3.4 Why three compositions and not one
+
+The coverage matrix, the metric tree, and the hypothesis loop operate at **three different time scales**: one-shot (coverage is a snapshot), per-run (metrics update per execution), per-epoch (batting average updates across a rolling window of runs). Collapsing them into one mechanism would entangle time scales the same way v1's scoreboard entangled measurement and authorship. Keeping them separate means each composition can specialize its algebra — union for coverage, visitor-fold for metrics, rolling window for hypothesis — without compromise.
+
+The integration claim is that all three compositions **share one substrate**: the ProbeReceipt. No separate log, no duplicated identity, no reconstruction. Coverage reads probe identity + cohort. Metric tree reads classification + latency + rung tags. Hypothesis loop reads hypothesisId + observed outcome. One receipt feeds all three reductions, and that's what makes the whole apparatus cheap.
