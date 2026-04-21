@@ -220,3 +220,89 @@ Each discriminator has a concrete next step. The verdict document is committed t
 The dry-harness proves the seam; fixture-replay proves the substrate. When Step 5.2–5.4 pass, author the `FixtureReplayProbeHarness` adapter that swaps the dry harness's "observed = expected" logic for "observed = run the verb against a captured DOM snapshot and classify the result."
 
 **Scope guard**: fixture-replay is Step 5's *exit* deliverable, not its entry. The spike is the dry-harness; fixture-replay is how the spike becomes useful beyond its seam-proof purpose. This is a commit boundary worth preserving: the spike's go/no-go verdict (Step 5.4) decides whether fixture-replay ships at Step 5 or defers to Step 6.
+
+## 6. The substrate-backed harnesses — what the three real adapters look like
+
+The dry-harness proves the seam; the three substrate-backed adapters prove the substrate. Each adapter's implementation is named below with enough specificity that a new agent picking up the work can land it in a week of scoped effort.
+
+### 6.1 FixtureReplayProbeHarness — deterministic world, real verb
+
+**What it does**: runs the verb's actual product code against a captured DOM snapshot + fixture catalog state. The "world" is frozen — no real browser, no network, no operator intervention. The verb runs its normal Effect program; the harness injects the snapshot as the Playwright page surrogate, the fixture catalog as the `FacetCatalog` layer, and a deterministic clock.
+
+**Inputs it needs beyond the Probe**:
+- A snapshot fixture: `product/fixtures/snapshots/<screen>.html` — captured DOM.
+- A catalog fixture: `product/fixtures/catalogs/<name>.yaml` — the facet catalog state to inject.
+
+**Implementation sketch**:
+```ts
+export function createFixtureReplayProbeHarness(opts: {
+  readonly snapshotDir: string;
+  readonly catalogDir: string;
+}): ProbeHarnessService {
+  return {
+    execute: (probe) => Effect.gen(function* () {
+      const snapshot = yield* loadSnapshot(opts.snapshotDir, probe);
+      const catalog = yield* loadCatalog(opts.catalogDir, probe);
+      const layer = Layer.mergeAll(
+        Layer.succeed(PlaywrightBridge, snapshotAsPlaywrightBridge(snapshot)),
+        Layer.succeed(FacetCatalog, catalog),
+        Layer.succeed(Clock, deterministicClock()),
+      );
+      const observed = yield* runVerbUnderLayer(probe, layer);
+      return buildReceipt({ probe, observed, adapter: 'fixture-replay', ... });
+    }),
+  };
+}
+```
+
+**Why it's worth landing before playwright-live**: fixture-replay gives the workshop a reproducibility guarantee playwright-live can never offer. The same probe against the same snapshot produces byte-identical receipts across runs. When a metric moves, fixture-replay can prove the movement was product-caused, not substrate-caused.
+
+### 6.2 PlaywrightLiveProbeHarness — real browser, synthetic app
+
+**What it does**: runs the verb's actual product code against a real Playwright browser pointed at a synthetic React app (or a fixture site the workshop controls). Real page rendering, real JavaScript, real widget state — but the app itself is ours.
+
+**Inputs it needs beyond the Probe**:
+- A synthetic app the harness can launch: `workshop/synthetic-app/` (new subdirectory) — a minimal React app with the screens probes reference.
+- A Playwright page factory (the `HeadedHarness` factory already exists at `product/instruments/tooling/headed-harness.ts`).
+
+**Implementation sketch**:
+```ts
+export function createPlaywrightLiveProbeHarness(opts: {
+  readonly appUrl: string;
+}): ProbeHarnessService {
+  return {
+    execute: (probe) => Effect.gen(function* () {
+      const harness = yield* launchHeadedHarness({
+        initialUrl: opts.appUrl,
+      });
+      const layer = Layer.succeed(PlaywrightBridge, harness.bridge);
+      try {
+        const observed = yield* runVerbUnderLayer(probe, layer);
+        return buildReceipt({ probe, observed, adapter: 'playwright-live', ... });
+      } finally {
+        yield* Effect.promise(() => harness.dispose());
+      }
+    }),
+  };
+}
+```
+
+**Why after fixture-replay**: playwright-live introduces real-world flakiness (network jitter, rendering delays, Chromium version drift). Workshop wants signal, not noise. Running fixture-replay first isolates product-caused movement from substrate-caused movement; running playwright-live second captures the substrate contribution deliberately.
+
+### 6.3 ProductionProbeHarness — real browser, customer tenant
+
+**What it does**: same as playwright-live, but the target URL is a customer's actual OutSystems tenant. The verb runs real product code against real customer DOM. This is the highest-signal substrate and the one that eventually pays the graduation bill.
+
+**Scoping note**: production probes only run under explicit operator authorization per the trust-policy gate. The adapter doesn't implement anything new — it's `playwright-live` with a different URL — but the operator-authorization gate at the CLI level is load-bearing.
+
+**Implementation**: thin factory over `playwright-live` with the `adapter` tag changed to `'production'`.
+
+### 6.4 What's shared across all three
+
+All three substrate-backed adapters use the same composition pattern: `Layer.mergeAll` to inject the environment-specific services (PlaywrightBridge, FacetCatalog, Clock), then `runVerbUnderLayer(probe, layer)` to execute the verb's actual Effect program under the injected services. The probe's work item goes through `product/application/commitment/run.ts` → `runScenarioSelection` via an intent source that reads `source: 'probe:<verb>:<fixture>'` from the probe's identity.
+
+The harness's job is NOT to re-implement the verb. The harness is *a Layer provider* — it supplies the environment the verb needs, then lets the product's normal flow run. This is what "probes run through the product's normal authoring flow" means in Effect's idiom: the harness IS the composition decision, and the verb's code doesn't know a probe is probing it.
+
+### 6.5 Retirement of the transitional probe set
+
+When FixtureReplayProbeHarness lands (Step 5.5), the same commit deletes `workshop/probe-derivation/transitional.ts` per the retirement protocol in `docs/v2-readiness.md §5.3`. The commit message: *"Step 5: retire transitional probe set; manifest-derived probes take over for [list of verbs]."*
