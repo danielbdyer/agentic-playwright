@@ -45,7 +45,7 @@ export function parseFixtureDocument(
     verb,
     schemaVersion,
     fixtures,
-    syntheticInput: syntheticInput ?? undefined,
+    ...(syntheticInput === undefined ? {} : { syntheticInput }),
     declaredIn,
   };
 }
@@ -90,9 +90,9 @@ function parseFixture(raw: unknown, where: string): ProbeFixtureDocument['fixtur
     name,
     description,
     input,
-    worldSetup,
+    ...(worldSetup === undefined ? {} : { worldSetup }),
     expected: { classification, errorFamily },
-    exercises,
+    ...(exercises === undefined ? {} : { exercises }),
   };
 }
 
@@ -108,7 +108,10 @@ function parseExercise(raw: unknown, where: string): { readonly rung?: string; r
       : typeof errorFamilyRaw === 'string'
         ? errorFamilyRaw
         : undefined;
-  return rung === undefined && errorFamily === undefined ? {} : { rung, errorFamily };
+  return {
+    ...(rung === undefined ? {} : { rung }),
+    ...(errorFamily === undefined ? {} : { errorFamily }),
+  };
 }
 
 // ─── Helpers ───
