@@ -1,5 +1,5 @@
-import { generateSyntheticScenarios } from '../../../workshop/synthesis/scenario-generator';
-import { createCommandSpec } from '../shared';
+import { generateSyntheticScenarios } from '../../synthesis/scenario-generator';
+import { createCommandSpec } from '../../../product/cli/shared';
 
 export const generateCommand = createCommandSpec({
   flags: ['--count', '--seed', '--perturb'],

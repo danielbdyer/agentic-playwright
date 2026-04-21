@@ -1,7 +1,10 @@
-import { evolveProgram } from '../../../workshop/orchestration/evolve';
-import type { ExecutionProfile, InterpreterMode } from '../shared';
-import { createCommandSpec } from '../shared';
-import { withDefinedValues } from '../shared';
+import { evolveProgram } from '../../orchestration/evolve';
+import {
+  createCommandSpec,
+  withDefinedValues,
+  type ExecutionProfile,
+  type InterpreterMode,
+} from '../../../product/cli/shared';
 
 export const evolveCommand = createCommandSpec({
   flags: ['--max-epochs', '--seed', '--count', '--max-iterations', '--substrate'],

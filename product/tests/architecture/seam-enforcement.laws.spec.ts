@@ -148,6 +148,34 @@ const ALWAYS_ALLOWED_PRODUCT_PATHS: readonly string[] = [
   // reuses the named RETRY_POLICIES. Infrastructure utility, not
   // domain logic — same justification as the error hierarchy.
   'product/application/resilience',
+  // CLI command contract. The user-facing CLI is an entry-point
+  // concern: product/cli/shared.ts defines the CommandName union,
+  // ParsedFlags, createCommandSpec, the shared flag descriptor
+  // table, and the require* helpers. Both product/cli/commands/
+  // and workshop/cli/commands/ extend this contract to contribute
+  // command specs; the composed registry is assembled at the
+  // entry point (bin/cli-registry.ts) and passed into
+  // parseCliInvocation. Analogous to the manifest seam — the
+  // shared vocabulary both sides type-check against. Graduated
+  // the 6 workshop-orchestration commands off RULE_3 at
+  // step-4c.cli-split.
+  'product/cli/shared',
+  // CLI parser + registry contract. The workshop CLI surface
+  // imports the CliCommandRegistry type from the parser module
+  // so its contribution can be composed into the merged
+  // registry; the entry point (bin/cli-registry.ts) likewise
+  // imports the type plus productCommandRegistry for merging.
+  'product/cli/registry',
+  // Improvement / experiment domain types. ExperimentRecord,
+  // ImprovementRun, ImprovementLedger, SubstrateContext,
+  // PipelineConfig deltas, SpeedrunProgressEvent —
+  // recursive-improvement vocabulary that product emits and
+  // workshop consumes wholesale (fitness, convergence-proof,
+  // evolve, dogfood, benchmark, experiment-registry, CLI
+  // experiments command all type-check against these). Pure
+  // type definitions; no side effects. Shared-contract per
+  // v2 §2 ("manifest-declared verbs and the shared log set").
+  'product/domain/improvement',
 ];
 
 function isManifestDeclaredOrLogPath(
@@ -184,7 +212,10 @@ const RULE_1_GRANDFATHERED: ReadonlySet<string> = new Set([
   //    12 entries removed here (files no longer exist in workshop/).
   //    hotspots.ts also moved at step-4b.cleanup.6.
 
-  'workshop/convergence/types.ts',
+  // workshop/convergence/types.ts — graduated at step-4c.cli-split
+  // after product/domain/improvement moved to ALWAYS_ALLOWED as a
+  // shared-contract path; file now imports only shared-contract
+  // paths (product/domain/fitness + product/domain/improvement).
   'workshop/measurement/baseline-store.ts',
   'workshop/measurement/score.ts',
   'workshop/synthesis/cohort-generator.ts',
@@ -263,6 +294,13 @@ const RULE_3_GRANDFATHERED: ReadonlySet<string> = new Set([
   //    graph/graph, knowledge/activate-proposals, replay-evaluation,
   //    rerun-plan, projections/workflow, cli/commands/approve,
   //    cli/commands/certify).
+  //  - step-4c.cli-split: 6 CLI commands that orchestrate workshop
+  //    surfaces (benchmark, scorecard, dogfood, evolve, experiments,
+  //    generate) MOVED to workshop/cli/commands/. parseCliInvocation
+  //    now accepts a registry parameter; the entry point
+  //    (bin/cli-registry.ts) composes product + workshop command
+  //    registries. product/cli/shared + product/cli/registry added
+  //    to ALWAYS_ALLOWED_PRODUCT_PATHS as the shared CLI contract.
 
   // product/application/commitment/replay/replay-interpretation.ts —
   //   workshop/orchestration/benchmark. Legitimate: benchmark is a
@@ -270,18 +308,6 @@ const RULE_3_GRANDFATHERED: ReadonlySet<string> = new Set([
   //   post-hoc. Retires when projectBenchmarkScorecard either moves
   //   into product/ or exposes its output via the shared log set.
   'product/application/commitment/replay/replay-interpretation.ts',
-  // product/cli/commands/{benchmark,dogfood,evolve,experiments,
-  //   generate,scorecard}.ts — CLI commands that orchestrate
-  //   workshop surfaces. Each retires when either the corresponding
-  //   workshop orchestrator moves to product/ (already done for
-  //   policy + learning) or the CLI splits into product/cli +
-  //   workshop/cli. Kept grandfathered as CLI-is-orchestration.
-  'product/cli/commands/benchmark.ts',
-  'product/cli/commands/dogfood.ts',
-  'product/cli/commands/evolve.ts',
-  'product/cli/commands/experiments.ts',
-  'product/cli/commands/generate.ts',
-  'product/cli/commands/scorecard.ts',
   // product/instruments/tooling/headed-harness.ts — imports
   //   createPlaywrightBridge from dashboard/mcp/playwright-mcp-bridge.
   //   The factory wraps a Playwright Page; types already migrated to

@@ -1,6 +1,5 @@
-import { runDogfoodLoop } from '../../../workshop/orchestration/dogfood';
-import { createCommandSpec } from '../shared';
-import { withDefinedValues } from '../shared';
+import { runDogfoodLoop } from '../../orchestration/dogfood';
+import { createCommandSpec, withDefinedValues } from '../../../product/cli/shared';
 
 export const dogfoodCommand = createCommandSpec({
   flags: ['--max-iterations', '--convergence-threshold', '--max-cost', '--tag', '--runbook', '--interpreter-mode'],

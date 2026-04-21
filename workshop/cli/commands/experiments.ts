@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
-import { loadExperimentRegistry } from '../../../workshop/orchestration/experiment-registry';
-import { ExperimentRecord, filterExperiments } from '../../domain/improvement/experiment';
-import { createCommandSpec } from '../shared';
+import { loadExperimentRegistry } from '../../orchestration/experiment-registry';
+import { ExperimentRecord, filterExperiments } from '../../../product/domain/improvement/experiment';
+import { createCommandSpec } from '../../../product/cli/shared';
 
 export const experimentsCommand = createCommandSpec({
   flags: ['--accepted', '--tag', '--substrate', '--top'],

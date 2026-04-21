@@ -1,6 +1,5 @@
-import { projectBenchmarkScorecard } from '../../../workshop/orchestration/benchmark';
-import { createCommandSpec } from '../shared';
-import { requireBenchmark } from '../shared';
+import { projectBenchmarkScorecard } from '../../orchestration/benchmark';
+import { createCommandSpec, requireBenchmark } from '../../../product/cli/shared';
 
 export const benchmarkCommand = createCommandSpec({
   flags: ['--benchmark'],
