@@ -306,3 +306,30 @@ The harness's job is NOT to re-implement the verb. The harness is *a Layer provi
 ### 6.5 Retirement of the transitional probe set
 
 When FixtureReplayProbeHarness lands (Step 5.5), the same commit deletes `workshop/probe-derivation/transitional.ts` per the retirement protocol in `docs/v2-readiness.md §5.3`. The commit message: *"Step 5: retire transitional probe set; manifest-derived probes take over for [list of verbs]."*
+
+## 7. Graduation metrics — how we know the spike worked
+
+The spike has a short, named graduation condition: **three verdicts stacked over three runs**. Workshop is out of Step 5 when:
+
+1. **Coverage gate holds** (≥ 80% of declared verbs have fixture YAMLs; current value queryable via `tesseract probe-spike`).
+2. **Fixture economy holds** (every fixture ≤ 30 lines, or the verb exceeding is named and has a hand-lifted schema commitment).
+3. **Reproducibility holds** (fixture-replay harness produces byte-identical receipts across three consecutive runs on the same commit).
+
+The first two are static properties of the codebase. The third is a runtime property — `tesseract probe-spike --adapter fixture-replay` run three times, receipts diffed, hashes identical. When all three hold the workshop can declare the probe IR authoritative and the next phase's work (Step 6 customer ship) proceeds with probes as its measurement substrate rather than the transitional set.
+
+### 7.1 What the spike does NOT have to prove
+
+- **Every verb covered.** 80% is the gate, not 100%. The remaining 20% land fixture-by-fixture as verbs ship in Phase 3.
+- **Every error family exercised.** Rare error families (e.g., `rate-limited` on `intent-fetch`) may have no tractable synthetic trigger; those show as coverage holes the fixture report surfaces.
+- **Every rung tested.** Ladder rungs that only fire under specific real-world DOM (e.g., `observe` rung 5 `test-id`) can defer until fixture-replay can construct that rung's trigger.
+- **Any hypothesis confirmation.** `metric-hypothesis-confirmation-rate` wires in at Step 10 (L4 self-refinement). Step 5 ships the substrate that metric will read; the metric itself is future work.
+
+### 7.2 What the spike absolutely must prove
+
+- **One probe can run end-to-end under the dry-harness.** (Proven today by `tesseract probe-spike`.)
+- **The coverage percentage is computable.** (Proven by `SpikeVerdict.coverage.coveragePercentage`.)
+- **Fixtures compose into probes mechanically.** (Proven by `deriveProbesFromInputs` + its 12 laws.)
+- **Receipts land in evidence-stage envelopes with M5-ready cohort keys.** (Proven by `ProbeReceipt extends WorkflowMetadata<'evidence'>` + S5 law.)
+- **Graduating to fixture-replay doesn't require reshaping any of the above.** (Proven by the Layer-swap discipline — same program, different adapter.)
+
+The spike's pass condition is these five provable claims, not "full coverage." The 80% gate is a coverage floor; the five claims are the structural floor.
