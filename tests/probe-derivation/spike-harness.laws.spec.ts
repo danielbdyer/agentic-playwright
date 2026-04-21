@@ -19,9 +19,9 @@
  *       non-empty.
  *   S7. Manifest drift (a verb without a fixture) lowers the
  *       coverage percentage monotonically.
- *   S8. For the 3 currently-fixtured verbs (observe, test-compose,
- *       facet-query), the spike synthesizes the expected fixture
- *       count (2 + 2 + 3 = 7 probes).
+ *   S8. For the currently-fixtured verbs, the spike synthesizes the
+ *       expected fixture count. The per-verb expectation is the
+ *       source of truth; the aggregate count is derived from it.
  */
 
 import { describe, test, expect } from 'vitest';
@@ -137,11 +137,12 @@ describe('Probe IR Spike — end-to-end laws', () => {
     expect(coverageNone.passesGate).toBe(false);
   });
 
-  test('S8: the 3 fixtured verbs synthesize 7 probes (2+2+3)', async () => {
+  test('S8: each fixtured verb synthesizes its declared fixture count', async () => {
     const { derivation } = await runSpikeUnderDryHarness();
     // observe.probe.yaml → 2, test-compose.probe.yaml → 2,
-    // facet-query.probe.yaml → 3. Total = 7.
-    expect(derivation.probes).toHaveLength(7);
+    // facet-query.probe.yaml → 3, facet-mint.probe.yaml → 2.
+    // Total = 9.
+    expect(derivation.probes).toHaveLength(9);
     const byVerb = new Map<string, number>();
     for (const probe of derivation.probes) {
       byVerb.set(probe.verb, (byVerb.get(probe.verb) ?? 0) + 1);
@@ -149,14 +150,15 @@ describe('Probe IR Spike — end-to-end laws', () => {
     expect(byVerb.get('observe')).toBe(2);
     expect(byVerb.get('test-compose')).toBe(2);
     expect(byVerb.get('facet-query')).toBe(3);
+    expect(byVerb.get('facet-mint')).toBe(2);
   });
 
-  test('The current spike at Step-5 entry does NOT pass the 80% gate', async () => {
-    // Current state (post Step-4c): 8 verbs, 3 fixtured.
-    // Covered = 3/8 = 37.5%. Gate fails by design; the spike's
-    // verdict at entry is "author more fixtures then re-run."
+  test('S9: the spike at 4/8 coverage still fails the 80% gate', async () => {
+    // Progress toward Step 5 graduation: 8 verbs, 4 fixtured.
+    // Covered = 4/8 = 50%. Gate still fails; four more fixture
+    // files land before the gate crosses 80%.
     const { verdict } = await runSpikeUnderDryHarness();
-    expect(verdict.coverage.coveragePercentage).toBeCloseTo(3 / 8, 6);
+    expect(verdict.coverage.coveragePercentage).toBeCloseTo(4 / 8, 6);
     expect(verdict.passesGate).toBe(false);
     expect(verdict.summary).toMatch(/FAIL/);
   });

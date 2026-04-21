@@ -250,14 +250,13 @@ describe('spike coverage verdict', () => {
       totalDeclaredVerbs: manifest.verbs.length,
       probesCompletingAsExpected: derivation.probes.length, // Step 5 stub: assume all complete
     });
-    // The current manifest has 8 verbs; Step 5 covers 3 of them
-    // (observe, test-compose, facet-query). The remaining 5 land
-    // as uncovered. Coverage percentage = 3/8 = 37.5%.
+    // The current manifest has 8 verbs; Step 5 covers 4 of them
+    // (observe, test-compose, facet-query, facet-mint). The
+    // remaining 4 land as uncovered. Coverage = 4/8 = 50%.
     expect(report.totalDeclaredVerbs).toBe(manifest.verbs.length);
-    expect(report.coveredVerbs).toBe(3);
+    expect(report.coveredVerbs).toBe(4);
     expect(report.uncoveredVerbs).toEqual([
       'facet-enrich',
-      'facet-mint',
       'intent-fetch',
       'interact',
       'locator-health-track',
