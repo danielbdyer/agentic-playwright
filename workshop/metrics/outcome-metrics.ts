@@ -31,7 +31,7 @@
  * Pure domain — no Effect, no IO, no application imports.
  */
 
-import type { LogicalProofObligation, ScorecardHistoryEntry } from './types';
+import type { LogicalProofObligation, ScorecardHistoryEntry } from '../../product/domain/fitness/types';
 
 // ─── OID (Operator Intervention Density) ──────────────────────────
 

@@ -7,7 +7,7 @@
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
 import { buildAgentWorkItems, defaultWorkItemDecider } from '../../product/application/agency/agent-workbench';
-import type { WorkflowHotspot } from '../../workshop/orchestration/hotspots';
+import type { WorkflowHotspot } from '../../product/application/projections/hotspots';
 import type { AgentWorkItem, WorkItemKind } from '../../product/domain/handshake/workbench';
 import type { WorkspaceCatalog } from '../../product/application/catalog';
 

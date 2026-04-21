@@ -20,13 +20,13 @@ function callTool(
   tool: string,
   arguments_: Record<string, unknown> = {},
 ) {
-  return Effect.runSync(createDashboardMcpServer(options).handleToolCall({
+  return Effect.runPromise(createDashboardMcpServer(options).handleToolCall({
     tool,
     arguments: arguments_,
   }));
 }
 
-test('get_decision_context surfaces matched handoff semantics and participation-led suggestion', () => {
+test('get_decision_context surfaces matched handoff semantics and participation-led suggestion', async () => {
   const artifacts = {
     '.tesseract/workbench/index.json': {
       items: [{
@@ -103,7 +103,7 @@ test('get_decision_context surfaces matched handoff semantics and participation-
     },
   } as const;
 
-  const result = callTool(mockOptions(artifacts), 'get_decision_context', { workItemId: 'work-1' });
+  const result = await callTool(mockOptions(artifacts), 'get_decision_context', { workItemId: 'work-1' });
   expect(result.isError).toBe(false);
 
   const payload = result.result as {
@@ -121,7 +121,7 @@ test('get_decision_context surfaces matched handoff semantics and participation-
   expect(payload.competingCandidateCount).toBe(1);
 });
 
-test('get_learning_summary groups inbox handoffs by participation and staleness', () => {
+test('get_learning_summary groups inbox handoffs by participation and staleness', async () => {
   const artifacts = {
     '.tesseract/benchmarks/convergence-proof.json': {
       verdict: { converges: true, confidenceLevel: 'medium', learningContribution: 0.2 },
@@ -211,7 +211,7 @@ test('get_learning_summary groups inbox handoffs by participation and staleness'
     },
   } as const;
 
-  const result = callTool(mockOptions(artifacts), 'get_learning_summary');
+  const result = await callTool(mockOptions(artifacts), 'get_learning_summary');
   expect(result.isError).toBe(false);
 
   const payload = result.result as {
@@ -256,7 +256,7 @@ test('get_learning_summary groups inbox handoffs by participation and staleness'
   expect(payload.actionRequired.some((entry) => entry.includes('semantic drift'))).toBe(true);
 });
 
-test('get_operator_briefing exposes handoff summary and proposal categories', () => {
+test('get_operator_briefing exposes handoff summary and proposal categories', async () => {
   const artifacts = {
     '.tesseract/graph/index.json': {
       nodes: [
@@ -312,7 +312,7 @@ test('get_operator_briefing exposes handoff summary and proposal categories', ()
     },
   } as const;
 
-  const result = callTool(mockOptions(artifacts), 'get_operator_briefing');
+  const result = await callTool(mockOptions(artifacts), 'get_operator_briefing');
   expect(result.isError).toBe(false);
 
   const payload = result.result as {
@@ -340,7 +340,7 @@ test('get_operator_briefing exposes handoff summary and proposal categories', ()
   expect(payload.recommendation).toContain('stale handoff');
 });
 
-test('get_operator_briefing promotes M to direct when the full meta proof family is present', () => {
+test('get_operator_briefing promotes M to direct when the full meta proof family is present', async () => {
   const artifacts = {
     '.tesseract/graph/index.json': {
       nodes: [],
@@ -372,7 +372,7 @@ test('get_operator_briefing promotes M to direct when the full meta proof family
     },
   } as const;
 
-  const result = callTool(mockOptions(artifacts), 'get_operator_briefing');
+  const result = await callTool(mockOptions(artifacts), 'get_operator_briefing');
   expect(result.isError).toBe(false);
 
   const payload = result.result as {
@@ -385,7 +385,7 @@ test('get_operator_briefing promotes M to direct when the full meta proof family
   expect(payload.theoremBaselineSummary.proxyGroups).not.toContain('M');
 });
 
-test('get_convergence_proof carries proof obligations from the scorecard high-water mark', () => {
+test('get_convergence_proof carries proof obligations from the scorecard high-water mark', async () => {
   const artifacts = {
     '.tesseract/benchmarks/convergence-proof.json': {
       verdict: { converges: true, confidenceLevel: 'medium' },
@@ -422,7 +422,7 @@ test('get_convergence_proof carries proof obligations from the scorecard high-wa
     },
   } as const;
 
-  const result = callTool(mockOptions(artifacts), 'get_convergence_proof');
+  const result = await callTool(mockOptions(artifacts), 'get_convergence_proof');
   expect(result.isError).toBe(false);
 
   const payload = result.result as {
@@ -447,7 +447,7 @@ test('get_convergence_proof carries proof obligations from the scorecard high-wa
   expect(payload.theoremBaselineSummary.missingGroups).toContain('D');
 });
 
-test('get_suggested_action considers stale and approval-oriented handoffs', () => {
+test('get_suggested_action considers stale and approval-oriented handoffs', async () => {
   const artifacts = {
     '.tesseract/benchmarks/scorecard.json': {
       highWaterMark: {
@@ -489,7 +489,7 @@ test('get_suggested_action considers stale and approval-oriented handoffs', () =
     },
   } as const;
 
-  const result = callTool(mockOptions(artifacts), 'get_suggested_action', {});
+  const result = await callTool(mockOptions(artifacts), 'get_suggested_action', {});
   expect(result.isError).toBe(false);
 
   const payload = result.result as {
@@ -498,4 +498,88 @@ test('get_suggested_action considers stale and approval-oriented handoffs', () =
 
   expect(payload.suggestions.some((entry) => entry.action === 'triage-handoffs')).toBe(true);
   expect(payload.suggestions.some((entry) => entry.action === 'refresh-stale-handoffs')).toBe(true);
+});
+
+// ─── v2 §6 Step 4c: manifest verbs project into the MCP tool catalog ───
+
+test('listTools surfaces one MCP tool per declared manifest verb', async () => {
+  const server = createDashboardMcpServer(mockOptions({}));
+  const tools = await Effect.runPromise(server.listTools());
+  const names = new Set(tools.map((t) => t.name));
+
+  // Each of the 8 declared manifest verbs (as of Step 4b) must
+  // appear in the catalog. Adding a verb to
+  // product/manifest/declarations.ts should extend this set
+  // automatically — the test fails when the wire-up breaks.
+  const expectedVerbs = [
+    'facet-enrich', 'facet-mint', 'facet-query', 'intent-fetch',
+    'interact', 'locator-health-track', 'observe', 'test-compose',
+  ];
+  for (const verb of expectedVerbs) {
+    expect(names.has(verb)).toBe(true);
+  }
+});
+
+test('manifest-derived tools carry the input-type reference in inputSchema', async () => {
+  const server = createDashboardMcpServer(mockOptions({}));
+  const tools = await Effect.runPromise(server.listTools());
+  const facetEnrich = tools.find((t) => t.name === 'facet-enrich');
+  expect(facetEnrich).toBeDefined();
+  expect(facetEnrich!.inputSchema['x-tesseract-input-type']).toBe('FacetEnrichmentProposal');
+  expect(facetEnrich!.inputSchema['x-tesseract-declared-in']).toBe('product/domain/memory/facet-record.ts');
+});
+
+test('invocation of a manifest verb dispatches to the registered handler', async () => {
+  const { manifestVerbHandlerRegistry } = await import('../../product/application/manifest/invoker');
+  const handlerArgs: unknown[] = [];
+  const registry = manifestVerbHandlerRegistry({
+    observe: (input) => {
+      handlerArgs.push(input);
+      return { aria: { role: 'main' }, capturedAt: '2026-04-20T00:00:00Z' };
+    },
+  });
+  const options = { ...mockOptions({}), manifestVerbHandlers: registry };
+  const server = createDashboardMcpServer(options);
+  const result = await Effect.runPromise(server.handleToolCall({
+    tool: 'observe',
+    arguments: { screen: 'policy-search' },
+  }));
+  expect(result.isError).toBe(false);
+  expect(handlerArgs).toEqual([{ screen: 'policy-search' }]);
+  expect(result.result).toEqual(expect.objectContaining({
+    aria: { role: 'main' },
+    capturedAt: '2026-04-20T00:00:00Z',
+  }));
+});
+
+test('invocation of an unregistered manifest verb falls through to the unknown-tool branch', async () => {
+  const { manifestVerbHandlerRegistry } = await import('../../product/application/manifest/invoker');
+  const registry = manifestVerbHandlerRegistry({
+    observe: () => ({ ok: true }),
+  });
+  const options = { ...mockOptions({}), manifestVerbHandlers: registry };
+  const server = createDashboardMcpServer(options);
+  const result = await Effect.runPromise(server.handleToolCall({
+    tool: 'facet-mint',
+    arguments: {},
+  }));
+  expect(result.isError).toBe(true);
+  const payload = result.result as { error: string };
+  expect(payload.error).toContain('Unknown tool');
+});
+
+test('invocation of a manifest verb whose handler throws returns isError:true', async () => {
+  const { manifestVerbHandlerRegistry } = await import('../../product/application/manifest/invoker');
+  const registry = manifestVerbHandlerRegistry({
+    'intent-fetch': () => { throw new Error('upstream ado down'); },
+  });
+  const options = { ...mockOptions({}), manifestVerbHandlers: registry };
+  const server = createDashboardMcpServer(options);
+  const result = await Effect.runPromise(server.handleToolCall({
+    tool: 'intent-fetch',
+    arguments: { id: '10001' },
+  }));
+  expect(result.isError).toBe(true);
+  const payload = result.result as { error: string };
+  expect(payload.error).toContain('upstream ado down');
 });

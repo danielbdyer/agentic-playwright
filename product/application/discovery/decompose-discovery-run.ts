@@ -37,8 +37,9 @@
  */
 
 import type { DiscoveryRun, TransitionObservation } from '../../domain/target/interface-graph';
-import type { Atom, AtomProvenance } from '../../domain/pipeline/atom';
+import type { Atom } from '../../domain/pipeline/atom';
 import { atom } from '../../domain/pipeline/atom';
+import type { CanonProvenance } from '../../domain/pipeline/provenance';
 import type { PhaseOutputSource } from '../../domain/pipeline/source';
 import type { AtomClass } from '../../domain/pipeline/atom-address';
 import { asFingerprint, type Fingerprint } from '../../domain/kernel/hash';
@@ -135,7 +136,7 @@ export function groupAtomsByClass(
 interface ExtractorContext {
   readonly run: DiscoveryRun;
   readonly inputFingerprint: Fingerprint<'atom-input'>;
-  readonly provenance: AtomProvenance;
+  readonly provenance: CanonProvenance;
 }
 
 type Extractor = (ctx: ExtractorContext) => readonly AnyAtom[];

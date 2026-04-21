@@ -2,7 +2,10 @@ import { expect, test } from '@playwright/test';
 import { SchemaError } from '../product/domain/kernel/errors';
 import { validateBoundStep } from '../product/domain/validation/intent';
 import { validateTrustPolicy } from '../product/domain/validation/trust-policy';
-import { decodeWorkflowEnvelope } from '../product/domain/validation/schema-validators';
+import { WorkflowEnvelopeHeaderSchema } from '../product/domain/schemas';
+import { decodeUnknownSync } from '../product/domain/schemas/decode';
+
+const decodeWorkflowEnvelope = decodeUnknownSync(WorkflowEnvelopeHeaderSchema);
 
 const validBoundStep = {
   index: 0,

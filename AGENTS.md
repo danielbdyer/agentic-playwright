@@ -14,21 +14,26 @@ The three things v2's `product/` ships (details in `docs/v2-direction.md §1`):
 The workshop's job (details in `docs/v2-direction.md §5` and `docs/v2-substrate.md §7`):
 - Derive **probes** from the manifest, run them through the product's normal authoring flow, derive metrics over run records, gate proposal activation against the trust policy, and append hypothesis receipts to the workshop's log. Graduate when probe coverage = 100% and `metric-hypothesis-confirmation-rate` sustains above floor.
 
-## If you're a fresh agent session, your next action is Step 0
+## If you're a fresh agent session, your next action is Step 5
 
-The v2.1 plan is doc-complete and execution-ready as of 2026-04-19. The next concrete action is **Step 0 — the compartmentalization commit** (atomic in-place reshape of `lib/` into `product/` + `workshop/` + `dashboard/`, no behavior changes).
+**Status as of 2026-04-21.** Phase 1 and Phase 2 of the construction order (Steps 0 through 4c) have landed on main / the active feature branch. The tree is compartmentalized; the seam is compile-enforced; the Reasoning port is unified; the dashboard MCP server routes through manifest-declared verbs. `product/` imports zero files from `workshop/` or `dashboard/` (RULE_3 grandfather list is empty).
 
-1. Read `docs/v2-direction.md §§1–2` (the three-folder shape and seam discipline). ~5 minutes.
-2. Read `docs/v2-readiness.md §1` (the day-by-day Step 0 playbook) and `§8` (the test-import rewrite audit). ~15 minutes.
-3. Verify preconditions in §1.1 of the readiness doc.
-4. Create the feature branch `claude/step-0-compartmentalization` off `main`.
-5. Execute §1.2 of the readiness doc in order. Expected duration: 6–8 hours for one engineer (or agent).
+**Next action: Step 5 — probe IR spike.** The workshop currently measures against a transitional probe set landed at Step 1. Step 5 validates whether manifest-derived probes can exercise real verb surfaces meaningfully.
 
-If Step 0 has already landed (check `git log --oneline | grep "Step 0"` on `main`), your next action is Step 1 (reference-canon retirement + transitional probe set) per `v2-direction.md §6` and `v2-readiness.md §10`.
+**Start here**: [`docs/v2-probe-ir-spike.md`](docs/v2-probe-ir-spike.md) — the postdoctoral design memo that covers the ontological claim, the atomic/compositional/longitudinal reductions, the FP/Effect/DDD praxis, the executable five-step spike protocol, the substrate-backed harness specs, graduation metrics, and a 40-minute hand-off playbook for the next agent. **This is the primary Step 5 document; the references below elaborate.**
 
-If Step 1 has already landed, consult the construction order in `v2-direction.md §6` to find the next unfinished step; check `v2-readiness.md` for any section matching your step (most forcing-function steps have a named preprocessing section).
+The spike scaffolding is already in place and runnable: `npm run build && node dist/bin/tesseract.js probe-spike` produces a `SpikeVerdict` showing `3/8 verbs (37.5%) — gate FAIL @ 80%` under the dry-harness. The failure is informative: it names the five uncovered verbs that need fixture YAMLs. First actionable task for the next agent is authoring `product/domain/memory/facet-mint.probe.yaml`; see §8.3 of the memo.
 
-If the plan itself has changed materially since 2026-04-19, read `v2-direction.md §§1–2` first and then this doc; reconcile any contradictions before acting.
+Related doctrine references (read after the memo if a specific section is load-bearing):
+1. `docs/v2-direction.md §5` (the probe IR concept) and `§6 Step 5` (the spike step definition). ~10 minutes.
+2. `docs/v2-substrate.md §6a` (the spike protocol). ~5 minutes.
+3. `docs/v2-readiness.md §4` (fixture grammar). ~5 minutes.
+
+If you're instead picking up a specific forcing-function remediation, the finished graduation ledger lives in `product/tests/architecture/seam-enforcement.laws.spec.ts` — the commented history at the top of RULE_1/2/3 narrates what's already landed.
+
+**Shipping milestone (Step 6) sequencing.** Step 5's output is a go/no-go. If it goes, Step 6 (first customer ship under workshop supervision) follows directly. If it surfaces hand-schema gaps, the gaps are named and Step 6 proceeds in parallel with hand-written schemas for the named verbs.
+
+**Post-Step-4c compounding workstream (not blocking Step 5).** The v2 synthetic workshop dogfood spike is the next-generation replacement for v1's `dogfood/scenarios/` corpus. Its design memo is at `docs/v2-synthetic-workshop-dogfood.md` (landed 2026-04-21). This is parallelizable with Step 5; both inform Phase 3 compounding design.
 
 ## New-session orientation (read in this order)
 
@@ -40,6 +45,8 @@ If you've just opened the repo, read this exact sequence before touching any cod
 4. [`docs/v2-delta-audit.md`](docs/v2-delta-audit.md) — handshake-by-handshake v1→v2 verdicts. Read when you need to decide whether a specific handshake is Aligned, Partial, Shape-different, or Absent.
 5. [`docs/feature-ontology-v2.md`](docs/feature-ontology-v2.md) — the per-feature contracts: handshakes, technical paths, agent-engagement flows, invariants, reversibility classes. Read when you are about to design or implement a specific handshake.
 6. [`docs/v2-readiness.md`](docs/v2-readiness.md) — **execution preprocessing pack**. Read before Step 0. Contains: the day-by-day Step 0 playbook (§1), seam-enforcement test design (§2), per-folder README stubs (§3), probe IR fixture grammar (§4), transitional probe set scope (§5), customer-reality probe checklist (§6), branch + rollback strategy (§7), test-import rewrite audit (§8), Reasoning port retrofit file plan (§9), M5 cohort re-key plan (§10). If you're picking up Step 0, start here after reading §§1–2 of the direction doc.
+7. [`docs/v2-synthetic-workshop-dogfood.md`](docs/v2-synthetic-workshop-dogfood.md) — **post Step-4c design memo**. The workshop's measurement substrate after the hand-authored scenario corpus retires. Read before Step 5's probe IR spike. ~10 minutes.
+8. [`docs/v2-probe-ir-spike.md`](docs/v2-probe-ir-spike.md) — **primary Step 5 document**. Postdoctoral design memo for the Probe IR spike: ontological claim (§1), atomic/compositional/longitudinal claims (§§2–3), FP/Effect/DDD praxis with file:line references (§4), executable spike protocol (§5), substrate-backed harness specs (§6), graduation metrics (§7), first-principles defense of synthetic→production prediction + substrate ladder + customer-incident ratchet + substrate-drift detection (§8), hand-off playbook for the next agent (§9). Read in full before touching probe code. ~30 minutes.
 
 **The three folders v2 compartmentalizes `lib/` into:**
 
@@ -47,9 +54,9 @@ If you've just opened the repo, read this exact sequence before touching any cod
 - **`workshop/`** — measurement consumer. Imports `product/`'s manifest; derives probes; runs them through `product/`'s normal authoring flow; owns the seven-visitor metric tree, scorecard history, convergence-proof harness, trust-policy gate, hypothesis-receipt discipline. Can read `product/`; `product/` cannot read it. Puts itself out of a job when probe coverage = 100%.
 - **`dashboard/`** — read-only observer. Projects both upstreams through manifest-declared verbs. Writes nothing. Replaceable without touching either upstream.
 
-**The seam between folders is a compile error, not a convention.** An architecture test in `product/tests/architecture/` forbids `workshop/` or `dashboard/` from importing `product/` except through manifest-declared verbs and the shared log set. Every saga emits a receipt; workshop reads the receipt; dashboard reads both.
+**The seam between folders is a compile error, not a convention.** An architecture test in `product/tests/architecture/seam-enforcement.laws.spec.ts` forbids `workshop/` or `dashboard/` from importing `product/` except through the **shared-contract set** (manifest, logs, ports, manifest invoker, errors, resilience, observation/dashboard, fitness, improvement, projection, proposal, handshake, governance, and the CLI contract). The shared-contract set is the compile-time half of the seam; the manifest verb registry is the runtime half. `product/` imports zero files from workshop or dashboard — the RULE_3 grandfather list is empty as of Step 4c.
 
-**v1 lifecycle state (as of 2026-04-17).** Last `lib/` commit was 2026-04-11; every commit since is doc revision. v1 is in de facto stabilization awaiting the Step 0 compartmentalization commit. The synthetic feature completion plan (`docs/v1-reference/synthetic-feature-completion-plan.md` after the doc move lands) shipped Commit 1a then stalled; its remaining items (1b, 2, 3, 4, 5) fold into the v2 construction order (reference-canon retirement at Step 1; metric visitor recalibration at Step 0 under workshop/; M5 and C6 reshape per `v2-substrate.md §8a`).
+**v1 lifecycle state (post Step 4c).** The `lib/` tree is gone; `product/`, `workshop/`, and `dashboard/` are the three compartments. The synthetic feature completion plan (v1-reference) folded into Steps 1–4c. Reference-canon retired at Step 1; the Reasoning port unified at Step 4b; the manifest-driven MCP tool catalog landed at Step 4c; the CLI split into `product/cli/ + workshop/cli/` with a merged registry at `bin/cli-registry.ts` at step-4c.cli-split. The last RULE_3 entry (headed-harness factory) graduated at step-4c.headed-harness-graduate by moving the Playwright bridge factory into `product/instruments/tooling/playwright-bridge.ts`.
 
 ## Additional docs (read when the task calls for them)
 
@@ -137,6 +144,26 @@ Use these terms consistently:
 - `blocked`: do not execute
 
 Do not overload confidence with review state.
+
+## Reasoning port (post Step 4b)
+
+Every agent-cognition callsite routes through the unified `Reasoning` port at `product/reasoning/reasoning.ts`. Three operations:
+
+- `select(SelectRequest) → ReasoningReceipt<'select'>` — rung-5 structured match (v1 `TranslationProvider.translate`, renamed to `.select` per v2 §3.6).
+- `interpret(InterpretRequest) → ReasoningReceipt<'interpret'>` — rung-9 semantic judgment (v1 `AgentInterpreterPort.interpret`, method name unchanged, service tag changes).
+- `synthesize(SynthesisRequest) → ReasoningReceipt<'synthesize'>` — open-ended generation; port shape fixed, first production adapter pending.
+
+Every call produces a `ReasoningReceipt<Op>` carrying `{ provider, model, tokens, latencyMs, promptFingerprint, payload }`. The receipt log joins `product/`'s append-only log set; workshop reads it for cost / batting-average / token-consumption metrics.
+
+Errors classify into one of five families via `ReasoningError`: `rate-limited | context-exceeded | malformed-response | unavailable | unclassified`. `foldReasoningError(err, cases)` dispatches exhaustively; `classifyReasoningError(cause, provider?)` reconciles raw causes (and legacy v1 errors) into the unified surface.
+
+Adapter selection is a `Layer.succeed(Reasoning, <adapter>)` composition decision in `product/composition/local-services.ts`. Adapter priority:
+
+1. Explicit `LocalServiceOptions.reasoning` injection (for copilot-live, openai-live, test doubles).
+2. `ci-batch` profile → `createDeterministicReasoning()` (zero-cost).
+3. Default → `createCompositeReasoning({ translation, agent })` wrapping the legacy v1 providers.
+
+Note on retirement: v1 `TranslationProvider` and `AgentInterpreterPort` remain internal as the composite bridge's dependencies through the 4b.B.* window, but they are not deprecated aliases — they are the bridge's operands. Per `docs/coding-notes.md §17–26` ("adopt the new path forward fully and delete the old one; no deprecated-alias window"), retirement is a deletion commit that migrates their logic into direct Reasoning adapters, not a marker-then-remove sequence.
 
 ## Deterministic precedence
 

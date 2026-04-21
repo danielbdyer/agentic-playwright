@@ -67,7 +67,7 @@ test('buildCachedTranslator returns cache miss then hit without behavior loss', 
   const translator = buildCachedTranslator(paths, false, {
     id: 'test-provider',
     kind: 'deterministic',
-    translate: () => {
+    select: () => {
       calls += 1;
       return Effect.succeed(createReceipt());
     },
@@ -93,7 +93,7 @@ test('buildCachedTranslator tolerates malformed cache records and recomputes', a
   const translator = buildCachedTranslator(paths, false, {
     id: 'test-provider',
     kind: 'deterministic',
-    translate: () => {
+    select: () => {
       calls += 1;
       return Effect.succeed(createReceipt());
     },

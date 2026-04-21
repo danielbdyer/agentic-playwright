@@ -247,11 +247,15 @@ The aesthetic win is that measurement becomes structural: the seam between `prod
 
 ## 6. Construction order — three phases across thirteen steps
 
+**Status as of 2026-04-21.** Phase 1 (Steps 0, 1, 1.5, 2, 3) and the first three steps of Phase 2 (Steps 4a, 4b, 4c) have landed. The tree is compartmentalized; the seam is compile-enforced; the manifest is generated from code with a drift check; the facet schema is unified; the five monolith splits are done; the L0 shape adjustments + Reasoning port unification shipped at Step 4b; the dashboard MCP server routes through manifest-declared verbs at Step 4c. `product/` imports zero files from `workshop/` or `dashboard/` — the RULE_3 grandfather list is empty. The CLI is split into `product/cli/ + workshop/cli/` with a merged registry at `bin/cli-registry.ts`. The shared-contract set (the compile-time half of the seam) has settled on: manifest, logs, ports, manifest invoker, errors, resilience, observation/dashboard, fitness, improvement, projection, proposal, handshake, governance, and the CLI contract.
+
+**Next action: Step 5 (probe IR spike against representative verbs).** The remaining steps in Phase 2 (Steps 5, 6) and all of Phase 3 (Steps 7–10) are ahead.
+
 The destination dictates the sequence. The work groups into three phases with coherent risk profiles:
 
-- **Phase 1 — The Reshape (Steps 0, 1, 1.5, 2, 3; ~4 weeks).** Bounded restructure. Compartmentalization, reference-canon retirement with transitional probe set, customer-reality probe, manifest + fluency harness, facet schema. Single coordinated effort; everything else blocks on it.
-- **Phase 2 — The Unstitching (Steps 4a, 4b, 4c, 5, 6; ~8 weeks).** Bounded interior reshape. Monolith splits, L0 shape adjustments + Reasoning port, dashboard manifest-reshape, probe IR spike, first customer ship. Parallelizable; first customer shipping signal emerges here.
-- **Phase 3 — The Compounding (Steps 7–10, continuous).** Open-ended incremental. L1 memory, L2 operator, L3 drift, L4 self-refinement. Each ships on its hypothesis; graduation is continuous per §6.2–§6.3 of `v2-transmogrification.md`.
+- **Phase 1 — The Reshape (Steps 0, 1, 1.5, 2, 3; ~4 weeks). ✅ LANDED.** Bounded restructure. Compartmentalization, reference-canon retirement with transitional probe set, customer-reality probe, manifest + fluency harness, facet schema. Single coordinated effort; everything else blocked on it.
+- **Phase 2 — The Unstitching (Steps 4a, 4b, 4c, 5, 6; ~8 weeks). 4a–4c LANDED; 5 IN FLIGHT.** Bounded interior reshape. Monolith splits, L0 shape adjustments + Reasoning port, dashboard manifest-reshape, probe IR spike, first customer ship. Parallelizable; first customer shipping signal emerges here.
+- **Phase 3 — The Compounding (Steps 7–10, continuous). NOT STARTED.** Open-ended incremental. L1 memory, L2 operator, L3 drift, L4 self-refinement. Each ships on its hypothesis; graduation is continuous per §6.2–§6.3 of `v2-transmogrification.md`.
 
 Three framing shifts from earlier drafts of this section:
 
@@ -259,7 +263,7 @@ Three framing shifts from earlier drafts of this section:
 - **No "measurement lights up at Step 5" inflection.** The workshop is already running (§3.5). Measurement continues through the compartmentalization; what lights up later is the probe IR as a replacement for the dogfood corpus, not measurement itself.
 - **Step 4 splits into 4a / 4b / 4c.** Earlier drafts compressed monolith splits + L0 shape adjustments + dashboard reshape into one "Step 4," which was structurally dishonest about scope. Now: 4a = monolith splits (no behavior change), 4b = L0 shape adjustments + Reasoning port, 4c = dashboard manifest-reshape. See `v2-transmogrification.md §3` for execution mechanics of each.
 
-### Step 0 — compartmentalization commit
+### Step 0 — compartmentalization commit ✅ LANDED
 
 One atomic reshape of the repository. No logic changes; every file moves to its destination folder per §§3–4.
 
@@ -273,7 +277,7 @@ One atomic reshape of the repository. No logic changes; every file moves to its 
 
 **Why this is first:** agent discovery costs collapse the moment the three folders exist. Every subsequent step benefits from clear ownership; every review before this step has to negotiate three constituencies in one file.
 
-### Step 1 — reference-canon retirement and the source-discriminant contraction
+### Step 1 — reference-canon retirement and the source-discriminant contraction ✅ LANDED
 
 The type-level surgical edit described in §4B, run as its own commit so the contraction is visible and reviewable.
 
@@ -288,7 +292,7 @@ The type-level surgical edit described in §4B, run as its own commit so the con
 
 **Transitional probe set co-lands.** The workshop loses its dogfood input at this step but needs *something* to measure against through Step 5 (where the manifest-derived probe IR takes over). Step 1 commits a small inline-encoded transitional probe set (5–10 probes against v1's existing surfaces, pre-manifest so no Step-2 dependency) under `workshop/probe-derivation/transitional.ts`. M5's cohort key re-defines from scenario-ID to **probe-surface cohort** (the probe's verb × facet-kind × error-family triple) in the same commit. The scorecard history stays continuous across the input switchover.
 
-### Step 1.5 — customer-reality probe (non-blocking observation)
+### Step 1.5 — customer-reality probe (non-blocking observation) ✅ LANDED
 
 One customer work item, authored by the agent through v1's existing pipeline, against the customer's real ADO + OutSystems. This is not a shipping event — it is an **observation** that feeds Phase 2's design decisions. Steps 2–4 commit forcing-function choices (manifest format, facet schema, monolith split boundaries, ladder order); one customer-reality observation de-risks those choices before they become expensive to revisit.
 
@@ -296,7 +300,7 @@ The observation runs in parallel with Steps 2 and 3 (not serial), feeds Step 4a'
 
 **Why this exists:** without it, Phase 2 commits ~6–8 weeks of design choices with zero customer contact. One probe session is cheap insurance.
 
-### Step 2 — the vocabulary manifest and fluency test harness
+### Step 2 — the vocabulary manifest and fluency test harness ✅ LANDED
 
 **Why after compartmentalization and retirement:** the manifest is how every other handshake becomes callable by the agent, and how `workshop/` learns what is probeable. It lands in `product/manifest/` and is generated from code-declared verbs across `product/`. It needs the three folders to exist because the manifest's source-of-truth is product-only — workshop verbs and dashboard verbs do not enter it.
 
@@ -309,7 +313,7 @@ The observation runs in parallel with Steps 2 and 3 (not serial), feeds Step 4a'
 
 **What this closes:** stable verb signatures (invariant 1) and cheap introspection (invariant 10) both gain compile-time teeth. Workshop's probe derivation (Step 5 below) now has a machine-readable source.
 
-### Step 3 — the unified facet schema with stable IDs
+### Step 3 — the unified facet schema with stable IDs ✅ LANDED
 
 **Why third:** the facet schema is the shape every memory handshake depends on. It lands in `product/catalog/` and consolidates v1's split-across-two-files pattern (elements.yaml + hints.yaml) into a single record per facet.
 
@@ -321,7 +325,7 @@ The observation runs in parallel with Steps 2 and 3 (not serial), feeds Step 4a'
 
 **What this closes:** the split-across-two-files pattern collapses into one facet record. Locator health co-locates on the facet rather than a separate `SelectorHealthIndex` — that's a small greenfield piece of `product/`, not a ported pattern.
 
-### Step 4a — monolith splits (internal reshape, no behavior change)
+### Step 4a — monolith splits (internal reshape, no behavior change) ✅ LANDED
 
 The five monolith splits from §3.7, run as behavior-preserving moves with existing test surfaces held green:
 
@@ -335,7 +339,7 @@ The five monolith splits from §3.7, run as behavior-preserving moves with exist
 
 **What this closes:** every monolith's internal seam is now a folder boundary. Existing test surfaces continue to pass. No behavior changes until 4b.
 
-### Step 4b — L0 shape adjustments + Reasoning port consolidation
+### Step 4b — L0 shape adjustments + Reasoning port consolidation ✅ LANDED
 
 The shape changes from §3.2 and the Reasoning port consolidation from §3.6, landed in the (now split) modules from Step 4a:
 
@@ -347,7 +351,7 @@ The shape changes from §3.2 and the Reasoning port consolidation from §3.6, la
 
 **What this closes:** the L0 shipping claim becomes runnable. Every instrument emits a receipt on its declared manifest verb. The workshop's existing visitors compute verification against the transitional probe set and (once Step 5 lands) against manifest-derived probes.
 
-### Step 4c — dashboard manifest-reshape
+### Step 4c — dashboard manifest-reshape ✅ LANDED
 
 `dashboard/mcp/` tool implementations rewire to route through manifest-declared verbs instead of importing `product/` domain types directly. The compile-enforced seam (no `import` from `dashboard/mcp/` reaches `product/domain/` except via manifest-declared verb references) goes green.
 
@@ -355,7 +359,7 @@ The shape changes from §3.2 and the Reasoning port consolidation from §3.6, la
 
 **What this closes:** the dashboard becomes a read-only projection over the manifest plus the append-only log set. Adding a verb to `product/` automatically extends the dashboard's tool surface at the next build.
 
-### Step 5 — probe IR spike against representative verbs
+### Step 5 — probe IR spike against representative verbs  🟡 NEXT
 
 **Why before L0 ships:** the probe IR (§5.1) is load-bearing for every subsequent workshop claim. Before it becomes authoritative, a spike validates whether manifest-derived probes can exercise real verb surfaces meaningfully. This is a **validation step**, not a coding milestone — the output is either "IR holds" (proceed) or "IR needs hand-lifted schemas for verbs X, Y, Z" (the scope is known before the IR becomes a dependency).
 

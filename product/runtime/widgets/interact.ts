@@ -12,24 +12,92 @@ import { widgetActionHandlers } from './index';
 import type { RuntimeResult} from '../result';
 import { runtimeErr, runtimeOk } from '../result';
 
+/**
+ * Four-family error classification for action dispatch per v2-direction
+ * §3.2. Every interact failure carries a `family` in its error context
+ * so the workshop's metric visitors can stratify failure modes without
+ * parsing error messages.
+ *
+ * - `not-visible`: precondition 'visible' failed before dispatch.
+ * - `not-enabled`: precondition 'enabled' or 'editable' failed before
+ *   dispatch.
+ * - `timeout`: the Playwright locator method threw a TimeoutError
+ *   (target never resolved within the step timeout).
+ * - `assertion-like`: Playwright's action failed an internal assertion
+ *   (e.g. "Element is not an <input>" from fill() on a non-input node).
+ * - `unclassified`: anything else — reserve for genuinely unknown
+ *   failures so 'unclassified' growth is itself a workshop signal
+ *   (more unclassified = need another named family).
+ */
+export type InteractErrorFamily =
+  | 'not-visible'
+  | 'not-enabled'
+  | 'timeout'
+  | 'assertion-like'
+  | 'unclassified';
+
+/** Classify the precondition family from its name. Called on precondition
+ *  failure to tag the error context before it leaves the runtime. */
+function preconditionFamily(precondition: WidgetPrecondition): InteractErrorFamily {
+  switch (precondition) {
+    case 'visible':
+      return 'not-visible';
+    case 'enabled':
+    case 'editable':
+      return 'not-enabled';
+  }
+}
+
+/** Classify a thrown error from Playwright. Inspects the error's name
+ *  and message for Playwright's conventional shapes. */
+function classifyThrownError(error: unknown): InteractErrorFamily {
+  if (error instanceof Error) {
+    if (error.name === 'TimeoutError' || /timeout/i.test(error.message)) {
+      return 'timeout';
+    }
+    // Playwright's internal assertions surface with phrasing like
+    // "Element is not an <input>" or "Element is not attached to the DOM"
+    // or "expect(...).toBeVisible()".
+    if (/element is not|expect\(|strict mode violation/i.test(error.message)) {
+      return 'assertion-like';
+    }
+  }
+  return 'unclassified';
+}
+
 async function assertPrecondition(locator: Locator, precondition: WidgetPrecondition): Promise<RuntimeResult<void>> {
   switch (precondition) {
     case 'visible':
       if (!(await locator.isVisible())) {
         const error = widgetPreconditionError(precondition);
-        return runtimeErr('runtime-widget-precondition-failed', error.message, error.context, error);
+        return runtimeErr(
+          'runtime-widget-precondition-failed',
+          error.message,
+          { ...error.context, family: preconditionFamily(precondition) },
+          error,
+        );
       }
       return runtimeOk(undefined);
     case 'enabled':
       if (!(await locator.isEnabled())) {
         const error = widgetPreconditionError(precondition);
-        return runtimeErr('runtime-widget-precondition-failed', error.message, error.context, error);
+        return runtimeErr(
+          'runtime-widget-precondition-failed',
+          error.message,
+          { ...error.context, family: preconditionFamily(precondition) },
+          error,
+        );
       }
       return runtimeOk(undefined);
     case 'editable':
       if (!(await locator.isEditable())) {
         const error = widgetPreconditionError(precondition);
-        return runtimeErr('runtime-widget-precondition-failed', error.message, error.context, error);
+        return runtimeErr(
+          'runtime-widget-precondition-failed',
+          error.message,
+          { ...error.context, family: preconditionFamily(precondition) },
+          error,
+        );
       }
       return runtimeOk(undefined);
   }
@@ -64,7 +132,12 @@ async function interactByRole(
   const affordance = affordances.find((a) => a.action === action);
   if (!affordance) {
     const error = missingActionHandlerError(role, action);
-    return runtimeErr('runtime-missing-action-handler', error.message, error.context, error);
+    return runtimeErr(
+      'runtime-missing-action-handler',
+      error.message,
+      { ...error.context, family: 'unclassified' satisfies InteractErrorFamily },
+      error,
+    );
   }
 
   for (const precondition of affordance.preconditions) {
@@ -74,8 +147,19 @@ async function interactByRole(
     }
   }
 
-  await executeAffordance(locator, affordance, value);
-  return runtimeOk(undefined);
+  try {
+    await executeAffordance(locator, affordance, value);
+    return runtimeOk(undefined);
+  } catch (error) {
+    const family = classifyThrownError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    return runtimeErr(
+      'runtime-execution-failed',
+      message,
+      { role, action, family },
+      error,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -108,10 +192,26 @@ export async function interact(
         return preconditionResult;
       }
     }
-    await handler(locator, value, context);
-    return runtimeOk(undefined);
+    try {
+      await handler(locator, value, context);
+      return runtimeOk(undefined);
+    } catch (error) {
+      const family = classifyThrownError(error);
+      const message = error instanceof Error ? error.message : String(error);
+      return runtimeErr(
+        'runtime-execution-failed',
+        message,
+        { widget, action, family },
+        error,
+      );
+    }
   }
 
   const error = missingActionHandlerError(resolvedRole ?? widget, action);
-  return runtimeErr('runtime-missing-action-handler', error.message, error.context, error);
+  return runtimeErr(
+    'runtime-missing-action-handler',
+    error.message,
+    { ...error.context, family: 'unclassified' satisfies InteractErrorFamily },
+    error,
+  );
 }

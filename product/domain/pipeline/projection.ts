@@ -30,14 +30,6 @@ import type { PhaseOutputSource } from './source';
 import type { AtomApplicability } from './qualifier';
 import type { CanonProvenance } from './provenance';
 
-// ─── Provenance ───────────────────────────────────────────────────
-
-/** @deprecated Use `CanonProvenance`. Kept as a type alias for
- *  source-compatibility; the three tier-specific provenance types
- *  are byte-identical and share one canonical definition in
- *  `provenance.ts`. */
-export type ProjectionProvenance = CanonProvenance;
-
 // ─── Atom binding (the unit of projection content) ───────────────
 
 /** A typed (atom, applicability) pair. The projection consists of a
@@ -89,7 +81,7 @@ export interface Projection<
    *  produced this projection. */
   readonly inputFingerprint: Fingerprint<'projection-input'>;
   /** Provenance metadata. */
-  readonly provenance: ProjectionProvenance;
+  readonly provenance: CanonProvenance;
   /** Optional quality score for promotion gating. */
   readonly qualityScore?: number | undefined;
 }
@@ -105,7 +97,7 @@ export function projection<
   readonly bindings: readonly AtomBinding[];
   readonly source: Src;
   readonly inputFingerprint: Fingerprint<'projection-input'>;
-  readonly provenance: ProjectionProvenance;
+  readonly provenance: CanonProvenance;
   readonly qualityScore?: number | undefined;
 }): Projection<S, Src> {
   return {

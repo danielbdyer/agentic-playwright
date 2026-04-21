@@ -62,10 +62,3 @@ export const RouteKnowledgeManifestSchema = Schema.Struct({
   baseUrl: Schema.optionalWith(NullableString, { default: () => null }),
   routes: Schema.Array(RouteKnowledgeRouteSchema),
 });
-
-/** @deprecated Use RouteKnowledgeVariantSchema. */
-export const HarvestRouteVariantSchema = RouteKnowledgeVariantSchema;
-/** @deprecated Use RouteKnowledgeRouteSchema. */
-export const HarvestRouteDefinitionSchema = RouteKnowledgeRouteSchema;
-/** @deprecated Use RouteKnowledgeManifestSchema. */
-export const HarvestManifestSchema = RouteKnowledgeManifestSchema;

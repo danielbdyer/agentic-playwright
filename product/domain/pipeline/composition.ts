@@ -26,14 +26,6 @@ import type {
 import type { PhaseOutputSource } from './source';
 import type { CanonProvenance } from './provenance';
 
-// ─── Provenance ───────────────────────────────────────────────────
-
-/** @deprecated Use `CanonProvenance`. Kept as a type alias for
- *  source-compatibility; the three tier-specific provenance types
- *  are byte-identical and share one canonical definition in
- *  `provenance.ts`. */
-export type CompositionProvenance = CanonProvenance;
-
 // ─── Atom reference (the link from Tier 2 to Tier 1) ─────────────
 
 /** A typed reference from a composition to an atom it depends on.
@@ -78,7 +70,7 @@ export interface Composition<
    *  this composition. */
   readonly inputFingerprint: Fingerprint<'composition-input'>;
   /** Provenance metadata. */
-  readonly provenance: CompositionProvenance;
+  readonly provenance: CanonProvenance;
   /** Optional quality score for promotion gating. */
   readonly qualityScore?: number | undefined;
 }
@@ -96,7 +88,7 @@ export function composition<
   readonly atomReferences: readonly AtomReference[];
   readonly source: Src;
   readonly inputFingerprint: Fingerprint<'composition-input'>;
-  readonly provenance: CompositionProvenance;
+  readonly provenance: CanonProvenance;
   readonly qualityScore?: number | undefined;
 }): Composition<S, T, Src> {
   return {

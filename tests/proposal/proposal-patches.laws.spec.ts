@@ -44,7 +44,7 @@ test('hints patches are non-destructive for enriched semantics while merging ali
         role: 'button',
         affordance: 'click',
         locatorLadder: [
-          { kind: 'role-name', role: 'button', name: 'Search' },
+          { kind: 'role', role: 'button', name: 'Search' },
         ],
         source: 'human',
         epistemicStatus: 'observed',
@@ -65,7 +65,7 @@ test('hints patches are non-destructive for enriched semantics while merging ali
       role: 'link',
       affordance: 'get-value',
       locatorLadder: [
-        { kind: 'role-name', role: 'button', name: 'Search' },
+        { kind: 'role', role: 'button', name: 'Search' },
         { kind: 'test-id', value: 'search-button' },
       ],
       source: 'agent',

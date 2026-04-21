@@ -110,12 +110,15 @@ export function importDeclaration(options: {
   modulePath: string;
   defaultImport?: string;
   namedImports?: string[];
+  /** When true, emit `import type { … }` — used for type-only imports
+   *  that must be erased by the TypeScript compiler. */
+  isTypeOnly?: boolean;
 }): ts.ImportDeclaration {
   const defaultImport = options.defaultImport ? identifier(options.defaultImport) : undefined;
   const namedImports = options.namedImports && options.namedImports.length > 0
     ? ts.factory.createNamedImports(options.namedImports.map((name) => ts.factory.createImportSpecifier(false, undefined, identifier(name))))
     : undefined;
-  const importClause = ts.factory.createImportClause(false, defaultImport, namedImports);
+  const importClause = ts.factory.createImportClause(options.isTypeOnly ?? false, defaultImport, namedImports);
   return ts.factory.createImportDeclaration(undefined, importClause, stringLiteral(options.modulePath));
 }
 

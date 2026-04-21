@@ -118,3 +118,121 @@ export function navigationOptionsForUrl(
 export function needsPostNavigationCheck(routeType: RouteType): boolean {
   return routeType === 'spa' || routeType === 'unknown';
 }
+
+// ─── Navigation envelope ───
+
+/**
+ * Classification of a navigation outcome. Driven by the page.url()
+ * idempotence check that v2 §3.2 adds before page.goto():
+ *
+ *   - `skipped-idempotent`: the page is already at the target URL;
+ *     no goto was issued. Zero network cost, zero risk of re-rendering
+ *     mid-flight state the caller depends on.
+ *   - `navigated`: a goto was issued and completed within the timeout.
+ *   - `navigated-with-error`: a goto was issued and threw or returned
+ *     a non-2xx response; the envelope carries the thrown-message.
+ */
+export type NavigationClassification = 'skipped-idempotent' | 'navigated' | 'navigated-with-error';
+
+export interface NavigationReceipt {
+  /** The URL the page actually reached after the operation. */
+  readonly reachedUrl: string;
+  /** The status from the response (null when idempotent skip or on
+   *  error before response arrived). Playwright's `response.status()`
+   *  is captured where available. */
+  readonly status: number | null;
+  /** Wall-clock time from the first page.url() read until the envelope
+   *  is built. Includes the cost of the idempotence check itself. */
+  readonly timingMs: number;
+  /** Three-valued classification — see NavigationClassification. */
+  readonly classification: NavigationClassification;
+  /** Route-type classification of the target URL (for workshop metric
+   *  stratification). */
+  readonly routeType: RouteType;
+  /** Populated when classification === 'navigated-with-error'. */
+  readonly errorMessage?: string;
+}
+
+/** Minimal Playwright Page surface needed for navigation. The observe-
+ *  side aria/state modules already import Page from @playwright/test; we
+ *  keep this module dependency-light by structurally typing what we use. */
+export interface NavigableSurface {
+  url(): string;
+  goto(url: string, options?: { waitUntil?: WaitUntilOption; timeout?: number }): Promise<{ status(): number } | null>;
+}
+
+/** True when the two URLs refer to the same page (including query string
+ *  and hash equality). Absolute / relative URL differences are normalized
+ *  via URL when both parse; otherwise a plain string compare is used as
+ *  a fallback. */
+function sameUrl(current: string, target: string): boolean {
+  if (current === target) return true;
+  try {
+    return new URL(current).toString() === new URL(target, current).toString();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Perform an idempotent navigation.
+ *
+ * The v2 shape adjustment: `page.url()` is read BEFORE `page.goto()`
+ * to short-circuit when the page is already at the target URL.
+ * This matters for two v2 workflows:
+ *
+ *   1. `scenario.ts` pre-navigation. When multiple steps on the same
+ *      scenario stay on the same screen, the pre-nav fired before every
+ *      non-navigate action would re-goto the same URL — discarding the
+ *      in-flight form state and the post-action screen.
+ *   2. test-compose's regenerated facade. A facade that emits a
+ *      pre-goto per step becomes self-defeating when multiple steps
+ *      target the same screen; the idempotent check makes repeated
+ *      pre-navs free.
+ *
+ * Returns a NavigationReceipt envelope that callers can log or route
+ * to the workshop's metric surface.
+ */
+export async function performNavigation(
+  page: NavigableSurface,
+  url: string,
+  metadata?: { readonly routeType?: RouteType },
+): Promise<NavigationReceipt> {
+  const start = Date.now();
+  const currentUrl = page.url();
+  const routeType = classifyRoute(url, metadata);
+  if (sameUrl(currentUrl, url)) {
+    return {
+      reachedUrl: currentUrl,
+      status: null,
+      timingMs: Date.now() - start,
+      classification: 'skipped-idempotent',
+      routeType,
+    };
+  }
+
+  const navOpts = navigationOptionsForRoute(routeType);
+  try {
+    const response = await page.goto(url, {
+      waitUntil: navOpts.waitUntil,
+      timeout: navOpts.timeout,
+    });
+    const status = response ? response.status() : null;
+    return {
+      reachedUrl: page.url(),
+      status,
+      timingMs: Date.now() - start,
+      classification: 'navigated',
+      routeType,
+    };
+  } catch (error) {
+    return {
+      reachedUrl: page.url(),
+      status: null,
+      timingMs: Date.now() - start,
+      classification: 'navigated-with-error',
+      routeType,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    };
+  }
+}

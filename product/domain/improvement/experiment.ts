@@ -7,7 +7,7 @@
  */
 
 import type { PipelineConfig } from '../attention/pipeline-config';
-import type { PipelineFitnessReport } from '../../../workshop/metrics/types';
+import type { PipelineFitnessReport } from '../fitness/types';
 import type {
   ExperimentScorecardComparison,
   ExperimentSubstrate,

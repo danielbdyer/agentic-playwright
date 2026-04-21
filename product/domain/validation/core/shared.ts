@@ -89,7 +89,7 @@ export const assertionKinds = ['state', 'structure'] as const;
 export const effectTargetKinds = ['self', 'element', 'surface'] as const;
 export const governanceStates = ['approved', 'review-required', 'blocked'] as const;
 export const certificationStates = ['uncertified', 'certified'] as const;
-export const locatorStrategyKinds = ['test-id', 'role-name', 'css'] as const;
+export const locatorStrategyKinds = ['role', 'label', 'placeholder', 'text', 'test-id', 'css'] as const;
 export const effectStates = ['validation-error', 'required-error', 'disabled', 'enabled', 'visible', 'hidden'] as const;
 export const diagnosticSeverities = ['info', 'warn', 'error'] as const;
 export const diagnosticConfidences = ['human', 'agent-verified', 'agent-proposed', 'compiler-derived', 'intent-only', 'unbound', 'mixed'] as const;
@@ -431,14 +431,21 @@ export function validateLocatorStrategy(value: unknown, path: string): LocatorSt
   const kind = expectEnum(strategy.kind, `${path}.kind`, locatorStrategyKinds);
 
   switch (kind) {
-    case 'test-id':
-      return { kind, value: expectString(strategy.value, `${path}.value`) };
-    case 'role-name':
+    case 'role':
       return {
         kind,
         role: expectString(strategy.role, `${path}.role`),
         name: expectOptionalString(strategy.name, `${path}.name`) ?? null,
       };
+    case 'label':
+    case 'placeholder':
+    case 'text': {
+      const value = expectString(strategy.value, `${path}.value`);
+      const exactRaw = strategy.exact;
+      return typeof exactRaw === 'boolean' ? { kind, value, exact: exactRaw } : { kind, value };
+    }
+    case 'test-id':
+      return { kind, value: expectString(strategy.value, `${path}.value`) };
     case 'css':
       return { kind, value: expectString(strategy.value, `${path}.value`) };
   }
@@ -452,8 +459,8 @@ export function validateElement(value: unknown, path: string): ElementSig {
   const cssFallback = expectOptionalString(element.cssFallback, `${path}.cssFallback`) ?? null;
   const locator = element.locator === undefined
     ? [
+        { kind: 'role' as const, role, name },
         ...(testId ? [{ kind: 'test-id', value: testId } as const] : []),
-        { kind: 'role-name' as const, role, name },
         ...(cssFallback ? [{ kind: 'css', value: cssFallback } as const] : []),
       ]
     : expectArray(element.locator, `${path}.locator`).map((entry, index) => validateLocatorStrategy(entry, `${path}.locator[${index}]`));

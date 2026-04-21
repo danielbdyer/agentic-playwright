@@ -11,7 +11,7 @@ import {
   dampenSignalStrength,
   countDegradingSignals,
   buildLearningSignalsSummary,
-} from '../../workshop/learning/signal-maturation';
+} from '../../product/application/learning/signal-maturation';
 import type { LearningSignalsSummary } from '../../product/domain/improvement/types';
 
 // ─── Helpers ───

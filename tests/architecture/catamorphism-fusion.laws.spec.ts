@@ -27,7 +27,7 @@ import {
   foldResolutionEvent,
   foldPipelineFailureClass,
 } from '../../product/domain/kernel/visitors';
-import type { PipelineFailureClass, PipelineImprovementTarget } from '../../workshop/metrics/types';
+import type { PipelineFailureClass, PipelineImprovementTarget } from '../../product/domain/fitness/types';
 import type { LocatorStrategy } from '../../product/domain/governance/workflow-types';
 import type { StepInstruction, ValueRef } from '../../product/domain/intent/types';
 import type { ResolutionEvent, ResolutionReceipt } from '../../product/domain/resolution/types';
@@ -71,9 +71,12 @@ const STEP_INSTRUCTION_SPECIMENS: readonly StepInstruction[] = [
 ];
 
 const LOCATOR_STRATEGY_SPECIMENS: readonly LocatorStrategy[] = [
+  { kind: 'role', role: 'button', name: 'Submit' },
+  { kind: 'role', role: 'textbox', name: null },
+  { kind: 'label', value: 'Username' },
+  { kind: 'placeholder', value: 'Type a value' },
+  { kind: 'text', value: 'Continue' },
   { kind: 'test-id', value: 'btn-submit' },
-  { kind: 'role-name', role: 'button', name: 'Submit' },
-  { kind: 'role-name', role: 'textbox', name: null },
   { kind: 'css', value: '.btn-primary' },
 ];
 
@@ -219,16 +222,22 @@ test.describe('Fusion: foldLocatorStrategy', () => {
       const f = pick(next, STRING_TRANSFORMERS);
 
       const stringCases = {
+        role: (s: { role: string; name?: string | null | undefined }) => `${s.role}:${s.name ?? ''}`,
+        label: (s: { value: string }) => s.value,
+        placeholder: (s: { value: string }) => s.value,
+        text: (s: { value: string }) => s.value,
         testId: (s: { value: string }) => s.value,
-        roleName: (s: { role: string; name?: string | null | undefined }) => `${s.role}:${s.name ?? ''}`,
         css: (s: { value: string }) => s.value,
       };
 
       const twoStep = f(foldLocatorStrategy(specimen, stringCases));
 
       const fused = foldLocatorStrategy(specimen, {
+        role: (s) => f(stringCases.role(s as { role: string; name?: string | null | undefined })),
+        label: (s) => f(stringCases.label(s)),
+        placeholder: (s) => f(stringCases.placeholder(s)),
+        text: (s) => f(stringCases.text(s)),
         testId: (s) => f(stringCases.testId(s)),
-        roleName: (s) => f(stringCases.roleName(s as { role: string; name?: string | null | undefined })),
         css: (s) => f(stringCases.css(s)),
       });
 

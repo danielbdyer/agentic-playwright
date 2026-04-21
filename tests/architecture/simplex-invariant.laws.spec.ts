@@ -13,10 +13,10 @@
 
 import { expect, test } from '@playwright/test';
 import { mulberry32 , LAW_SEED_COUNT } from '../support/random';
-import { calibrateWeightsFromCorrelations } from '../../workshop/learning/learning-bottlenecks';
+import { calibrateWeightsFromCorrelations } from '../../product/application/learning/learning-bottlenecks';
 import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
 import type { BottleneckWeights } from '../../product/domain/attention/pipeline-config';
-import type { BottleneckWeightCorrelation } from '../../workshop/metrics/types';
+import type { BottleneckWeightCorrelation } from '../../product/domain/fitness/types';
 
 // ─── Helpers ───
 

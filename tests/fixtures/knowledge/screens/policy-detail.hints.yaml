@@ -45,7 +45,7 @@ elements:
     locator:
       - kind: test-id
         value: policy-number
-      - kind: role-name
+      - kind: role
         role: text
         name: Policy Number
   policyStatus:
@@ -92,7 +92,7 @@ elements:
     locator:
       - kind: test-id
         value: policy-status
-      - kind: role-name
+      - kind: role
         role: text
         name: Policy Status
   effectiveDate:
@@ -127,7 +127,7 @@ elements:
     locator:
       - kind: test-id
         value: effective-date
-      - kind: role-name
+      - kind: role
         role: text
         name: Effective Date
   claimsTable:
@@ -172,7 +172,7 @@ elements:
     locator:
       - kind: test-id
         value: claims-table
-      - kind: role-name
+      - kind: role
         role: table
         name: Claims Table
   backToSearch:
@@ -235,7 +235,7 @@ elements:
     locator:
       - kind: test-id
         value: back-to-search
-      - kind: role-name
+      - kind: role
         role: link
         name: Back to Search
   errorPanel:
@@ -280,6 +280,6 @@ elements:
     locator:
       - kind: test-id
         value: error-panel
-      - kind: role-name
+      - kind: role
         role: alert
         name: null

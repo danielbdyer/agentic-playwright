@@ -18,16 +18,24 @@ import { TesseractError } from '../../product/domain/kernel/errors';
 import type {
   LogicalProofObligationName,
   TheoremBaselineCoverage,
-} from '../../workshop/metrics/types';
+} from '../../product/domain/fitness/types';
 import {
   summarizeTheoremBaseline,
   theoremBaselineCoverageForNames,
-} from '../../workshop/metrics/types';
+} from '../../product/domain/fitness/types';
 import type { McpToolDefinition, ScreenCapturedEvent, WorkItemDecision } from '../../product/domain/observation/dashboard';
 import { dashboardEvent, dashboardMcpTools } from '../../product/domain/observation/dashboard';
+import { projectManifestVerbsToMcpTools } from '../../product/domain/manifest/mcp-projection';
+import { readRegisteredVerbs } from '../../product/domain/manifest/declare-verb';
+import { invokeManifestVerb } from '../../product/application/manifest/invoker';
+// Side-effect import: `declareVerb(...)` calls in product/manifest/
+// register each verb into the module-level registry that
+// `readRegisteredVerbs` reads. Without this import the registry is
+// empty and the manifest-derived tool catalog below contains no tools.
+import '../../product/manifest/declarations';
 import { resolveResource, buildResourceUri } from './resource-provider';
 import type { ResourceArtifactReader } from './resource-provider';
-import type { PlaywrightBridgePort, BrowserAction } from './playwright-mcp-bridge';
+import type { PlaywrightBridgePort, BrowserAction } from '../../product/application/ports';
 import { RETRY_POLICIES, formatRetryMetadata, retryMetadata, retryScheduleForTaggedErrors } from '../../product/application/resilience/schedules';
 import { writeDecisionFile } from '../bridges/file-decision-bridge';
 
@@ -1628,10 +1636,39 @@ function enrichWithPhase(result: unknown, options: DashboardMcpServerOptions): u
   return { ...(result as object), phase: currentPhase(options) };
 }
 
-const routeToolCall = (
+const routeToolCall = async (
   invocation: McpToolInvocation,
   options: DashboardMcpServerOptions,
-): McpToolResult => {
+): Promise<McpToolResult> => {
+  // First-pass: manifest verb dispatch. If the tool name matches a
+  // declared manifest verb with a registered handler, invoke it and
+  // return the result. Unknown verbs fall through to the hand-curated
+  // toolHandlers below (where they hit the "Unknown tool" error
+  // branch). Per v2 §6 Step 4c: "adding a verb to product/
+  // automatically extends the dashboard's tool surface."
+  if (options.manifestVerbHandlers) {
+    try {
+      const outcome = await invokeManifestVerb(
+        options.manifestVerbHandlers,
+        invocation.tool,
+        invocation.arguments,
+      );
+      if (outcome.handled) {
+        return {
+          tool: invocation.tool,
+          result: enrichWithPhase(outcome.result, options),
+          isError: false,
+        };
+      }
+    } catch (err) {
+      return {
+        tool: invocation.tool,
+        result: enrichWithPhase({ error: String(err) }, options),
+        isError: true,
+      };
+    }
+  }
+
   const handler = toolHandlers[invocation.tool];
   if (!handler) {
     return { tool: invocation.tool, result: { error: `Unknown tool: ${invocation.tool}`, suggestedAction: 'Call tools/list to see available tools.', availableTools: Object.keys(toolHandlers), phase: currentPhase(options) }, isError: true };
@@ -1654,8 +1691,28 @@ const mcpResources: readonly McpResource[] = [
 ];
 
 export function createDashboardMcpServer(options: DashboardMcpServerOptions): McpServerPort {
-  // Compose tool catalog: base tools + lifecycle tools (when host-mode) + knowledge tools (when host-mode)
-  const allTools: McpToolDefinition[] = [...dashboardMcpTools];
+  // Compose tool catalog. Three sources merged in priority order:
+  //   1. Manifest-derived tools (v2 §6 Step 4c) — one MCP tool per
+  //      declared product verb, projected via projectManifestVerbsToMcpTools.
+  //      Adding a verb to product/manifest/declarations.ts automatically
+  //      extends this catalog at the next build.
+  //   2. Hand-curated dashboard tools (dashboardMcpTools) — the
+  //      observation/decision surface that doesn't correspond to
+  //      agent-authoring verbs (queue items, fitness metrics, etc.).
+  //   3. Option-gated tools: lifecycle + knowledge enrichment tools
+  //      only enabled when the host mode provides the underlying
+  //      callbacks.
+  //
+  // Manifest-verb dispatch is wired via options.manifestVerbHandlers.
+  // When present, routeToolCall first looks up the invoked tool
+  // against that registry; if a handler is registered for the named
+  // verb, its return value becomes the MCP result. If no handler is
+  // registered (or the registry is absent), invocation falls through
+  // to the hand-curated toolHandlers below, where it hits the
+  // "Unknown tool" error branch for manifest-derived tools without
+  // explicit handler wiring.
+  const manifestTools = projectManifestVerbsToMcpTools(readRegisteredVerbs());
+  const allTools: McpToolDefinition[] = [...manifestTools, ...dashboardMcpTools];
   if (options.startSpeedrun) allTools.push(...lifecycleMcpTools);
   if (options.writeHint) allTools.push(...knowledgeMcpTools);
 
@@ -1663,7 +1720,7 @@ export function createDashboardMcpServer(options: DashboardMcpServerOptions): Mc
     listTools: () => Effect.succeed(allTools as readonly McpToolDefinition[]),
 
     handleToolCall: (invocation: McpToolInvocation) =>
-      Effect.sync(() => routeToolCall(invocation, options)),
+      Effect.promise(() => routeToolCall(invocation, options)),
 
     listResources: () => Effect.succeed(mcpResources),
 

@@ -10,8 +10,14 @@
  * handler implementation module.
  */
 
-import type { ScreenCapturedEvent, WorkItemDecision } from '../../product/domain/observation/dashboard';
-import type { PlaywrightBridgePort } from './playwright-mcp-bridge';
+import type {
+  HintContribution,
+  LocatorAliasContribution,
+  ScreenCapturedEvent,
+  WorkItemDecision,
+} from '../../product/domain/observation/dashboard';
+import type { ManifestVerbHandlerRegistry } from '../../product/application/manifest/invoker';
+import type { PlaywrightBridgePort } from '../../product/application/ports';
 
 export interface DashboardMcpServerOptions {
   /** Read a JSON artifact from the .tesseract/ directory. Returns null if not found. */
@@ -24,6 +30,12 @@ export interface DashboardMcpServerOptions {
   readonly broadcast: (event: unknown) => void;
   /** Optional Playwright bridge for live browser interaction (headed mode). */
   readonly playwrightBridge?: PlaywrightBridgePort;
+  /** Optional manifest verb handler registry. When provided, MCP tool
+   *  invocations for manifest-derived tools route through the registered
+   *  handler; when absent or when a verb has no handler registered, the
+   *  invocation falls through to the legacy toolHandlers dispatch,
+   *  which returns an "Unknown tool" error. */
+  readonly manifestVerbHandlers?: ManifestVerbHandlerRegistry;
 
   // ─── Lifecycle callbacks (host-mode only) ───
 
@@ -74,18 +86,8 @@ export interface LoopStatus {
   readonly lastProgress?: unknown;
 }
 
-/** Hint contribution from an agent. */
-export interface HintContribution {
-  readonly screen: string;
-  readonly element: string;
-  readonly hint: string;
-  readonly confidence?: number | undefined;
-}
-
-/** Locator alias contribution from an agent. */
-export interface LocatorAliasContribution {
-  readonly screen: string;
-  readonly element: string;
-  readonly alias: string;
-  readonly source?: string | undefined;
-}
+// Contribution payload types moved to product/domain/observation/dashboard
+// at step-4c.final-sweep so product contributors (hints-writer) can
+// emit them without crossing the seam. Re-export for in-dashboard
+// consumers that still import from this module.
+export type { HintContribution, LocatorAliasContribution } from '../../product/domain/observation/dashboard';

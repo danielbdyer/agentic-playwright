@@ -34,7 +34,7 @@ elements:
     locator:
       - kind: test-id
         value: amendment-number
-      - kind: role-name
+      - kind: role
         role: text
         name: Amendment Number
   amendmentStatus:

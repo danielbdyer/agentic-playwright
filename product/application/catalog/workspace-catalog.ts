@@ -80,7 +80,7 @@ import { walkFiles } from '../catalog/artifacts';
 import type { ProjectPaths } from '../paths';
 import { boundPath, relativeProjectPath, snapshotPath } from '../paths';
 import { FileSystem, type FileSystemPort } from '../ports';
-import { improvementLedgerPath, loadImprovementLedger } from '../../../workshop/orchestration/improvement';
+import { improvementLedgerPath, loadImprovementLedger } from '../improvement/ledger';
 import { createArtifactEnvelope, upsertArtifactEnvelope } from './envelope';
 import {
   bySuffix,

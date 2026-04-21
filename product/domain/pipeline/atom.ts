@@ -19,16 +19,6 @@ import type { PhaseOutputSource } from './source';
 import type { CanonProvenance } from './provenance';
 import type { Fingerprint } from '../kernel/hash';
 
-// ─── Provenance ───────────────────────────────────────────────────
-
-/** @deprecated Use `CanonProvenance` directly. Retained as a type
- *  alias for source-compatibility with existing callers. The three
- *  tier-specific provenance types (`AtomProvenance`,
- *  `CompositionProvenance`, `ProjectionProvenance`) are byte-
- *  identical and collapsed to one canonical shape in
- *  `product/domain/pipeline/provenance.ts`. */
-export type AtomProvenance = CanonProvenance;
-
 // ─── The Atom envelope ───────────────────────────────────────────
 
 /** A canonical-artifact (or candidate) wrapper around a fact about
@@ -67,7 +57,7 @@ export interface Atom<
    *  inputs are stable. Used to detect cache invalidation. */
   readonly inputFingerprint: Fingerprint<'atom-input'>;
   /** Provenance metadata. */
-  readonly provenance: AtomProvenance;
+  readonly provenance: CanonProvenance;
   /** Optional quality score from the discovery engine. Used by the
    *  promotion gate to decide whether this atom beats the current
    *  canonical artifact. */
@@ -91,7 +81,7 @@ export function atom<
   readonly content: T;
   readonly source: Src;
   readonly inputFingerprint: Fingerprint<'atom-input'>;
-  readonly provenance: AtomProvenance;
+  readonly provenance: CanonProvenance;
   readonly qualityScore?: number | undefined;
 }): Atom<C, T, Src> {
   return {

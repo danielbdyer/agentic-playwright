@@ -35,7 +35,7 @@ import { runDogfoodLoop } from '../../workshop/orchestration/dogfood';
 import { refreshScenario } from '../../product/application/resolution/refresh';
 import { runWithLocalServices } from '../../product/composition/local-services';
 import { createAdoId } from '../../product/domain/kernel/identity';
-import type { PipelineFitnessReport } from '../../workshop/metrics/types';
+import type { PipelineFitnessReport } from '../../product/domain/fitness/types';
 import type { MemoryMaturityCounts } from '../../workshop/metrics/memory-maturity';
 import { createTestWorkspace } from '../support/workspace';
 

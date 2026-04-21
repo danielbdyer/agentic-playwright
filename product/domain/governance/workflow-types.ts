@@ -112,7 +112,7 @@ export type AssertionKind = 'state' | 'structure';
 export type CapabilityName = 'navigate' | 'enter' | 'invoke' | 'observe-structure' | 'observe-state' | 'custom-escape-hatch';
 
 export type EffectTargetKind = 'self' | 'element' | 'surface';
-export type LocatorStrategyKind = 'test-id' | 'role-name' | 'css';
+export type LocatorStrategyKind = 'role' | 'label' | 'placeholder' | 'text' | 'test-id' | 'css';
 
 export interface WorkflowEnvelopeIds {
   readonly adoId?: AdoId | null | undefined;
@@ -337,8 +337,11 @@ export interface WriteJournalEntry {
 }
 
 export type LocatorStrategy =
+  | { kind: 'role'; role: string; name?: string | null | undefined }
+  | { kind: 'label'; value: string; exact?: boolean | undefined }
+  | { kind: 'placeholder'; value: string; exact?: boolean | undefined }
+  | { kind: 'text'; value: string; exact?: boolean | undefined }
   | { kind: 'test-id'; value: string }
-  | { kind: 'role-name'; role: string; name?: string | null | undefined }
   | { kind: 'css'; value: string };
 
 export type TrustPolicyArtifactType = 'elements' | 'postures' | 'surface' | 'snapshot' | 'hints' | 'patterns' | 'routes';

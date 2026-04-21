@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
-import { createLlmApiProvider, DEFAULT_TRANSLATION_CONFIG } from '../../product/reasoning/translation-provider';
-import { DEFAULT_AGENT_INTERPRETER_CONFIG, resolveAgentInterpreterProvider } from '../../product/reasoning/agent-interpreter-provider';
+import { DEFAULT_AGENT_INTERPRETER_CONFIG, DEFAULT_TRANSLATION_CONFIG, resolveAgentInterpreterProvider } from '../../product/reasoning/adapters';
+import { createLlmApiProvider } from '../../product/reasoning/adapters/translation-backends';
 import type { TranslationRequest } from '../../product/domain/resolution/types';
 import { createElementId, createScreenId } from '../../product/domain/kernel/identity';
 import type { AgentInterpretationRequest } from '../../product/domain/interpretation/agent-interpreter';
@@ -58,7 +58,7 @@ test.describe('retry resilience laws', () => {
       },
     });
 
-    const receipt = await Effect.runPromise(provider.translate(request));
+    const receipt = await Effect.runPromise(provider.select(request));
     expect(receipt.matched).toBe(false);
     expect(receipt.failureClass).toBe('translator-error');
     expect(receipt.rationale).toContain('retry[');
@@ -74,7 +74,7 @@ test.describe('retry resilience laws', () => {
       },
     });
 
-    const receipt = await Effect.runPromise(provider.translate(request));
+    const receipt = await Effect.runPromise(provider.select(request));
     expect(receipt.failureClass).toBe('translator-error');
     expect(calls).toBe(1);
   });

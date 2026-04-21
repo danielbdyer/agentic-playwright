@@ -2,8 +2,14 @@ import path from 'path';
 import { Effect } from 'effect';
 import { ImprovementRunStore } from '../../product/application/ports';
 import type { ProjectPaths } from '../../product/application/paths';
+import {
+  improvementLedgerPath,
+  loadImprovementLedger,
+  saveImprovementLedger,
+  toExperimentRecord,
+} from '../../product/application/improvement/ledger';
 import type { PipelineConfig } from '../../product/domain/attention/pipeline-config';
-import type { PipelineFitnessReport, PipelineImprovementTarget } from '../metrics/types';
+import type { PipelineFitnessReport, PipelineImprovementTarget } from '../../product/domain/fitness/types';
 import { foldImprovementTarget } from '../../product/domain/kernel/visitors';
 import type {
   InterventionReceipt,
@@ -602,9 +608,7 @@ export function scorecardPath(paths: ProjectPaths): string {
   return path.join(paths.rootDir, '.tesseract', 'benchmarks', 'scorecard.json');
 }
 
-export function improvementLedgerPath(paths: ProjectPaths): string {
-  return path.join(paths.rootDir, '.tesseract', 'benchmarks', 'improvement-ledger.json');
-}
+export { improvementLedgerPath, loadImprovementLedger, saveImprovementLedger, toExperimentRecord };
 
 export function buildImprovementRun(input: BuildImprovementRunInput): ImprovementRun {
   const participants = [
@@ -656,38 +660,6 @@ export function buildImprovementRun(input: BuildImprovementRunInput): Improvemen
         artifactPaths: [improvementLedgerPath(input.paths)],
       })
     : baseRun;
-}
-
-export function toExperimentRecord(run: ImprovementRun): ExperimentRecord {
-  return {
-    id: run.improvementRunId,
-    runAt: run.completedAt ?? run.startedAt,
-    pipelineVersion: run.pipelineVersion,
-    baselineConfig: run.baselineConfig,
-    configDelta: run.configDelta,
-    substrateContext: run.substrateContext,
-    fitnessReport: run.fitnessReport,
-    scorecardComparison: run.scorecardComparison,
-    accepted: run.accepted,
-    tags: run.tags,
-    parentExperimentId: run.parentExperimentId,
-    improvementRunId: run.improvementRunId,
-    improvementRun: run,
-  };
-}
-
-export function loadImprovementLedger(paths: ProjectPaths) {
-  return Effect.gen(function* () {
-    const repository = yield* ImprovementRunStore;
-    return yield* Effect.promise(() => repository.loadLedger(improvementLedgerPath(paths)));
-  });
-}
-
-export function saveImprovementLedger(paths: ProjectPaths, ledger: ImprovementLedger) {
-  return Effect.gen(function* () {
-    const repository = yield* ImprovementRunStore;
-    return yield* Effect.promise(() => repository.saveLedger(improvementLedgerPath(paths), ledger));
-  });
 }
 
 export function recordImprovementRun(options: {

@@ -3,7 +3,7 @@ import { Effect } from 'effect';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { executeInterventionBatch } from '../../workshop/policy/intervention-kernel';
+import { executeInterventionBatch } from '../../product/application/policy/intervention-kernel';
 import { createProjectPaths } from '../../product/application/paths';
 import { runWithLocalServices } from '../../product/composition/local-services';
 import type { InterventionCommandBatch } from '../../product/domain/handshake/intervention';

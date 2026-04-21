@@ -2,6 +2,7 @@
 import { TesseractError } from '../product/domain/kernel/errors';
 import { runWithLocalServicesDetailed } from '../product/composition/local-services';
 import { createCliPaths, parseCliInvocation, resolveExecutionPosture } from '../product/cli/registry';
+import { composedCliCommandRegistry } from './cli-registry';
 
 function logJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
@@ -23,7 +24,7 @@ function logIncrementalStatus(command: string, result: unknown): void {
 }
 
 async function main(): Promise<void> {
-  const invocation = parseCliInvocation(process.argv.slice(2));
+  const invocation = parseCliInvocation(process.argv.slice(2), composedCliCommandRegistry);
   const posture = resolveExecutionPosture({ ...invocation.postureInput, isCI: Boolean(process.env.CI) });
   const rootDir = process.cwd();
   const paths = createCliPaths(rootDir);

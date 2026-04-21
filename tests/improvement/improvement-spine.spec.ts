@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { buildImprovementRun, toExperimentRecord } from '../../workshop/orchestration/improvement';
 import { createProjectPaths } from '../../product/application/paths';
 import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
-import { PipelineFitnessReport } from '../../workshop/metrics/types';
+import { PipelineFitnessReport } from '../../product/domain/fitness/types';
 import {
   DogfoodLedgerProjection,
   acceptedImprovementRuns,

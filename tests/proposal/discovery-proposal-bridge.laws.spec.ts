@@ -76,7 +76,7 @@ function randomElement(next: () => number, screen: ScreenId): DiscoveryObservedE
     testId: next() > 0.5 ? `tid-${randomWord(next)}` : null,
     widget: pick(next, ['text-input', 'button', 'checkbox', 'combobox']),
     required: next() > 0.5,
-    locatorHint: pick(next, ['test-id', 'role-name', 'css'] as const),
+    locatorHint: pick(next, ['role', 'label', 'placeholder', 'text', 'test-id', 'css'] as const),
     locatorCandidates: [{ kind: 'test-id' as const, value: `loc-${randomWord(next)}` }],
   };
 }

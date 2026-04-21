@@ -77,7 +77,7 @@ export function createProjectPaths(rootDir: string, suiteRoot?: string): Project
     rootDir,
     suiteRoot: suite,
     tesseractDir: path.join(rootDir, '.tesseract'),
-    generatedTypesDir: path.join(rootDir, 'lib', 'generated'),
+    generatedTypesDir: path.join(rootDir, 'product', 'generated'),
     translationCacheDir: path.join(rootDir, '.tesseract', 'translation-cache'),
     agentInterpretationCacheDir: path.join(rootDir, '.tesseract', 'agent-interpretation-cache'),
     semanticDictionaryDir: path.join(rootDir, '.tesseract', 'semantic-dictionary'),

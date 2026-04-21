@@ -18,7 +18,7 @@
 import type { ProposalBundle } from '../../product/domain/execution/types';
 import type { GroundedSpecFragment, RankedProposal, TrainingCorpusManifest } from '../../product/domain/learning/types';
 import type { RunRecord } from '../../product/domain/execution/types';
-import type { PipelineFitnessReport } from '../metrics/types';
+import type { PipelineFitnessReport } from '../../product/domain/fitness/types';
 import {
   buildProposalIntelligence,
   type ProposalIntelligenceReport,

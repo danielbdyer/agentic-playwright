@@ -26,9 +26,9 @@ import type {
   RankedProposal,
   TrainingCorpusManifest,
 } from '../../product/domain/learning/types';
-import { projectCorpusHealth } from '../learning/learning-health';
-import { projectBottlenecks } from '../learning/learning-bottlenecks';
-import { rankProposals } from '../learning/learning-rankings';
+import { projectCorpusHealth } from '../../product/application/learning/learning-health';
+import { projectBottlenecks } from '../../product/application/learning/learning-bottlenecks';
+import { rankProposals } from '../../product/application/learning/learning-rankings';
 
 // ─── Run Step Summary (mirrors learning-bottlenecks.ts internal type) ───
 

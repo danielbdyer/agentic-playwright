@@ -21,15 +21,19 @@ import { inboxCommand } from './inbox';
 import { approveCommand } from './approve';
 import { certifyCommand } from './certify';
 import { rerunPlanCommand } from './rerun-plan';
-import { benchmarkCommand } from './benchmark';
-import { scorecardCommand } from './scorecard';
-import { dogfoodCommand } from './dogfood';
 import { workbenchCommand } from './workbench';
-import { evolveCommand } from './evolve';
-import { experimentsCommand } from './experiments';
-import { generateCommand } from './generate';
 
-export const commandRegistry: Record<CommandName, CommandSpec> = {
+/**
+ * Product-contributed CLI commands. The six commands that orchestrate
+ * workshop surfaces (benchmark, scorecard, dogfood, evolve, experiments,
+ * generate) moved to workshop/cli/commands/ at step-4c.cli-split so
+ * product/ no longer imports workshop. They are composed back into a
+ * merged registry at the CLI entry point (bin/tesseract.ts).
+ *
+ * Partial<Record<…>> because the full CommandName union spans both
+ * folders; each side contributes its own subset.
+ */
+export const productCommandRegistry: Partial<Record<CommandName, CommandSpec>> = {
   sync: syncCommand,
   parse: parseCommand,
   bind: bindCommand,
@@ -52,11 +56,5 @@ export const commandRegistry: Record<CommandName, CommandSpec> = {
   approve: approveCommand,
   certify: certifyCommand,
   'rerun-plan': rerunPlanCommand,
-  benchmark: benchmarkCommand,
-  scorecard: scorecardCommand,
-  dogfood: dogfoodCommand,
   workbench: workbenchCommand,
-  evolve: evolveCommand,
-  experiments: experimentsCommand,
-  generate: generateCommand,
 };

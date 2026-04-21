@@ -748,11 +748,11 @@ Five callsites migrate with simple renames:
 
 ### 9.4 Commit sequence for Step 4b (five commits)
 
-1. **4b.1: Port declaration + types** (~80 LOC). Create `product/reasoning/reasoning.ts`. Add generic `ReasoningReceipt<Op>`. Backward-compat aliases for `TranslationReceipt`. No runtime changes.
-2. **4b.2: Error union consolidation** (~60 LOC). Merge the two error hierarchies into one five-family `ReasoningError` discriminated union. Legacy error classes remain as deprecated wrappers.
+1. **4b.1: Port declaration + types** (~80 LOC). Create `product/reasoning/reasoning.ts`. Add generic `ReasoningReceipt<Op>`. No runtime changes.
+2. **4b.2: Error union consolidation** (~60 LOC). Merge the two error hierarchies into one five-family `ReasoningError` discriminated union. Legacy error classes stay as live throwables through the composite-bridge window; they are not deprecated aliases (per `docs/coding-notes.md §17–26`: no deprecated-alias window — either actively in use or deleted).
 3. **4b.3: Adapter extraction** (~320 LOC). Move adapter factories into `product/reasoning/adapters/`. Merge retry logic from Translation + AgentInterpreter. Golden tests verify each adapter produces identical output to pre-move.
 4. **4b.4: Callsite migrations** (~15 LOC). Rename `provider.translate` → `provider.select`, update imports. Pure diff; zero logic change. Regression test: run full resolution pipeline, verify receipts match.
-5. **4b.5: Cleanup + deprecation** (~10 LOC). Mark old types as `@deprecated`; keep exports for backward compat. Update CLAUDE.md migration note.
+5. **4b.5: Documentation + retirement** (~1350 LOC deleted, ~300 LOC added). CLAUDE.md Reasoning-port doctrine. No `@deprecated` markers anywhere (per `docs/coding-notes.md §17–26`). v1 `TranslationProvider` / `AgentInterpreterPort` factories move into `product/reasoning/adapters/` as backend strategies; v1 error classes delete; composite bridge deletes. `createReasoning({ translation, agent })` replaces `createCompositeReasoning(...)` and lives at `adapters/index.ts`.
 
 Each commit has green tests before the next starts. If any commit fails CI, revert individually.
 

@@ -25,6 +25,7 @@ import {
   type SpeedrunStartConfig,
   type LoopStatus,
 } from '../dashboard/mcp/dashboard-mcp-server';
+import { createDefaultManifestVerbHandlers } from '../product/application/manifest/default-handlers';
 import type { McpToolDefinition } from '../product/domain/observation/dashboard';
 import type { WorkItemDecision } from '../product/domain/observation/dashboard';
 import type { ScreenCapturedEvent } from '../product/domain/observation/dashboard';
@@ -357,6 +358,10 @@ const mcpOptions: DashboardMcpServerOptions = {
   // Knowledge contribution callbacks
   writeHint,
   writeLocatorAlias,
+  // Manifest verb handlers — registered verbs dispatch through
+  // real product runtime. Unregistered verbs surface in listTools
+  // but fall through to "Unknown tool" on invocation.
+  manifestVerbHandlers: createDefaultManifestVerbHandlers(),
 };
 
 const mcpServer = createDashboardMcpServer(mcpOptions);
@@ -421,7 +426,7 @@ async function handleRequest(request: JsonRpcRequest): Promise<void> {
         break;
       }
 
-      const result = Effect.runSync(mcpServer.handleToolCall({
+      const result = await Effect.runPromise(mcpServer.handleToolCall({
         tool: params.name,
         arguments: params.arguments ?? {},
       }));

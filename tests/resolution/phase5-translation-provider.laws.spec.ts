@@ -1,17 +1,19 @@
 import { expect, test } from '@playwright/test';
 import { Effect } from 'effect';
 import {
-  createDeterministicProvider,
-  createLlmApiProvider,
-  createCopilotProvider,
-  createHybridProvider,
-  resolveTranslationProvider,
-  parseLlmResponse,
   DEFAULT_TRANSLATION_CONFIG,
-  type TranslationProvider,
+  resolveTranslationProvider,
   type LlmApiProviderDependencies,
   type TranslationConfig,
-} from '../../product/reasoning/translation-provider';
+  type TranslationProvider,
+} from '../../product/reasoning/adapters';
+import {
+  createCopilotProvider,
+  createDeterministicProvider,
+  createHybridProvider,
+  createLlmApiProvider,
+  parseLlmResponse,
+} from '../../product/reasoning/adapters/translation-backends';
 import { translateIntentToOntology } from '../../product/reasoning/translate';
 import type { TranslationRequest } from '../../product/domain/resolution/types';
 import { createScreenId, createElementId } from '../../product/domain/kernel/identity';
@@ -65,7 +67,7 @@ function createFailingLlmDeps(): LlmApiProviderDependencies {
 test('deterministic provider produces identical receipts to translateIntentToOntology', async () => {
   const provider = createDeterministicProvider();
   const request = createTranslationRequest();
-  const providerResult = await Effect.runPromise(provider.translate(request));
+  const providerResult = await Effect.runPromise(provider.select(request));
   const directResult = translateIntentToOntology(request);
 
   expect(providerResult.kind).toBe(directResult.kind);
@@ -76,7 +78,7 @@ test('deterministic provider produces identical receipts to translateIntentToOnt
 
 test('deterministic provider always returns valid TranslationReceipt schema', async () => {
   const provider = createDeterministicProvider();
-  const receipt = await Effect.runPromise(provider.translate(createTranslationRequest()));
+  const receipt = await Effect.runPromise(provider.select(createTranslationRequest()));
 
   expect(receipt.kind).toBe('translation-receipt');
   expect(receipt.version).toBe(1);
@@ -95,7 +97,7 @@ test('llm-api provider sends structured prompt and parses JSON response', async 
   });
   const deps = createMockLlmDeps(mockResponse);
   const provider = createLlmApiProvider(DEFAULT_TRANSLATION_CONFIG, deps);
-  const receipt = await Effect.runPromise(provider.translate(createTranslationRequest()));
+  const receipt = await Effect.runPromise(provider.select(createTranslationRequest()));
 
   expect(receipt.matched).toBe(true);
   expect(receipt.selected?.screen).toBe('policy-search');
@@ -107,7 +109,7 @@ test('llm-api provider sends structured prompt and parses JSON response', async 
 test('llm-api provider degrades to translator-error on API failure', async () => {
   const deps = createFailingLlmDeps();
   const provider = createLlmApiProvider(DEFAULT_TRANSLATION_CONFIG, deps);
-  const receipt = await Effect.runPromise(provider.translate(createTranslationRequest()));
+  const receipt = await Effect.runPromise(provider.select(createTranslationRequest()));
 
   expect(receipt.matched).toBe(false);
   expect(receipt.failureClass).toBe('translator-error');
@@ -117,7 +119,7 @@ test('llm-api provider degrades to translator-error on API failure', async () =>
 test('llm-api provider degrades gracefully on unmatched LLM response', async () => {
   const deps = createMockLlmDeps('I do not know how to help with that.');
   const provider = createLlmApiProvider(DEFAULT_TRANSLATION_CONFIG, deps);
-  const receipt = await Effect.runPromise(provider.translate(createTranslationRequest()));
+  const receipt = await Effect.runPromise(provider.select(createTranslationRequest()));
 
   // No JSON object found → parseLlmResponse catch → translator-error
   expect(receipt.matched).toBe(false);
@@ -127,7 +129,7 @@ test('llm-api provider degrades gracefully on unmatched LLM response', async () 
 test('llm-api provider returns no-candidate when LLM says matched:false', async () => {
   const deps = createMockLlmDeps(JSON.stringify({ matched: false, rationale: 'No match found.' }));
   const provider = createLlmApiProvider(DEFAULT_TRANSLATION_CONFIG, deps);
-  const receipt = await Effect.runPromise(provider.translate(createTranslationRequest()));
+  const receipt = await Effect.runPromise(provider.select(createTranslationRequest()));
 
   expect(receipt.matched).toBe(false);
   expect(receipt.failureClass).toBe('no-candidate');
@@ -135,7 +137,7 @@ test('llm-api provider returns no-candidate when LLM says matched:false', async 
 
 test('copilot provider without deps returns runtime-disabled stub', async () => {
   const provider = createCopilotProvider();
-  const receipt = await Effect.runPromise(provider.translate(createTranslationRequest()));
+  const receipt = await Effect.runPromise(provider.select(createTranslationRequest()));
 
   expect(receipt.matched).toBe(false);
   expect(receipt.failureClass).toBe('runtime-disabled');
@@ -144,7 +146,7 @@ test('copilot provider without deps returns runtime-disabled stub', async () => 
 test('hybrid provider tries deterministic first and uses result when matched', async () => {
   const request = createTranslationRequest(); // has matching aliases
   const deterministic = createDeterministicProvider();
-  const deterministicResult = await Effect.runPromise(deterministic.translate(request));
+  const deterministicResult = await Effect.runPromise(deterministic.select(request));
 
   // Only run hybrid test when deterministic actually matches
   if (deterministicResult.matched) {
@@ -152,11 +154,11 @@ test('hybrid provider tries deterministic first and uses result when matched', a
     const llm: TranslationProvider = {
       id: 'test-llm',
       kind: 'llm-api',
-      translate: () => { llmCalled = true; return Effect.succeed(deterministicResult); },
+      select: () => { llmCalled = true; return Effect.succeed(deterministicResult); },
     };
 
     const hybrid = createHybridProvider(deterministic, llm);
-    const result = await Effect.runPromise(hybrid.translate(request));
+    const result = await Effect.runPromise(hybrid.select(request));
 
     expect(result.matched).toBe(true);
     expect(llmCalled).toBe(false);
@@ -193,11 +195,11 @@ test('hybrid provider escalates to LLM when deterministic finds no candidate', a
   const llm: TranslationProvider = {
     id: 'test-llm',
     kind: 'llm-api',
-    translate: () => { llmCalled = true; return Effect.succeed(llmReceipt); },
+    select: () => { llmCalled = true; return Effect.succeed(llmReceipt); },
   };
 
   const hybrid = createHybridProvider(deterministic, llm);
-  const result = await Effect.runPromise(hybrid.translate(request));
+  const result = await Effect.runPromise(hybrid.select(request));
 
   expect(llmCalled).toBe(true);
   expect(result.matched).toBe(true);
@@ -299,7 +301,7 @@ test('all provider kinds produce valid TranslationReceipt schema', async () => {
   ];
 
   for (const provider of providers) {
-    const receipt = await Effect.runPromise(provider.translate(request));
+    const receipt = await Effect.runPromise(provider.select(request));
     expect(receipt.kind).toBe('translation-receipt');
     expect(receipt.version).toBe(1);
     expect(receipt.mode).toBe('structured-translation');

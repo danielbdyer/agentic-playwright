@@ -66,62 +66,135 @@ export class PipelineError extends TesseractError {
   }
 }
 
-export class TranslationProviderError extends TesseractError {
-  override readonly _tag: string = 'TranslationProviderError';
+// ─── ReasoningError (v2 §3.6 + readiness §9) ───
+//
+// Five-family discriminated union. Every adapter in product/reasoning/
+// adapters/ throws one of the ReasoningError subclasses directly;
+// `classifyReasoningError` converts raw causes (HTTP errors, plain
+// Error instances from JSON.parse, etc.) into the unified surface.
+
+export type ReasoningErrorFamily =
+  | 'rate-limited'
+  | 'context-exceeded'
+  | 'malformed-response'
+  | 'unavailable'
+  | 'unclassified';
+
+export class ReasoningError extends TesseractError {
+  override readonly _tag: string = 'ReasoningError';
+  readonly family: ReasoningErrorFamily;
   readonly provider?: string | undefined;
 
-  constructor(code: string, message: string, provider?: string, cause?: unknown) {
-    super(code, message, cause);
-    this.name = 'TranslationProviderError';
+  constructor(family: ReasoningErrorFamily, message: string, provider?: string, cause?: unknown) {
+    super(`reasoning-${family}`, message, cause);
+    this.name = 'ReasoningError';
+    this.family = family;
     this.provider = provider;
   }
 }
 
-export class TranslationProviderTimeoutError extends TranslationProviderError {
-  override readonly _tag = 'TranslationProviderTimeoutError' as const;
-
+export class ReasoningRateLimitedError extends ReasoningError {
+  override readonly _tag = 'ReasoningRateLimitedError' as const;
   constructor(message: string, provider?: string, cause?: unknown) {
-    super('translation-provider-timeout', message, provider, cause);
-    this.name = 'TranslationProviderTimeoutError';
+    super('rate-limited', message, provider, cause);
+    this.name = 'ReasoningRateLimitedError';
   }
 }
 
-export class TranslationProviderParseError extends TranslationProviderError {
-  override readonly _tag = 'TranslationProviderParseError' as const;
-
+export class ReasoningContextExceededError extends ReasoningError {
+  override readonly _tag = 'ReasoningContextExceededError' as const;
   constructor(message: string, provider?: string, cause?: unknown) {
-    super('translation-provider-parse', message, provider, cause);
-    this.name = 'TranslationProviderParseError';
+    super('context-exceeded', message, provider, cause);
+    this.name = 'ReasoningContextExceededError';
   }
 }
 
-export class AgentInterpreterProviderError extends TesseractError {
-  override readonly _tag: string = 'AgentInterpreterProviderError';
-  readonly provider?: string | undefined;
-
-  constructor(code: string, message: string, provider?: string, cause?: unknown) {
-    super(code, message, cause);
-    this.name = 'AgentInterpreterProviderError';
-    this.provider = provider;
+export class ReasoningMalformedResponseError extends ReasoningError {
+  override readonly _tag = 'ReasoningMalformedResponseError' as const;
+  constructor(message: string, provider?: string, cause?: unknown) {
+    super('malformed-response', message, provider, cause);
+    this.name = 'ReasoningMalformedResponseError';
   }
 }
 
-export class AgentInterpreterTimeoutError extends AgentInterpreterProviderError {
-  override readonly _tag = 'AgentInterpreterTimeoutError' as const;
-
+export class ReasoningUnavailableError extends ReasoningError {
+  override readonly _tag = 'ReasoningUnavailableError' as const;
   constructor(message: string, provider?: string, cause?: unknown) {
-    super('agent-interpreter-timeout', message, provider, cause);
-    this.name = 'AgentInterpreterTimeoutError';
+    super('unavailable', message, provider, cause);
+    this.name = 'ReasoningUnavailableError';
   }
 }
 
-export class AgentInterpreterParseError extends AgentInterpreterProviderError {
-  override readonly _tag = 'AgentInterpreterParseError' as const;
-
+export class ReasoningUnclassifiedError extends ReasoningError {
+  override readonly _tag = 'ReasoningUnclassifiedError' as const;
   constructor(message: string, provider?: string, cause?: unknown) {
-    super('agent-interpreter-parse', message, provider, cause);
-    this.name = 'AgentInterpreterParseError';
+    super('unclassified', message, provider, cause);
+    this.name = 'ReasoningUnclassifiedError';
   }
+}
+
+/** Exhaustive fold over the five families. Use for dispatch that must
+ *  handle every case — the switch's return-type proves exhaustiveness
+ *  at compile time. */
+export interface ReasoningErrorCases<R> {
+  readonly rateLimited: (error: ReasoningRateLimitedError) => R;
+  readonly contextExceeded: (error: ReasoningContextExceededError) => R;
+  readonly malformedResponse: (error: ReasoningMalformedResponseError) => R;
+  readonly unavailable: (error: ReasoningUnavailableError) => R;
+  readonly unclassified: (error: ReasoningUnclassifiedError) => R;
+}
+
+export function foldReasoningError<R>(error: ReasoningError, cases: ReasoningErrorCases<R>): R {
+  switch (error.family) {
+    case 'rate-limited':
+      return cases.rateLimited(error as ReasoningRateLimitedError);
+    case 'context-exceeded':
+      return cases.contextExceeded(error as ReasoningContextExceededError);
+    case 'malformed-response':
+      return cases.malformedResponse(error as ReasoningMalformedResponseError);
+    case 'unavailable':
+      return cases.unavailable(error as ReasoningUnavailableError);
+    case 'unclassified':
+      return cases.unclassified(error as ReasoningUnclassifiedError);
+  }
+}
+
+/** Classify a raw cause into the unified ReasoningError surface.
+ *
+ *  Rules:
+ *   - `ReasoningError` (any subclass) — passes through unchanged.
+ *   - Raw `Error` whose message matches /429|rate limit|too many requests/
+ *     → `ReasoningRateLimitedError`.
+ *   - /context length|context window|token.*exceed|maximum.*tokens/
+ *     → `ReasoningContextExceededError`.
+ *   - /unavailable|econnrefused|connection reset|5\d\d/
+ *     → `ReasoningUnavailableError`.
+ *   - Anything else → `ReasoningUnclassifiedError`.
+ *
+ *  Adapters that parse provider-specific error shapes should throw
+ *  the specific subclass directly (e.g. `new ReasoningRateLimitedError(...)`)
+ *  rather than handing an ambiguous cause to this reconciler. This
+ *  function exists for the boundary where the provider surfaces raw
+ *  Error instances (JSON.parse, fetch network errors).
+ */
+export function classifyReasoningError(cause: unknown, provider?: string): ReasoningError {
+  if (cause instanceof ReasoningError) {
+    return cause;
+  }
+  if (cause instanceof Error) {
+    const message = cause.message;
+    if (/429|rate limit|too many requests/i.test(message)) {
+      return new ReasoningRateLimitedError(message, provider, cause);
+    }
+    if (/context length|context window|token.*exceed|maximum.*tokens/i.test(message)) {
+      return new ReasoningContextExceededError(message, provider, cause);
+    }
+    if (/timeout|timed?\s*out|unavailable|service down|econnrefused|connection reset|5\d\d/i.test(message)) {
+      return new ReasoningUnavailableError(message, provider, cause);
+    }
+    return new ReasoningUnclassifiedError(message, provider, cause);
+  }
+  return new ReasoningUnclassifiedError(String(cause), provider, cause);
 }
 
 export class FileSystemTransientIoError extends FileSystemError {
@@ -200,15 +273,6 @@ export function toFileSystemError(
   return new FileSystemError(code, message, filePath, cause);
 }
 
-function isTimeoutLikeError(cause: unknown): boolean {
-  if (!(cause instanceof Error)) {
-    return false;
-  }
-  return cause.name === 'AbortError'
-    || cause.name === 'TimeoutError'
-    || /timed?\s*out/i.test(cause.message);
-}
-
 function isTransientIoError(cause: unknown): boolean {
   if (typeof cause !== 'object' || cause === null) {
     return false;
@@ -217,85 +281,6 @@ function isTransientIoError(cause: unknown): boolean {
   return code === 'EAGAIN' || code === 'EMFILE' || code === 'ENFILE' || code === 'EBUSY';
 }
 
-export function translationProviderTimeoutError(
-  cause: unknown,
-  provider?: string,
-): TranslationProviderTimeoutError {
-  return new TranslationProviderTimeoutError(
-    cause instanceof Error ? cause.message : 'Translation provider call timed out.',
-    provider,
-    cause,
-  );
-}
-
-export function translationProviderParseError(
-  cause: unknown,
-  provider?: string,
-): TranslationProviderParseError {
-  return new TranslationProviderParseError(
-    cause instanceof Error ? cause.message : 'Unable to parse translation provider response.',
-    provider,
-    cause,
-  );
-}
-
-export function translationProviderError(
-  cause: unknown,
-  provider?: string,
-): TranslationProviderError | TranslationProviderTimeoutError | TranslationProviderParseError {
-  if (cause instanceof TranslationProviderError) {
-    return cause;
-  }
-  if (isTimeoutLikeError(cause)) {
-    return translationProviderTimeoutError(cause, provider);
-  }
-  return new TranslationProviderError(
-    'translation-provider-failed',
-    cause instanceof Error ? cause.message : 'Translation provider call failed.',
-    provider,
-    cause,
-  );
-}
-
-export function agentInterpreterTimeoutError(
-  cause: unknown,
-  provider?: string,
-): AgentInterpreterTimeoutError {
-  return new AgentInterpreterTimeoutError(
-    cause instanceof Error ? cause.message : 'Agent interpretation timed out.',
-    provider,
-    cause,
-  );
-}
-
-export function agentInterpreterParseError(
-  cause: unknown,
-  provider?: string,
-): AgentInterpreterParseError {
-  return new AgentInterpreterParseError(
-    cause instanceof Error ? cause.message : 'Unable to parse agent response.',
-    provider,
-    cause,
-  );
-}
-
-export function agentInterpreterProviderError(
-  cause: unknown,
-  provider?: string,
-): AgentInterpreterProviderError | AgentInterpreterTimeoutError | AgentInterpreterParseError {
-  if (cause instanceof AgentInterpreterProviderError) {
-    return cause;
-  }
-  if (isTimeoutLikeError(cause)) {
-    return agentInterpreterTimeoutError(cause, provider);
-  }
-  return new AgentInterpreterProviderError(
-    'agent-interpreter-provider-failed',
-    cause instanceof Error ? cause.message : 'Agent interpretation provider call failed.',
-    provider,
-    cause,
-  );
-}
 
 export function toFileSystemOperationError(
   cause: unknown,

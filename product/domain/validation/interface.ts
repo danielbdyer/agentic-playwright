@@ -42,17 +42,28 @@ import {
 
 function validateLocatorStrategy(value: unknown, path: string) {
   const strategy = expectRecord(value, path);
-  const kind = expectEnum(strategy.kind, `${path}.kind`, ['test-id', 'role-name', 'css'] as const);
-  if (kind === 'test-id' || kind === 'css') {
+  const kind = expectEnum(strategy.kind, `${path}.kind`, ['role', 'label', 'placeholder', 'text', 'test-id', 'css'] as const);
+  if (kind === 'role') {
     return {
       kind,
-      value: expectString(strategy.value, `${path}.value`),
+      role: expectString(strategy.role, `${path}.role`),
+      name: expectOptionalString(strategy.name, `${path}.name`) ?? null,
     } as const;
+  }
+  if (kind === 'label' || kind === 'placeholder' || kind === 'text') {
+    const exactRaw = strategy.exact;
+    const result: { kind: typeof kind; value: string; exact?: boolean } = {
+      kind,
+      value: expectString(strategy.value, `${path}.value`),
+    };
+    if (typeof exactRaw === 'boolean') {
+      result.exact = exactRaw;
+    }
+    return result;
   }
   return {
     kind,
-    role: expectString(strategy.role, `${path}.role`),
-    name: expectOptionalString(strategy.name, `${path}.name`) ?? null,
+    value: expectString(strategy.value, `${path}.value`),
   } as const;
 }
 
@@ -275,7 +286,7 @@ export function validateDiscoveryRun(value: unknown): DiscoveryRun {
         testId: expectOptionalString(element.testId, `discoveryRun.elements[${index}].testId`) ?? null,
         widget: expectString(element.widget, `discoveryRun.elements[${index}].widget`),
         required: expectBoolean(element.required, `discoveryRun.elements[${index}].required`),
-        locatorHint: expectEnum(element.locatorHint, `discoveryRun.elements[${index}].locatorHint`, ['test-id', 'role-name', 'css'] as const),
+        locatorHint: expectEnum(element.locatorHint, `discoveryRun.elements[${index}].locatorHint`, ['role', 'label', 'placeholder', 'text', 'test-id', 'css'] as const),
         locatorCandidates: expectArray(element.locatorCandidates ?? [], `discoveryRun.elements[${index}].locatorCandidates`).map((value, valueIndex) =>
           validateLocatorStrategy(value, `discoveryRun.elements[${index}].locatorCandidates[${valueIndex}]`),
         ),

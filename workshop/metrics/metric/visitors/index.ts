@@ -11,7 +11,7 @@
  * to baseline capture, delta diffing, and rendering.
  */
 
-import type { PipelineFitnessMetrics } from '../../types';
+import type { PipelineFitnessMetrics } from '../../../../product/domain/fitness/types';
 import type { MemoryMaturityTrajectory } from '../../memory-maturity-trajectory';
 import { EMPTY_TRAJECTORY } from '../../memory-maturity-trajectory';
 import { metric, type MetricProvenance } from '../value';

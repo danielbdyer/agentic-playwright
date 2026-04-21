@@ -12,8 +12,8 @@ import {
   writeSemanticDictionary,
 } from '../reasoning/semantic-translation-dictionary';
 import { translateIntentToOntology } from '../reasoning/translate';
-import type { TranslationProvider } from '../reasoning/translation-provider';
-import { resolveAgentInterpreterPort } from '../reasoning/agent-interpreter-provider';
+import type { TranslationProvider } from '../reasoning/adapters/translation-backends';
+import { resolveAgentInterpreterPort } from '../reasoning/adapters/agent-backends';
 import type { AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
 import type { AgentInterpreterPort } from '../domain/resolution/model';
 import type { SemanticDictionaryCatalog } from '../domain/knowledge/semantic-dictionary-types';
@@ -43,7 +43,7 @@ export function buildCachedTranslator(
       }
     }
 
-    const translated = yield* provider.translate(request);
+    const translated = yield* provider.select(request);
     const computed = {
       ...translated,
       translationProvider: provider.id,

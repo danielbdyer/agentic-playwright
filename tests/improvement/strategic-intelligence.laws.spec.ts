@@ -5,7 +5,7 @@ import {
   computeStrategicEfficiency,
 } from '../../workshop/orchestration/strategic-intelligence';
 import type { ProposalBundle } from '../../product/domain/execution/types';
-import type { PipelineFitnessReport } from '../../workshop/metrics/types';
+import type { PipelineFitnessReport } from '../../product/domain/fitness/types';
 import type { GroundedSpecFragment, TrainingCorpusManifest } from '../../product/domain/learning/types';
 
 function makeManifest(): TrainingCorpusManifest {

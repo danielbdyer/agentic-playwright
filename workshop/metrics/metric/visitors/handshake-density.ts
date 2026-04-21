@@ -9,7 +9,7 @@
  * Polarity: lower is better.
  */
 
-import type { PipelineFitnessMetrics } from '../../types';
+import type { PipelineFitnessMetrics } from '../../../../product/domain/fitness/types';
 import { metric, type MetricProvenance } from '../value';
 import { metricNode } from '../tree';
 import type { MetricVisitor } from '../visitor';

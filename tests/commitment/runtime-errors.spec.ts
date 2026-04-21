@@ -218,7 +218,7 @@ test('enter prefers fill over clear when an input widget supports both actions',
             testId: 'policy-number-input',
             locator: [
               { kind: 'test-id', value: 'policy-number-input' },
-              { kind: 'role-name', role: 'textbox', name: 'Policy Number' },
+              { kind: 'role', role: 'textbox', name: 'Policy Number' },
             ],
             surface: searchFormId,
             widget: osInputWidgetId,
@@ -292,7 +292,7 @@ test('playwright interpreter records degraded locator use when a fallback rung s
             testId: 'search-button',
             locator: [
               { kind: 'test-id', value: 'search-button' },
-              { kind: 'role-name', role: 'button', name: 'Search' },
+              { kind: 'role', role: 'button', name: 'Search' },
             ],
             surface: searchFormId,
             widget: osButtonWidgetId,

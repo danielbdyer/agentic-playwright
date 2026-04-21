@@ -4,7 +4,7 @@ import {
   theoremBaselineCoverageForObligations,
   theoremBaselineCoverageForObligationsWithProxies,
   type LogicalProofObligation,
-} from '../../workshop/metrics/types';
+} from '../../product/domain/fitness/types';
 
 function obligation(
   name: LogicalProofObligation['obligation'],

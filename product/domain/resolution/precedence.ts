@@ -1,4 +1,3 @@
-import type { OrderedPrecedencePolicy } from './precedence-policy';
 import {
   dataResolutionPrecedencePolicy,
   precedencePolicies,
@@ -27,7 +26,7 @@ export const routeSelectionPrecedencePolicy = {
     'route-knowledge',
     'screen-default',
   ],
-} as const satisfies OrderedPrecedencePolicy<
+} as const satisfies PrecedenceLadder<
   'explicit-url' | 'runbook-binding' | 'route-knowledge' | 'screen-default'
 >;
 

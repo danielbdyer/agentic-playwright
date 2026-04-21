@@ -37,7 +37,7 @@ import {
   fingerprintStabilityObligation,
   type ArtifactFingerprintMap,
 } from '../metrics/fingerprint-stability';
-import type { LogicalProofObligation } from '../metrics/types';
+import type { LogicalProofObligation } from '../../product/domain/fitness/types';
 import { walkFiles } from '../../product/application/catalog/artifacts';
 import type { ProjectPaths } from '../../product/application/paths';
 

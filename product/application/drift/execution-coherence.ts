@@ -18,7 +18,7 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type { LearningState } from '../../../workshop/learning/learning-state';
+import type { LearningState } from '../learning/learning-state';
 
 // ─── Types ───
 

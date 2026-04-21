@@ -22,7 +22,7 @@ import { scorecardPath } from './improvement';
 import { cleanSlateProgram } from './clean-slate';
 import { FileSystem } from '../../product/application/ports';
 import type { PipelineConfig } from '../../product/domain/attention/pipeline-config';
-import type { PipelineScorecard } from '../metrics/types';
+import type { PipelineScorecard } from '../../product/domain/fitness/types';
 import type { ExperimentRecord } from '../../product/domain/improvement/experiment';
 import type { ExperimentSubstrate, SpeedrunProgressEvent, SubstrateContext } from '../../product/domain/improvement/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';

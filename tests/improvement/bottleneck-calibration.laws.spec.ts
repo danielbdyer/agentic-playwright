@@ -13,11 +13,11 @@
  */
 
 import { expect, test } from '@playwright/test';
-import { calibrateWeightsFromCorrelations } from '../../workshop/learning/learning-bottlenecks';
+import { calibrateWeightsFromCorrelations } from '../../product/application/learning/learning-bottlenecks';
 import { deriveIterationCorrelations, iterationSignalStrengths, consecutivePairs } from '../../workshop/orchestration/dogfood';
 import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
 import type { BottleneckWeights } from '../../product/domain/attention/pipeline-config';
-import type { BottleneckWeightCorrelation } from '../../workshop/metrics/types';
+import type { BottleneckWeightCorrelation } from '../../product/domain/fitness/types';
 import type { ImprovementLoopIteration } from '../../product/domain/improvement/types';
 
 // ─── Helpers ───

@@ -205,7 +205,7 @@ test('key domain interfaces use readonly fields', () => {
   ];
 
   for (const file of criticalFiles) {
-    const content = fs.readFileSync(file.startsWith('fitness/') ? path.join(LIB_ROOT, '..', 'workshop', 'metrics', file.slice('fitness/'.length)) : path.join(LIB_ROOT, 'domain', file), 'utf-8');
+    const content = fs.readFileSync(path.join(LIB_ROOT, 'domain', file), 'utf-8');
     // Find exported interfaces with non-readonly fields
     const interfaceBlocks = content.match(/export\s+interface\s+\w+[^{]*\{[^}]+\}/g) ?? [];
 
@@ -511,8 +511,11 @@ test('all discriminated unions with kind fields have corresponding fold function
     'StepInstructionObserveStructure',
     'StepInstructionCustomEscapeHatch',
     // Locator strategy variants — used as discriminated data, not fold-dispatched
+    'LocatorStrategyRole',
+    'LocatorStrategyLabel',
+    'LocatorStrategyPlaceholder',
+    'LocatorStrategyText',
     'LocatorStrategyTestId',
-    'LocatorStrategyRoleName',
     'LocatorStrategyCss',
   ]);
 

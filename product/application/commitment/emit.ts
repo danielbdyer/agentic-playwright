@@ -32,7 +32,7 @@ import {
   fingerprintProjectionOutput,
   type ProjectionInputFingerprint,
 } from '../projections/cache';
-import { renderReview } from '../projections/review';
+import { buildReviewDocument, renderReviewMarkdown } from '../projections/review';
 import { type ProjectionIncremental } from '../projections/runner';
 import { runIncrementalStage } from '../pipeline';
 
@@ -141,7 +141,7 @@ function renderExecutableEmitArtifacts(
   const rendered = renderReadableSpecModule(flow, {
     imports: {
       fixtures: relativeModule(outputPath, path.join(paths.rootDir, 'fixtures', 'index.ts')).replace(/\.ts$/, ''),
-      scenarioContext: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'composition', 'scenario-context.ts')).replace(/\.ts$/, ''),
+      scenarioContext: relativeModule(outputPath, path.join(paths.rootDir, 'product', 'composition', 'scenario-context.ts')).replace(/\.ts$/, ''),
     },
   });
   const improvementSummary = projectionInput.improvementRuns.length === 0
@@ -164,7 +164,7 @@ function renderExecutableEmitArtifacts(
     ...explainBoundScenario(boundScenario, rendered.lifecycle, latestRun),
     improvement: improvementSummary,
   };
-  const reviewText = renderReview(traceArtifact, proposalBundle, inboxItems, latestRun, projectionInput);
+  const reviewText = renderReviewMarkdown(buildReviewDocument(traceArtifact, proposalBundle, inboxItems, latestRun, projectionInput));
 
   return {
     outputPath,
@@ -269,14 +269,14 @@ function renderBlockedEmitArtifacts(
   const rendered = renderReadableSpecModule(blockedFlow, {
     imports: {
       fixtures: relativeModule(outputPath, path.join(paths.rootDir, 'fixtures', 'index.ts')).replace(/\.ts$/, ''),
-      scenarioContext: relativeModule(outputPath, path.join(paths.rootDir, 'lib', 'composition', 'scenario-context.ts')).replace(/\.ts$/, ''),
+      scenarioContext: relativeModule(outputPath, path.join(paths.rootDir, 'product', 'composition', 'scenario-context.ts')).replace(/\.ts$/, ''),
     },
   });
   const traceArtifact = {
     ...explainBoundScenario(boundScenario, 'skip', latestRun),
     improvement: null,
   };
-  const reviewText = renderReview(traceArtifact, proposalBundle, inboxItems, latestRun, projectionInput);
+  const reviewText = renderReviewMarkdown(buildReviewDocument(traceArtifact, proposalBundle, inboxItems, latestRun, projectionInput));
 
   return {
     outputPath,

@@ -419,14 +419,3 @@ export function renderReviewMarkdown(doc: ReviewDocument): string {
   const stepSections = doc.steps.map(renderStepMarkdown).join('');
   return `${header}${handoffSection}${stepSections}`.trim() + '\n';
 }
-
-/** @deprecated Use buildReviewDocument + renderReviewMarkdown */
-export function renderReview(
-  trace: ScenarioExplanation,
-  proposalBundle: ProposalBundle | null,
-  inboxItems: ReturnType<typeof operatorInboxItemsForScenario>,
-  latestRun: RunRecord | null,
-  projectionInput: ScenarioProjectionInput,
-): string {
-  return renderReviewMarkdown(buildReviewDocument(trace, proposalBundle, inboxItems, latestRun, projectionInput));
-}
