@@ -22,6 +22,8 @@
 import type { ProbeAdapter } from '../../product/cli/shared';
 import type { ProbeHarnessService } from './probe-harness';
 import { createDryProbeHarness } from './probe-harness';
+import { createFixtureReplayProbeHarness } from './fixture-replay-harness';
+import { createDefaultVerbClassifierRegistry } from './classifiers/default-registry';
 
 /** Pick the harness implementation for a given adapter tag. Pure —
  *  adapter-specific IO happens inside each harness's `execute`. */
@@ -32,11 +34,9 @@ export function createProbeHarnessForAdapter(
     case 'dry-harness':
       return createDryProbeHarness();
     case 'fixture-replay':
-      throw new Error(
-        'probe-spike --adapter fixture-replay: pending Step 5.5 scope 3c. ' +
-          'The fixture-replay harness lands in a follow-up commit on ' +
-          'this branch (workshop/probe-derivation/fixture-replay-harness.ts).',
-      );
+      return createFixtureReplayProbeHarness({
+        registry: createDefaultVerbClassifierRegistry(),
+      });
     case 'playwright-live':
       throw new Error(
         'probe-spike --adapter playwright-live: pending Step 6. ' +
