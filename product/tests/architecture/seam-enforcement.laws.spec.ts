@@ -98,7 +98,10 @@ function readManifestAllowlist(): readonly string[] {
 }
 
 const ALWAYS_ALLOWED_PRODUCT_PATHS: readonly string[] = [
+  // The shared append-only log set (v2 §2: "manifest-declared verbs
+  // and the shared log set").
   'product/logs',
+  // The manifest JSON + declaration runtime.
   'product/manifest',
   // The manifest SHAPE type itself — workshop/dashboard need to
   // type-check against the manifest envelope and verb entries.
@@ -106,6 +109,19 @@ const ALWAYS_ALLOWED_PRODUCT_PATHS: readonly string[] = [
   // the type definitions at product/domain/manifest/ are the
   // compile-time half of that contract.
   'product/domain/manifest',
+  // Dashboard projection types + MCP tool contract. product/ emits
+  // DashboardEvent, WorkItemDecision, McpToolDefinition, etc.;
+  // dashboard/ hosts the view layer + MCP server that consumes them.
+  // This is a seam contract in the same sense as the manifest —
+  // both sides must type-check against it.
+  'product/domain/observation/dashboard',
+  // Effect Context Tag definitions. The runtime DI seam:
+  // workshop/orchestration and dashboard/server consume these Tags
+  // to access product services (FileSystem, Dashboard, McpServer,
+  // RuntimeScenarioRunner, etc.). Without this allowance, every
+  // dashboard/workshop file that does `yield* FileSystem` would
+  // need to be grandfathered.
+  'product/application/ports',
 ];
 
 function isManifestDeclaredOrLogPath(
@@ -190,34 +206,31 @@ const RULE_1_GRANDFATHERED: ReadonlySet<string> = new Set([
 const RULE_2_GRANDFATHERED: ReadonlySet<string> = new Set([
   // dashboard/ files that reach into product/ at the Step 0 baseline.
   //
-  // Graduations removed at step-4b.cleanup.5: 7 dashboard server /
-  // bridge files that no longer import from product/.
-  'dashboard/bridges/cdp-screencast.ts',
-  'dashboard/bridges/file-dashboard-port.ts',
-  'dashboard/bridges/file-decision-bridge.ts',
-  'dashboard/bridges/journal-writer.ts',
+  // Graduation history:
+  //  - step-4b.cleanup.5: removed 7 dashboard server / bridge files
+  //    that no longer import from product/.
+  //  - step-4b.step-4c-slice: removed 11 more after expanding
+  //    ALWAYS_ALLOWED_PRODUCT_PATHS with the shared-contract modules
+  //    (product/domain/observation/dashboard + product/application/ports).
+
+  // dashboard/ files still reaching into product/ paths outside the
+  // shared-contract allowlist. Each retires when its specific
+  // dependency either moves to a contract path or retires.
   'dashboard/bridges/pipeline-event-bus.ts',
   'dashboard/bridges/ws-dashboard-adapter.ts',
   'dashboard/mcp/dashboard-mcp-server.ts',
-  'dashboard/mcp/server-config.ts',
   'dashboard/mcp/playwright-mcp-bridge.ts',
-  'dashboard/mcp/resource-provider.ts',
   'dashboard/server.ts',
   // dashboard/src/ is the web UI; it reaches into product/domain/ widely.
-  // These are all grandfathered at Step 0 pending the full dashboard/src/
-  // projection rewrite at Step 4c+.
+  // These are grandfathered at Step 0 pending the full dashboard/src/
+  // projection rewrite (beyond the Step 4c slice).
   'dashboard/src/bookmark-system.ts',
   'dashboard/src/hooks/dashboard-event-observer.ts',
-  'dashboard/src/hooks/flywheel-dispatch-handlers.ts',
   'dashboard/src/hooks/use-dashboard-observations.ts',
   'dashboard/src/hooks/use-event-journal.ts',
-  'dashboard/src/narration-catalog.ts',
   'dashboard/src/organisms/before-after-comparison.ts',
-  'dashboard/src/projections/events/dashboard-event-metadata.ts',
-  'dashboard/src/projections/overlays/overlay-geometry.ts',
   'dashboard/src/spatial/scenario-cloud.ts',
   'dashboard/src/spatial/types.ts',
-  'dashboard/src/types/events.ts',
 ]);
 
 const RULE_3_GRANDFATHERED: ReadonlySet<string> = new Set([
