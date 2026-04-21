@@ -143,6 +143,13 @@ const ALWAYS_ALLOWED_PRODUCT_PATHS: readonly string[] = [
   // without this allowance every file that says
   // `error instanceof TesseractError` would need grandfathering.
   'product/domain/kernel/errors',
+  // Fingerprint<Tag> phantom registry + stableStringify. Every
+  // cross-seam artifact carries a Fingerprint tagged against the
+  // closed 30+ tag registry; workshop receipts + dashboard renders
+  // alike need `fingerprintFor` + `taggedFingerprintFor` to mint
+  // envelope identities. Infrastructure utility, not domain logic
+  // — same justification as the error hierarchy.
+  'product/domain/kernel/hash',
   // Retry schedule + resilience utilities. Every MCP server and
   // workshop probe that runs against flaky upstream services
   // reuses the named RETRY_POLICIES. Infrastructure utility, not

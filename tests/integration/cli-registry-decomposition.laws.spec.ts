@@ -5,7 +5,7 @@ import { commandNames, type CommandName } from '../../product/cli/shared';
 import { parseCliInvocation } from '../../product/cli/registry';
 import { composedCliCommandRegistry } from '../../bin/cli-registry';
 
-const EXPECTED_COMMAND_COUNT = 30;
+const EXPECTED_COMMAND_COUNT = 31;
 
 test('all original commands are still registered (composed)', () => {
   const registeredNames = Object.keys(composedCliCommandRegistry) as readonly string[];

@@ -20,6 +20,7 @@ import { dogfoodCommand } from './dogfood';
 import { evolveCommand } from './evolve';
 import { experimentsCommand } from './experiments';
 import { generateCommand } from './generate';
+import { probeSpikeCommand } from './probe-spike';
 
 export const workshopCommandRegistry: Partial<Record<CommandName, CommandSpec>> = {
   benchmark: benchmarkCommand,
@@ -28,4 +29,5 @@ export const workshopCommandRegistry: Partial<Record<CommandName, CommandSpec>> 
   evolve: evolveCommand,
   experiments: experimentsCommand,
   generate: generateCommand,
+  'probe-spike': probeSpikeCommand,
 };
