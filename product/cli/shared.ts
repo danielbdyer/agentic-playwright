@@ -5,9 +5,16 @@ import { TesseractError } from '../domain/kernel/errors';
 
 export const interpreterModes = ['playwright', 'dry-run', 'diagnostic'] as const;
 export const executionProfiles = ['interactive', 'ci-batch'] as const;
+export const probeAdapters = [
+  'dry-harness',
+  'fixture-replay',
+  'playwright-live',
+  'production',
+] as const;
 
 export type InterpreterMode = (typeof interpreterModes)[number];
 export type ExecutionProfile = (typeof executionProfiles)[number];
+export type ProbeAdapter = (typeof probeAdapters)[number];
 
 export interface ParsedFlags {
   adoAreaPath?: string;
@@ -60,6 +67,7 @@ export interface ParsedFlags {
   perturb?: number;
   autoEvolve?: boolean;
   posture?: string;
+  adapter?: ProbeAdapter;
 }
 
 export type FlagName = keyof typeof flagDescriptorTable;
@@ -115,6 +123,7 @@ type FlagToParsedKey = {
   '--disable-translation': 'disableTranslation';
   '--disable-translation-cache': 'disableTranslationCache';
   '--posture': 'posture';
+  '--adapter': 'adapter';
 };
 type ParsedFlagKeys<TFlags extends readonly FlagName[]> = FlagToParsedKey[TFlags[number]];
 export type ParsedFlagsFor<TFlags extends readonly FlagName[]> = Partial<Pick<ParsedFlags, ParsedFlagKeys<TFlags>>>;
@@ -378,6 +387,7 @@ export const flagDescriptorTable = {
   '--disable-translation': booleanDescriptor('--disable-translation', 'disableTranslation'),
   '--disable-translation-cache': booleanDescriptor('--disable-translation-cache', 'disableTranslationCache'),
   '--posture': valueDescriptor('--posture', 'posture', (value) => readFlagValue('--posture', value)),
+  '--adapter': valueDescriptor('--adapter', 'adapter', (value) => parseEnum('--adapter', value, probeAdapters)),
 } as const;
 
 export type FlagDecodeResult = {
