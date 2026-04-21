@@ -250,15 +250,16 @@ describe('spike coverage verdict', () => {
       totalDeclaredVerbs: manifest.verbs.length,
       probesCompletingAsExpected: derivation.probes.length, // Step 5 stub: assume all complete
     });
-    // The current manifest has 8 verbs; Step 5 covers 7 of them.
-    // Coverage = 7/8 = 87.5% ≥ 80% — gate PASSES. The remaining
-    // uncovered verb (`interact`) lands in the final fixture
-    // commit to reach 8/8.
+    // The current manifest has 8 verbs; Step 5 now covers all 8.
+    // Coverage = 8/8 = 100% ≥ 80% — gate PASSES. Every declared
+    // verb has a fixture YAML; the probe-IR surface is complete
+    // for the manifest v1 seed set.
     expect(report.totalDeclaredVerbs).toBe(manifest.verbs.length);
-    expect(report.coveredVerbs).toBe(7);
-    expect(report.uncoveredVerbs).toEqual(['interact']);
-    // The coverage gate is now passing — the probe IR's structural
-    // floor is live. Per docs/v2-probe-ir-spike.md §7, this is one
+    expect(report.coveredVerbs).toBe(8);
+    expect(report.uncoveredVerbs).toEqual([]);
+    // The coverage gate is passing at the maximum — the probe IR's
+    // structural floor is live and its ceiling for the seed manifest
+    // is reached. Per docs/v2-probe-ir-spike.md §7, this is one
     // of three graduation verdicts the spike must produce.
     expect(report.passesGate).toBe(true);
     // Every synthesized probe carries its fixture's expected

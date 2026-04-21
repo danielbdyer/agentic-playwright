@@ -140,9 +140,9 @@ describe('Probe IR Spike — end-to-end laws', () => {
   test('S8: each fixtured verb synthesizes its declared fixture count', async () => {
     const { derivation } = await runSpikeUnderDryHarness();
     // observe: 2, test-compose: 2, facet-query: 3, facet-mint: 2,
-    // facet-enrich: 2, locator-health-track: 2, intent-fetch: 3.
-    // Total = 16.
-    expect(derivation.probes).toHaveLength(16);
+    // facet-enrich: 2, locator-health-track: 2, intent-fetch: 3,
+    // interact: 5. Total = 21 across all 8 declared verbs.
+    expect(derivation.probes).toHaveLength(21);
     const byVerb = new Map<string, number>();
     for (const probe of derivation.probes) {
       byVerb.set(probe.verb, (byVerb.get(probe.verb) ?? 0) + 1);
@@ -154,18 +154,20 @@ describe('Probe IR Spike — end-to-end laws', () => {
     expect(byVerb.get('facet-enrich')).toBe(2);
     expect(byVerb.get('locator-health-track')).toBe(2);
     expect(byVerb.get('intent-fetch')).toBe(3);
+    expect(byVerb.get('interact')).toBe(5);
   });
 
-  test('S9: the spike at 7/8 coverage passes the 80% gate', async () => {
-    // Step 5 graduation threshold crossed: 8 verbs, 7 fixtured.
-    // Covered = 7/8 = 87.5% ≥ 80%. Gate PASSES. This is the
-    // structural gate-flip — the probe IR's coverage floor is
-    // live. The remaining uncovered verb (`interact`) lands in
-    // the final fixture commit; after that the spike reaches
-    // 8/8 = 100% coverage.
+  test('S9: the spike at full 8/8 coverage passes the 80% gate', async () => {
+    // Step 5 coverage gate at 100%: every declared verb has a
+    // fixture YAML. This is the structural floor for Step 5
+    // graduation per docs/v2-probe-ir-spike.md §7.1 — fixture
+    // economy and reproducibility are the two remaining
+    // verdicts (Step 5.5 reproducibility lands with the
+    // fixture-replay harness).
     const { verdict } = await runSpikeUnderDryHarness();
-    expect(verdict.coverage.coveragePercentage).toBeCloseTo(7 / 8, 6);
+    expect(verdict.coverage.coveragePercentage).toBeCloseTo(1.0, 6);
     expect(verdict.passesGate).toBe(true);
     expect(verdict.summary).toMatch(/PASS/);
+    expect(verdict.coverage.uncoveredVerbs).toEqual([]);
   });
 });
