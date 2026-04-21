@@ -333,3 +333,82 @@ The first two are static properties of the codebase. The third is a runtime prop
 - **Graduating to fixture-replay doesn't require reshaping any of the above.** (Proven by the Layer-swap discipline — same program, different adapter.)
 
 The spike's pass condition is these five provable claims, not "full coverage." The 80% gate is a coverage floor; the five claims are the structural floor.
+
+## 8. For the next agent — reading order + first-hour tasks
+
+You are picking up the Probe IR spike on top of commit `step-5.scaffold-2` (SHA visible in `git log --oneline`). The scaffolding exists; the spike runs; the gate fails at 37.5%; the fix is authoring 5 fixtures. Here's how to orient and land your first contribution in under two hours.
+
+### 8.1 Read in this order (~40 minutes total)
+
+1. **This memo §§0–4** (~10 minutes). You're reading it now.
+2. **The substrate-in-code** (~20 minutes):
+   - `product/domain/manifest/testable-surface.ts` — understand `TestableSurface` + `CompositionPath`.
+   - `workshop/probe-derivation/probe-ir.ts` — understand `Probe`, `ProbeFixtureDocument`, `SpikeCoverageReport`.
+   - `workshop/probe-derivation/probe-harness.ts` — understand the `ProbeHarness` tag and the dry adapter.
+   - `workshop/probe-derivation/spike-harness.ts` — understand `runSpike` and `summarizeSpike`.
+3. **One existing fixture** (~5 minutes):
+   - `product/instruments/observation/observe.probe.yaml` — the simplest of the three; two fixtures, one happy-path one failure-path.
+4. **The laws** (~5 minutes):
+   - `tests/probe-derivation/spike-harness.laws.spec.ts` — pattern-match your next fixture's expectations here.
+
+### 8.2 Run the spike yourself (~2 minutes)
+
+```bash
+npm run build
+node dist/bin/tesseract.js probe-spike | tail -40
+```
+
+You should see `Coverage: 3/8 verbs (37.5%) — gate FAIL @ 80%`. If you don't, something upstream has changed; re-read this memo's §5.1.
+
+### 8.3 Pick your first fixture and author it (~40 minutes)
+
+The easiest first fixture is `facet-mint` — it's a pure in-memory operation (no live DOM, no external source). Fixture lives at `product/domain/memory/facet-mint.probe.yaml`. Two fixtures to seed:
+
+1. `mint-new-facet-succeeds` — input carries a new facet shape, expected classification is `matched`.
+2. `mint-duplicate-id-fails-assertion` — input reuses an existing facet ID, expected classification is `failed` with error-family `assertion-like` (per the manifest entry's declared families).
+
+**Test-pass condition**: `npx vitest run tests/probe-derivation/spike-harness.laws.spec.ts` — the S8 law (`7 probes → 9 probes`) needs updating to `(2+2+3+2)=9`. Update the law to match, re-run, watch it pass.
+
+**Commit message pattern**: `step-5.fixture-facet-mint: 2 probes for facet-mint verb; coverage 3/8 → 4/8`.
+
+### 8.4 Iterate until the gate flips
+
+Land the remaining four fixtures (`facet-enrich`, `intent-fetch`, `interact`, `locator-health-track`) one commit at a time. Each commit:
+
+1. Authors one `<verb>.probe.yaml` under 30 lines.
+2. Updates the S8 law's assertion to the new probe count.
+3. Updates the S9 law's coverage-percentage expectation (the ratio is `fixtured-verbs / 8`).
+4. Commits with `step-5.fixture-<verb>: N probes for <verb> verb; coverage X/8 → Y/8`.
+
+When coverage reaches 7/8 or 8/8 (87.5% or 100%), the S9 law flips from `expect(passesGate).toBe(false)` to `expect(passesGate).toBe(true)`. That's the gate-flip moment — record it as the spike's verdict in a new file `workshop/observations/probe-spike-verdict-01.md` per §5.4.
+
+### 8.5 If a fixture is fighting you
+
+If a verb resists fixture authoring under 30 lines, **do not force it**. The spike protocol treats bloated fixtures as a signal, not a failure. Document the resistance in your fixture's header comment:
+
+```yaml
+# Fixture specification for the `<verb>` verb.
+# Grammar: docs/v2-readiness.md §4.
+# SPIKE NOTE: this fixture exceeds 30 lines because <specific reason>.
+# A hand-lifted schema under <path> may be required; see
+# docs/v2-probe-ir-spike.md §5.3.
+```
+
+Then proceed with a truncated fixture (1–2 entries instead of 3–4) and flag it in the spike verdict. The spike's job is to name these constraints, not hide them.
+
+### 8.6 After the gate flips — Step 5.5 hand-off
+
+Once the coverage gate passes, you have one more substantive deliverable: `createFixtureReplayProbeHarness` per §6.1. At that point the spike graduates from "seam-proof" to "substrate-proof" and the workshop can start reading real product signal.
+
+If at that point you want to hand off again, the next agent's first task is `createPlaywrightLiveProbeHarness` per §6.2. The substrate plurality — fixture-replay / playwright-live / production — is designed to let those deliverables land in parallel because they share the harness port and differ only in Layer composition.
+
+## 9. Coda — why this matters beyond Step 5
+
+The Probe IR is not just Step 5's work; it is the seam that makes every future step cheaper. Step 7 (L1 memory) lands with probes that exercise repeat-authoring; no new measurement apparatus needed, just new fixtures. Step 8 (L2 operator semantics) lands with probes that exercise vocabulary-alignment; no new apparatus, just new fixtures. Step 9 (L3 drift) lands with perturbation probes; the convergence-proof harness — already a hylomorphism — consumes them. Step 10 (L4 self-refinement) closes the hypothesis loop; the probe's `hypothesisId` field is where it closes.
+
+Every one of those steps is a fixture-authoring commit plus a metric declaration. None of them requires standing up new infrastructure. That is what it means to say the workshop doesn't grow — it measures more, but its measurement substrate is stable. This is v2's aesthetic win made structural: the seam between `product/` and `workshop/` is the manifest plus the log set, and the probe IR is the mechanical projection that makes the seam measurable.
+
+When the spike passes, the workshop's future is twenty commits of YAML authorship and three adapter implementations. When the workshop's graduation condition holds (100% coverage + sustained hypothesis-confirmation floor), those commits stop landing because there is nothing left to measure. The workshop goes quiet. The product ships.
+
+That is the plan. Get the spike right and everything after rides on the substrate.
+
