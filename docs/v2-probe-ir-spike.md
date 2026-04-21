@@ -85,3 +85,72 @@ Composition-wise this is a **free monoid over (hypothesis, verification) pairs**
 The coverage matrix, the metric tree, and the hypothesis loop operate at **three different time scales**: one-shot (coverage is a snapshot), per-run (metrics update per execution), per-epoch (batting average updates across a rolling window of runs). Collapsing them into one mechanism would entangle time scales the same way v1's scoreboard entangled measurement and authorship. Keeping them separate means each composition can specialize its algebra — union for coverage, visitor-fold for metrics, rolling window for hypothesis — without compromise.
 
 The integration claim is that all three compositions **share one substrate**: the ProbeReceipt. No separate log, no duplicated identity, no reconstruction. Coverage reads probe identity + cohort. Metric tree reads classification + latency + rung tags. Hypothesis loop reads hypothesisId + observed outcome. One receipt feeds all three reductions, and that's what makes the whole apparatus cheap.
+
+## 4. The praxis — FP, Effect, and DDD shape of the probe
+
+This section names how the probe lives idiomatically in the codebase. The scaffolding that landed at Step 5 entry (commits `step-5.scaffold-1` and `step-5.scaffold-2`) instantiates each of the patterns below; the technical references point at the exact file and function so a reader can verify the claim.
+
+### 4.1 TestableSurface as a pure projection (DDD)
+
+`product/domain/manifest/testable-surface.ts` projects one `VerbEntry` into one `TestableSurface` via `projectVerbToTestableSurface`. The projection is a pure function: no Effect, no IO, no mutation. This respects the domain/application/runtime layering `CLAUDE.md` prescribes — manifests are domain-level declarations, so the tuple that probes pattern-match against is also domain.
+
+The `CompositionPath` ADT is the piece of this projection worth dwelling on. It is a seven-variant discriminated union naming *how the probe's fixture world has to be prepared*. It is not the verb's intrinsic property; it is the workshop's classifier over verbs. `atomic | memory-read | memory-write | world-observation | external-source | ledger-append | unfixturable` — each kind carries adjunct fields relevant to harness wiring. The default classifier (`defaultCompositionPathForCategory`) is total over `VerbCategory` (9 → 1 mapping); fixture specifications override per-verb.
+
+`foldCompositionPath` is the exhaustive fold over the seven kinds, shaped identically to `foldGovernance`, `foldReasoningError`, and `foldProposalKind`. The exhaustive-fold pattern is v2's main discipline for discriminated unions: adding a new path kind is a typecheck error in every fold until the case lands. This is the compile-time enforcement that makes the ADT's closed-union claim honest.
+
+### 4.2 ProbeHarness as an Effect Service Tag (Effect)
+
+`workshop/probe-derivation/probe-harness.ts` declares the `ProbeHarness` port as a `Context.Tag` subclass, following the shape every other service in the codebase uses (`FileSystem`, `RuntimeScenarioRunner`, `Reasoning`, `Dashboard`, etc.):
+
+```ts
+export class ProbeHarness extends Context.Tag('workshop/probe-derivation/ProbeHarness')<
+  ProbeHarness,
+  ProbeHarnessService
+>() {}
+
+export interface ProbeHarnessService {
+  readonly execute: (probe: Probe) => Effect.Effect<ProbeReceipt, Error, never>;
+}
+```
+
+The Tag decouples *what the harness does* from *which adapter is providing it*. Four adapters are named; one (`dry-harness`) ships at Step 5 entry. The substrate-backed adapters come online as each substrate earns its way in through the same proposal-gated discipline every other v2 change goes through. At any given moment the CLI entry point composes `Layer.succeed(ProbeHarness, chosenAdapter)` and hands the resulting layer to the spike program.
+
+This is the Strategy pattern in Effect's idiom: the caller doesn't care which harness is active, only that *some* harness is active. Test suites pick `createDryProbeHarness({ now: () => fixedDate })` with deterministic time; CI-batch runs pick `fixture-replay` for repeatability; dogfood runs pick `playwright-live` for realism; production supervision picks `production`. One program, four substrates.
+
+### 4.3 ProbeReceipt as a phantom-staged envelope (Envelope discipline)
+
+`workshop/probe-derivation/probe-receipt.ts` defines `ProbeReceipt extends WorkflowMetadata<'evidence'>`. The stage literal is load-bearing: it says this artifact lives at the `evidence` stage of the six-stage pipeline (`preparation | resolution | execution | evidence | proposal | projection`). A receipt is not an execution artifact — execution artifacts are `RunRecord`s, stage `execution`. The distinction matters because the metric tree reads evidence and the run record log reads execution; collapsing them would entangle what each consumer cares about.
+
+The four phantom axes (Stage × Source × Verdict × Fingerprint) all thread through the receipt:
+
+- **Stage**: `'evidence'` (narrow literal).
+- **Source**: implicit — receipts are always workshop-authored, but the `ProbeHarnessAdapter` tag in `provenance` names which substrate *observed* the outcome.
+- **Verdict**: `governance: 'approved'` — receipts are never blocked; they are evidence, not proposals.
+- **Fingerprint**: three — `artifact` (envelope identity), `content` (payload content-hash), `fixtureFingerprint` (the YAML that defined this probe). The content fingerprint makes receipts deduplicatable; the fixture fingerprint makes fixture drift detectable.
+
+The receipt's `payload.cohort` field is a `ProbeSurfaceCohort` triple (verb × facetKind × errorFamily). This is the M5 cohort key — the probe-surface cohort that replaced the scenario-ID cohort at Step 1 per `docs/v2-substrate.md §8a`. One field ties the receipt into the memory-maturity trajectory for compounding-economics measurement.
+
+### 4.4 The spike harness as a hylomorphism (Algebra)
+
+`workshop/probe-derivation/spike-harness.ts` exports `runSpike(input): Effect<SpikeVerdict, Error, ProbeHarness>`. The implementation has a clean hylomorphic shape:
+
+- **Unfold (anamorphism)**: `derivation.probes: readonly Probe[]` is itself the unfold of `(manifest, fixtures)` into a probe stream. The unfold happens once, at derivation time; it's pure.
+- **Action (the effectful middle)**: for each probe, `harness.execute(probe)` yields one `ProbeReceipt`. This is the only effectful layer; the rest is pure.
+- **Fold (catamorphism)**: `summarizeSpike({ manifest, derivation, receipts, generatedAt })` reduces the receipt stream into a `SpikeVerdict` carrying per-verb breakdowns, coverage percentage, and pass/fail gate.
+
+This is structurally identical to the convergence-proof harness (`workshop/orchestration/convergence-proof.ts`) which is also a hylomorphism over cold-start trials. The codebase treats this pattern as first-class: `product/domain/algebra/hylomorphism.ts` declares `UnfoldStep<S, T>` + `Hylomorphism<S, T, A>` + `runHyloEffect`. The spike could be refactored onto the `runHyloEffect` primitive — for now it uses plain `Effect.gen` because the loop is simple enough that the primitive would obscure rather than clarify.
+
+### 4.5 The fixture YAML grammar as a bounded schema (DDD)
+
+The fixture-spec grammar (`docs/v2-readiness.md §4`) is intentionally narrow: six required fields (`verb`, `schemaVersion`, `fixtures[]`, each with `name`, `description`, `input`, `expected`) and two optional (`worldSetup`, `exercises`). The narrowness is the discipline — a fixture that needs more than 30 lines of YAML to specify is signaling that the verb's surface is harder than the IR admits, which is itself the spike's pass/fail discriminator per `docs/v2-substrate.md §6a`.
+
+The fixture's `input` field is **unchecked at parse time**. The fixture loader validates only the grammar, not the input's shape against the verb's declared input type. This is deliberate: the shape validation happens at probe-execution time, inside the harness adapter. Putting shape validation at parse time would require a runtime type registry (Zod, @effect/schema) that v2 has deliberately deferred. Deferring the registry keeps the manifest prose-only; the cost is that fixture-authoring errors surface at probe-execution rather than at fixture-load, and the spike's verdict absorbs that cost.
+
+### 4.6 Laws as provable invariants (FP)
+
+Every piece of the scaffolding ships with a `.laws.spec.ts` file. The law-style test is v2's main discipline for pinning structural invariants the type system cannot enforce. The Probe IR spike has two law files:
+
+- `product/tests/manifest/testable-surface.laws.spec.ts` — 7 laws pinning the projection's fidelity (L1 surjective, L2 order-preserving, L3 closed-union, L4 fold-exhaustive, L5 defaulter-total, L6 error-family-preserving, plus a snapshot of the current 8-verb classification).
+- `tests/probe-derivation/spike-harness.laws.spec.ts` — 9 laws pinning the end-to-end spike (S1 one receipt per probe, S2 dry-harness always confirms, S3 per-verb sums to probe count, S4 gate pure over derivation buckets, S5 envelope shape, S6 latency non-negative and fingerprints non-empty, S7 fixture gaps lower coverage monotonically, S8 current 3 fixtures yield 7 probes, S9 current state fails 80% gate by design).
+
+The laws are not exhaustive tests; they are *invariants the implementation must never break*. When a new probe harness adapter lands, the laws don't change — the adapter slides in under the same tests. This is what the testability-as-lawhood pattern buys: adapters swap, invariants persist.
