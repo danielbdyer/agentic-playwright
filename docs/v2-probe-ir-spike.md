@@ -154,3 +154,69 @@ Every piece of the scaffolding ships with a `.laws.spec.ts` file. The law-style 
 - `tests/probe-derivation/spike-harness.laws.spec.ts` — 9 laws pinning the end-to-end spike (S1 one receipt per probe, S2 dry-harness always confirms, S3 per-verb sums to probe count, S4 gate pure over derivation buckets, S5 envelope shape, S6 latency non-negative and fingerprints non-empty, S7 fixture gaps lower coverage monotonically, S8 current 3 fixtures yield 7 probes, S9 current state fails 80% gate by design).
 
 The laws are not exhaustive tests; they are *invariants the implementation must never break*. When a new probe harness adapter lands, the laws don't change — the adapter slides in under the same tests. This is what the testability-as-lawhood pattern buys: adapters swap, invariants persist.
+
+## 5. The spike protocol — what to do, in order
+
+The spike protocol from `docs/v2-substrate.md §6a` is five steps. Each step's deliverable, its test-pass condition, and its verdict are named below.
+
+### Step 5.1 — Baseline: run the spike under the dry-harness
+
+**Command**: `npm run build && node dist/bin/tesseract.js probe-spike`
+
+**Expected output** (current state, 2026-04-21):
+
+```
+Probe IR Spike — manifest v1, 8 declared verbs
+  Coverage: 3/8 verbs (37.5%) — gate FAIL @ 80%
+  Probes synthesized: 7
+  Receipts confirming expectation: 7/7
+  Uncovered verbs (no fixture): facet-enrich, facet-mint,
+                                 intent-fetch, interact,
+                                 locator-health-track
+```
+
+**Verdict**: the spike plumbing is runnable; the current coverage fails the 80% gate by design. The failure is informative — it tells the agent exactly which five verbs need fixtures.
+
+### Step 5.2 — Author the five missing fixtures
+
+The five uncovered verbs (`facet-enrich`, `facet-mint`, `intent-fetch`, `interact`, `locator-health-track`) each need a `<verb>.probe.yaml` file alongside the verb's declaration module. Each fixture should target 2–4 probe entries covering:
+
+- One happy-path fixture (`expected: matched`, `errorFamily: null`).
+- At least one failure-path fixture per named error family in the verb's manifest entry.
+- Where the verb declares a ladder (e.g., `observe` has the 6-rung locator ladder), one fixture per probed rung.
+
+**Deliverable**: 5 YAML files, each ≤30 lines, living at:
+
+| Verb | Fixture path |
+|---|---|
+| `facet-mint` | `product/domain/memory/facet-mint.probe.yaml` |
+| `facet-enrich` | `product/domain/memory/facet-enrich.probe.yaml` |
+| `intent-fetch` | `product/instruments/intent/intent-fetch.probe.yaml` |
+| `interact` | `product/runtime/widgets/interact.probe.yaml` |
+| `locator-health-track` | `product/domain/memory/locator-health-track.probe.yaml` |
+
+(Note: the fixture loader looks for `<verb-name>.probe.yaml` in the directory of the verb's `declaredIn` path. Several verbs share `product/domain/memory/facet-record.ts`; the loader keys on the verb name, not the declaration path, so multiple verbs can coexist in one directory.)
+
+**Test-pass condition**: `npx vitest run tests/probe-derivation/` shows derivation.probes count rising as fixtures land; the spike-laws test S8 (currently asserting 7) gets updated to the new count; the 80% gate flips.
+
+### Step 5.3 — Verify one fixture grows beyond 30 lines
+
+Fixture growth past 30 lines is the spike's **fail signal**: it means the verb's input shape admits too much variation for mechanical synthesis. If any of the five fixtures in Step 5.2 cannot be authored under 30 lines without feeling contorted, that verb's fixture **needs a hand-lifted schema** (the exit condition from the protocol). The spike's final verdict names those verbs explicitly.
+
+**Expected outcome at the fixture-set-complete moment**: 4 of 5 new fixtures fit under 30 lines; 1 (probably `intent-fetch` or `interact`) is borderline. The spike records those borderline cases and proceeds.
+
+### Step 5.4 — Compute the verdict
+
+The verdict is the `SpikeVerdict` the CLI already emits. Three discriminators:
+
+- **Pass**: coverage ≥ 80%, all fixtures ≤ 30 lines, receipts confirm uniformly under the dry-harness.
+- **Pass with named gaps**: coverage ≥ 80%, but one or more verbs named as needing hand-lifted schemas.
+- **Fail**: coverage < 80% and no tractable path to fix it without substrate-backed harness work first.
+
+Each discriminator has a concrete next step. The verdict document is committed to `workshop/observations/probe-spike-verdict-01.md` as an append-only observation.
+
+### Step 5.5 — Graduate from dry-harness to fixture-replay
+
+The dry-harness proves the seam; fixture-replay proves the substrate. When Step 5.2–5.4 pass, author the `FixtureReplayProbeHarness` adapter that swaps the dry harness's "observed = expected" logic for "observed = run the verb against a captured DOM snapshot and classify the result."
+
+**Scope guard**: fixture-replay is Step 5's *exit* deliverable, not its entry. The spike is the dry-harness; fixture-replay is how the spike becomes useful beyond its seam-proof purpose. This is a commit boundary worth preserving: the spike's go/no-go verdict (Step 5.4) decides whether fixture-replay ships at Step 5 or defers to Step 6.
