@@ -17,7 +17,7 @@ import { foldResolutionReceipt } from '../../domain/kernel/visitors';
 import { groupBy } from '../../domain/kernel/collections';
 import type { SliceFn, ProjectionFn } from '../../domain/algebra/slice-projection';
 import { loadWorkspaceCatalog, type WorkspaceCatalog } from '../catalog';
-import { buildWorkflowHotspots, type WorkflowHotspot } from '../../../workshop/orchestration/hotspots';
+import { buildWorkflowHotspots, type WorkflowHotspot } from '../projections/hotspots';
 import type { ProjectPaths } from '../paths';
 import { FileSystem, Dashboard } from '../ports';
 import { dashboardEvent } from '../../domain/observation/dashboard';

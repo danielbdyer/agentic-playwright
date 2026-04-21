@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { buildWorkflowHotspots } from '../../workshop/orchestration/hotspots';
+import { buildWorkflowHotspots } from '../../product/application/projections/hotspots';
 import type { InterpretationDriftRecord, RunRecord } from '../../product/domain/execution/types';
 import { createAdoId } from '../../product/domain/kernel/identity';
 

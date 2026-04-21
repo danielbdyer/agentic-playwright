@@ -233,12 +233,10 @@ const RULE_3_GRANDFATHERED: ReadonlySet<string> = new Set([
   // retirement waits on the corresponding workshop/dashboard reshape.
 
   // product/application/agency/agent-workbench.ts — imports from
-  //   workshop/orchestration/hotspots + workshop/learning/learning-shared.
+  //   workshop/learning/learning-shared. (hotspots graduated when
+  //   hotspots.ts moved to product/application/projections/ —
+  //   inbox and operator graduated at the same time.)
   'product/application/agency/agent-workbench.ts',
-  // product/application/agency/inbox.ts — workshop/orchestration/hotspots.
-  'product/application/agency/inbox.ts',
-  // product/application/agency/operator.ts — workshop/orchestration/hotspots (type).
-  'product/application/agency/operator.ts',
   // product/application/catalog/workspace-catalog.ts —
   //   workshop/orchestration/improvement.
   'product/application/catalog/workspace-catalog.ts',

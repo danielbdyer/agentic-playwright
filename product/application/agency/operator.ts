@@ -17,7 +17,7 @@ import { foldOperatorInboxKind } from '../../domain/resolution/inbox-fold';
 import type { OperatorInboxItem } from '../../domain/resolution/types';
 import type { WorkspaceCatalog } from '../catalog';
 import { compareStrings, uniqueSorted } from '../../domain/kernel/collections';
-import type { WorkflowHotspot } from '../../../workshop/orchestration/hotspots';
+import type { WorkflowHotspot } from '../projections/hotspots';
 import type { RerunPlan } from '../../domain/resolution/types';
 
 function latestRuns(catalog: WorkspaceCatalog): Map<AdoId, RunRecord> {

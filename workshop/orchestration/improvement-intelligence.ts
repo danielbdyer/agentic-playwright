@@ -28,7 +28,7 @@ import {
   type PipelineFitnessReport,
 } from '../metrics/types';
 import type { ImprovementSignal } from '../../product/domain/improvement/types';
-import { buildWorkflowHotspots, type WorkflowHotspot } from './hotspots';
+import { buildWorkflowHotspots, type WorkflowHotspot } from '../../product/application/projections/hotspots';
 
 // ─── Types ───
 
