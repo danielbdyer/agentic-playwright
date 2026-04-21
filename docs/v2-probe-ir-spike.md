@@ -346,6 +346,54 @@ That single distinction is the whole epistemology. A synthetic probe's receipt i
 
 The premise is robust because the probe's claim is narrow. It does not claim: "customers will never hit an edge case this probe missed." It claims: "for the surface this fixture declares, the product behaves as declared." The first claim is false of any finite test set; the second claim is provable, probe by probe.
 
+### 8.2 The substrate-invariance theorem — why synthetic receipts are honest
+
+The substrate-invariance theorem, stated precisely: **for a probe `P` whose fixture declares world-shape `W`, the product verb's classification of `W` is identical across any substrate that presents `W`.** The theorem holds because of three structural facts about the product's architecture:
+
+**Fact 1: Verbs consume their inputs, not the substrate that produced them.** Look at `product/instruments/observation/aria.ts` — the `observe` verb takes a `PlaywrightBridgePort` + a request shape and produces an `AriaSnapshot`. The bridge is a Layer-injected port. Whether the port wraps a real Chromium page, a captured snapshot, or a synthetic fixture makes no difference to the verb's logic. The verb reads whatever the port returns.
+
+**Fact 2: The classification logic is pure over the observed data.** The product's classifiers (not-visible detection, role resolution, locator ladder ordering) are pure functions over the data the port produces. Purity means: same input → same output. If two substrates present the verb with byte-identical input, the classifier produces byte-identical output. This is enforced by the coding-notes discipline in `docs/coding-notes.md §FP`: classifiers live in `product/domain/` and must be side-effect-free.
+
+**Fact 3: Error families are declared as a closed union.** Every verb's possible error family is a member of a closed TypeScript union (`InteractErrorFamily`, `ReasoningError.family`, etc.) declared at the verb's `errorFamilies[]` manifest field. The classifier cannot produce an error outside that union — the compiler forbids it. This means a probe asserting `errorFamily: 'not-visible'` is asserting a check over a known-finite set, not an open-ended prediction.
+
+Together these three facts give the substrate-invariance claim its teeth: if your synthetic substrate reproduces the input shape faithfully, the verb will classify it identically to a production substrate. The probe's receipt is honest because the fixture's world-shape is the *contract* — substrate fidelity is a separate property than receipt honesty.
+
+**What substrate-invariance does NOT claim**: that every world-shape a customer's tenant will produce is present in some fixture. Fixtures are a finite set; customer DOM is unbounded. Substrate-invariance says "if the shape matches, the verdict matches"; it does not say "all shapes match."
+
+### 8.3 The substrate ladder — monotonicity and staircase claims
+
+The spike does not claim synthetic probes are equivalent to production probes. It claims something weaker but more defensible: **monotonicity up the substrate ladder**. The ladder has four rungs, ordered by fidelity:
+
+| Rung | Substrate | What it proves | What it doesn't |
+|---|---|---|---|
+| 1 | dry-harness | The seam shape: probes derive, execute, emit receipts. | Anything about verb behavior. |
+| 2 | fixture-replay | Verb classifiers produce declared outcomes on captured DOM. | Behavior under live network, async rendering, real event dispatch. |
+| 3 | playwright-live (synthetic app) | Verb classifiers work under real browser event semantics. | Customer-specific DOM peculiarities. |
+| 4 | production (customer tenant) | Verb classifiers work on the specific customer surface. | Other customers' tenants. |
+
+**The monotonicity claim**: if a probe **fails** at rung N, it almost certainly fails at every rung below N. Lower rungs are strictly simpler — they remove sources of substrate variance. A probe that fails to observe a button on a fixture-replay snapshot will also fail on the live customer page that *produced* that snapshot. Failure at low fidelity is high-signal evidence of product defect.
+
+**The staircase claim**: if a probe **passes** at rung N, it *may* pass at rung N+1 but we do not know until we test. Passing at low fidelity is a necessary condition for passing at high fidelity, not a sufficient one. Passing at rung 2 (fixture-replay) tells us the verb's classifier is correct on the captured DOM; it doesn't tell us whether the live customer tenant will render DOM in the same shape next week.
+
+This asymmetry — failure is predictive, success is permissive — is what justifies running synthetic probes in the first place. Synthetic substrate is **cheap noise-free failure detection**: it catches regressions before they reach customers. Production substrate is **expensive success validation**: it confirms the product's actual customer-facing behavior. We run synthetic substrate at every commit; we run production substrate at customer-ship boundaries.
+
+### 8.4 What synthetic probes cannot prove (and what fills the gap)
+
+Being explicit about the limits of synthetic testing is part of the first-principles defense. Synthetic probes **cannot**:
+
+- **Discover unknown customer edge cases.** A fixture encodes one world-shape; novel customer DOM may present shapes no fixture anticipates.
+- **Validate non-functional requirements.** Latency under production load, memory consumption under sustained use, auth gate behavior under real tenant policies — these are substrate-dependent and synthetic substrates cannot simulate them honestly.
+- **Prove behavior outside declared error families.** If a customer's tenant produces an error that no verb's `errorFamilies[]` names, the product classifies it as `unclassified` — and the probe's expected classification was presumably against a named family. Unknown-error outcomes escape the probe's purview by design.
+- **Substitute for operator judgement.** A probe can assert "the verb classified correctly"; it cannot assert "the classification was the right thing for the customer." That's a trust-policy decision the operator makes.
+
+The gap between what synthetic probes prove and what customer-facing correctness requires is closed by **three complementary mechanisms**:
+
+1. **Substrate plurality** (§6): running probes at all four rungs of the ladder, not just the cheapest one. The expensive rungs are sparse but load-bearing for production-like signal.
+2. **Customer incident backfill** (§8.5): every customer-reported issue becomes a new fixture. The probe set grows toward customer reality over time.
+3. **The hypothesis-confirmation loop** (§3.3): every product change carries a predicted metric delta; mismatches surface as the workshop's batting-average data rather than silent acceptance.
+
+The synthetic substrate does the cheap work. The substrate ladder, the incident backfill, and the hypothesis loop do the expensive work. Together they compose to a claim stronger than any one alone: *the product does what it says it does, and when it doesn't, we find out fast and codify the lesson into a probe.*
+
 You are picking up the Probe IR spike on top of commit `step-5.scaffold-2` (SHA visible in `git log --oneline`). The scaffolding exists; the spike runs; the gate fails at 37.5%; the fix is authoring 5 fixtures. Here's how to orient and land your first contribution in under two hours.
 
 ### 8.1 Read in this order (~40 minutes total)
