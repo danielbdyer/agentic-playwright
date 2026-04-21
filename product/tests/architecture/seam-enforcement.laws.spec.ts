@@ -176,6 +176,33 @@ const ALWAYS_ALLOWED_PRODUCT_PATHS: readonly string[] = [
   // type definitions; no side effects. Shared-contract per
   // v2 §2 ("manifest-declared verbs and the shared log set").
   'product/domain/improvement',
+  // Projection types. The shapes workshop produces and dashboard
+  // renders: SceneState, FlywheelAct, SummaryView, ActIndicator,
+  // BindingDistribution, IterationTimeline, ConvergenceFinale,
+  // SurfaceOverlay, SpeedTier. "Projection" = read-model, the
+  // view-layer contract between the measurement pipeline and the
+  // render surface. Pure types + pure derivation functions; no
+  // side effects. Dashboard's 7 grandfathered web UI files all
+  // import from this subtree; workshop's projections emit into
+  // it. Shared-contract, same justification as manifest.
+  'product/domain/projection',
+  // Proposal domain types. ProposalBundle, cluster types,
+  // failure fragments, batch decision, activation lifecycle —
+  // the shape of proposals that workshop produces and dashboard
+  // renders in the batch-decision / failure-fragment views.
+  'product/domain/proposal',
+  // Handshake / intervention types. AgentWorkItem,
+  // ScreenGroupContext, InterventionHandoff, WorkItemCompletion —
+  // the shape of the agent-in-loop queue that dashboard renders
+  // and workshop derives. Pure type definitions.
+  'product/domain/handshake',
+  // Governance types. WorkflowEnvelope, Governance enum,
+  // KnowledgePosture, TrustPolicy, workflow-facade primitives.
+  // Every cross-seam artifact carries a Governance tag; every
+  // envelope declares its WorkflowMetadata<Stage>. Without this
+  // allowance, every dashboard/workshop file that reads an
+  // envelope would need grandfathering.
+  'product/domain/governance',
 ];
 
 function isManifestDeclaredOrLogPath(
@@ -224,7 +251,9 @@ const RULE_1_GRANDFATHERED: ReadonlySet<string> = new Set([
   'workshop/orchestration/benchmark.ts',
   'workshop/orchestration/clean-slate.ts',
   'workshop/orchestration/convergence-proof.ts',
-  'workshop/orchestration/dogfood-orchestrator.ts',
+  // workshop/orchestration/dogfood-orchestrator.ts — graduated at
+  // step-4c.dashboard-src-graduate along with the domain/projection
+  // expansion; its only cross-seam import is now shared-contract.
   'workshop/orchestration/dogfood.ts',
   'workshop/orchestration/evolve.ts',
   'workshop/orchestration/experiment-registry.ts',
@@ -271,16 +300,13 @@ const RULE_2_GRANDFATHERED: ReadonlySet<string> = new Set([
   // dashboard consumers now import port types directly from
   // product/application/ports.
   'dashboard/server.ts',
-  // dashboard/src/ is the web UI; it reaches into product/domain/ widely.
-  // These are grandfathered at Step 0 pending the full dashboard/src/
-  // projection rewrite (beyond the Step 4c slice).
-  'dashboard/src/bookmark-system.ts',
-  'dashboard/src/hooks/dashboard-event-observer.ts',
-  'dashboard/src/hooks/use-dashboard-observations.ts',
-  'dashboard/src/hooks/use-event-journal.ts',
-  'dashboard/src/organisms/before-after-comparison.ts',
-  'dashboard/src/spatial/scenario-cloud.ts',
-  'dashboard/src/spatial/types.ts',
+  // dashboard/src/ graduated at step-4c.dashboard-src-graduate:
+  // the 7 web UI files that imported from product/domain/
+  // {projection,proposal,handshake,governance} now route through
+  // ALWAYS_ALLOWED_PRODUCT_PATHS (those four subtrees added as
+  // shared-contract view-layer type paths). No code changed;
+  // the policy expanded to match the reality that dashboard/src/
+  // is a view of pure product domain types.
 ]);
 
 const RULE_3_GRANDFATHERED: ReadonlySet<string> = new Set([
