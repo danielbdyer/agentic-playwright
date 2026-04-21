@@ -250,20 +250,17 @@ describe('spike coverage verdict', () => {
       totalDeclaredVerbs: manifest.verbs.length,
       probesCompletingAsExpected: derivation.probes.length, // Step 5 stub: assume all complete
     });
-    // The current manifest has 8 verbs; Step 5 covers 6 of them
-    // (observe, test-compose, facet-query, facet-mint, facet-enrich,
-    // locator-health-track). Coverage = 6/8 = 75%.
+    // The current manifest has 8 verbs; Step 5 covers 7 of them.
+    // Coverage = 7/8 = 87.5% ≥ 80% — gate PASSES. The remaining
+    // uncovered verb (`interact`) lands in the final fixture
+    // commit to reach 8/8.
     expect(report.totalDeclaredVerbs).toBe(manifest.verbs.length);
-    expect(report.coveredVerbs).toBe(6);
-    expect(report.uncoveredVerbs).toEqual([
-      'intent-fetch',
-      'interact',
-    ]);
-    // The spike is intentionally under the 80% gate at Step 5;
-    // we confirm the report structure works and that the gate
-    // shows failing — this is the "IR needs more fixtures" verdict
-    // the plan anticipated.
-    expect(report.passesGate).toBe(false);
+    expect(report.coveredVerbs).toBe(7);
+    expect(report.uncoveredVerbs).toEqual(['interact']);
+    // The coverage gate is now passing — the probe IR's structural
+    // floor is live. Per docs/v2-probe-ir-spike.md §7, this is one
+    // of three graduation verdicts the spike must produce.
+    expect(report.passesGate).toBe(true);
     // Every synthesized probe carries its fixture's expected
     // classification and a valid probe ID.
     for (const probe of derivation.probes) {

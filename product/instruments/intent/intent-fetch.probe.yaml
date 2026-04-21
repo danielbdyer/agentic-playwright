@@ -1,0 +1,49 @@
+# Fixture specification for the `intent-fetch` verb.
+# Grammar: docs/v2-readiness.md §4.
+
+verb: intent-fetch
+schemaVersion: 1
+
+fixtures:
+  - name: fetch-testbed-work-item-succeeds
+    description: |
+      Fetch a known work item from the in-repo testbed source.
+      Exercises the happy source-dispatch path: testbed adapter
+      resolves, payload returns, rev metadata stamps.
+    input:
+      source: testbed
+      id: "WORK-001"
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: testbed-source
+      - error-family: null
+
+  - name: fetch-retries-exhausted-fails-rate-limited
+    description: |
+      ADO returns HTTP 429 and the retry schedule exhausts without
+      a successful attempt. Exercises the rate-limited classification
+      path from the resilience retry envelope.
+    input:
+      source: ado
+      id: "999999"
+    expected:
+      classification: failed
+      error-family: rate-limited
+    exercises:
+      - error-family: rate-limited
+
+  - name: fetch-transport-fails-unavailable
+    description: |
+      The ADO endpoint is unreachable (connection refused, DNS
+      failure, abort). Transport-level failure maps to the
+      unavailable error family per the AdoTransientError path.
+    input:
+      source: ado
+      id: "42"
+    expected:
+      classification: failed
+      error-family: unavailable
+    exercises:
+      - error-family: unavailable

@@ -140,8 +140,9 @@ describe('Probe IR Spike — end-to-end laws', () => {
   test('S8: each fixtured verb synthesizes its declared fixture count', async () => {
     const { derivation } = await runSpikeUnderDryHarness();
     // observe: 2, test-compose: 2, facet-query: 3, facet-mint: 2,
-    // facet-enrich: 2, locator-health-track: 2. Total = 13.
-    expect(derivation.probes).toHaveLength(13);
+    // facet-enrich: 2, locator-health-track: 2, intent-fetch: 3.
+    // Total = 16.
+    expect(derivation.probes).toHaveLength(16);
     const byVerb = new Map<string, number>();
     for (const probe of derivation.probes) {
       byVerb.set(probe.verb, (byVerb.get(probe.verb) ?? 0) + 1);
@@ -152,15 +153,19 @@ describe('Probe IR Spike — end-to-end laws', () => {
     expect(byVerb.get('facet-mint')).toBe(2);
     expect(byVerb.get('facet-enrich')).toBe(2);
     expect(byVerb.get('locator-health-track')).toBe(2);
+    expect(byVerb.get('intent-fetch')).toBe(3);
   });
 
-  test('S9: the spike at 6/8 coverage still fails the 80% gate', async () => {
-    // Progress toward Step 5 graduation: 8 verbs, 6 fixtured.
-    // Covered = 6/8 = 75%. Gate still fails by 5 points; the next
-    // fixture (intent-fetch or interact) flips the gate.
+  test('S9: the spike at 7/8 coverage passes the 80% gate', async () => {
+    // Step 5 graduation threshold crossed: 8 verbs, 7 fixtured.
+    // Covered = 7/8 = 87.5% ≥ 80%. Gate PASSES. This is the
+    // structural gate-flip — the probe IR's coverage floor is
+    // live. The remaining uncovered verb (`interact`) lands in
+    // the final fixture commit; after that the spike reaches
+    // 8/8 = 100% coverage.
     const { verdict } = await runSpikeUnderDryHarness();
-    expect(verdict.coverage.coveragePercentage).toBeCloseTo(6 / 8, 6);
-    expect(verdict.passesGate).toBe(false);
-    expect(verdict.summary).toMatch(/FAIL/);
+    expect(verdict.coverage.coveragePercentage).toBeCloseTo(7 / 8, 6);
+    expect(verdict.passesGate).toBe(true);
+    expect(verdict.summary).toMatch(/PASS/);
   });
 });
