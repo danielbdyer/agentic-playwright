@@ -18,9 +18,13 @@ The workshop's job (details in `docs/v2-direction.md §5` and `docs/v2-substrate
 
 **Status as of 2026-04-21.** Phase 1 and Phase 2 of the construction order (Steps 0 through 4c) have landed on main / the active feature branch. The tree is compartmentalized; the seam is compile-enforced; the Reasoning port is unified; the dashboard MCP server routes through manifest-declared verbs. `product/` imports zero files from `workshop/` or `dashboard/` (RULE_3 grandfather list is empty).
 
-**Next action: Step 5 — probe IR spike.** The workshop currently measures against a transitional probe set landed at Step 1. Step 5 validates whether manifest-derived probes can exercise real verb surfaces meaningfully. See `docs/v2-direction.md §6 Step 5` and `docs/v2-substrate.md §6a` for the spike protocol.
+**Next action: Step 5 — probe IR spike.** The workshop currently measures against a transitional probe set landed at Step 1. Step 5 validates whether manifest-derived probes can exercise real verb surfaces meaningfully.
 
-Read before starting Step 5:
+**Start here**: [`docs/v2-probe-ir-spike.md`](docs/v2-probe-ir-spike.md) — the postdoctoral design memo that covers the ontological claim, the atomic/compositional/longitudinal reductions, the FP/Effect/DDD praxis, the executable five-step spike protocol, the substrate-backed harness specs, graduation metrics, and a 40-minute hand-off playbook for the next agent. **This is the primary Step 5 document; the references below elaborate.**
+
+The spike scaffolding is already in place and runnable: `npm run build && node dist/bin/tesseract.js probe-spike` produces a `SpikeVerdict` showing `3/8 verbs (37.5%) — gate FAIL @ 80%` under the dry-harness. The failure is informative: it names the five uncovered verbs that need fixture YAMLs. First actionable task for the next agent is authoring `product/domain/memory/facet-mint.probe.yaml`; see §8.3 of the memo.
+
+Related doctrine references (read after the memo if a specific section is load-bearing):
 1. `docs/v2-direction.md §5` (the probe IR concept) and `§6 Step 5` (the spike step definition). ~10 minutes.
 2. `docs/v2-substrate.md §6a` (the spike protocol). ~5 minutes.
 3. `docs/v2-readiness.md §4` (fixture grammar). ~5 minutes.
@@ -42,6 +46,7 @@ If you've just opened the repo, read this exact sequence before touching any cod
 5. [`docs/feature-ontology-v2.md`](docs/feature-ontology-v2.md) — the per-feature contracts: handshakes, technical paths, agent-engagement flows, invariants, reversibility classes. Read when you are about to design or implement a specific handshake.
 6. [`docs/v2-readiness.md`](docs/v2-readiness.md) — **execution preprocessing pack**. Read before Step 0. Contains: the day-by-day Step 0 playbook (§1), seam-enforcement test design (§2), per-folder README stubs (§3), probe IR fixture grammar (§4), transitional probe set scope (§5), customer-reality probe checklist (§6), branch + rollback strategy (§7), test-import rewrite audit (§8), Reasoning port retrofit file plan (§9), M5 cohort re-key plan (§10). If you're picking up Step 0, start here after reading §§1–2 of the direction doc.
 7. [`docs/v2-synthetic-workshop-dogfood.md`](docs/v2-synthetic-workshop-dogfood.md) — **post Step-4c design memo**. The workshop's measurement substrate after the hand-authored scenario corpus retires. Read before Step 5's probe IR spike. ~10 minutes.
+8. [`docs/v2-probe-ir-spike.md`](docs/v2-probe-ir-spike.md) — **primary Step 5 document**. Postdoctoral design memo for the Probe IR spike: ontological claim (§1), atomic/compositional/longitudinal claims (§§2–3), FP/Effect/DDD praxis with file:line references (§4), executable spike protocol (§5), substrate-backed harness specs (§6), graduation metrics (§7), hand-off playbook for the next agent (§8). Read in full before touching probe code. ~25 minutes.
 
 **The three folders v2 compartmentalizes `lib/` into:**
 

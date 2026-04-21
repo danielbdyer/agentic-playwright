@@ -334,7 +334,17 @@ The first two are static properties of the codebase. The third is a runtime prop
 
 The spike's pass condition is these five provable claims, not "full coverage." The 80% gate is a coverage floor; the five claims are the structural floor.
 
-## 8. For the next agent — reading order + first-hour tasks
+## 8. First principles — from synthetic probes to production results
+
+This section defends the entire enterprise. The reader has every right to ask: *if our probes run against synthetic DOM, fixture snapshots, and in-memory catalogs, how do we know what they tell us is true of a customer's actual OutSystems tenant?* That is the epistemological question this section answers from first principles. The defense proceeds in six steps, each committed separately over the next few subsections.
+
+### 8.1 The core premise, plainly stated
+
+**We are not building a test harness that simulates the product's behavior. We are building a measurement harness that runs the product's actual code against substrates of varying fidelity, and we derive increasingly strong claims from increasingly faithful substrates.** The probe is a commitment device: it says "when verb V runs against a world shaped like W, the product will produce outcome O." What varies across substrates is not the verb — the verb is always the same shipping code — but the world. The claim the spike makes is about the verb's **behavior under a declared world-shape**, not about every possible world.
+
+That single distinction is the whole epistemology. A synthetic probe's receipt is honest to the extent that the world-shape is honest. When we say `observe` with fixture `visible-button-on-known-screen` expects classification `matched`, we are asserting that under a DOM where a button with role=button and accessible-name="Search" is visible and enabled, the product's observe verb will classify it as matched. That assertion is substrate-invariant — it holds whether the DOM is synthesized by React, captured from OutSystems, or rendered live by a customer tenant — because the product's classification logic does not know or care which source produced the DOM. It reads the DOM it's given.
+
+The premise is robust because the probe's claim is narrow. It does not claim: "customers will never hit an edge case this probe missed." It claims: "for the surface this fixture declares, the product behaves as declared." The first claim is false of any finite test set; the second claim is provable, probe by probe.
 
 You are picking up the Probe IR spike on top of commit `step-5.scaffold-2` (SHA visible in `git log --oneline`). The scaffolding exists; the spike runs; the gate fails at 37.5%; the fix is authoring 5 fixtures. Here's how to orient and land your first contribution in under two hours.
 
