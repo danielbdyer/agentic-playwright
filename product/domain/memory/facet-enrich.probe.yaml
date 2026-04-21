@@ -1,0 +1,41 @@
+# Fixture specification for the `facet-enrich` verb.
+# Grammar: docs/v2-readiness.md §4.
+
+verb: facet-enrich
+schemaVersion: 1
+
+fixtures:
+  - name: enrich-adds-new-alias
+    description: |
+      Append a newly-observed alias to an existing facet. Exercises
+      the alias-merge path: evidence count increments, aliases
+      reorder by count descending, stable ID is preserved.
+    input:
+      facet-kind: element
+      facet-id: policy-search:policyNumberInput
+      evidence:
+        kind: alias-observed
+        phrase: "Policy # field"
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: alias-merge
+      - error-family: null
+
+  - name: enrich-unknown-id-fails-assertion
+    description: |
+      Enriching against a facet ID not present in the catalog fails
+      with assertion-like. The verb refuses to materialize a record
+      on enrich — mint is the only path that admits new IDs.
+    input:
+      facet-kind: element
+      facet-id: nonexistent:facet
+      evidence:
+        kind: alias-observed
+        phrase: "Mystery field"
+    expected:
+      classification: failed
+      error-family: assertion-like
+    exercises:
+      - error-family: assertion-like
