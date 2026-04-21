@@ -129,6 +129,17 @@ const ALWAYS_ALLOWED_PRODUCT_PATHS: readonly string[] = [
   // seam contract (dashboard routes manifest-verb MCP tool calls
   // through this invoker), analogous to product/domain/manifest.
   'product/application/manifest',
+  // Shared error hierarchy. TesseractError is the base class every
+  // product service throws. workshop measurement code + dashboard
+  // MCP servers both catch and log these errors at their boundaries;
+  // without this allowance every file that says
+  // `error instanceof TesseractError` would need grandfathering.
+  'product/domain/kernel/errors',
+  // Retry schedule + resilience utilities. Every MCP server and
+  // workshop probe that runs against flaky upstream services
+  // reuses the named RETRY_POLICIES. Infrastructure utility, not
+  // domain logic — same justification as the error hierarchy.
+  'product/application/resilience',
 ];
 
 function isManifestDeclaredOrLogPath(
@@ -225,7 +236,11 @@ const RULE_2_GRANDFATHERED: ReadonlySet<string> = new Set([
   // dependency either moves to a contract path or retires.
   'dashboard/bridges/pipeline-event-bus.ts',
   'dashboard/bridges/ws-dashboard-adapter.ts',
-  'dashboard/mcp/dashboard-mcp-server.ts',
+  // dashboard/mcp/dashboard-mcp-server.ts graduated at
+  // step-4c.graduate: its imports now route through the shared-
+  // contract allowlist (product/domain/kernel/errors for
+  // TesseractError, product/application/resilience for retry
+  // utilities, plus the already-allowed manifest / ports paths).
   'dashboard/mcp/playwright-mcp-bridge.ts',
   'dashboard/server.ts',
   // dashboard/src/ is the web UI; it reaches into product/domain/ widely.
