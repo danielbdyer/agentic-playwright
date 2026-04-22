@@ -83,11 +83,15 @@ fixtures:
       role="textbox" but no underlying input element). Playwright
       raises an internal assertion whose message matches the
       "Element is not" regex → assertion-like family.
+      The `non-input-target` hook signals the target-type mismatch
+      at rung 2; rung 3+ renders the DOM live and detects it.
     input:
       action: input
       facet-id: policy-search:freeformRegion
       role: textbox
       value: "anything"
+    world-setup:
+      non-input-target: true
     expected:
       classification: failed
       error-family: assertion-like

@@ -104,6 +104,7 @@ describe('substrate parity laws (dry-harness ↔ fixture-replay)', () => {
       'facet-enrich',
       'facet-mint',
       'facet-query',
+      'interact',
       'locator-health-track',
       'observe',
       'test-compose',
