@@ -1,22 +1,37 @@
 /**
  * Default FacetRendererRegistry for the synthetic substrate.
  *
- * Scope 6.1a ships with ZERO registered renderers — the bootstrap
- * mounts the SubstrateRenderer which surfaces "missing renderer"
- * DOM markers for every facet a probe references. That's the
- * seam-proof baseline. Scope 6.1b populates the registry with the
- * four leaf renderers the current fixture set references.
+ * Registered renderers (one per fixture-referenced facet):
+ *   - policy-search:searchButton
+ *   - policy-search:advancedOptionsButton
+ *   - policy-search:policyNumberInput
+ *   - policy-search:freeformRegion
  *
- * The emptiness mirrors the 6.1c commit pattern for the classifier
- * registry — port first, content next. Reviewers can judge the
- * registry shape without wading through renderer internals.
+ * Each renderer lives in its own file under `./` for symmetry
+ * with the catalog's facet-identity vocabulary. When future
+ * fixtures reference new facets, their renderers land one file
+ * at a time alongside their registrations here.
+ *
+ * This registry instance is the substrate-version surface per
+ * memo §8.6. Adding a renderer is additive; changing a
+ * renderer's behavior is substrate drift — the rung-3 parity
+ * law surfaces the divergence against fixture-replay.
  */
 
 import {
   facetRendererRegistry,
   type FacetRendererRegistry,
 } from '../../../substrate/facet-renderer';
+import { searchButtonRenderer } from './policy-search-search-button';
+import { advancedOptionsButtonRenderer } from './policy-search-advanced-options-button';
+import { policyNumberInputRenderer } from './policy-search-policy-number-input';
+import { freeformRegionRenderer } from './policy-search-freeform-region';
 
 export function createDefaultFacetRendererRegistry(): FacetRendererRegistry {
-  return facetRendererRegistry([]);
+  return facetRendererRegistry([
+    searchButtonRenderer,
+    advancedOptionsButtonRenderer,
+    policyNumberInputRenderer,
+    freeformRegionRenderer,
+  ]);
 }
