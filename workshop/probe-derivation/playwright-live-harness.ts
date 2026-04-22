@@ -9,7 +9,7 @@
  *   3. A Rung3ClassifierRegistry + fallback VerbClassifierRegistry.
  *
  * Per probe:
- *   - Projects probe.worldSetup + probe.input into a WorldConfig.
+ *   - Projects probe.worldSetup + probe.input into a WorldShape.
  *   - Navigates the shared Playwright page to the serialized URL.
  *   - Looks up a rung-3 classifier for the verb; if found, runs it
  *     with the page injected. If not, falls through to rung 2.
@@ -20,13 +20,13 @@
  * Effect.scoped, and tears both down on completion. The harness
  * itself is synchronous after construction — it has no init phase.
  *
- * ## Projection: probe → WorldConfig
+ * ## Projection: probe → WorldShape
  *
  * The project function mines `probe.input` for a facet identifier
  * (the shape varies per verb: `facet-id`, `stable-id`, `target`,
  * etc.) and carries `probe.worldSetup` verbatim as the hook
  * dictionary. For verbs without a browser-bound input (facet-*,
- * intent-fetch), the WorldConfig is empty and the page renders the
+ * intent-fetch), the WorldShape is empty and the page renders the
  * `data-substrate-state="empty"` marker — the rung-2 fallback
  * classifier doesn't read the DOM anyway, so this is harmless.
  */

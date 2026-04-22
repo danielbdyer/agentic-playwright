@@ -4,7 +4,7 @@
  * Where rung-2 classifiers (workshop/probe-derivation/verb-classifier.ts)
  * take only a Probe and return an observed outcome, rung-3 classifiers
  * ALSO receive a Playwright `Page` — the rendered DOM of the synthetic
- * substrate at the probe's WorldConfig URL. The Page is the substrate's
+ * substrate at the probe's WorldShape URL. The Page is the substrate's
  * handshake to the classifier.
  *
  * ## Why a separate port

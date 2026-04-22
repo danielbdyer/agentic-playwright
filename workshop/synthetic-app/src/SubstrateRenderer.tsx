@@ -1,10 +1,9 @@
 /**
  * SubstrateRenderer — the synthetic substrate's root component.
  *
- * First-principles shape per the Step-6 refactor. Reads a WorldShape
- * (not a WorldConfig/FacetRenderer lookup), applies the optional
- * EntropyProfile via EntropyWrapper, and renders each SurfaceSpec
- * through the universal SurfaceRenderer.
+ * Reads a WorldShape, applies the optional EntropyProfile via
+ * EntropyWrapper, and renders each SurfaceSpec through the
+ * universal SurfaceRenderer.
  *
  * No facet registry. No screen-specific code. The substrate is a
  * pure function (WorldShape) → DOM.

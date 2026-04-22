@@ -1,8 +1,7 @@
 /**
  * SurfaceRenderer — one component, any SurfaceSpec.
  *
- * Replaces the per-facet FacetRenderer family. Renders a DOM
- * element that realizes every SurfaceSpec axis:
+ * Renders a DOM element that realizes every SurfaceSpec axis:
  *
  *   role           → semantic element (<button>, <input>, <div
  *                    role="...">), wrapped in the right ARIA
