@@ -16,12 +16,24 @@ fixtures:
     description: |
       Observe a visible button. The substrate renders a button
       matching the target's role + name; classifier's ARIA query
-      resolves; classification is matched.
+      resolves; classification is matched. The entropy profile
+      wraps the button in randomized chrome (nested wrappers,
+      tone/density classes, sibling jitter, callout + badge
+      decoration) — the classifier's outcome must be invariant
+      under this chrome perturbation.
     input:
       target: { role: button, name: "Action A" }
     world:
       surfaces:
         - { role: button, name: "Action A" }
+      entropy:
+        seed: observe-visible-button
+        wrapperDepth: [1, 3]
+        chromeTone: [reef, ember, atlas]
+        spacingDensity: [tidy, layered]
+        siblingJitter: [0, 2]
+        calloutShuffle: { count: 3 }
+        badgeSubset: [2, 4]
     expected:
       classification: matched
       error-family: null
@@ -33,12 +45,18 @@ fixtures:
       The target button exists in the DOM but renders with
       display:none. Excluded from the accessibility tree, so
       getByRole times out — classifier maps the timeout to the
-      not-visible family.
+      not-visible family. Entropy chrome surrounds the hidden
+      target; the not-visible verdict holds regardless.
     input:
       target: { role: button, name: "Action B" }
     world:
       surfaces:
         - { role: button, name: "Action B", visibility: display-none }
+      entropy:
+        seed: observe-hidden-button
+        wrapperDepth: [2, 2]
+        chromeTone: [quartz]
+        siblingJitter: [1, 3]
     expected:
       classification: failed
       error-family: not-visible

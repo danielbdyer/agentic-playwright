@@ -15,12 +15,22 @@ fixtures:
     description: |
       Happy path. Button is visible and enabled; click dispatches
       successfully. Role-based dispatcher resolves affordance.
+      Entropy profile perturbs the chrome; the matched verdict is
+      invariant.
     input:
       action: click
       target: { role: button, name: "Action" }
     world:
       surfaces:
         - { role: button, name: "Action" }
+      entropy:
+        seed: interact-click-visible
+        wrapperDepth: [1, 2]
+        chromeTone: [reef, ember]
+        spacingDensity: [tidy, stacked]
+        siblingJitter: [0, 1]
+        calloutShuffle: { count: 2 }
+        badgeSubset: [1, 3]
     expected:
       classification: matched
       error-family: null
@@ -31,13 +41,18 @@ fixtures:
     description: |
       Visibility axis → display-none. Playwright's actionability
       check sees no visible element; classifier reads isVisible()
-      false and emits not-visible.
+      false and emits not-visible. Entropy-invariant.
     input:
       action: click
       target: { role: button, name: "Action" }
     world:
       surfaces:
         - { role: button, name: "Action", visibility: display-none }
+      entropy:
+        seed: interact-click-hidden
+        wrapperDepth: [2, 3]
+        chromeTone: [atlas, slate]
+        siblingJitter: [1, 2]
     expected:
       classification: failed
       error-family: not-visible
@@ -48,6 +63,7 @@ fixtures:
     description: |
       Enabled axis → false. The backing input carries `disabled`;
       classifier reads isEnabled() false and emits not-enabled.
+      Entropy-invariant.
     input:
       action: input
       target: { role: textbox, name: "Field" }
@@ -55,6 +71,11 @@ fixtures:
     world:
       surfaces:
         - { role: textbox, name: "Field", enabled: false }
+      entropy:
+        seed: interact-input-disabled
+        wrapperDepth: [1, 2]
+        chromeTone: [ember]
+        calloutShuffle: { count: 2 }
     expected:
       classification: failed
       error-family: not-enabled
@@ -65,13 +86,19 @@ fixtures:
     description: |
       detachAfterMs axis → the substrate schedules element removal
       1ms after mount. Playwright's click actionability check
-      retries; the element is gone; TimeoutError fires.
+      retries; the element is gone; TimeoutError fires. Entropy-
+      invariant (chrome renders, then the target detaches).
     input:
       action: click
       target: { role: button, name: "Action" }
     world:
       surfaces:
         - { role: button, name: "Action", detachAfterMs: 1 }
+      entropy:
+        seed: interact-click-detach
+        wrapperDepth: [1, 1]
+        chromeTone: [reef]
+        siblingJitter: [0, 1]
     expected:
       classification: failed
       error-family: timeout
@@ -83,7 +110,7 @@ fixtures:
       inputBacking axis → div-with-role. The surface has
       role=textbox but is a <div>, not an <input>. Playwright's
       fill() raises "Element is not an <input>"; classifier maps
-      the message to assertion-like.
+      the message to assertion-like. Entropy-invariant.
     input:
       action: input
       target: { role: textbox, name: "Field" }
@@ -91,6 +118,12 @@ fixtures:
     world:
       surfaces:
         - { role: textbox, name: "Field", inputBacking: div-with-role }
+      entropy:
+        seed: interact-fill-non-input
+        wrapperDepth: [2, 2]
+        chromeTone: [quartz, slate]
+        spacingDensity: [compact]
+        badgeSubset: [0, 2]
     expected:
       classification: failed
       error-family: assertion-like

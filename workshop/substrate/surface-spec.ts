@@ -32,12 +32,18 @@
 /** The closed set of ARIA roles the substrate renders. Matches
  *  Playwright's getByRole first argument (`@playwright/test`). The
  *  v1 seed set below covers every role the current probe suite
- *  exercises; add values here as new fixtures land. */
+ *  exercises plus the five ARIA landmark roles (banner,
+ *  complementary, contentinfo, main, plus the existing navigation +
+ *  region + search + form) — landmarks are first-class for observe
+ *  probes that verify landmark-aware queries. */
 export type SurfaceRole =
   | 'alert'
+  | 'banner'
   | 'button'
   | 'checkbox'
   | 'combobox'
+  | 'complementary'
+  | 'contentinfo'
   | 'form'
   | 'grid'
   | 'gridcell'
@@ -45,6 +51,7 @@ export type SurfaceRole =
   | 'link'
   | 'list'
   | 'listitem'
+  | 'main'
   | 'navigation'
   | 'radio'
   | 'radiogroup'
