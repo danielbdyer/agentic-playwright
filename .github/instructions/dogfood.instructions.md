@@ -44,7 +44,7 @@ To add a new screen to the dogfood domain:
 4. Optionally create `knowledge/screens/{screen}.behavior.yaml` — state nodes, events, transitions
 5. Optionally create `knowledge/screens/{screen}.postures.yaml` — posture variations
 6. Add scenario YAML files under `scenarios/demo/{screen}/`
-7. Add a fixture section to `fixtures/demo-harness/` if the screen needs a harness page
+7. If the screen needs a live SUT, author a WorldShape + register any new facet roles in `workshop/synthetic-app/` per the v2 substrate conventions
 8. Run `npm run compile` to verify the new screen integrates with the pipeline
 
 ## ADO Sync

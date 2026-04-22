@@ -16,8 +16,8 @@
  *                          (`/policy-search.html`, etc.) resolve to
  *                          the shell and render the "no-world" DOM
  *                          state cleanly. This makes the substrate
- *                          a drop-in replacement for the v1
- *                          demo-harness HTTP fixture.
+ *                          accepting on any path cleanly (every
+ *                          path resolves to the shell).
  *
  * ## Why in-process
  *

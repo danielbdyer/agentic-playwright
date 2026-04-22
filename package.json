@@ -44,7 +44,6 @@
     "trace": "npm run build && node dist/bin/tesseract.js trace --ado-id 10001",
     "impact": "npm run build && node dist/bin/tesseract.js impact --node element:policy-search:searchButton",
     "types": "npm run build && node dist/bin/tesseract.js types",
-    "demo-harness:build": "node scripts/build.cjs --demo-harness-only",
     "verify:rung-3-parity": "npm run build && npx tsx scripts/verify-rung-3-parity.ts",
     "lint": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/lint.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file,...process.argv.slice(1)];m._compile(code,file);\" --",
     "check": "node -e \"const fs=require('fs');const path=require('path');const Module=module.constructor;const file=path.resolve('scripts/check.cjs');const code=fs.readFileSync(file,'utf8');const m=new Module(file);m.filename=file;m.paths=[path.resolve('node_modules')];process.argv=['node',file];m._compile(code,file);\"",
@@ -61,7 +60,7 @@
     "evolve": "npx tsx scripts/evolve.ts",
     "dashboard": "npm run build && npx tsx dashboard/server.ts",
     "dashboard:live": "npm run build && npx tsx dashboard/server.ts --speedrun --count 50 --max-iterations 5",
-    "dashboard:build": "node scripts/build.cjs --demo-harness-only",
+    "dashboard:build": "node scripts/build.cjs",
     "test:unit:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {

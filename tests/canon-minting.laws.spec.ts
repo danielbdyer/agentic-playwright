@@ -133,7 +133,7 @@ function makeCompositionCandidate(
 ): CompositionCandidate<'route-graph', RouteGraphContent> {
   return {
     address: makeRouteGraphAddress(),
-    content: { app: 'demo', baseUrl: 'fixtures/demo-harness' },
+    content: { app: 'demo', baseUrl: 'fixtures/synthetic-substrate' },
     atomReferences: [makeRouteAtomReference('policy-search')],
     inputs: ['route-knowledge:demo'],
     ...overrides,

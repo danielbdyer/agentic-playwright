@@ -54,11 +54,12 @@ describe('Substrate server laws', () => {
   });
 
   test('S4: every path resolves to the shell', async () => {
-    // Legacy v1 paths (/policy-search.html, /any-legacy-route)
-    // receive the React shell + render the no-world state; this
-    // makes the substrate a drop-in for the v1 demo-harness
-    // fixture server.
-    const { status, body } = await fetchText(`${server.baseUrl}/policy-search.html`);
+    // Every path resolves to the React shell; the shell reads
+    // ?shape=... client-side to decide what renders. This makes
+    // the substrate server a generic HTTP SUT — any caller
+    // (MCP, dashboard, rung-3 harness) gets a responding server
+    // regardless of which URL they navigate to.
+    const { status, body } = await fetchText(`${server.baseUrl}/any-path.html`);
     expect(status).toBe(200);
     expect(body).toContain('<div id="root"></div>');
   });

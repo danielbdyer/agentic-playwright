@@ -796,7 +796,7 @@ function makeManifest(
     version: 1,
     governance: 'approved',
     app: 'demo',
-    baseUrl: 'fixtures/demo-harness',
+    baseUrl: 'fixtures/synthetic-substrate',
     routes: [
       makeRoute('policy-search', {
         variants: [
@@ -940,7 +940,7 @@ test('route graph composition content carries app, baseUrl, governance (not rout
   const out = decomposeRouteKnowledge(makeRouteInput());
   const graph = out.routeGraphs[0];
   expect(graph?.content.app).toBe('demo');
-  expect(graph?.content.baseUrl).toBe('fixtures/demo-harness');
+  expect(graph?.content.baseUrl).toBe('fixtures/synthetic-substrate');
   expect(graph?.content.governance).toBe('approved');
   // The composition content must NOT carry the routes array or the
   // addressing-level fields.

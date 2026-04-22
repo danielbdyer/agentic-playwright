@@ -39,13 +39,6 @@ function ensureGeneratedKnowledgeStub() {
     '',
   ].join('\n'));
 }
-const demoHarnessEntries = [
-  {
-    entry: path.join(ROOT_DIR, 'dogfood', 'fixtures', 'demo-harness', 'src', 'policy-journey.tsx'),
-    outfile: path.join(ROOT_DIR, 'dogfood', 'fixtures', 'demo-harness', 'policy-journey.js'),
-  },
-];
-
 const dashboardEntry = {
   entry: path.join(ROOT_DIR, 'dashboard', 'src', 'app', 'bootstrap.tsx'),
   outfile: path.join(ROOT_DIR, 'dashboard', 'dashboard.js'),
@@ -64,8 +57,8 @@ function host() {
   };
 }
 
-function shouldSkipTypeScript(argv) {
-  return argv.includes('--demo-harness-only');
+function shouldSkipTypeScript(_argv) {
+  return false;
 }
 
 function runTypeScriptBuild() {
@@ -111,22 +104,6 @@ async function buildTailwindCSS() {
     // Tailwind not available — skip (CSS falls back to index.html inline styles)
     process.stderr.write('tailwind: skipped (not installed or config missing)\n');
   }
-}
-
-async function buildDemoHarness() {
-  await Promise.all(demoHarnessEntries.map(({ entry, outfile }) =>
-    esbuild.build({
-      entryPoints: [entry],
-      outfile,
-      bundle: true,
-      format: 'esm',
-      jsx: 'automatic',
-      minify: false,
-      platform: 'browser',
-      sourcemap: false,
-      target: ['es2020'],
-      logLevel: 'silent',
-    })));
 }
 
 /** Build the workshop synthetic substrate for rung-3 probe execution.
@@ -222,7 +199,6 @@ async function main() {
   }
 
   await Promise.all([
-    buildDemoHarness(),
     buildDashboard(),
     buildTailwindCSS(),
     buildSyntheticApp(),

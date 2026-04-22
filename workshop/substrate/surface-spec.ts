@@ -1,10 +1,8 @@
 /**
  * SurfaceSpec — a world-shape described axiomatically.
  *
- * The first-principles replacement for the demo-harness-era
- * FacetRenderer. Where FacetRenderer keyed by a made-up
- * business-domain stable-id (`policy-search:searchButton`), SurfaceSpec
- * describes a DOM surface by the axes a classifier actually probes:
+ * SurfaceSpec describes a DOM surface by the axes a classifier
+ * actually probes:
  * role, accessible name, visibility, enabled state, input backing,
  * detach timing. A probe's WorldShape is an ordered list of
  * SurfaceSpecs — each one a point in axis-space.
