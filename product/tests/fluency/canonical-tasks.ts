@@ -73,4 +73,9 @@ export const CANONICAL_TASKS: readonly CanonicalTask[] = [
     prompt: 'Record a successful role-based locator resolution for the policy-search "Search" button.',
     rationale: 'Smallest case for locator-health-track — one success on the role rung updates the co-located health aggregate.',
   },
+  {
+    verb: 'navigate',
+    prompt: 'Navigate the active page to `/about-blank` with the default wait strategy.',
+    rationale: 'Smallest case for navigate — single URL transition with no upstream failure; the substrate serves the React shell at any path.',
+  },
 ];
