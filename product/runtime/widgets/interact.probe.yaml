@@ -1,9 +1,11 @@
 # Fixture specification for the `interact` verb.
-# Grammar: docs/v2-readiness.md §4.
+# Grammar: docs/v2-readiness.md §4 (first-principles revision,
+# Step-6 F3).
 #
-# The widest error surface in the seed manifest — four named error
-# families plus a happy path. Each fixture pins one cell of the
-# (facet-kind × error-family) coverage matrix for the interact verb.
+# interact's four declared error families map to four orthogonal
+# SurfaceSpec axes. No hooks; no world-setup vocabulary; each
+# fixture declares the actual DOM state as SurfaceSpec fields and
+# the classifier responds to the real DOM at rung 3.
 
 verb: interact
 schemaVersion: 1
@@ -11,31 +13,31 @@ schemaVersion: 1
 fixtures:
   - name: click-visible-enabled-button
     description: |
-      Happy-path click on a button that satisfies both visible and
-      enabled preconditions. The role-based dispatcher resolves the
-      button affordance and Playwright's click() completes.
+      Happy path. Button is visible and enabled; click dispatches
+      successfully. Role-based dispatcher resolves affordance.
     input:
       action: click
-      facet-id: policy-search:searchButton
-      role: button
+      target: { role: button, name: "Action" }
+    world:
+      surfaces:
+        - { role: button, name: "Action" }
     expected:
       classification: matched
       error-family: null
     exercises:
       - rung: role-dispatcher
-      - error-family: null
 
   - name: click-hidden-button-fails-not-visible
     description: |
-      The `visible` precondition fails before dispatch. The
-      precondition-failure path classifies to the not-visible
-      family (see preconditionFamily in interact.ts).
+      Visibility axis → display-none. Playwright's actionability
+      check sees no visible element; classifier reads isVisible()
+      false and emits not-visible.
     input:
       action: click
-      facet-id: policy-search:advancedOptionsButton
-      role: button
-    world-setup:
-      hide-target: true
+      target: { role: button, name: "Action" }
+    world:
+      surfaces:
+        - { role: button, name: "Action", visibility: display-none }
     expected:
       classification: failed
       error-family: not-visible
@@ -44,54 +46,51 @@ fixtures:
 
   - name: input-disabled-field-fails-not-enabled
     description: |
-      The `editable` precondition fails because the target textbox
-      is disabled. Routes through preconditionFamily to the
-      not-enabled family.
+      Enabled axis → false. The backing input carries `disabled`;
+      classifier reads isEnabled() false and emits not-enabled.
     input:
       action: input
-      facet-id: policy-search:policyNumberInput
-      role: textbox
-      value: "POL-001"
-    world-setup:
-      disable-target: true
+      target: { role: textbox, name: "Field" }
+      value: "any"
+    world:
+      surfaces:
+        - { role: textbox, name: "Field", enabled: false }
     expected:
       classification: failed
       error-family: not-enabled
     exercises:
       - error-family: not-enabled
 
-  - name: click-never-resolves-fails-timeout
+  - name: click-detaches-before-action-fails-timeout
     description: |
-      Playwright's click() throws TimeoutError because the locator
-      never resolves. classifyThrownError matches on error.name and
-      returns the timeout family.
+      detachAfterMs axis → the substrate schedules element removal
+      1ms after mount. Playwright's click actionability check
+      retries; the element is gone; TimeoutError fires.
     input:
       action: click
-      facet-id: policy-search:searchButton
-      role: button
-    world-setup:
-      detach-target-after-ms: 1
+      target: { role: button, name: "Action" }
+    world:
+      surfaces:
+        - { role: button, name: "Action", detachAfterMs: 1 }
     expected:
       classification: failed
       error-family: timeout
     exercises:
       - error-family: timeout
 
-  - name: input-non-input-fails-assertion
+  - name: fill-non-input-target-fails-assertion
     description: |
-      fill() dispatched against a non-input node (e.g., a div with
-      role="textbox" but no underlying input element). Playwright
-      raises an internal assertion whose message matches the
-      "Element is not" regex → assertion-like family.
-      The `non-input-target` hook signals the target-type mismatch
-      at rung 2; rung 3+ renders the DOM live and detects it.
+      inputBacking axis → div-with-role. The surface has
+      role=textbox but is a <div>, not an <input>. Playwright's
+      fill() raises "Element is not an <input>"; classifier maps
+      the message to assertion-like.
     input:
       action: input
-      facet-id: policy-search:freeformRegion
-      role: textbox
-      value: "anything"
-    world-setup:
-      non-input-target: true
+      target: { role: textbox, name: "Field" }
+      value: "any"
+    world:
+      surfaces:
+        - { role: textbox, name: "Field", inputBacking: div-with-role }
     expected:
       classification: failed
       error-family: assertion-like

@@ -1,29 +1,23 @@
 # Fixture specification for the `test-compose` verb.
 # Grammar: docs/v2-readiness.md §4.
+#
+# test-compose is not browser-bound. Its "world" is the input shape
+# itself — the handler's validator accepts or rejects. No substrate
+# DOM, no world.surfaces.
 
 verb: test-compose
 schemaVersion: 1
 
 fixtures:
-  - name: three-step-grounded-flow
+  - name: valid-shape-succeeds
     description: |
-      Compose a Playwright test from a minimal 3-step grounded
-      flow. Exercises the handler-level shape validator: input
-      carries the required `{ flow, imports }` pair at top level.
-      Rung-2 (fixture-replay) classifies on shape; rung-3+ will
-      validate the GroundedSpecFlow metadata and the emitted AST.
+      Input carries the required { flow, imports: { fixtures,
+      scenarioContext } } shape. The handler's validator accepts;
+      classification is matched.
     input:
       flow:
-        name: policy-search-happy-path
-        screen: policy-search
-        steps:
-          - kind: navigate
-            route: /policy-search
-          - kind: enter
-            facet: policy-search:policyNumberInput
-            value: POL-001
-          - kind: click
-            facet: policy-search:searchButton
+        name: sample-flow
+        steps: []
       imports:
         fixtures: ./fixtures
         scenarioContext: ./scenario-context
@@ -31,23 +25,17 @@ fixtures:
       classification: matched
       error-family: null
     exercises:
-      - rung: pregenerated-facade
-      - error-family: null
+      - rung: validator
 
   - name: missing-imports-fails-shape-validation
     description: |
-      Input omits the required `imports` object. The handler's
-      shape validator rejects — classification: failed, error-
-      family: assertion-like (the validator IS an assertion; Gap-4
-      resolution in probe-spike-verdict-02 widened test-compose's
-      manifest error families to declare assertion-like).
+      Input lacks the required `imports` object. The handler's
+      validator rejects — classification: failed, error-family:
+      assertion-like (the validator IS an assertion).
     input:
       flow:
-        name: policy-search-broken-path
-        screen: policy-search
-        steps:
-          - kind: click
-            facet: policy-search:DOES_NOT_EXIST
+        name: incomplete
+        steps: []
     expected:
       classification: failed
       error-family: assertion-like

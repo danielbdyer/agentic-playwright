@@ -1,5 +1,9 @@
 # Fixture specification for the `locator-health-track` verb.
 # Grammar: docs/v2-readiness.md §4.
+#
+# Not browser-bound. Only declared error family is unclassified;
+# every fixture classifies as matched because tracking an attempt
+# (whatever its outcome) is always a successful verb invocation.
 
 verb: locator-health-track
 schemaVersion: 1
@@ -8,10 +12,9 @@ fixtures:
   - name: track-successful-role-attempt
     description: |
       Record a successful role-strategy attempt on an existing
-      element facet. The attempt increments both attempts and
-      successes; successRate recomputes; trend folds in.
+      element facet. Attempts + successes increment; trend folds.
     input:
-      facet-id: policy-search:policyNumberInput
+      facet-id: ns:exampleA
       strategy: role
       outcome: success
     expected:
@@ -19,16 +22,14 @@ fixtures:
       error-family: null
     exercises:
       - rung: role
-      - error-family: null
 
   - name: track-failed-test-id-attempt
     description: |
-      Record a failed test-id-strategy attempt. A failed attempt is
-      still a valid verb invocation — tracking a failure is a
-      success for the tracker. Classification stays matched; the
-      failed attempt feeds flakiness and trend downstream.
+      Record a failed test-id-strategy attempt. A failed ATTEMPT
+      is still a successful TRACK — flakiness and trend incorporate
+      the outcome downstream.
     input:
-      facet-id: policy-search:policyNumberInput
+      facet-id: ns:exampleA
       strategy: test-id
       outcome: failure
     expected:
@@ -36,4 +37,3 @@ fixtures:
       error-family: null
     exercises:
       - rung: test-id
-      - error-family: null

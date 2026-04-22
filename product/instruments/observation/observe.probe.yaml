@@ -1,47 +1,44 @@
 # Fixture specification for the `observe` verb.
-# Grammar: docs/v2-readiness.md §4.
+# Grammar: docs/v2-readiness.md §4 (first-principles revision,
+# Step-6 F3).
+#
+# Vocabulary: target declares what the verb is asked to observe
+# (role + name); world.surfaces declares the substrate's actual
+# DOM state. The two coincide in the happy path; divergence
+# (target present in query but hidden in substrate) drives the
+# declared failure families.
 
 verb: observe
 schemaVersion: 1
 
 fixtures:
-  - name: visible-button-on-known-screen
+  - name: visible-button
     description: |
-      Observe a visible button on the policy-search screen.
-      Exercises the role-first locator ladder's top rung.
-      target.facet-id is rung-3 substrate metadata — the real
-      observe verb ignores it; the rung-3 classifier reads it
-      to render the correct facet on the synthetic substrate.
+      Observe a visible button. The substrate renders a button
+      matching the target's role + name; classifier's ARIA query
+      resolves; classification is matched.
     input:
-      surface:
-        screen: policy-search
-        facet-kind: element
-      target:
-        facet-id: policy-search:searchButton
-        role: button
-        name: "Search"
+      target: { role: button, name: "Action A" }
+    world:
+      surfaces:
+        - { role: button, name: "Action A" }
     expected:
       classification: matched
       error-family: null
     exercises:
       - rung: role
-      - error-family: null
 
   - name: hidden-target-fails-not-visible
     description: |
-      Observation should fail with not-visible when the target is
-      hidden. Exercises the not-visible error family on the
-      observe surface.
+      The target button exists in the DOM but renders with
+      display:none. Excluded from the accessibility tree, so
+      getByRole times out — classifier maps the timeout to the
+      not-visible family.
     input:
-      surface:
-        screen: policy-search
-        facet-kind: element
-      target:
-        facet-id: policy-search:advancedOptionsButton
-        role: button
-        name: "Advanced Options"
-      world-setup:
-        hide-target: true
+      target: { role: button, name: "Action B" }
+    world:
+      surfaces:
+        - { role: button, name: "Action B", visibility: display-none }
     expected:
       classification: failed
       error-family: not-visible

@@ -1,5 +1,9 @@
 # Fixture specification for the `facet-mint` verb.
 # Grammar: docs/v2-readiness.md §4.
+#
+# Not browser-bound. The world is catalog state; the rung-2
+# classifier honors `world.catalog.facet-exists-at-stable-id`
+# to simulate the ID-collision precondition.
 
 verb: facet-mint
 schemaVersion: 1
@@ -7,36 +11,33 @@ schemaVersion: 1
 fixtures:
   - name: mint-new-facet-succeeds
     description: |
-      Mint a fresh element-kind facet with a never-seen stable ID.
-      Exercises the happy mint path: ID check clears, provenance
-      header stamps, record lands with atomic-at-mint evidence.
+      Mint a fresh element-kind facet at a never-seen stable ID.
+      Happy mint path — ID check clears, provenance stamps,
+      record lands with atomic-at-mint evidence.
     input:
       facet-kind: element
-      stable-id: policy-search:applyFilterButton
-      display-name: Apply Filter
+      stable-id: ns:freshElementA
+      display-name: Fresh Element A
       minting-instrument: agent-observation
     expected:
       classification: matched
       error-family: null
     exercises:
       - rung: mint
-      - error-family: null
 
   - name: mint-duplicate-id-fails-assertion
     description: |
-      Minting at a stable ID already present in the catalog fails
-      with assertion-like. The pre-image collision is detected
-      before provenance stamping; no partial write lands.
-      The `id-collision` world-setup hook simulates the catalog
-      pre-condition at rung 2 (fixture-replay); rung 3+ will
-      load a real catalog and detect the collision there.
+      The catalog already has a record at this stable ID. The
+      pre-image collision is detected before provenance stamping
+      and routes to assertion-like.
     input:
       facet-kind: element
-      stable-id: policy-search:policyNumberInput
-      display-name: Policy Number
+      stable-id: ns:existingElementB
+      display-name: Colliding Element B
       minting-instrument: agent-observation
-    world-setup:
-      id-collision: true
+    world:
+      catalog:
+        facet-exists-at-stable-id: true
     expected:
       classification: failed
       error-family: assertion-like
