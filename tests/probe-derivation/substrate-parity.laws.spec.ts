@@ -94,12 +94,17 @@ describe('substrate parity laws (dry-harness ↔ fixture-replay)', () => {
 
   test('P2: the parity set equals the registered classifier set', async () => {
     const { classifiedVerbs } = await runBothHarnesses();
-    // Today: exactly one classifier registered. When new ones
-    // register, this test updates — new entry in the set means
-    // new probes exercised under both harnesses. Prevents silent
+    // The registered classifier set grows as each verb gains a
+    // shape-level (or higher-rung) classifier. Updating this
+    // assertion is a deliberate gesture — new entry means new
+    // probes exercised under both harnesses. Prevents silent
     // drift where a classifier ships without the parity check
     // covering it.
-    expect([...classifiedVerbs].sort()).toEqual(['test-compose']);
+    expect([...classifiedVerbs].sort()).toEqual([
+      'facet-query',
+      'locator-health-track',
+      'test-compose',
+    ]);
   });
 
   test('P3: reproducibility — two runs produce byte-identical receipts on each side', async () => {
