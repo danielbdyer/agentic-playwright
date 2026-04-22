@@ -210,6 +210,14 @@ const ALWAYS_ALLOWED_PRODUCT_PATHS: readonly string[] = [
   // allowance, every dashboard/workshop file that reads an
   // envelope would need grandfathering.
   'product/domain/governance',
+  // Playwright tooling — launchHeadedHarness + createPlaywrightBridge
+  // etc. These are infrastructure for running Playwright, not domain.
+  // Dashboard uses them to expose browser MCP tools; workshop's
+  // rung-3 substrate (playwright-live-harness) uses them to launch
+  // the Chromium instance that renders the synthetic substrate. Pure
+  // Playwright adapter utilities with no product-domain entanglement
+  // — shared-contract, same justification as product/domain/kernel/hash.
+  'product/instruments/tooling',
 ];
 
 function isManifestDeclaredOrLogPath(

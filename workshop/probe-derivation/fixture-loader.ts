@@ -60,9 +60,7 @@ function parseFixture(raw: unknown, where: string): ProbeFixtureDocument['fixtur
   if (input === undefined) {
     throw new Error(`${where}: input is required.`);
   }
-  const worldSetup = isRecord(raw['input']) && isRecord((raw['input'] as Record<string, unknown>)['world-setup'])
-    ? (raw['input'] as Record<string, unknown>)['world-setup']
-    : raw['world-setup'];
+  const worldSetup = readWorldSection(raw);
   const expectedRaw = raw['expected'];
   if (!isRecord(expectedRaw)) {
     throw new Error(`${where}: expected must be a mapping.`);
@@ -118,6 +116,29 @@ function parseExercise(raw: unknown, where: string): { readonly rung?: string; r
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Extract the world section from a fixture entry.
+ *
+ *  Three recognized shapes (first-principles revision):
+ *
+ *    { world: { ... } }           — first-principles form (preferred).
+ *                                   Top-level; carries surfaces /
+ *                                   catalog / upstream sub-objects
+ *                                   depending on the verb's substrate.
+ *    { world-setup: { ... } }     — legacy hook-dictionary form.
+ *                                   Still read for backwards-compat
+ *                                   during migration.
+ *    { input: { world-setup: {} }}  — legacy nested form.
+ *
+ *  The loader returns whichever is present; `world` wins over both
+ *  legacy forms when multiple are declared. */
+function readWorldSection(raw: Record<string, unknown>): unknown {
+  if (raw['world'] !== undefined) return raw['world'];
+  if (raw['world-setup'] !== undefined) return raw['world-setup'];
+  const input = raw['input'];
+  if (isRecord(input) && isRecord(input['world-setup'])) return input['world-setup'];
+  return undefined;
 }
 
 function requireString(obj: Record<string, unknown>, key: string, where: string): string {

@@ -58,6 +58,7 @@ import {
   type VerbClassifierRegistry,
 } from './verb-classifier';
 import { fingerprintFor } from '../../product/domain/kernel/hash';
+import { SUBSTRATE_VERSION } from '../substrate/version';
 
 /** Observed outcome for a probe whose verb has no classifier
  *  registered. 'ambiguous' honestly reports "substrate did not
@@ -145,6 +146,7 @@ export function createFixtureReplayProbeHarness(opts: {
           provenance: {
             adapter,
             manifestVersion: 1,
+            substrateVersion: SUBSTRATE_VERSION,
             fixtureFingerprint,
             startedAt: startedAt.toISOString(),
             completedAt: completedAt.toISOString(),

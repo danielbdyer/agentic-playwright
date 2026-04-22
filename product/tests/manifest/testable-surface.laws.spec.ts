@@ -135,16 +135,13 @@ describe('TestableSurface laws', () => {
       const existing = byKind.get(surface.compositionPath.kind) ?? [];
       byKind.set(surface.compositionPath.kind, [...existing, verb.name]);
     }
-    // At the Step-5 entry, we expect the distribution:
+    // Post-T8 distribution (9 verbs):
     //   external-source:   1 (intent-fetch)
-    //   world-observation: 2 (observe, interact)
+    //   world-observation: 3 (observe, interact, navigate)
     //   atomic:            1 (test-compose)
     //   memory-read:       4 (facet-mint, facet-query, facet-enrich, locator-health-track)
-    // The memory verbs all default to memory-read today; fixture
-    // overrides will refine facet-mint/enrich/locator-health-track
-    // to memory-write / ledger-append in later commits.
     expect(byKind.get('external-source')).toEqual(['intent-fetch']);
-    expect(byKind.get('world-observation')?.sort()).toEqual(['interact', 'observe']);
+    expect(byKind.get('world-observation')?.sort()).toEqual(['interact', 'navigate', 'observe']);
     expect(byKind.get('atomic')).toEqual(['test-compose']);
     expect((byKind.get('memory-read') ?? []).length).toBe(4);
   });

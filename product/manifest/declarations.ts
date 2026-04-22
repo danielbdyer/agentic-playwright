@@ -90,7 +90,13 @@ export const testComposeVerb = declareVerb({
     declaredIn: 'product/instruments/codegen/spec-codegen.ts',
     summary: 'The emitted spec file path, the AST digest, and the referenced-facet index.',
   },
-  errorFamilies: ['malformed-response', 'unclassified'],
+  // Gap 4 resolution (probe-spike-verdict-02): the handler's input-
+  // shape validator rejects malformed inputs by throwing, and the
+  // closest semantic family for a shape-validation error is
+  // `assertion-like` — the handler's guard is an assertion. The
+  // workshop's test-compose classifier routes shape failures here
+  // once this family is declared.
+  errorFamilies: ['assertion-like', 'malformed-response', 'unclassified'],
   sinceVersion: '2.1.0',
   declaredIn: 'product/instruments/codegen/spec-codegen.ts',
 });
@@ -178,4 +184,23 @@ export const locatorHealthTrackVerb = declareVerb({
   errorFamilies: ['unclassified'],
   sinceVersion: '2.1.0',
   declaredIn: 'product/domain/memory/locator-health.ts',
+});
+
+export const navigateVerb = declareVerb({
+  name: 'navigate',
+  category: 'interact',
+  summary: 'Navigate the active page to a new URL. The substrate reads the destination URL and renders the new world at that address.',
+  inputs: {
+    typeName: 'NavigateRequest',
+    declaredIn: 'product/runtime/navigation/navigate.ts',
+    summary: 'The destination URL plus an optional wait strategy.',
+  },
+  outputs: {
+    typeName: 'NavigateOutcome',
+    declaredIn: 'product/runtime/navigation/navigate.ts',
+    summary: 'The reached URL, status code, and elapsed navigation time.',
+  },
+  errorFamilies: ['unavailable', 'timeout', 'unclassified'],
+  sinceVersion: '2.2.0',
+  declaredIn: 'product/runtime/navigation/navigate.ts',
 });

@@ -1,5 +1,8 @@
 # Fixture specification for the `facet-query` verb.
 # Grammar: docs/v2-readiness.md §4.
+#
+# facet-query's discriminator is `by`. Not browser-bound — the
+# "world" is catalog state; classifier checks input shape.
 
 verb: facet-query
 schemaVersion: 1
@@ -7,43 +10,41 @@ schemaVersion: 1
 fixtures:
   - name: lookup-by-id
     description: |
-      Resolve a known facet by its stable ID. Exercises the
-      primary ID index path (O(1) map lookup).
+      Resolve by stable ID — the primary index path. Shape valid
+      (by=id, id is a string); classification matched. Empty-
+      result responses also classify as matched (see
+      missing-id-returns-empty below).
     input:
       by: id
-      id: policy-search:policyNumberInput
+      id: ns:exampleA
     expected:
       classification: matched
       error-family: null
     exercises:
       - rung: id-index
-      - error-family: null
 
   - name: lookup-by-intent-phrase
     description: |
-      Resolve a facet by an observed intent phrase. Exercises the
-      alias-index path and the per-alias evidence-count ordering.
+      Resolve by observed intent phrase — the alias-index path.
     input:
       by: intent-phrase
-      phrase: "Policy Number field"
+      phrase: "Example field"
     expected:
       classification: matched
       error-family: null
     exercises:
       - rung: alias-index
-      - error-family: null
 
   - name: missing-id-returns-empty
     description: |
-      Query for an ID that is not in the catalog. Expected to
-      return zero matches without raising an error — the empty
-      result is a `matched` classification with an empty set.
+      Query for an ID not in the catalog. Zero matches is a
+      matched classification — query's declared error family is
+      unclassified only; absence is a success.
     input:
       by: id
-      id: nonexistent:facet
+      id: ns:doesNotExist
     expected:
       classification: matched
       error-family: null
     exercises:
       - rung: id-index
-      - error-family: null

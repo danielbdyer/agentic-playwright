@@ -1,5 +1,9 @@
 # Fixture specification for the `intent-fetch` verb.
 # Grammar: docs/v2-readiness.md §4.
+#
+# Not browser-bound. The world is upstream-API state; the rung-2
+# classifier honors `world.upstream.*` flags to simulate each
+# declared failure family.
 
 verb: intent-fetch
 schemaVersion: 1
@@ -7,9 +11,8 @@ schemaVersion: 1
 fixtures:
   - name: fetch-testbed-work-item-succeeds
     description: |
-      Fetch a known work item from the in-repo testbed source.
-      Exercises the happy source-dispatch path: testbed adapter
-      resolves, payload returns, rev metadata stamps.
+      Happy path via the in-repo testbed source. Source-dispatch
+      resolves 'testbed'; payload returns; rev metadata stamps.
     input:
       source: testbed
       id: "WORK-001"
@@ -18,16 +21,17 @@ fixtures:
       error-family: null
     exercises:
       - rung: testbed-source
-      - error-family: null
 
   - name: fetch-retries-exhausted-fails-rate-limited
     description: |
-      ADO returns HTTP 429 and the retry schedule exhausts without
-      a successful attempt. Exercises the rate-limited classification
-      path from the resilience retry envelope.
+      ADO returns HTTP 429 and the retry schedule exhausts.
+      Classification routes through the rate-limited family.
     input:
       source: ado
       id: "999999"
+    world:
+      upstream:
+        rate-limited: true
     expected:
       classification: failed
       error-family: rate-limited
@@ -36,12 +40,14 @@ fixtures:
 
   - name: fetch-transport-fails-unavailable
     description: |
-      The ADO endpoint is unreachable (connection refused, DNS
-      failure, abort). Transport-level failure maps to the
-      unavailable error family per the AdoTransientError path.
+      ADO endpoint unreachable (connection refused / DNS / abort).
+      Transport-level failure maps to the unavailable family.
     input:
       source: ado
       id: "42"
+    world:
+      upstream:
+        transport-failure: true
     expected:
       classification: failed
       error-family: unavailable
@@ -50,19 +56,15 @@ fixtures:
 
   - name: fetch-malformed-payload-fails-malformed-response
     description: |
-      Resolves Gap 2 from probe-spike-verdict-01. ADO responds with
-      HTTP 200 but the payload violates the expected schema (e.g.
-      missing fields, wrong types). Classification routes through
-      the malformed-response family. Under rung-2 (fixture-replay)
-      the classifier honors the `inject-malformed-payload` world-
-      setup hook to simulate this path deterministically — no
-      live network, no schema-break injection machinery needed
-      until the classifier lands at Step 5.6.
+      ADO returns HTTP 200 but the payload violates the expected
+      schema (missing fields, wrong types). Classification routes
+      through malformed-response.
     input:
       source: ado
       id: "7"
-    world-setup:
-      inject-malformed-payload: true
+    world:
+      upstream:
+        malformed-payload: true
     expected:
       classification: failed
       error-family: malformed-response

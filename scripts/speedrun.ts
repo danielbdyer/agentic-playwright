@@ -69,7 +69,7 @@ import {
   type PhaseTimingBaseline,
   type PhaseTimingBudget,
 } from '../product/domain/projection/speedrun-statistics';
-import { startFixtureServer, type FixtureServer } from '../product/instruments/tooling/fixture-server';
+import { startSubstrateServer, type SubstrateServer } from '../workshop/synthetic-app/server';
 import { createPlaywrightBrowserPool } from '../product/instruments/runtime/playwright-browser-pool';
 import type { BrowserPoolPort } from '../product/application/runtime-support/browser-pool';
 import { createFileBackedDashboardPort } from '../dashboard/bridges/file-dashboard-port';
@@ -460,14 +460,14 @@ async function withPlaywrightEnvironment<T>(fn: (env: PlaywrightEnvironment) => 
   if (effectiveMode === 'diagnostic') return fn({ baseUrl: undefined, browserPool: undefined });
 
   const resolvedBaseUrl = explicitBaseUrl || undefined;
-  let server: FixtureServer | null = null;
+  let server: SubstrateServer | null = null;
   let pool: BrowserPoolPort | null = null;
 
   try {
     // Start fixture server if no explicit base URL
     if (!resolvedBaseUrl) {
       console.log('Starting fixture server for Playwright execution...');
-      server = await startFixtureServer({ rootDir });
+      server = await startSubstrateServer({ rootDir });
       console.log(`Fixture server ready at ${server.baseUrl}`);
     }
 

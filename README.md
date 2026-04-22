@@ -476,15 +476,24 @@ An agent (Claude Code or VSCode Copilot) can close the full loop:
 4. **Verify** — re-run the scenario to confirm the proposal resolves deterministically
 5. **Observe** — semantic dictionary accrues the decision; future similar intents resolve without LLM
 
-## Demo harness
+## Synthetic substrate
 
-The dogfood demo harness is a static HTTP server that serves mock insurance application screens:
+The v2 synthetic substrate is the in-process React + Node http fixture
+SUT every caller (MCP bootstrap, dashboard, speedrun, convergence-proof,
+rung-3 harness) starts when it needs a running HTTP endpoint:
 
-- `dogfood/fixtures/demo-harness/server.cjs` — Node.js HTTP server on port 3100
-- Screens: `policy-search.html`, `policy-detail.html`, `policy-journey.html`
-- Auto-started by `playwright.config.ts` via `webServer` configuration
+- `workshop/synthetic-app/server.ts` — in-process Node http server on a
+  random port per caller.
+- `workshop/synthetic-app/src/SubstrateRenderer.tsx` — universal React
+  root that reads `?shape=...` (WorldShape JSON) and renders axis-based
+  SurfaceSpecs through one `SurfaceRenderer` + optional EntropyProfile.
+- `workshop/substrate/` — the primitives (SurfaceSpec, WorldShape,
+  EntropyProfile, seeded RNG) the server's bundle consumes.
 
-The seeded vertical slice uses ADO case `10001` against the policy-search screen. Running the full pipeline:
+See `docs/v2-probe-ir-spike.md` §6 for the substrate ladder and §8 for
+the axis-invariance theorem the substrate realizes.
+
+The seeded vertical slice uses ADO case `10001` against v1 screens. Running the full pipeline:
 
 ```powershell
 npm run refresh                    # compile the scenario

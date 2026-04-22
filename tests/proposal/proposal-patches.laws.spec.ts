@@ -93,7 +93,7 @@ test('route knowledge patches merge new variants without overwriting reviewed ro
     version: 1,
     governance: 'approved',
     app: 'demo',
-    baseUrl: 'fixtures/demo-harness',
+    baseUrl: 'fixtures/synthetic-substrate',
     routes: [{
       id: 'policy-search',
       screen: 'policy-search',

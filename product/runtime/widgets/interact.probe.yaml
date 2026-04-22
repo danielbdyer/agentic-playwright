@@ -1,9 +1,11 @@
 # Fixture specification for the `interact` verb.
-# Grammar: docs/v2-readiness.md §4.
+# Grammar: docs/v2-readiness.md §4 (first-principles revision,
+# Step-6 F3).
 #
-# The widest error surface in the seed manifest — four named error
-# families plus a happy path. Each fixture pins one cell of the
-# (facet-kind × error-family) coverage matrix for the interact verb.
+# interact's four declared error families map to four orthogonal
+# SurfaceSpec axes. No hooks; no world-setup vocabulary; each
+# fixture declares the actual DOM state as SurfaceSpec fields and
+# the classifier responds to the real DOM at rung 3.
 
 verb: interact
 schemaVersion: 1
@@ -11,31 +13,46 @@ schemaVersion: 1
 fixtures:
   - name: click-visible-enabled-button
     description: |
-      Happy-path click on a button that satisfies both visible and
-      enabled preconditions. The role-based dispatcher resolves the
-      button affordance and Playwright's click() completes.
+      Happy path. Button is visible and enabled; click dispatches
+      successfully. Role-based dispatcher resolves affordance.
+      Entropy profile perturbs the chrome; the matched verdict is
+      invariant.
     input:
       action: click
-      facet-id: policy-search:searchButton
-      role: button
+      target: { role: button, name: "Action" }
+    world:
+      surfaces:
+        - { role: button, name: "Action" }
+      entropy:
+        seed: interact-click-visible
+        wrapperDepth: [1, 2]
+        chromeTone: [reef, ember]
+        spacingDensity: [tidy, stacked]
+        siblingJitter: [0, 1]
+        calloutShuffle: { count: 2 }
+        badgeSubset: [1, 3]
     expected:
       classification: matched
       error-family: null
     exercises:
       - rung: role-dispatcher
-      - error-family: null
 
   - name: click-hidden-button-fails-not-visible
     description: |
-      The `visible` precondition fails before dispatch. The
-      precondition-failure path classifies to the not-visible
-      family (see preconditionFamily in interact.ts).
+      Visibility axis → display-none. Playwright's actionability
+      check sees no visible element; classifier reads isVisible()
+      false and emits not-visible. Entropy-invariant.
     input:
       action: click
-      facet-id: policy-search:advancedOptionsButton
-      role: button
-    world-setup:
-      hide-target: true
+      target: { role: button, name: "Action" }
+    world:
+      surfaces:
+        - { role: button, name: "Action", visibility: display-none }
+      entropy:
+        seed: interact-click-hidden
+        wrapperDepth: [2, 3]
+        chromeTone: [atlas, slate]
+        siblingJitter: [1, 2]
     expected:
       classification: failed
       error-family: not-visible
@@ -44,52 +61,164 @@ fixtures:
 
   - name: input-disabled-field-fails-not-enabled
     description: |
-      The `editable` precondition fails because the target textbox
-      is disabled. Routes through preconditionFamily to the
-      not-enabled family.
+      Enabled axis → false. The backing input carries `disabled`;
+      classifier reads isEnabled() false and emits not-enabled.
+      Entropy-invariant.
     input:
       action: input
-      facet-id: policy-search:policyNumberInput
-      role: textbox
-      value: "POL-001"
-    world-setup:
-      disable-target: true
+      target: { role: textbox, name: "Field" }
+      value: "any"
+    world:
+      surfaces:
+        - { role: textbox, name: "Field", enabled: false }
+      entropy:
+        seed: interact-input-disabled
+        wrapperDepth: [1, 2]
+        chromeTone: [ember]
+        calloutShuffle: { count: 2 }
     expected:
       classification: failed
       error-family: not-enabled
     exercises:
       - error-family: not-enabled
 
-  - name: click-never-resolves-fails-timeout
+  - name: click-detaches-before-action-fails-timeout
     description: |
-      Playwright's click() throws TimeoutError because the locator
-      never resolves. classifyThrownError matches on error.name and
-      returns the timeout family.
+      detachAfterMs axis → the substrate schedules element removal
+      1ms after mount. Playwright's click actionability check
+      retries; the element is gone; TimeoutError fires. Entropy-
+      invariant (chrome renders, then the target detaches).
     input:
       action: click
-      facet-id: policy-search:searchButton
-      role: button
-    world-setup:
-      detach-target-after-ms: 1
+      target: { role: button, name: "Action" }
+    world:
+      surfaces:
+        - { role: button, name: "Action", detachAfterMs: 1 }
+      entropy:
+        seed: interact-click-detach
+        wrapperDepth: [1, 1]
+        chromeTone: [reef]
+        siblingJitter: [0, 1]
     expected:
       classification: failed
       error-family: timeout
     exercises:
       - error-family: timeout
 
-  - name: input-non-input-fails-assertion
+  - name: fill-non-input-target-fails-assertion
     description: |
-      fill() dispatched against a non-input node (e.g., a div with
-      role="textbox" but no underlying input element). Playwright
-      raises an internal assertion whose message matches the
-      "Element is not" regex → assertion-like family.
+      inputBacking axis → div-with-role. The surface has
+      role=textbox but is a <div>, not an <input>. Playwright's
+      fill() raises "Element is not an <input>"; classifier maps
+      the message to assertion-like. Entropy-invariant.
     input:
       action: input
-      facet-id: policy-search:freeformRegion
-      role: textbox
-      value: "anything"
+      target: { role: textbox, name: "Field" }
+      value: "any"
+    world:
+      surfaces:
+        - { role: textbox, name: "Field", inputBacking: div-with-role }
+      entropy:
+        seed: interact-fill-non-input
+        wrapperDepth: [2, 2]
+        chromeTone: [quartz, slate]
+        spacingDensity: [compact]
+        badgeSubset: [0, 2]
     expected:
       classification: failed
       error-family: assertion-like
     exercises:
       - error-family: assertion-like
+
+  - name: click-target-among-many-same-role
+    description: |
+      Role-disambiguation probe for interact. The world renders
+      five buttons; the target's name picks "Save" specifically.
+      Tests that interact's click dispatches to the correctly-
+      disambiguated element. Entropy-invariant.
+    input:
+      action: click
+      target: { role: button, name: "Save" }
+    world:
+      surfaces:
+        - { role: button, name: "Cancel" }
+        - { role: button, name: "Save" }
+        - { role: button, name: "Reset" }
+        - { role: button, name: "Help" }
+      entropy:
+        seed: interact-many-buttons
+        wrapperDepth: [1, 2]
+        chromeTone: [ember]
+        siblingJitter: [0, 1]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role-dispatcher
+      - composition: role-disambiguation
+
+  - name: click-submit-inside-login-form
+    description: |
+      Dispatch click on a Submit button inside a form landmark.
+      Uses the login-form preset — the substrate renders a real
+      <form onSubmit={...}> containing two required textboxes
+      and a Submit button. The probe tests that click traverses
+      form-nested focusable elements correctly at rung 3.
+    input:
+      action: click
+      target: { role: button, name: "Submit" }
+    world:
+      preset: login-form
+      entropy:
+        seed: interact-submit-login
+        wrapperDepth: [1, 2]
+        chromeTone: [reef, atlas]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role-dispatcher
+      - composition: form-submit
+      - preset: login-form
+
+  - name: fill-required-field-in-login-form
+    description: |
+      Fill a required textbox inside the login-form preset. Tests
+      that interact's fill dispatch reaches nested form fields and
+      succeeds despite the aria-required attribute.
+    input:
+      action: input
+      target: { role: textbox, name: "Identifier" }
+      value: "alice"
+    world:
+      preset: login-form
+      entropy:
+        seed: interact-fill-required
+        chromeTone: [ember]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role-dispatcher
+      - axis: required
+      - preset: login-form
+
+  - name: click-save-inside-prefilled-form
+    description: |
+      Prefilled form: every required field has an initialValue so
+      submit reveals the success alert. Click the Save button
+      inside the form landmark. The success-alert isn't the
+      target — this probe verifies the click dispatches; a
+      separate observe probe can see the revealed alert.
+    input:
+      action: click
+      target: { role: button, name: "Save" }
+    world:
+      preset: prefilled-form
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role-dispatcher
+      - composition: form-submit-success
+      - preset: prefilled-form

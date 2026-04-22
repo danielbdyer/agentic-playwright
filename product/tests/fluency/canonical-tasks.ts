@@ -15,7 +15,8 @@
  * verifies the declaration-and-routing contract, not that the verb
  * implementation produces the expected output. Behavioral fluency
  * is exercised through the downstream instrument tests and the
- * transitional probe set.
+ * manifest-derived probe IR + fixture-replay harness
+ * (Step 5 / Step 5.5).
  */
 
 /** A canonical agent-facing task bound to a single verb. The task
@@ -71,5 +72,10 @@ export const CANONICAL_TASKS: readonly CanonicalTask[] = [
     verb: 'locator-health-track',
     prompt: 'Record a successful role-based locator resolution for the policy-search "Search" button.',
     rationale: 'Smallest case for locator-health-track — one success on the role rung updates the co-located health aggregate.',
+  },
+  {
+    verb: 'navigate',
+    prompt: 'Navigate the active page to `/about-blank` with the default wait strategy.',
+    rationale: 'Smallest case for navigate — single URL transition with no upstream failure; the substrate serves the React shell at any path.',
   },
 ];

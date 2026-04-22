@@ -1,44 +1,182 @@
 # Fixture specification for the `observe` verb.
-# Grammar: docs/v2-readiness.md §4.
+# Grammar: docs/v2-readiness.md §4 (first-principles revision,
+# Step-6 F3).
+#
+# Vocabulary: target declares what the verb is asked to observe
+# (role + name); world.surfaces declares the substrate's actual
+# DOM state. The two coincide in the happy path; divergence
+# (target present in query but hidden in substrate) drives the
+# declared failure families.
 
 verb: observe
 schemaVersion: 1
 
 fixtures:
-  - name: visible-button-on-known-screen
+  - name: visible-button
     description: |
-      Observe a visible button on the policy-search screen.
-      Exercises the role-first locator ladder's top rung.
+      Observe a visible button. The substrate renders a button
+      matching the target's role + name; classifier's ARIA query
+      resolves; classification is matched. The entropy profile
+      wraps the button in randomized chrome (nested wrappers,
+      tone/density classes, sibling jitter, callout + badge
+      decoration) — the classifier's outcome must be invariant
+      under this chrome perturbation.
     input:
-      surface:
-        screen: policy-search
-        facet-kind: element
-      target:
-        role: button
-        name: "Search"
+      target: { role: button, name: "Action A" }
+    world:
+      surfaces:
+        - { role: button, name: "Action A" }
+      entropy:
+        seed: observe-visible-button
+        wrapperDepth: [1, 3]
+        chromeTone: [reef, ember, atlas]
+        spacingDensity: [tidy, layered]
+        siblingJitter: [0, 2]
+        calloutShuffle: { count: 3 }
+        badgeSubset: [2, 4]
     expected:
       classification: matched
       error-family: null
     exercises:
       - rung: role
-      - error-family: null
 
   - name: hidden-target-fails-not-visible
     description: |
-      Observation should fail with not-visible when the target is
-      hidden. Exercises the not-visible error family on the
-      observe surface.
+      The target button exists in the DOM but renders with
+      display:none. Excluded from the accessibility tree, so
+      getByRole times out — classifier maps the timeout to the
+      not-visible family. Entropy chrome surrounds the hidden
+      target; the not-visible verdict holds regardless.
     input:
-      surface:
-        screen: policy-search
-        facet-kind: element
-      target:
-        role: button
-        name: "Advanced Options"
-      world-setup:
-        hide-target: true
+      target: { role: button, name: "Action B" }
+    world:
+      surfaces:
+        - { role: button, name: "Action B", visibility: display-none }
+      entropy:
+        seed: observe-hidden-button
+        wrapperDepth: [2, 2]
+        chromeTone: [quartz]
+        siblingJitter: [1, 3]
     expected:
       classification: failed
       error-family: not-visible
     exercises:
       - error-family: not-visible
+
+  - name: observe-nested-tab-in-tablist
+    description: |
+      Observe a tab deep inside a composed ARIA topology:
+      main → tablist → tab. Tests that getByRole resolves through
+      realistic accessibility-tree nesting. The name query
+      disambiguates which tab among the two at the same depth.
+    input:
+      target: { role: tab, name: "Details" }
+    world:
+      surfaces:
+        - role: main
+          name: "Account"
+          children:
+            - role: tablist
+              name: "Account sections"
+              children:
+                - { role: tab, name: "Overview" }
+                - { role: tab, name: "Details" }
+      entropy:
+        seed: observe-nested-tab
+        wrapperDepth: [1, 2]
+        chromeTone: [atlas]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - composition: nested
+
+  - name: observe-target-among-many-same-role
+    description: |
+      Role-disambiguation probe — the world renders five buttons
+      with distinct names; the target's name must pick the right
+      one. Proves getByRole({name}) resolves among siblings of
+      the same role. Entropy-invariant.
+    input:
+      target: { role: button, name: "Approve" }
+    world:
+      surfaces:
+        - { role: button, name: "Edit" }
+        - { role: button, name: "Delete" }
+        - { role: button, name: "Approve" }
+        - { role: button, name: "Reject" }
+        - { role: button, name: "Export" }
+      entropy:
+        seed: observe-many-buttons
+        wrapperDepth: [1, 2]
+        chromeTone: [slate, atlas]
+        siblingJitter: [0, 1]
+        calloutShuffle: { count: 3 }
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - composition: role-disambiguation
+
+  - name: observe-preset-landmark-page
+    description: |
+      Use the `landmark-page` test topology preset. The topology
+      registry expands the preset to a full landmark composition
+      (banner + navigation + main + complementary + contentinfo).
+      Target is the `main` landmark — tests landmark-aware
+      observe queries against a realistic multi-landmark world.
+    input:
+      target: { role: main, name: "Content" }
+    world:
+      preset: landmark-page
+      entropy:
+        seed: observe-landmark-page
+        chromeTone: [reef]
+        siblingJitter: [0, 2]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - composition: landmark
+      - preset: landmark-page
+
+  - name: observe-required-field-in-login-form
+    description: |
+      Observe a required textbox (aria-required=true) inside the
+      login-form preset. Tests that observe's accessibility query
+      resolves the named field through form nesting + required-
+      axis rendering.
+    input:
+      target: { role: textbox, name: "Identifier" }
+    world:
+      preset: login-form
+      entropy:
+        seed: observe-required-field
+        chromeTone: [atlas]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - axis: required
+      - preset: login-form
+
+  - name: observe-pre-invalidated-field
+    description: |
+      Observe a field that the form pre-marks as invalid
+      (aria-invalid=true). Target resolves by role+name through
+      form nesting; the invalid axis is orthogonal to the query.
+    input:
+      target: { role: textbox, name: "Display name" }
+    world:
+      preset: validation-error-form
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - axis: invalid
+      - preset: validation-error-form

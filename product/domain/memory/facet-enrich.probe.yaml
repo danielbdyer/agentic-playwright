@@ -1,5 +1,9 @@
 # Fixture specification for the `facet-enrich` verb.
 # Grammar: docs/v2-readiness.md §4.
+#
+# Not browser-bound. The world is catalog state; the rung-2
+# classifier honors `world.catalog.facet-missing` to simulate
+# the absent-facet precondition.
 
 verb: facet-enrich
 schemaVersion: 1
@@ -7,33 +11,35 @@ schemaVersion: 1
 fixtures:
   - name: enrich-adds-new-alias
     description: |
-      Append a newly-observed alias to an existing facet. Exercises
-      the alias-merge path: evidence count increments, aliases
-      reorder by count descending, stable ID is preserved.
+      Append a newly-observed alias to an existing facet. Happy
+      path — evidence count increments, aliases reorder by count
+      descending, stable ID preserved.
     input:
       facet-kind: element
-      facet-id: policy-search:policyNumberInput
+      facet-id: ns:existingElementA
       evidence:
         kind: alias-observed
-        phrase: "Policy # field"
+        phrase: "Alt name for A"
     expected:
       classification: matched
       error-family: null
     exercises:
       - rung: alias-merge
-      - error-family: null
 
   - name: enrich-unknown-id-fails-assertion
     description: |
-      Enriching against a facet ID not present in the catalog fails
-      with assertion-like. The verb refuses to materialize a record
-      on enrich — mint is the only path that admits new IDs.
+      Target facet is absent from the catalog. enrich refuses to
+      materialize records for unknown IDs — mint is the only path
+      that admits new ones. Assertion-like.
     input:
       facet-kind: element
-      facet-id: nonexistent:facet
+      facet-id: ns:nonexistent
       evidence:
         kind: alias-observed
-        phrase: "Mystery field"
+        phrase: "Stray phrase"
+    world:
+      catalog:
+        facet-missing: true
     expected:
       classification: failed
       error-family: assertion-like

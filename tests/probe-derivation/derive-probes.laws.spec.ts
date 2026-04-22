@@ -39,7 +39,7 @@ function loadManifest(): Manifest {
 }
 
 describe('probe IR fixture-loader laws', () => {
-  test('loads the observe.probe.yaml fixture and parses 2 fixtures', () => {
+  test('loads the observe.probe.yaml fixture and parses its fixtures', () => {
     const doc = loadFixtureDocumentForVerb(
       REPO_ROOT,
       'observe',
@@ -48,11 +48,15 @@ describe('probe IR fixture-loader laws', () => {
     expect(doc).not.toBeNull();
     expect(doc!.verb).toBe('observe');
     expect(doc!.schemaVersion).toBe(1);
-    expect(doc!.fixtures).toHaveLength(2);
-    expect(doc!.fixtures[0]!.name).toBe('visible-button-on-known-screen');
+    expect(doc!.fixtures).toHaveLength(7);
+    // Fixture names in first-principles vocabulary: no business-
+    // domain identifiers, just the axis behavior being probed.
+    expect(doc!.fixtures[0]!.name).toBe('visible-button');
     expect(doc!.fixtures[0]!.expected.classification).toBe('matched');
     expect(doc!.fixtures[0]!.expected.errorFamily).toBeNull();
     expect(doc!.fixtures[1]!.expected.errorFamily).toBe('not-visible');
+    expect(doc!.fixtures[2]!.name).toBe('observe-nested-tab-in-tablist');
+    expect(doc!.fixtures[3]!.name).toBe('observe-target-among-many-same-role');
   });
 
   test('loads the test-compose.probe.yaml fixture', () => {
@@ -63,11 +67,11 @@ describe('probe IR fixture-loader laws', () => {
     );
     expect(doc).not.toBeNull();
     expect(doc!.verb).toBe('test-compose');
-    // The failed-path fixture's error-family is `unclassified` —
-    // test-compose's manifest entry does not declare
-    // assertion-like. Shape-validation failures route to the
-    // closest named family (unclassified) per Step 5.5 scope 3d.
-    expect(doc!.fixtures.some((f) => f.expected.errorFamily === 'unclassified')).toBe(true);
+    // Gap-4 resolution (Slice C): test-compose's manifest entry
+    // now declares assertion-like; the failed-path fixture
+    // retargets to that family. The validator IS an assertion,
+    // so shape-validation failures classify there.
+    expect(doc!.fixtures.some((f) => f.expected.errorFamily === 'assertion-like')).toBe(true);
   });
 
   test('loads the facet-query.probe.yaml fixture', () => {
@@ -254,12 +258,11 @@ describe('spike coverage verdict', () => {
       totalDeclaredVerbs: manifest.verbs.length,
       probesCompletingAsExpected: derivation.probes.length, // Step 5 stub: assume all complete
     });
-    // The current manifest has 8 verbs; Step 5 now covers all 8.
-    // Coverage = 8/8 = 100% ≥ 80% — gate PASSES. Every declared
-    // verb has a fixture YAML; the probe-IR surface is complete
-    // for the manifest v1 seed set.
+    // The current manifest has 9 verbs (navigate added at T8);
+    // all 9 are fixtured. Coverage = 9/9 = 100% ≥ 80% — gate
+    // PASSES.
     expect(report.totalDeclaredVerbs).toBe(manifest.verbs.length);
-    expect(report.coveredVerbs).toBe(8);
+    expect(report.coveredVerbs).toBe(9);
     expect(report.uncoveredVerbs).toEqual([]);
     // The coverage gate is passing at the maximum — the probe IR's
     // structural floor is live and its ceiling for the seed manifest
