@@ -10,10 +10,17 @@
  * doesn't survive the dogfood retirement. Under Step 5's manifest-
  * derived probe IR, every probe is identified by its surface
  * (verb × facet-kind × error-family); trajectory comparability
- * becomes a natural function of that surface. The Step 1 transitional
- * probe set (`workshop/probe-derivation/transitional.ts`) tags each
- * probe with its surface; M5 groups trajectory points by the key
- * derived here.
+ * becomes a natural function of that surface. Every ProbeReceipt
+ * emitted by the fixture-replay harness carries its cohort triple
+ * in `payload.cohort`; M5 groups trajectory points by the canonical
+ * key derived here.
+ *
+ * The Step-1-vintage transitional probe set
+ * (`workshop/probe-derivation/transitional.ts`) retired at Slice B
+ * of Step 5.5 once classifier coverage reached 8/8 and the fixture-
+ * replay harness became the post-transitional M5 feed. See
+ * `workshop/observations/probe-spike-verdict-04.md` for the
+ * retirement record.
  *
  * See `docs/v2-readiness.md §10` for the full re-key plan and
  * `docs/v2-substrate.md §8a` for the metric-visitor audit that

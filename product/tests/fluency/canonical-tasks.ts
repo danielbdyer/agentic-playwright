@@ -15,7 +15,8 @@
  * verifies the declaration-and-routing contract, not that the verb
  * implementation produces the expected output. Behavioral fluency
  * is exercised through the downstream instrument tests and the
- * transitional probe set.
+ * manifest-derived probe IR + fixture-replay harness
+ * (Step 5 / Step 5.5).
  */
 
 /** A canonical agent-facing task bound to a single verb. The task
