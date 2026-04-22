@@ -88,4 +88,39 @@ describe('WorldConfig laws', () => {
     expect(matches?.length).toBe(1);
     expect(parseWorldConfigFromUrl(fresh)).toEqual(SAMPLE);
   });
+
+  test('W8: preset-only config round-trips', () => {
+    const presetOnly: WorldConfig = { preset: 'policy-detail' };
+    const url = serializeWorldConfigToUrl(BASE, presetOnly);
+    expect(parseWorldConfigFromUrl(url)).toEqual(presetOnly);
+  });
+
+  test('W9: preset + hooks round-trips', () => {
+    const withHooks: WorldConfig = {
+      preset: 'policy-detail',
+      hooks: {
+        'policy-detail:statusBadge': { 'hide-target': true },
+      },
+    };
+    const url = serializeWorldConfigToUrl(BASE, withHooks);
+    expect(parseWorldConfigFromUrl(url)).toEqual(withHooks);
+  });
+
+  test('W10: completely empty object is valid (empty world)', () => {
+    const url = serializeWorldConfigToUrl(BASE, {} as WorldConfig);
+    expect(parseWorldConfigFromUrl(url)).toEqual({});
+  });
+
+  test('W11: invalid hooks shape → null on parse', () => {
+    const badHooks = encodeURIComponent(JSON.stringify({
+      preset: 'x',
+      hooks: { 'facet:x': 'not-a-record' },
+    }));
+    expect(parseWorldConfigFromUrl(`${BASE}?${WORLD_CONFIG_QUERY_PARAM}=${badHooks}`)).toBeNull();
+  });
+
+  test('W12: invalid preset type → null on parse', () => {
+    const badPreset = encodeURIComponent(JSON.stringify({ preset: 42 }));
+    expect(parseWorldConfigFromUrl(`${BASE}?${WORLD_CONFIG_QUERY_PARAM}=${badPreset}`)).toBeNull();
+  });
 });

@@ -18,14 +18,20 @@ import { createRoot } from 'react-dom/client';
 import { SubstrateRenderer } from './SubstrateRenderer';
 import { parseWorldConfigFromUrl } from '../../substrate/world-config';
 import { createDefaultFacetRendererRegistry } from './renderers/registry';
+import { createDefaultScreenPresetRegistry } from './renderers/preset-registry';
 
 function mountSubstrate(): void {
   const rootElement = document.getElementById('root');
   if (!rootElement) return;
   const registry = createDefaultFacetRendererRegistry();
+  const presetRegistry = createDefaultScreenPresetRegistry();
   const worldConfig = parseWorldConfigFromUrl(window.location.href);
   createRoot(rootElement).render(
-    <SubstrateRenderer registry={registry} worldConfig={worldConfig} />,
+    <SubstrateRenderer
+      registry={registry}
+      presetRegistry={presetRegistry}
+      worldConfig={worldConfig}
+    />,
   );
 }
 

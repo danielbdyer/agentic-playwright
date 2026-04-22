@@ -37,9 +37,14 @@ import {
   type FacetRendererRegistry,
 } from '../../substrate/facet-renderer';
 import type { WorldConfig } from '../../substrate/world-config';
+import {
+  resolveWorldConfig,
+  type ScreenPresetRegistry,
+} from '../../substrate/screen-preset';
 
 export interface SubstrateRendererProps {
   readonly registry: FacetRendererRegistry;
+  readonly presetRegistry: ScreenPresetRegistry;
   /** Null when the URL carried no parseable world config. The
    *  renderer surfaces this loudly in the DOM. */
   readonly worldConfig: WorldConfig | null;
@@ -47,6 +52,7 @@ export interface SubstrateRendererProps {
 
 export const SubstrateRenderer: FC<SubstrateRendererProps> = ({
   registry,
+  presetRegistry,
   worldConfig,
 }) => {
   if (worldConfig === null) {
@@ -63,7 +69,25 @@ export const SubstrateRenderer: FC<SubstrateRendererProps> = ({
     );
   }
 
-  if (worldConfig.facets.length === 0) {
+  const resolvedFacets = resolveWorldConfig(worldConfig, presetRegistry);
+
+  if (resolvedFacets.length === 0) {
+    // Distinguish "preset name unknown" from "empty world" to help
+    // debuggability — the former is a substrate misconfiguration.
+    if (
+      worldConfig.preset !== undefined &&
+      !presetRegistry.presets.has(worldConfig.preset)
+    ) {
+      return (
+        <div
+          data-substrate-state="unknown-preset"
+          data-preset-id={worldConfig.preset}
+          role="alert"
+        >
+          Unknown screen preset: <code>{worldConfig.preset}</code>
+        </div>
+      );
+    }
     return (
       <div
         data-substrate-state="empty"
@@ -76,8 +100,8 @@ export const SubstrateRenderer: FC<SubstrateRendererProps> = ({
   }
 
   return (
-    <main data-substrate-state="rendered">
-      {worldConfig.facets.map((spec, index) => {
+    <main data-substrate-state="rendered" data-preset-id={worldConfig.preset ?? undefined}>
+      {resolvedFacets.map((spec, index) => {
         const renderer = lookupFacetRenderer(registry, spec.facetId);
         if (renderer === null) {
           return (

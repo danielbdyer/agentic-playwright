@@ -58,11 +58,27 @@ export interface FacetWorldSpec {
   readonly hooks: Readonly<Record<string, unknown>>;
 }
 
-/** The substrate's input language. A list of facet world-specs —
- *  the substrate renders each one in order, via its registered
- *  renderer. */
+/** The substrate's input language. Three shapes are accepted:
+ *
+ *    { facets: [...] }                      — explicit facet list
+ *    { preset: "policy-detail" }            — screen-preset
+ *    { preset: "...", hooks: { id: {...} }} — preset + per-facet overrides
+ *
+ *  When `facets` is present, it takes precedence over `preset` — an
+ *  explicit list always wins (override-by-full-replacement is the
+ *  simpler semantic than override-by-merge).
+ *
+ *  When only `preset` is present, the preset registry expands it to
+ *  a facet list at render time. `hooks` (when present) maps facetId
+ *  → per-facet hook overrides that merge on top of the preset's
+ *  default hooks. This keeps the URL debuggable: `?world={"preset":
+ *  "policy-detail","hooks":{"policy-detail:statusBadge":{"hide-target":
+ *  true}}}` reads as "the policy-detail screen, with the status badge
+ *  hidden." */
 export interface WorldConfig {
-  readonly facets: readonly FacetWorldSpec[];
+  readonly facets?: readonly FacetWorldSpec[];
+  readonly preset?: string;
+  readonly hooks?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 }
 
 /** The URL query parameter name carrying the encoded WorldConfig.
@@ -72,6 +88,15 @@ export const WORLD_CONFIG_QUERY_PARAM = 'world';
 /** The empty WorldConfig — renders nothing. Useful as a default
  *  when the substrate is asked to render "no world." */
 export const EMPTY_WORLD_CONFIG: WorldConfig = { facets: [] };
+
+/** Construct a preset-keyed WorldConfig. Convenience constructor
+ *  for the most common shape in rung-3 classifiers. */
+export function presetWorldConfig(
+  preset: string,
+  hooks?: Readonly<Record<string, Readonly<Record<string, unknown>>>>,
+): WorldConfig {
+  return hooks === undefined ? { preset } : { preset, hooks };
+}
 
 /** Serialize a WorldConfig onto a URL. Appends or replaces the
  *  `world` query parameter. Deterministic — two calls with the
@@ -124,11 +149,27 @@ function isValidFacetWorldSpec(value: unknown): value is FacetWorldSpec {
   return isRecord(value['hooks']);
 }
 
+function isValidHookMap(value: unknown): value is Readonly<Record<string, Readonly<Record<string, unknown>>>> {
+  if (!isRecord(value)) return false;
+  for (const v of Object.values(value)) {
+    if (!isRecord(v)) return false;
+  }
+  return true;
+}
+
 function isValidWorldConfig(value: unknown): value is WorldConfig {
   if (!isRecord(value)) return false;
-  const facets = value['facets'];
-  if (!Array.isArray(facets)) return false;
-  return facets.every(isValidFacetWorldSpec);
+  const { facets, preset, hooks } = value;
+  if (facets !== undefined) {
+    if (!Array.isArray(facets)) return false;
+    if (!facets.every(isValidFacetWorldSpec)) return false;
+  }
+  if (preset !== undefined && typeof preset !== 'string') return false;
+  if (hooks !== undefined && !isValidHookMap(hooks)) return false;
+  // At least one of facets or preset must be present for a meaningful
+  // WorldConfig; the empty case (`{}`) is accepted and resolves to
+  // the empty facet list (same semantics as `{ facets: [] }`).
+  return true;
 }
 
 function stripExistingWorldParam(url: string): string {
