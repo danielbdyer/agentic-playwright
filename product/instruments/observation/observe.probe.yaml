@@ -91,3 +91,31 @@ fixtures:
     exercises:
       - rung: role
       - composition: nested
+
+  - name: observe-target-among-many-same-role
+    description: |
+      Role-disambiguation probe — the world renders five buttons
+      with distinct names; the target's name must pick the right
+      one. Proves getByRole({name}) resolves among siblings of
+      the same role. Entropy-invariant.
+    input:
+      target: { role: button, name: "Approve" }
+    world:
+      surfaces:
+        - { role: button, name: "Edit" }
+        - { role: button, name: "Delete" }
+        - { role: button, name: "Approve" }
+        - { role: button, name: "Reject" }
+        - { role: button, name: "Export" }
+      entropy:
+        seed: observe-many-buttons
+        wrapperDepth: [1, 2]
+        chromeTone: [slate, atlas]
+        siblingJitter: [0, 1]
+        calloutShuffle: { count: 3 }
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - composition: role-disambiguation

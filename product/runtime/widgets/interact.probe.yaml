@@ -129,3 +129,30 @@ fixtures:
       error-family: assertion-like
     exercises:
       - error-family: assertion-like
+
+  - name: click-target-among-many-same-role
+    description: |
+      Role-disambiguation probe for interact. The world renders
+      five buttons; the target's name picks "Save" specifically.
+      Tests that interact's click dispatches to the correctly-
+      disambiguated element. Entropy-invariant.
+    input:
+      action: click
+      target: { role: button, name: "Save" }
+    world:
+      surfaces:
+        - { role: button, name: "Cancel" }
+        - { role: button, name: "Save" }
+        - { role: button, name: "Reset" }
+        - { role: button, name: "Help" }
+      entropy:
+        seed: interact-many-buttons
+        wrapperDepth: [1, 2]
+        chromeTone: [ember]
+        siblingJitter: [0, 1]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role-dispatcher
+      - composition: role-disambiguation

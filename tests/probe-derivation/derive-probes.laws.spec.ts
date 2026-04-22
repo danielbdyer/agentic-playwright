@@ -48,7 +48,7 @@ describe('probe IR fixture-loader laws', () => {
     expect(doc).not.toBeNull();
     expect(doc!.verb).toBe('observe');
     expect(doc!.schemaVersion).toBe(1);
-    expect(doc!.fixtures).toHaveLength(3);
+    expect(doc!.fixtures).toHaveLength(4);
     // Fixture names in first-principles vocabulary: no business-
     // domain identifiers, just the axis behavior being probed.
     expect(doc!.fixtures[0]!.name).toBe('visible-button');
@@ -56,6 +56,7 @@ describe('probe IR fixture-loader laws', () => {
     expect(doc!.fixtures[0]!.expected.errorFamily).toBeNull();
     expect(doc!.fixtures[1]!.expected.errorFamily).toBe('not-visible');
     expect(doc!.fixtures[2]!.name).toBe('observe-nested-tab-in-tablist');
+    expect(doc!.fixtures[3]!.name).toBe('observe-target-among-many-same-role');
   });
 
   test('loads the test-compose.probe.yaml fixture', () => {
