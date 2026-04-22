@@ -61,10 +61,18 @@ function findMatchingSurface(
   surfaces: readonly SurfaceSpec[],
   target: { role: string; name?: string },
 ): SurfaceSpec | null {
-  return (
-    surfaces.find((s) => s.role === target.role && (target.name === undefined || s.name === target.name)) ??
-    null
-  );
+  // Recursive search — composed surfaces nest children via the
+  // SurfaceSpec.children axis; the target may live at any depth.
+  for (const s of surfaces) {
+    if (s.role === target.role && (target.name === undefined || s.name === target.name)) {
+      return s;
+    }
+    if (s.children !== undefined) {
+      const found = findMatchingSurface(s.children, target);
+      if (found !== null) return found;
+    }
+  }
+  return null;
 }
 
 function classifyInteract(probe: Probe): Effect.Effect<ProbeOutcome['observed'], Error, never> {

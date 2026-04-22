@@ -21,12 +21,16 @@
  *   surfaceId      → `data-surface-id` attribute (classifier
  *                    tie-breaker when role+name collide).
  *   initialValue   → defaultValue on backing input.
+ *   children       → recursively-rendered nested SurfaceSpecs.
+ *                    Enables ARIA compositions: tablist→tab+tabpanel,
+ *                    grid→row→gridcell, form→fieldset→inputs,
+ *                    landmark→content.
  *
  * The renderer is pure over (SurfaceSpec, time) except for the
  * detach hook's scheduling.
  */
 
-import { useEffect, useState, type CSSProperties, type FC } from 'react';
+import { useEffect, useState, type CSSProperties, type FC, type ReactNode } from 'react';
 import {
   SURFACE_SPEC_DEFAULTS,
   type SurfaceSpec,
@@ -54,6 +58,15 @@ function styleForVisibility(visibility: SurfaceVisibility): CSSProperties | unde
   }
 }
 
+/** Render child SurfaceSpecs recursively. Returns null when no
+ *  children are declared. */
+function renderChildren(children: readonly SurfaceSpec[] | undefined): ReactNode {
+  if (children === undefined) return null;
+  return children.map((child, i) => (
+    <SurfaceRenderer key={`${child.role}:${child.name ?? ''}:${i}`} spec={child} />
+  ));
+}
+
 export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
   const detachAfterMs = spec.detachAfterMs;
   const [detached, setDetached] = useState(false);
@@ -71,9 +84,6 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
   const inputBacking = spec.inputBacking ?? SURFACE_SPEC_DEFAULTS.inputBacking;
   const style = styleForVisibility(visibility);
   const surfaceIdAttr = spec.surfaceId !== undefined ? { 'data-surface-id': spec.surfaceId } : {};
-  // data-surface-role is stamped on every surface — classifiers use
-  // it as a role-agnostic DOM lookup that works even when the
-  // accessibility tree excludes the element (display:none et al.).
   const surfaceRoleAttr = { 'data-surface-role': spec.role };
   const surfaceNameAttr = spec.name !== undefined ? { 'data-surface-name': spec.name } : {};
 
@@ -84,11 +94,14 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
     ...surfaceNameAttr,
   };
 
+  const children = renderChildren(spec.children);
+
   // Button surfaces.
   if (spec.role === 'button') {
     return (
       <button disabled={!enabled} {...commonRoleAttrs}>
         {spec.name ?? ''}
+        {children}
       </button>
     );
   }
@@ -113,10 +126,6 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
           <textarea disabled={!enabled} {...nameAttr} {...valueAttr} {...commonRoleAttrs} />
         );
       case 'div-with-role':
-        // A div that *claims* to be a textbox but is not an input —
-        // Playwright's fill() raises "Element is not an <input>".
-        // Non-breaking space gives the empty element rendered
-        // dimensions so isVisible() returns true.
         return (
           <div role="textbox" {...nameAttr} {...commonRoleAttrs}>
             {spec.initialValue ?? ' '}
@@ -136,6 +145,7 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
     return (
       <a href="#" {...commonRoleAttrs}>
         {spec.name ?? ''}
+        {children}
       </a>
     );
   }
@@ -168,15 +178,25 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
 
   // Heading.
   if (spec.role === 'heading') {
-    return <h2 {...commonRoleAttrs}>{spec.name ?? ''}</h2>;
+    return (
+      <h2 {...commonRoleAttrs}>
+        {spec.name ?? ''}
+        {children}
+      </h2>
+    );
   }
 
-  // Region / alert / status / navigation / form / tabpanel — all div
-  // containers with the declared role + optional accessible name.
+  // Container / landmark / composed roles — render as a div carrying
+  // the declared role + optional accessible name + recursive children.
+  // Covers: region, alert, status, navigation, main, banner,
+  // complementary, contentinfo, form, search, grid, gridcell, row,
+  // rowheader, list, listitem, radiogroup, tablist, tab, tabpanel,
+  // searchbox.
   const nameAttr = spec.name !== undefined ? { 'aria-label': spec.name } : {};
   return (
     <div role={spec.role} {...nameAttr} {...commonRoleAttrs}>
       {spec.name ?? ''}
+      {children}
     </div>
   );
 };

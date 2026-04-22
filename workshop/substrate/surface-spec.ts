@@ -110,6 +110,14 @@ export interface SurfaceSpec {
   /** Optional initial value for input-backed surfaces. Renders as
    *  the `value` / `defaultValue` on the backing element. */
   readonly initialValue?: string;
+  /** Child surfaces nested inside this surface. Enables composed
+   *  ARIA topologies (tablist → tab + tabpanel; grid → row →
+   *  gridcell; form → fieldset → inputs; landmark → content).
+   *  The classifier's role-based query resolves children in the
+   *  accessibility tree naturally — no special handling needed
+   *  at the classifier; the substrate simply nests <element> …
+   *  <children> … </element>. */
+  readonly children?: readonly SurfaceSpec[];
 }
 
 /** Default field resolution — the substrate applies these when a

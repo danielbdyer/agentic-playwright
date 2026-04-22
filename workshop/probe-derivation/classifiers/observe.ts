@@ -54,10 +54,18 @@ function findMatchingSurface(
   surfaces: readonly SurfaceSpec[],
   target: { role: string; name?: string },
 ): SurfaceSpec | null {
-  return (
-    surfaces.find((s) => s.role === target.role && (target.name === undefined || s.name === target.name)) ??
-    null
-  );
+  // Recursive search — composed surfaces nest children, so the
+  // target may live arbitrarily deep in the tree.
+  for (const s of surfaces) {
+    if (s.role === target.role && (target.name === undefined || s.name === target.name)) {
+      return s;
+    }
+    if (s.children !== undefined) {
+      const found = findMatchingSurface(s.children, target);
+      if (found !== null) return found;
+    }
+  }
+  return null;
 }
 
 function classifyObserve(probe: Probe): Effect.Effect<ProbeOutcome['observed'], Error, never> {

@@ -62,3 +62,32 @@ fixtures:
       error-family: not-visible
     exercises:
       - error-family: not-visible
+
+  - name: observe-nested-tab-in-tablist
+    description: |
+      Observe a tab deep inside a composed ARIA topology:
+      main → tablist → tab. Tests that getByRole resolves through
+      realistic accessibility-tree nesting. The name query
+      disambiguates which tab among the two at the same depth.
+    input:
+      target: { role: tab, name: "Details" }
+    world:
+      surfaces:
+        - role: main
+          name: "Account"
+          children:
+            - role: tablist
+              name: "Account sections"
+              children:
+                - { role: tab, name: "Overview" }
+                - { role: tab, name: "Details" }
+      entropy:
+        seed: observe-nested-tab
+        wrapperDepth: [1, 2]
+        chromeTone: [atlas]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - composition: nested

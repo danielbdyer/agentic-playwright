@@ -39,7 +39,7 @@ function loadManifest(): Manifest {
 }
 
 describe('probe IR fixture-loader laws', () => {
-  test('loads the observe.probe.yaml fixture and parses 2 fixtures', () => {
+  test('loads the observe.probe.yaml fixture and parses its fixtures', () => {
     const doc = loadFixtureDocumentForVerb(
       REPO_ROOT,
       'observe',
@@ -48,13 +48,14 @@ describe('probe IR fixture-loader laws', () => {
     expect(doc).not.toBeNull();
     expect(doc!.verb).toBe('observe');
     expect(doc!.schemaVersion).toBe(1);
-    expect(doc!.fixtures).toHaveLength(2);
+    expect(doc!.fixtures).toHaveLength(3);
     // Fixture names in first-principles vocabulary: no business-
     // domain identifiers, just the axis behavior being probed.
     expect(doc!.fixtures[0]!.name).toBe('visible-button');
     expect(doc!.fixtures[0]!.expected.classification).toBe('matched');
     expect(doc!.fixtures[0]!.expected.errorFamily).toBeNull();
     expect(doc!.fixtures[1]!.expected.errorFamily).toBe('not-visible');
+    expect(doc!.fixtures[2]!.name).toBe('observe-nested-tab-in-tablist');
   });
 
   test('loads the test-compose.probe.yaml fixture', () => {
