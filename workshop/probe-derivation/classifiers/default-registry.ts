@@ -30,16 +30,21 @@ import { verbClassifierRegistry, type VerbClassifierRegistry } from '../verb-cla
 import { testComposeClassifier } from './test-compose';
 import { facetQueryClassifier } from './facet-query';
 import { locatorHealthTrackClassifier } from './locator-health-track';
+import { facetMintClassifier } from './facet-mint';
+import { facetEnrichClassifier } from './facet-enrich';
 
 /** Build the default classifier registry. Classifier coverage grows
- *  verb-by-verb as each classifier lands in its own commit. Today
- *  registers test-compose, facet-query, locator-health-track
- *  (the three verbs whose fixtures classify purely on shape).
- *  Slice A2+ adds the hook-driven classifiers. */
+ *  verb-by-verb as each classifier lands in its own commit. Each
+ *  classifier pins the rung-2 substrate semantics: shape validation
+ *  plus (where a fixture needs to simulate a declared failure
+ *  precondition) a read of the probe's world-setup hooks. Rung 3+
+ *  replaces the hooks with real Layer-injected substrates. */
 export function createDefaultVerbClassifierRegistry(): VerbClassifierRegistry {
   return verbClassifierRegistry([
     testComposeClassifier,
     facetQueryClassifier,
     locatorHealthTrackClassifier,
+    facetMintClassifier,
+    facetEnrichClassifier,
   ]);
 }

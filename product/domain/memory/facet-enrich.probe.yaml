@@ -28,12 +28,16 @@ fixtures:
       Enriching against a facet ID not present in the catalog fails
       with assertion-like. The verb refuses to materialize a record
       on enrich — mint is the only path that admits new IDs.
+      The `facet-missing` world-setup hook simulates the absent-id
+      precondition at rung 2; rung 3+ reads a real catalog.
     input:
       facet-kind: element
       facet-id: nonexistent:facet
       evidence:
         kind: alias-observed
         phrase: "Mystery field"
+    world-setup:
+      facet-missing: true
     expected:
       classification: failed
       error-family: assertion-like

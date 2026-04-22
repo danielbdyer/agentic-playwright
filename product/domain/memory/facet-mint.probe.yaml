@@ -27,11 +27,16 @@ fixtures:
       Minting at a stable ID already present in the catalog fails
       with assertion-like. The pre-image collision is detected
       before provenance stamping; no partial write lands.
+      The `id-collision` world-setup hook simulates the catalog
+      pre-condition at rung 2 (fixture-replay); rung 3+ will
+      load a real catalog and detect the collision there.
     input:
       facet-kind: element
       stable-id: policy-search:policyNumberInput
       display-name: Policy Number
       minting-instrument: agent-observation
+    world-setup:
+      id-collision: true
     expected:
       classification: failed
       error-family: assertion-like

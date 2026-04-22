@@ -101,6 +101,8 @@ describe('substrate parity laws (dry-harness ↔ fixture-replay)', () => {
     // drift where a classifier ships without the parity check
     // covering it.
     expect([...classifiedVerbs].sort()).toEqual([
+      'facet-enrich',
+      'facet-mint',
       'facet-query',
       'locator-health-track',
       'test-compose',
