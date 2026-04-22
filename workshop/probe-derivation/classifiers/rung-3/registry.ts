@@ -20,7 +20,8 @@ import {
   type Rung3ClassifierRegistry,
 } from './port';
 import { observeRung3Classifier } from './observe';
+import { interactRung3Classifier } from './interact';
 
 export function createDefaultRung3ClassifierRegistry(): Rung3ClassifierRegistry {
-  return rung3ClassifierRegistry([observeRung3Classifier]);
+  return rung3ClassifierRegistry([observeRung3Classifier, interactRung3Classifier]);
 }
