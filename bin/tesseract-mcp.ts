@@ -42,7 +42,7 @@ interface IterateHostResult {
 }
 import { createLocalServiceContext, type LocalServiceOptions } from '../product/composition/local-services';
 import { createPlaywrightBrowserPool } from '../product/instruments/runtime/playwright-browser-pool';
-import { startFixtureServer, type FixtureServer } from '../product/instruments/tooling/fixture-server';
+import { startSubstrateServer, type SubstrateServer } from '../workshop/synthetic-app/server';
 import { createHintsWriter } from '../product/instruments/catalog/hints-writer';
 import { DEFAULT_PIPELINE_CONFIG, mergePipelineConfig } from '../product/domain/attention/pipeline-config';
 import type { BrowserPoolPort } from '../product/application/runtime-support/browser-pool';
@@ -86,7 +86,7 @@ function readArtifact(relativePath: string): unknown | null {
 interface HostState {
   phase: LoopStatus['phase'];
   fiber: Fiber.RuntimeFiber<IterateHostResult, unknown> | null;
-  fixtureServer: FixtureServer | null;
+  fixtureServer: SubstrateServer | null;
   browserPool: BrowserPoolPort | null;
   dashboardPort: DashboardPort | null;
   pendingDecisions: Map<string, (decision: WorkItemDecision) => void>;
@@ -194,7 +194,7 @@ async function startSpeedrunHost(config: SpeedrunStartConfig): Promise<{ status:
   // Start fixture server (for Playwright mode, unless baseUrl overridden)
   if (interpreterMode === 'playwright' && !baseUrlOverride && !hostState.fixtureServer) {
     process.stderr.write('[MCP] Starting fixture server...\n');
-    hostState.fixtureServer = await startFixtureServer({ rootDir: ROOT_DIR });
+    hostState.fixtureServer = await startSubstrateServer({ rootDir: ROOT_DIR });
     process.stderr.write(`[MCP] Fixture server ready at ${hostState.fixtureServer.baseUrl}\n`);
   }
 

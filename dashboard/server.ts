@@ -18,7 +18,7 @@ import { createProjectPaths } from '../product/application/paths';
 import { runWithLocalServices } from '../product/composition/local-services';
 import { speedrunProgram } from '../workshop/orchestration/speedrun';
 import { DEFAULT_PIPELINE_CONFIG } from '../product/domain/attention/pipeline-config';
-import { startFixtureServer } from '../product/instruments/tooling/fixture-server';
+import { startSubstrateServer } from '../workshop/synthetic-app/server';
 import { createPlaywrightBrowserPool } from '../product/instruments/runtime/playwright-browser-pool';
 import { resolvePlaywrightHeadless } from '../product/instruments/tooling/browser-options';
 import { withScreencast } from '../dashboard/bridges/cdp-screencast';
@@ -117,7 +117,7 @@ const main = Effect.gen(function* () {
     yield* Effect.fork(
       Effect.gen(function* () {
         const fixtureServer = needsBrowser
-          ? yield* Effect.promise(() => startFixtureServer({ rootDir: config.rootDir }))
+          ? yield* Effect.promise(() => startSubstrateServer({ rootDir: config.rootDir }))
           : null;
 
         const browserPool = needsBrowser

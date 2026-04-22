@@ -49,13 +49,18 @@ describe('Substrate server laws', () => {
   });
 
   test('S3: query param is served (parsed client-side)', async () => {
-    const { status } = await fetchText(`${server.baseUrl}/?world=%7B%22facets%22%3A%5B%5D%7D`);
+    const { status } = await fetchText(`${server.baseUrl}/?shape=%7B%22surfaces%22%3A%5B%5D%7D`);
     expect(status).toBe(200);
   });
 
-  test('S4: unknown path returns 404', async () => {
-    const { status } = await fetchText(`${server.baseUrl}/nope`);
-    expect(status).toBe(404);
+  test('S4: every path resolves to the shell', async () => {
+    // Legacy v1 paths (/policy-search.html, /any-legacy-route)
+    // receive the React shell + render the no-world state; this
+    // makes the substrate a drop-in for the v1 demo-harness
+    // fixture server.
+    const { status, body } = await fetchText(`${server.baseUrl}/policy-search.html`);
+    expect(status).toBe(200);
+    expect(body).toContain('<div id="root"></div>');
   });
 
   test('S5: concurrent starts get distinct ports', async () => {

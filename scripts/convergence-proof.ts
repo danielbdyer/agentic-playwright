@@ -31,7 +31,7 @@ import { runWithLocalServices } from '../product/composition/local-services';
 import type { KnowledgePosture } from '../product/domain/governance/workflow-types';
 import type { SpeedrunProgressEvent } from '../product/domain/improvement/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../product/domain/attention/pipeline-config';
-import { startFixtureServer, type FixtureServer } from '../product/instruments/tooling/fixture-server';
+import { startSubstrateServer, type SubstrateServer } from '../workshop/synthetic-app/server';
 import { createPlaywrightBrowserPool } from '../product/instruments/runtime/playwright-browser-pool';
 import type { BrowserPoolPort } from '../product/application/runtime-support/browser-pool';
 
@@ -114,13 +114,13 @@ async function withPlaywrightEnvironment<T>(fn: (env: PlaywrightEnvironment) => 
   if (effectiveMode === 'diagnostic') return fn({ baseUrl: undefined, browserPool: undefined });
 
   const resolvedBaseUrl = explicitBaseUrl || undefined;
-  let server: FixtureServer | null = null;
+  let server: SubstrateServer | null = null;
   let pool: BrowserPoolPort | null = null;
 
   try {
     if (!resolvedBaseUrl) {
       console.log('Starting fixture server...');
-      server = await startFixtureServer({ rootDir });
+      server = await startSubstrateServer({ rootDir });
       console.log(`Fixture server ready at ${server.baseUrl}`);
     }
 
