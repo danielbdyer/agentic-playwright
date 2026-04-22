@@ -1,0 +1,53 @@
+# Fixture specification for the `navigate` verb.
+# Grammar: docs/v2-readiness.md §4.
+
+verb: navigate
+schemaVersion: 1
+
+fixtures:
+  - name: navigate-to-valid-url
+    description: |
+      Happy path — request is a valid URL shape (string url,
+      optional waitUntil, optional timeoutMs). The rung-2
+      classifier verifies shape; rung-3 (when wired at Step 7+)
+      will actually call page.goto and classify the outcome.
+    input:
+      url: "/about-blank"
+      waitUntil: load
+      timeoutMs: 5000
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: url-shape
+
+  - name: navigate-missing-url-fails-unclassified
+    description: |
+      Input omits the required `url` field. Shape validation fails
+      at the rung-2 boundary. The classifier routes shape
+      failures to the closest declared family; navigate's list
+      does not include assertion-like, so unclassified is the
+      route.
+    input:
+      waitUntil: load
+    expected:
+      classification: failed
+      error-family: unclassified
+    exercises:
+      - error-family: unclassified
+
+  - name: navigate-unreachable-upstream-fails-unavailable
+    description: |
+      Substrate simulates an unreachable destination via
+      world.upstream.unreachable. The navigate classifier reads
+      the hook and returns failed/unavailable.
+    input:
+      url: "/unreachable"
+    world:
+      upstream:
+        unreachable: true
+    expected:
+      classification: failed
+      error-family: unavailable
+    exercises:
+      - error-family: unavailable

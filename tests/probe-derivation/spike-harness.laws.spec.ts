@@ -144,7 +144,7 @@ describe('Probe IR Spike — end-to-end laws', () => {
     // interact: 6. Total = 25.
     // observe grew to 4 (T3 nested-tab + T2 role-disambiguation);
     // interact grew to 6 (T2 role-disambiguation).
-    expect(derivation.probes).toHaveLength(27);
+    expect(derivation.probes).toHaveLength(30);
     const byVerb = new Map<string, number>();
     for (const probe of derivation.probes) {
       byVerb.set(probe.verb, (byVerb.get(probe.verb) ?? 0) + 1);
@@ -157,6 +157,7 @@ describe('Probe IR Spike — end-to-end laws', () => {
     expect(byVerb.get('locator-health-track')).toBe(2);
     expect(byVerb.get('intent-fetch')).toBe(4);
     expect(byVerb.get('interact')).toBe(7);
+    expect(byVerb.get('navigate')).toBe(3);
   });
 
   test('S9: the spike at full 8/8 coverage passes the 80% gate', async () => {

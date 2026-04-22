@@ -258,12 +258,11 @@ describe('spike coverage verdict', () => {
       totalDeclaredVerbs: manifest.verbs.length,
       probesCompletingAsExpected: derivation.probes.length, // Step 5 stub: assume all complete
     });
-    // The current manifest has 8 verbs; Step 5 now covers all 8.
-    // Coverage = 8/8 = 100% ≥ 80% — gate PASSES. Every declared
-    // verb has a fixture YAML; the probe-IR surface is complete
-    // for the manifest v1 seed set.
+    // The current manifest has 9 verbs (navigate added at T8);
+    // all 9 are fixtured. Coverage = 9/9 = 100% ≥ 80% — gate
+    // PASSES.
     expect(report.totalDeclaredVerbs).toBe(manifest.verbs.length);
-    expect(report.coveredVerbs).toBe(8);
+    expect(report.coveredVerbs).toBe(9);
     expect(report.uncoveredVerbs).toEqual([]);
     // The coverage gate is passing at the maximum — the probe IR's
     // structural floor is live and its ceiling for the seed manifest

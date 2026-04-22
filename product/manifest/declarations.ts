@@ -185,3 +185,22 @@ export const locatorHealthTrackVerb = declareVerb({
   sinceVersion: '2.1.0',
   declaredIn: 'product/domain/memory/locator-health.ts',
 });
+
+export const navigateVerb = declareVerb({
+  name: 'navigate',
+  category: 'interact',
+  summary: 'Navigate the active page to a new URL. The substrate reads the destination URL and renders the new world at that address.',
+  inputs: {
+    typeName: 'NavigateRequest',
+    declaredIn: 'product/runtime/navigation/navigate.ts',
+    summary: 'The destination URL plus an optional wait strategy.',
+  },
+  outputs: {
+    typeName: 'NavigateOutcome',
+    declaredIn: 'product/runtime/navigation/navigate.ts',
+    summary: 'The reached URL, status code, and elapsed navigation time.',
+  },
+  errorFamilies: ['unavailable', 'timeout', 'unclassified'],
+  sinceVersion: '2.2.0',
+  declaredIn: 'product/runtime/navigation/navigate.ts',
+});
