@@ -52,6 +52,7 @@ import type { ProbeReceipt, ProbeOutcome, ProbeHarnessAdapter } from './probe-re
 import { probeReceipt } from './probe-receipt';
 import type { ProbeSurfaceCohort, ProbeFacetKind, ProbeErrorFamily } from '../metrics/probe-surface-cohort';
 import { fingerprintFor } from '../../product/domain/kernel/hash';
+import { SUBSTRATE_VERSION } from '../substrate/version';
 
 /** The port's service interface. */
 export interface ProbeHarnessService {
@@ -165,6 +166,7 @@ export function createDryProbeHarness(opts?: {
           provenance: {
             adapter,
             manifestVersion: 1,
+            substrateVersion: SUBSTRATE_VERSION,
             fixtureFingerprint,
             startedAt: startedAt.toISOString(),
             completedAt: completedAt.toISOString(),

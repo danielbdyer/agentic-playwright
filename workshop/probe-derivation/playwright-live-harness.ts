@@ -57,6 +57,7 @@ import { resolveProbeWorld } from './world-resolution';
 import { startSubstrateServer, type SubstrateServer } from '../synthetic-app/server';
 import { launchHeadedHarness, type HeadedHarness } from '../../product/instruments/tooling/headed-harness';
 import { fingerprintFor } from '../../product/domain/kernel/hash';
+import { SUBSTRATE_VERSION } from '../substrate/version';
 import type { Manifest } from '../../product/domain/manifest/manifest';
 import type { ProbeSurfaceCohort, ProbeFacetKind, ProbeErrorFamily } from '../metrics/probe-surface-cohort';
 
@@ -167,6 +168,7 @@ export function createPlaywrightLiveProbeHarness(
           provenance: {
             adapter: 'playwright-live',
             manifestVersion: 1,
+            substrateVersion: SUBSTRATE_VERSION,
             fixtureFingerprint,
             startedAt: startedAt.toISOString(),
             completedAt: completedAt.toISOString(),

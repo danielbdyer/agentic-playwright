@@ -100,6 +100,10 @@ export interface ProbeProvenance {
   /** Manifest version the probe was derived against (from
    *  manifest.json's `version` field). */
   readonly manifestVersion: number;
+  /** Substrate semver — the behavioral contract of the DOM producer
+   *  at render time. See workshop/substrate/version.ts for the
+   *  bumping discipline. */
+  readonly substrateVersion: string;
   /** Fingerprint of the fixture document that defined this probe —
    *  changes when the fixture YAML changes. */
   readonly fixtureFingerprint: Fingerprint<'content'>;
