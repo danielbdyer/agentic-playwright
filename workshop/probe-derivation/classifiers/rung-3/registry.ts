@@ -19,7 +19,8 @@ import {
   rung3ClassifierRegistry,
   type Rung3ClassifierRegistry,
 } from './port';
+import { observeRung3Classifier } from './observe';
 
 export function createDefaultRung3ClassifierRegistry(): Rung3ClassifierRegistry {
-  return rung3ClassifierRegistry([]);
+  return rung3ClassifierRegistry([observeRung3Classifier]);
 }

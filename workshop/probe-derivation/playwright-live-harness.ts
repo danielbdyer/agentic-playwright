@@ -80,9 +80,20 @@ export function projectProbeToWorldConfig(probe: Probe): WorldConfig {
   return { facets: [{ facetId, hooks }] };
 }
 
+function isInputRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function extractFacetId(input: Record<string, unknown>): string | null {
   if (typeof input['facet-id'] === 'string') return input['facet-id'];
   if (typeof input['stable-id'] === 'string') return input['stable-id'];
+  // observe-shape: input.target.facet-id names the rung-3 target
+  // (the observe verb's real semantics uses target.role + target.name;
+  // target.facet-id is rung-3 substrate metadata).
+  if (isInputRecord(input['target'])) {
+    const target = input['target'] as Record<string, unknown>;
+    if (typeof target['facet-id'] === 'string') return target['facet-id'];
+  }
   return null;
 }
 

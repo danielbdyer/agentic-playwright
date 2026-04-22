@@ -9,11 +9,15 @@ fixtures:
     description: |
       Observe a visible button on the policy-search screen.
       Exercises the role-first locator ladder's top rung.
+      target.facet-id is rung-3 substrate metadata — the real
+      observe verb ignores it; the rung-3 classifier reads it
+      to render the correct facet on the synthetic substrate.
     input:
       surface:
         screen: policy-search
         facet-kind: element
       target:
+        facet-id: policy-search:searchButton
         role: button
         name: "Search"
     expected:
@@ -33,6 +37,7 @@ fixtures:
         screen: policy-search
         facet-kind: element
       target:
+        facet-id: policy-search:advancedOptionsButton
         role: button
         name: "Advanced Options"
       world-setup:
