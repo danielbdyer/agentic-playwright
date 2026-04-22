@@ -51,6 +51,11 @@ const dashboardEntry = {
   outfile: path.join(ROOT_DIR, 'dashboard', 'dashboard.js'),
 };
 
+const syntheticAppEntry = {
+  entry: path.join(ROOT_DIR, 'workshop', 'synthetic-app', 'src', 'bootstrap.tsx'),
+  outfile: path.join(ROOT_DIR, 'workshop', 'synthetic-app', 'synthetic-app.js'),
+};
+
 function host() {
   return {
     getCanonicalFileName: (fileName) => fileName,
@@ -122,6 +127,26 @@ async function buildDemoHarness() {
       target: ['es2020'],
       logLevel: 'silent',
     })));
+}
+
+/** Build the workshop synthetic substrate for rung-3 probe execution.
+ *  Plain esbuild — no React Compiler, no Tailwind — because the
+ *  substrate is a DOM-produces-facets function, not an app. The
+ *  bundle lands next to workshop/synthetic-app/index.html so the
+ *  substrate server (Slice 6.2) can serve both with a single root. */
+async function buildSyntheticApp() {
+  await esbuild.build({
+    entryPoints: [syntheticAppEntry.entry],
+    outfile: syntheticAppEntry.outfile,
+    bundle: true,
+    format: 'esm',
+    jsx: 'automatic',
+    minify: false,
+    platform: 'browser',
+    sourcemap: false,
+    target: ['es2020'],
+    logLevel: 'silent',
+  });
 }
 
 /** Build dashboard with React Compiler via esbuild-plugin-babel.
@@ -196,7 +221,12 @@ async function main() {
     return;
   }
 
-  await Promise.all([buildDemoHarness(), buildDashboard(), buildTailwindCSS()]);
+  await Promise.all([
+    buildDemoHarness(),
+    buildDashboard(),
+    buildTailwindCSS(),
+    buildSyntheticApp(),
+  ]);
   process.stdout.write('build ok\n');
 }
 

@@ -2,6 +2,7 @@ node_modules/
 dist/
 dashboard/dashboard.js
 dashboard/styles.css
+workshop/synthetic-app/synthetic-app.js
 playwright-report/
 test-results/
 .npm-cache
