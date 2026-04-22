@@ -49,10 +49,11 @@ import type { Probe } from './probe-ir';
 import type { ProbeDerivation } from './probe-ir';
 import type { ProbeOutcome } from './probe-receipt';
 import {
-  serializeWorldConfigToUrl,
-  EMPTY_WORLD_CONFIG,
-  type WorldConfig,
-} from '../substrate/world-config';
+  serializeWorldShapeToUrl,
+  EMPTY_WORLD_SHAPE,
+  type WorldShape,
+} from '../substrate/world-shape';
+import type { SurfaceSpec } from '../substrate/surface-spec';
 import { startSubstrateServer, type SubstrateServer } from '../synthetic-app/server';
 import { launchHeadedHarness, type HeadedHarness } from '../../product/instruments/tooling/headed-harness';
 import { fingerprintFor } from '../../product/domain/kernel/hash';
@@ -64,37 +65,32 @@ const UNCLASSIFIED_OBSERVATION: ProbeOutcome['observed'] = {
   errorFamily: null,
 };
 
-/** Project a probe into the substrate's WorldConfig.
- *
- *  Mines probe.input for a facet identifier. If one is found, the
- *  WorldConfig carries a single facet world-spec with that ID and
- *  probe.worldSetup as hooks. Otherwise the WorldConfig is empty
- *  (the synthetic page renders the empty marker; verbs that fall
- *  through to rung-2 classifiers don't read the DOM anyway). */
-export function projectProbeToWorldConfig(probe: Probe): WorldConfig {
-  const input = probe.input as Record<string, unknown> | null;
-  if (input === null || typeof input !== 'object') return EMPTY_WORLD_CONFIG;
-  const facetId = extractFacetId(input);
-  if (facetId === null) return EMPTY_WORLD_CONFIG;
-  const hooks = (probe.worldSetup ?? {}) as Record<string, unknown>;
-  return { facets: [{ facetId, hooks }] };
-}
-
 function isInputRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function extractFacetId(input: Record<string, unknown>): string | null {
-  if (typeof input['facet-id'] === 'string') return input['facet-id'];
-  if (typeof input['stable-id'] === 'string') return input['stable-id'];
-  // observe-shape: input.target.facet-id names the rung-3 target
-  // (the observe verb's real semantics uses target.role + target.name;
-  // target.facet-id is rung-3 substrate metadata).
-  if (isInputRecord(input['target'])) {
-    const target = input['target'] as Record<string, unknown>;
-    if (typeof target['facet-id'] === 'string') return target['facet-id'];
+/** Project a probe into the substrate's WorldShape.
+ *
+ *  The probe's `worldSetup` (loaded from the fixture's `world` key)
+ *  already carries `world.surfaces: SurfaceSpec[]` for browser-bound
+ *  verbs. This function extracts that list directly. For non-browser
+ *  verbs the surfaces list is absent; the resulting WorldShape is
+ *  empty and the substrate renders the empty marker — which is fine
+ *  because the rung-3 classifier for those verbs doesn't read the DOM. */
+export function projectProbeToWorldShape(probe: Probe): WorldShape {
+  if (!isInputRecord(probe.worldSetup)) return EMPTY_WORLD_SHAPE;
+  const surfaces = probe.worldSetup['surfaces'];
+  if (!Array.isArray(surfaces)) return EMPTY_WORLD_SHAPE;
+  const filtered = surfaces.filter((s): s is SurfaceSpec =>
+    isInputRecord(s) && typeof s['role'] === 'string',
+  );
+  const entropy = isInputRecord(probe.worldSetup['entropy'])
+    ? (probe.worldSetup['entropy'] as WorldShape['entropy'])
+    : undefined;
+  if (entropy === undefined) {
+    return { surfaces: filtered };
   }
-  return null;
+  return { surfaces: filtered, entropy };
 }
 
 function inferCohort(probe: Probe): ProbeSurfaceCohort {
@@ -143,8 +139,8 @@ export function createPlaywrightLiveProbeHarness(
     execute: (probe: Probe) =>
       Effect.gen(function* () {
         const startedAt = now();
-        const worldConfig = projectProbeToWorldConfig(probe);
-        const url = serializeWorldConfigToUrl(opts.appUrl, worldConfig);
+        const worldShape = projectProbeToWorldShape(probe);
+        const url = serializeWorldShapeToUrl(opts.appUrl, worldShape);
         yield* Effect.promise(() => page.goto(url, { timeout: 5_000 }));
         const rung3 = lookupRung3Classifier(opts.rung3Registry, probe.verb);
         const rung2 = lookupClassifier(opts.rung2Registry, probe.verb);

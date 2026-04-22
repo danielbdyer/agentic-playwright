@@ -72,10 +72,17 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
   const inputBacking = spec.inputBacking ?? SURFACE_SPEC_DEFAULTS.inputBacking;
   const style = styleForVisibility(visibility);
   const surfaceIdAttr = spec.surfaceId !== undefined ? { 'data-surface-id': spec.surfaceId } : {};
+  // data-surface-role is stamped on every surface — classifiers use
+  // it as a role-agnostic DOM lookup that works even when the
+  // accessibility tree excludes the element (display:none et al.).
+  const surfaceRoleAttr = { 'data-surface-role': spec.role };
+  const surfaceNameAttr = spec.name !== undefined ? { 'data-surface-name': spec.name } : {};
 
   const commonRoleAttrs = {
     ...(style !== undefined ? { style } : {}),
     ...surfaceIdAttr,
+    ...surfaceRoleAttr,
+    ...surfaceNameAttr,
   };
 
   // Button surfaces.
@@ -109,15 +116,17 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
       case 'div-with-role':
         // A div that *claims* to be a textbox but is not an input —
         // Playwright's fill() raises "Element is not an <input>".
+        // Non-breaking space gives the empty element rendered
+        // dimensions so isVisible() returns true.
         return (
           <div role="textbox" {...nameAttr} {...commonRoleAttrs}>
-            {spec.initialValue ?? ''}
+            {spec.initialValue ?? ' '}
           </div>
         );
       case 'contenteditable':
         return (
           <div contentEditable {...nameAttr} {...commonRoleAttrs}>
-            {spec.initialValue ?? ''}
+            {spec.initialValue ?? ' '}
           </div>
         );
     }

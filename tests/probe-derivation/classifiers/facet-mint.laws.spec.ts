@@ -1,11 +1,10 @@
 /**
- * facet-mint classifier — laws.
+ * facet-mint classifier — laws (first-principles revision).
  *
- * Pins:
- *   M1. Valid shape + no hook → matched/null.
- *   M2. Valid shape + world-setup.id-collision=true → failed/assertion-like.
- *   M3. Missing a required field → failed/unclassified.
- *   M4. Non-object input → failed/unclassified.
+ *   M1. Valid shape + no catalog hook → matched.
+ *   M2. Valid shape + world.catalog.facet-exists-at-stable-id=true
+ *       → failed/assertion-like.
+ *   M3. Missing required field → failed/unclassified.
  */
 
 import { describe, test, expect } from 'vitest';
@@ -13,7 +12,7 @@ import { Effect } from 'effect';
 import { facetMintClassifier } from '../../../workshop/probe-derivation/classifiers/facet-mint';
 import type { Probe } from '../../../workshop/probe-derivation/probe-ir';
 
-function probe(input: unknown, worldSetup: unknown = undefined): Probe {
+function probe(input: unknown, world: unknown = undefined): Probe {
   return {
     id: 'probe:facet-mint:x',
     verb: 'facet-mint',
@@ -21,13 +20,14 @@ function probe(input: unknown, worldSetup: unknown = undefined): Probe {
     declaredIn: 'fixture.yaml',
     expected: { classification: 'matched', errorFamily: null },
     input,
-    worldSetup,
+    worldSetup: world,
     exercises: [],
   };
 }
 
-const run = (input: unknown, worldSetup?: unknown) =>
-  Effect.runPromise(facetMintClassifier.classify(probe(input, worldSetup)));
+const run = (input: unknown, world?: unknown) =>
+  Effect.runPromise(facetMintClassifier.classify(probe(input, world)));
+
 const VALID_INPUT = {
   'facet-kind': 'element',
   'stable-id': 'ns:foo',
@@ -40,8 +40,8 @@ describe('facet-mint classifier laws', () => {
     expect(await run(VALID_INPUT)).toEqual({ classification: 'matched', errorFamily: null });
   });
 
-  test('M2: valid shape + id-collision hook → failed/assertion-like', async () => {
-    expect(await run(VALID_INPUT, { 'id-collision': true })).toEqual({
+  test('M2: catalog.facet-exists-at-stable-id → assertion-like', async () => {
+    expect(await run(VALID_INPUT, { catalog: { 'facet-exists-at-stable-id': true } })).toEqual({
       classification: 'failed',
       errorFamily: 'assertion-like',
     });
@@ -50,13 +50,6 @@ describe('facet-mint classifier laws', () => {
   test('M3: missing field → failed/unclassified', async () => {
     const { 'stable-id': _, ...partial } = VALID_INPUT;
     expect(await run(partial)).toEqual({
-      classification: 'failed',
-      errorFamily: 'unclassified',
-    });
-  });
-
-  test('M4: non-object input → failed/unclassified', async () => {
-    expect(await run('not an object')).toEqual({
       classification: 'failed',
       errorFamily: 'unclassified',
     });

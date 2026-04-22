@@ -1,19 +1,9 @@
 /**
- * facet-mint classifier — shape + hook-driven (rung 2).
+ * facet-mint classifier — rung 2.
  *
- * The facet-mint verb mints a new FacetRecord atomically. Manifest
- * error-family list (post-Gap-1 fix): ['assertion-like',
- * 'unclassified']. The assertion-like path fires when the stable-id
- * pre-image collides with an existing catalog entry.
- *
- * At rung 2 the catalog state is not real, so the fixture signals
- * the collision precondition via `world-setup.id-collision: true`.
- * Rung 3+ replaces the hook with a real FacetCatalog load.
- *
- * Classification logic:
- *   - Invalid shape → failed/unclassified.
- *   - Valid shape + world-setup.id-collision=true → failed/assertion-like.
- *   - Valid shape + no simulated failure → matched/null.
+ * First-principles revision: reads
+ * `world.catalog.facet-exists-at-stable-id` instead of
+ * `world-setup.id-collision`.
  */
 
 import { Effect } from 'effect';
@@ -35,15 +25,18 @@ function isFacetMintShape(input: unknown): boolean {
   );
 }
 
-function readIdCollisionHook(worldSetup: unknown): boolean {
-  return isRecord(worldSetup) && worldSetup['id-collision'] === true;
+function catalogIdCollides(world: unknown): boolean {
+  if (!isRecord(world)) return false;
+  const catalog = world['catalog'];
+  if (!isRecord(catalog)) return false;
+  return catalog['facet-exists-at-stable-id'] === true;
 }
 
 function classifyFacetMint(probe: Probe): Effect.Effect<ProbeOutcome['observed'], Error, never> {
   if (!isFacetMintShape(probe.input)) {
     return Effect.succeed({ classification: 'failed', errorFamily: 'unclassified' });
   }
-  if (readIdCollisionHook(probe.worldSetup)) {
+  if (catalogIdCollides(probe.worldSetup)) {
     return Effect.succeed({ classification: 'failed', errorFamily: 'assertion-like' });
   }
   return Effect.succeed({ classification: 'matched', errorFamily: null });

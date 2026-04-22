@@ -1,11 +1,10 @@
 /**
- * intent-fetch classifier — laws.
+ * intent-fetch classifier — laws (first-principles revision).
  *
- * Pins:
- *   N1. Valid shape + no hook → matched.
- *   N2. simulate-rate-limit hook → failed/rate-limited.
- *   N3. simulate-transport-failure hook → failed/unavailable.
- *   N4. inject-malformed-payload hook → failed/malformed-response.
+ *   N1. Valid shape + no upstream hook → matched.
+ *   N2. world.upstream.rate-limited → rate-limited.
+ *   N3. world.upstream.transport-failure → unavailable.
+ *   N4. world.upstream.malformed-payload → malformed-response.
  *   N5. Invalid source → failed/unclassified.
  *   N6. Missing id → failed/unclassified.
  */
@@ -15,7 +14,7 @@ import { Effect } from 'effect';
 import { intentFetchClassifier } from '../../../workshop/probe-derivation/classifiers/intent-fetch';
 import type { Probe } from '../../../workshop/probe-derivation/probe-ir';
 
-function probe(input: unknown, worldSetup: unknown = undefined): Probe {
+function probe(input: unknown, world: unknown = undefined): Probe {
   return {
     id: 'probe:intent-fetch:x',
     verb: 'intent-fetch',
@@ -23,13 +22,14 @@ function probe(input: unknown, worldSetup: unknown = undefined): Probe {
     declaredIn: 'fixture.yaml',
     expected: { classification: 'matched', errorFamily: null },
     input,
-    worldSetup,
+    worldSetup: world,
     exercises: [],
   };
 }
 
-const run = (input: unknown, worldSetup?: unknown) =>
-  Effect.runPromise(intentFetchClassifier.classify(probe(input, worldSetup)));
+const run = (input: unknown, world?: unknown) =>
+  Effect.runPromise(intentFetchClassifier.classify(probe(input, world)));
+
 const VALID_INPUT = { source: 'testbed', id: 'WORK-001' };
 
 describe('intent-fetch classifier laws', () => {
@@ -37,22 +37,22 @@ describe('intent-fetch classifier laws', () => {
     expect(await run(VALID_INPUT)).toEqual({ classification: 'matched', errorFamily: null });
   });
 
-  test('N2: simulate-rate-limit → rate-limited', async () => {
-    expect(await run(VALID_INPUT, { 'simulate-rate-limit': true })).toEqual({
+  test('N2: upstream.rate-limited → rate-limited', async () => {
+    expect(await run(VALID_INPUT, { upstream: { 'rate-limited': true } })).toEqual({
       classification: 'failed',
       errorFamily: 'rate-limited',
     });
   });
 
-  test('N3: simulate-transport-failure → unavailable', async () => {
-    expect(await run(VALID_INPUT, { 'simulate-transport-failure': true })).toEqual({
+  test('N3: upstream.transport-failure → unavailable', async () => {
+    expect(await run(VALID_INPUT, { upstream: { 'transport-failure': true } })).toEqual({
       classification: 'failed',
       errorFamily: 'unavailable',
     });
   });
 
-  test('N4: inject-malformed-payload → malformed-response', async () => {
-    expect(await run(VALID_INPUT, { 'inject-malformed-payload': true })).toEqual({
+  test('N4: upstream.malformed-payload → malformed-response', async () => {
+    expect(await run(VALID_INPUT, { upstream: { 'malformed-payload': true } })).toEqual({
       classification: 'failed',
       errorFamily: 'malformed-response',
     });

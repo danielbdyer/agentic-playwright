@@ -1,20 +1,9 @@
 /**
- * intent-fetch classifier — shape + hook-driven (rung 2).
+ * intent-fetch classifier — rung 2.
  *
- * Manifest error-family list: ['rate-limited', 'unavailable',
- * 'malformed-response', 'unclassified']. Three of the four have
- * named world-setup hooks the classifier honors:
- *
- *   simulate-rate-limit: true         → rate-limited
- *   simulate-transport-failure: true  → unavailable
- *   inject-malformed-payload: true    → malformed-response
- *
- * Rung 3+ replaces each hook with its real upstream condition:
- * HTTP 429 from the live endpoint, connection refused from the
- * transport, schema-break in the response payload.
- *
- * Shape: input.source must be one of 'ado' | 'testbed' | 'probe',
- * input.id must be a string. Missing → failed/unclassified.
+ * First-principles revision: reads `world.upstream.{rate-limited,
+ * transport-failure, malformed-payload}` instead of the flat
+ * `world-setup.simulate-*` hook keys.
  */
 
 import { Effect } from 'effect';
@@ -37,11 +26,13 @@ function isIntentFetchShape(input: unknown): boolean {
 
 type IntentFetchFailureFamily = 'rate-limited' | 'unavailable' | 'malformed-response';
 
-function readFailureHook(worldSetup: unknown): IntentFetchFailureFamily | null {
-  if (!isRecord(worldSetup)) return null;
-  if (worldSetup['simulate-rate-limit'] === true) return 'rate-limited';
-  if (worldSetup['simulate-transport-failure'] === true) return 'unavailable';
-  if (worldSetup['inject-malformed-payload'] === true) return 'malformed-response';
+function extractUpstreamFailure(world: unknown): IntentFetchFailureFamily | null {
+  if (!isRecord(world)) return null;
+  const upstream = world['upstream'];
+  if (!isRecord(upstream)) return null;
+  if (upstream['rate-limited'] === true) return 'rate-limited';
+  if (upstream['transport-failure'] === true) return 'unavailable';
+  if (upstream['malformed-payload'] === true) return 'malformed-response';
   return null;
 }
 
@@ -49,7 +40,7 @@ function classifyIntentFetch(probe: Probe): Effect.Effect<ProbeOutcome['observed
   if (!isIntentFetchShape(probe.input)) {
     return Effect.succeed({ classification: 'failed', errorFamily: 'unclassified' });
   }
-  const failure = readFailureHook(probe.worldSetup);
+  const failure = extractUpstreamFailure(probe.worldSetup);
   if (failure !== null) {
     return Effect.succeed({ classification: 'failed', errorFamily: failure });
   }

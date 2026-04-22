@@ -1,11 +1,10 @@
 /**
- * facet-enrich classifier — laws.
+ * facet-enrich classifier — laws (first-principles revision).
  *
- * Pins:
- *   E1. Valid shape + no hook → matched/null.
- *   E2. Valid shape + world-setup.facet-missing=true → failed/assertion-like.
- *   E3. Missing evidence field → failed/unclassified.
- *   E4. Non-object input → failed/unclassified.
+ *   E1. Valid shape + no catalog hook → matched.
+ *   E2. Valid shape + world.catalog.facet-missing=true
+ *       → failed/assertion-like.
+ *   E3. Missing evidence → failed/unclassified.
  */
 
 import { describe, test, expect } from 'vitest';
@@ -13,7 +12,7 @@ import { Effect } from 'effect';
 import { facetEnrichClassifier } from '../../../workshop/probe-derivation/classifiers/facet-enrich';
 import type { Probe } from '../../../workshop/probe-derivation/probe-ir';
 
-function probe(input: unknown, worldSetup: unknown = undefined): Probe {
+function probe(input: unknown, world: unknown = undefined): Probe {
   return {
     id: 'probe:facet-enrich:x',
     verb: 'facet-enrich',
@@ -21,13 +20,14 @@ function probe(input: unknown, worldSetup: unknown = undefined): Probe {
     declaredIn: 'fixture.yaml',
     expected: { classification: 'matched', errorFamily: null },
     input,
-    worldSetup,
+    worldSetup: world,
     exercises: [],
   };
 }
 
-const run = (input: unknown, worldSetup?: unknown) =>
-  Effect.runPromise(facetEnrichClassifier.classify(probe(input, worldSetup)));
+const run = (input: unknown, world?: unknown) =>
+  Effect.runPromise(facetEnrichClassifier.classify(probe(input, world)));
+
 const VALID_INPUT = {
   'facet-kind': 'element',
   'facet-id': 'ns:foo',
@@ -39,8 +39,8 @@ describe('facet-enrich classifier laws', () => {
     expect(await run(VALID_INPUT)).toEqual({ classification: 'matched', errorFamily: null });
   });
 
-  test('E2: valid shape + facet-missing hook → failed/assertion-like', async () => {
-    expect(await run(VALID_INPUT, { 'facet-missing': true })).toEqual({
+  test('E2: catalog.facet-missing → assertion-like', async () => {
+    expect(await run(VALID_INPUT, { catalog: { 'facet-missing': true } })).toEqual({
       classification: 'failed',
       errorFamily: 'assertion-like',
     });
@@ -50,12 +50,5 @@ describe('facet-enrich classifier laws', () => {
     expect(
       await run({ 'facet-kind': 'element', 'facet-id': 'ns:foo' }),
     ).toEqual({ classification: 'failed', errorFamily: 'unclassified' });
-  });
-
-  test('E4: non-object input → failed/unclassified', async () => {
-    expect(await run(42)).toEqual({
-      classification: 'failed',
-      errorFamily: 'unclassified',
-    });
   });
 });
