@@ -104,11 +104,14 @@ describe('substrate parity laws (dry-harness ↔ fixture-replay)', () => {
       'facet-enrich',
       'facet-mint',
       'facet-query',
+      'intent-fetch',
       'interact',
       'locator-health-track',
       'observe',
       'test-compose',
     ]);
+    // 8/8 classifier coverage — the full manifest seed set.
+    expect(classifiedVerbs.size).toBe(8);
   });
 
   test('P3: reproducibility — two runs produce byte-identical receipts on each side', async () => {

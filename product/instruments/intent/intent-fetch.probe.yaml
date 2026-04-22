@@ -24,10 +24,13 @@ fixtures:
     description: |
       ADO returns HTTP 429 and the retry schedule exhausts without
       a successful attempt. Exercises the rate-limited classification
-      path from the resilience retry envelope.
+      path from the resilience retry envelope. The
+      `simulate-rate-limit` hook triggers the family at rung 2.
     input:
       source: ado
       id: "999999"
+    world-setup:
+      simulate-rate-limit: true
     expected:
       classification: failed
       error-family: rate-limited
@@ -39,9 +42,13 @@ fixtures:
       The ADO endpoint is unreachable (connection refused, DNS
       failure, abort). Transport-level failure maps to the
       unavailable error family per the AdoTransientError path.
+      The `simulate-transport-failure` hook triggers the family
+      at rung 2.
     input:
       source: ado
       id: "42"
+    world-setup:
+      simulate-transport-failure: true
     expected:
       classification: failed
       error-family: unavailable

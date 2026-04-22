@@ -34,6 +34,7 @@ import { facetMintClassifier } from './facet-mint';
 import { facetEnrichClassifier } from './facet-enrich';
 import { observeClassifier } from './observe';
 import { interactClassifier } from './interact';
+import { intentFetchClassifier } from './intent-fetch';
 
 /** Build the default classifier registry. Classifier coverage grows
  *  verb-by-verb as each classifier lands in its own commit. Each
@@ -50,5 +51,6 @@ export function createDefaultVerbClassifierRegistry(): VerbClassifierRegistry {
     facetEnrichClassifier,
     observeClassifier,
     interactClassifier,
+    intentFetchClassifier,
   ]);
 }
