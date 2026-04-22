@@ -118,6 +118,42 @@ export interface SurfaceSpec {
    *  at the classifier; the substrate simply nests <element> …
    *  <children> … </element>. */
   readonly children?: readonly SurfaceSpec[];
+  /** Required-field axis. Renders `aria-required="true"` on
+   *  interactive surfaces (textbox, checkbox, radio, combobox).
+   *  Form-level validation (on submit) treats required + empty
+   *  as a precondition failure. */
+  readonly required?: boolean;
+  /** Validation-state axis. Renders `aria-invalid="true"`.
+   *  Observe queries that filter on invalid state see the element;
+   *  classifiers can assert the field is flagged. */
+  readonly invalid?: boolean;
+  /** aria-describedby target. The value should be another
+   *  surface's `surfaceId`. Enables help-text + error-text
+   *  compositions — probe can observe the described surface
+   *  alongside the field. */
+  readonly describedBy?: string;
+  /** For role=form surfaces only. Determines what the form
+   *  reveals on submit:
+   *    'success-on-required-filled' — when every required child
+   *      has a non-empty value at submit time, the form reveals
+   *      a child tagged `surfaceId: 'submit-success'` (or an
+   *      implicit success alert); otherwise reveals
+   *      `submit-error` (or an implicit error alert).
+   *    'always-success' — always reveals success.
+   *    'always-error'   — always reveals error.
+   *    'no-reveal'      — default; submit prevents default and
+   *                       does nothing visible. */
+  readonly submitReveal?:
+    | 'success-on-required-filled'
+    | 'always-success'
+    | 'always-error'
+    | 'no-reveal';
+  /** For role=form: optional custom success-state message. Rendered
+   *  as a role=status surface after a successful submit. */
+  readonly successMessage?: string;
+  /** For role=form: optional custom error-state message. Rendered
+   *  as a role=alert surface after a failed submit. */
+  readonly errorMessage?: string;
 }
 
 /** Default field resolution — the substrate applies these when a

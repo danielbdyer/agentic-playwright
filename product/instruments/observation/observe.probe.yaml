@@ -142,3 +142,41 @@ fixtures:
       - rung: role
       - composition: landmark
       - preset: landmark-page
+
+  - name: observe-required-field-in-login-form
+    description: |
+      Observe a required textbox (aria-required=true) inside the
+      login-form preset. Tests that observe's accessibility query
+      resolves the named field through form nesting + required-
+      axis rendering.
+    input:
+      target: { role: textbox, name: "Identifier" }
+    world:
+      preset: login-form
+      entropy:
+        seed: observe-required-field
+        chromeTone: [atlas]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - axis: required
+      - preset: login-form
+
+  - name: observe-pre-invalidated-field
+    description: |
+      Observe a field that the form pre-marks as invalid
+      (aria-invalid=true). Target resolves by role+name through
+      form nesting; the invalid axis is orthogonal to the query.
+    input:
+      target: { role: textbox, name: "Display name" }
+    world:
+      preset: validation-error-form
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - axis: invalid
+      - preset: validation-error-form

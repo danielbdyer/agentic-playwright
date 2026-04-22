@@ -161,7 +161,7 @@ fixtures:
     description: |
       Dispatch click on a Submit button inside a form landmark.
       Uses the login-form preset — the substrate renders a real
-      <form onSubmit={preventDefault}> containing two textboxes
+      <form onSubmit={...}> containing two required textboxes
       and a Submit button. The probe tests that click traverses
       form-nested focusable elements correctly at rung 3.
     input:
@@ -180,3 +180,45 @@ fixtures:
       - rung: role-dispatcher
       - composition: form-submit
       - preset: login-form
+
+  - name: fill-required-field-in-login-form
+    description: |
+      Fill a required textbox inside the login-form preset. Tests
+      that interact's fill dispatch reaches nested form fields and
+      succeeds despite the aria-required attribute.
+    input:
+      action: input
+      target: { role: textbox, name: "Identifier" }
+      value: "alice"
+    world:
+      preset: login-form
+      entropy:
+        seed: interact-fill-required
+        chromeTone: [ember]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role-dispatcher
+      - axis: required
+      - preset: login-form
+
+  - name: click-save-inside-prefilled-form
+    description: |
+      Prefilled form: every required field has an initialValue so
+      submit reveals the success alert. Click the Save button
+      inside the form landmark. The success-alert isn't the
+      target — this probe verifies the click dispatches; a
+      separate observe probe can see the revealed alert.
+    input:
+      action: click
+      target: { role: button, name: "Save" }
+    world:
+      preset: prefilled-form
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role-dispatcher
+      - composition: form-submit-success
+      - preset: prefilled-form

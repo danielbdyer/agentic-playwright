@@ -36,6 +36,7 @@ import {
   type SurfaceSpec,
   type SurfaceVisibility,
 } from '../../substrate/surface-spec';
+import { FormRenderer } from './FormRenderer';
 
 export interface SurfaceRendererProps {
   readonly spec: SurfaceSpec;
@@ -86,12 +87,21 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
   const surfaceIdAttr = spec.surfaceId !== undefined ? { 'data-surface-id': spec.surfaceId } : {};
   const surfaceRoleAttr = { 'data-surface-role': spec.role };
   const surfaceNameAttr = spec.name !== undefined ? { 'data-surface-name': spec.name } : {};
+  // Form-field validation axes. Boolean-typed attributes use React's
+  // standard name (ariaRequired / ariaInvalid) so React serializes
+  // them correctly to aria-* in the DOM.
+  const requiredAttr = spec.required === true ? ({ 'aria-required': true } as const) : {};
+  const invalidAttr = spec.invalid === true ? ({ 'aria-invalid': true } as const) : {};
+  const describedByAttr = spec.describedBy !== undefined ? { 'aria-describedby': spec.describedBy } : {};
 
   const commonRoleAttrs = {
     ...(style !== undefined ? { style } : {}),
     ...surfaceIdAttr,
     ...surfaceRoleAttr,
     ...surfaceNameAttr,
+    ...requiredAttr,
+    ...invalidAttr,
+    ...describedByAttr,
   };
 
   const children = renderChildren(spec.children);
@@ -186,16 +196,16 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
     );
   }
 
-  // Form surface — renders a real <form> element (role=form is
-  // implicit) so submit semantics work. onSubmit preventsDefault so
-  // substrate navigation stays stable when a probe triggers submit
-  // via Enter or a submit-type button.
+  // Form surface — delegated to FormRenderer for stateful submit
+  // handling. Supports submitReveal, required-field validation on
+  // submit, and success/error alert rendering.
   if (spec.role === 'form') {
     const nameAttr = spec.name !== undefined ? { 'aria-label': spec.name } : {};
+    const attrs = { ...nameAttr, ...commonRoleAttrs } as Record<string, string | undefined | CSSProperties>;
     return (
-      <form onSubmit={(e) => e.preventDefault()} {...nameAttr} {...commonRoleAttrs}>
+      <FormRenderer spec={spec} commonAttrs={attrs}>
         {children}
-      </form>
+      </FormRenderer>
     );
   }
 

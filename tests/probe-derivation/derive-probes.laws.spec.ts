@@ -48,7 +48,7 @@ describe('probe IR fixture-loader laws', () => {
     expect(doc).not.toBeNull();
     expect(doc!.verb).toBe('observe');
     expect(doc!.schemaVersion).toBe(1);
-    expect(doc!.fixtures).toHaveLength(5);
+    expect(doc!.fixtures).toHaveLength(7);
     // Fixture names in first-principles vocabulary: no business-
     // domain identifiers, just the axis behavior being probed.
     expect(doc!.fixtures[0]!.name).toBe('visible-button');

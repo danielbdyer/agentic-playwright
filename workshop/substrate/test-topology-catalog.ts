@@ -11,19 +11,107 @@
 import type { TestTopology } from './test-topology';
 import { testTopologyRegistry, type TestTopologyRegistry } from './test-topology';
 
-/** login-form — form landmark containing two textboxes + submit button.
- *  Exercises: form landmark, textbox query, button query, ARIA
- *  nesting through `form → {textbox, textbox, button}`. */
+/** login-form — form landmark with two required textboxes + submit.
+ *  submitReveal: success-on-required-filled. Rendered as a real
+ *  <form> whose submit handler checks required fields and reveals
+ *  either a role=status success message or a role=alert error
+ *  message. Exercises the production form pattern end to end:
+ *  required-field validation, submit semantics, success/error
+ *  reveal. */
 const loginForm: TestTopology = {
   id: 'login-form',
   surfaces: [
     {
       role: 'form',
       name: 'Login',
+      submitReveal: 'success-on-required-filled',
+      successMessage: 'Signed in',
+      errorMessage: 'Please complete required fields',
       children: [
-        { role: 'textbox', name: 'Identifier' },
-        { role: 'textbox', name: 'Passphrase' },
+        {
+          role: 'textbox',
+          name: 'Identifier',
+          required: true,
+          describedBy: 'identifier-help',
+        },
+        {
+          role: 'status',
+          name: 'Identifier help',
+          surfaceId: 'identifier-help',
+        },
+        {
+          role: 'textbox',
+          name: 'Passphrase',
+          required: true,
+          describedBy: 'passphrase-help',
+        },
+        {
+          role: 'status',
+          name: 'Passphrase help',
+          surfaceId: 'passphrase-help',
+        },
         { role: 'button', name: 'Submit' },
+      ],
+    },
+  ],
+};
+
+/** validation-error-form — form whose required field is pre-marked
+ *  invalid. Exercises aria-invalid observation and the error-reveal
+ *  path when submitted empty. */
+const validationErrorForm: TestTopology = {
+  id: 'validation-error-form',
+  surfaces: [
+    {
+      role: 'form',
+      name: 'Profile',
+      submitReveal: 'success-on-required-filled',
+      errorMessage: 'Profile has errors',
+      children: [
+        {
+          role: 'textbox',
+          name: 'Display name',
+          required: true,
+          invalid: true,
+          describedBy: 'display-name-error',
+        },
+        {
+          role: 'alert',
+          name: 'Display name error',
+          surfaceId: 'display-name-error',
+        },
+        { role: 'button', name: 'Save' },
+      ],
+    },
+  ],
+};
+
+/** prefilled-form — form with required fields already populated via
+ *  initialValue. Submit should reveal success via the required-
+ *  filled path. */
+const prefilledForm: TestTopology = {
+  id: 'prefilled-form',
+  surfaces: [
+    {
+      role: 'form',
+      name: 'Quick-save',
+      submitReveal: 'success-on-required-filled',
+      successMessage: 'Changes saved',
+      children: [
+        {
+          role: 'textbox',
+          name: 'Title',
+          required: true,
+          initialValue: 'Untitled',
+        },
+        {
+          role: 'textbox',
+          name: 'Body',
+          required: true,
+          initialValue: 'Draft body',
+          inputBacking: 'native-textarea',
+        },
+        { role: 'button', name: 'Save' },
       ],
     },
   ],
@@ -137,5 +225,7 @@ export function createDefaultTopologyRegistry(): TestTopologyRegistry {
     tabbedInterface,
     paginatedGrid,
     landmarkPage,
+    validationErrorForm,
+    prefilledForm,
   ]);
 }

@@ -108,6 +108,12 @@ function isValidSurfaceSpec(value: unknown): value is SurfaceSpec {
   if (value['detachAfterMs'] !== undefined && typeof value['detachAfterMs'] !== 'number') return false;
   if (value['surfaceId'] !== undefined && typeof value['surfaceId'] !== 'string') return false;
   if (value['initialValue'] !== undefined && typeof value['initialValue'] !== 'string') return false;
+  if (value['required'] !== undefined && typeof value['required'] !== 'boolean') return false;
+  if (value['invalid'] !== undefined && typeof value['invalid'] !== 'boolean') return false;
+  if (value['describedBy'] !== undefined && typeof value['describedBy'] !== 'string') return false;
+  if (value['submitReveal'] !== undefined && typeof value['submitReveal'] !== 'string') return false;
+  if (value['successMessage'] !== undefined && typeof value['successMessage'] !== 'string') return false;
+  if (value['errorMessage'] !== undefined && typeof value['errorMessage'] !== 'string') return false;
   if (value['children'] !== undefined) {
     if (!Array.isArray(value['children'])) return false;
     if (!value['children'].every(isValidSurfaceSpec)) return false;
