@@ -38,9 +38,18 @@ export function createProbeHarnessForAdapter(
         registry: createDefaultVerbClassifierRegistry(),
       });
     case 'playwright-live':
+      // The playwright-live adapter needs a scoped lifecycle
+      // (substrate server + headed browser acquired + released
+      // around the spike). The synchronous factory shape cannot
+      // express that, so the CLI command routes 'playwright-live'
+      // directly to `runPlaywrightLiveSpike` in
+      // workshop/probe-derivation/playwright-live-harness.ts.
+      // Reaching this branch means a caller is using the factory
+      // instead of the spike runner — surface that mistake loudly.
       throw new Error(
-        'probe-spike --adapter playwright-live: pending Step 6. ' +
-          'See docs/v2-probe-ir-spike.md §6.2.',
+        'createProbeHarnessForAdapter: the playwright-live adapter requires a scoped ' +
+          'lifecycle; use runPlaywrightLiveSpike directly (see ' +
+          'workshop/probe-derivation/playwright-live-harness.ts).',
       );
     case 'production':
       throw new Error(
