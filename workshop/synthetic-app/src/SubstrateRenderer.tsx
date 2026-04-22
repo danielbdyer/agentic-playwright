@@ -20,14 +20,22 @@ import {
   rngShuffle,
   seededRandom,
 } from '../../substrate/entropy-profile';
+import {
+  resolveTopology,
+  type TestTopologyRegistry,
+} from '../../substrate/test-topology';
 import { SurfaceRenderer } from './SurfaceRenderer';
 import { EntropyWrapper } from './EntropyWrapper';
 
 export interface SubstrateRendererProps {
   readonly worldShape: WorldShape | null;
+  readonly topologyRegistry: TestTopologyRegistry;
 }
 
-export const SubstrateRenderer: FC<SubstrateRendererProps> = ({ worldShape }) => {
+export const SubstrateRenderer: FC<SubstrateRendererProps> = ({
+  worldShape,
+  topologyRegistry,
+}) => {
   if (worldShape === null) {
     return (
       <div
@@ -42,7 +50,12 @@ export const SubstrateRenderer: FC<SubstrateRendererProps> = ({ worldShape }) =>
     );
   }
 
-  if (worldShape.surfaces.length === 0) {
+  // Resolve any topology preset BEFORE rendering — expands
+  // `world.preset: "login-form"` into the canonical surfaces +
+  // entropy before entropy seeding.
+  const resolved = resolveTopology(worldShape, topologyRegistry);
+
+  if (resolved.surfaces.length === 0) {
     return (
       <div
         data-substrate-state="empty"
@@ -54,12 +67,12 @@ export const SubstrateRenderer: FC<SubstrateRendererProps> = ({ worldShape }) =>
     );
   }
 
-  const profile = worldShape.entropy ?? EMPTY_ENTROPY_PROFILE;
+  const profile = resolved.entropy ?? EMPTY_ENTROPY_PROFILE;
   const rng = seededRandom(profile.seed ?? 'default');
 
   const orderedSurfaces = profile.surfaceOrder === 'shuffled'
-    ? rngShuffle(rng, worldShape.surfaces)
-    : [...worldShape.surfaces];
+    ? rngShuffle(rng, resolved.surfaces)
+    : [...resolved.surfaces];
 
   const surfaces = (
     <>

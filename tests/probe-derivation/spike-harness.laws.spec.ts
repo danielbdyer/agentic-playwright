@@ -144,12 +144,12 @@ describe('Probe IR Spike — end-to-end laws', () => {
     // interact: 6. Total = 25.
     // observe grew to 4 (T3 nested-tab + T2 role-disambiguation);
     // interact grew to 6 (T2 role-disambiguation).
-    expect(derivation.probes).toHaveLength(25);
+    expect(derivation.probes).toHaveLength(26);
     const byVerb = new Map<string, number>();
     for (const probe of derivation.probes) {
       byVerb.set(probe.verb, (byVerb.get(probe.verb) ?? 0) + 1);
     }
-    expect(byVerb.get('observe')).toBe(4);
+    expect(byVerb.get('observe')).toBe(5);
     expect(byVerb.get('test-compose')).toBe(2);
     expect(byVerb.get('facet-query')).toBe(3);
     expect(byVerb.get('facet-mint')).toBe(2);

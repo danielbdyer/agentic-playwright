@@ -119,3 +119,26 @@ fixtures:
     exercises:
       - rung: role
       - composition: role-disambiguation
+
+  - name: observe-preset-landmark-page
+    description: |
+      Use the `landmark-page` test topology preset. The topology
+      registry expands the preset to a full landmark composition
+      (banner + navigation + main + complementary + contentinfo).
+      Target is the `main` landmark — tests landmark-aware
+      observe queries against a realistic multi-landmark world.
+    input:
+      target: { role: main, name: "Content" }
+    world:
+      preset: landmark-page
+      entropy:
+        seed: observe-landmark-page
+        chromeTone: [reef]
+        siblingJitter: [0, 2]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - composition: landmark
+      - preset: landmark-page

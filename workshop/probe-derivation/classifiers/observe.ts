@@ -28,6 +28,7 @@ import type { Probe } from '../probe-ir';
 import type { ProbeOutcome } from '../probe-receipt';
 import type { SurfaceSpec } from '../../substrate/surface-spec';
 import { isSurfaceHidden } from '../../substrate/surface-spec';
+import { resolveProbeSurfaces } from '../world-resolution';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -44,10 +45,9 @@ function extractTarget(input: unknown): { role: string; name?: string } | null {
 }
 
 function extractSurfaces(world: unknown): readonly SurfaceSpec[] {
-  if (!isRecord(world)) return [];
-  const surfaces = world['surfaces'];
-  if (!Array.isArray(surfaces)) return [];
-  return surfaces.filter((s): s is SurfaceSpec => isRecord(s) && typeof s['role'] === 'string');
+  // Delegate to the shared resolver — handles both explicit
+  // surfaces lists and preset-based worlds.
+  return resolveProbeSurfaces(world);
 }
 
 function findMatchingSurface(

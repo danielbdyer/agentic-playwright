@@ -3,19 +3,26 @@
  * loads into the browser.
  *
  * Reads window.location.href → parses WorldShape → mounts
- * SubstrateRenderer. No registry lookups, no facet resolution.
- * The substrate renders what the shape declares, directly.
+ * SubstrateRenderer with the default topology registry so probes
+ * can reference named compositions via `world.preset`.
  */
 
 import { createRoot } from 'react-dom/client';
 import { SubstrateRenderer } from './SubstrateRenderer';
 import { parseWorldShapeFromUrl } from '../../substrate/world-shape';
+import { createDefaultTopologyRegistry } from '../../substrate/test-topology-catalog';
 
 function mountSubstrate(): void {
   const rootElement = document.getElementById('root');
   if (!rootElement) return;
   const worldShape = parseWorldShapeFromUrl(window.location.href);
-  createRoot(rootElement).render(<SubstrateRenderer worldShape={worldShape} />);
+  const topologyRegistry = createDefaultTopologyRegistry();
+  createRoot(rootElement).render(
+    <SubstrateRenderer
+      worldShape={worldShape}
+      topologyRegistry={topologyRegistry}
+    />,
+  );
 }
 
 mountSubstrate();

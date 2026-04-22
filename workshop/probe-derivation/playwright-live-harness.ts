@@ -53,7 +53,7 @@ import {
   EMPTY_WORLD_SHAPE,
   type WorldShape,
 } from '../substrate/world-shape';
-import type { SurfaceSpec } from '../substrate/surface-spec';
+import { resolveProbeWorld } from './world-resolution';
 import { startSubstrateServer, type SubstrateServer } from '../synthetic-app/server';
 import { launchHeadedHarness, type HeadedHarness } from '../../product/instruments/tooling/headed-harness';
 import { fingerprintFor } from '../../product/domain/kernel/hash';
@@ -71,26 +71,14 @@ function isInputRecord(value: unknown): value is Record<string, unknown> {
 
 /** Project a probe into the substrate's WorldShape.
  *
- *  The probe's `worldSetup` (loaded from the fixture's `world` key)
- *  already carries `world.surfaces: SurfaceSpec[]` for browser-bound
- *  verbs. This function extracts that list directly. For non-browser
- *  verbs the surfaces list is absent; the resulting WorldShape is
- *  empty and the substrate renders the empty marker — which is fine
- *  because the rung-3 classifier for those verbs doesn't read the DOM. */
+ *  Resolves any `preset` against the default topology registry via
+ *  `resolveProbeWorld`. For non-browser verbs (no surfaces, no
+ *  preset) the resulting shape is empty and the substrate renders
+ *  the empty marker — fine because the rung-3 classifier for those
+ *  verbs doesn't read the DOM. */
 export function projectProbeToWorldShape(probe: Probe): WorldShape {
-  if (!isInputRecord(probe.worldSetup)) return EMPTY_WORLD_SHAPE;
-  const surfaces = probe.worldSetup['surfaces'];
-  if (!Array.isArray(surfaces)) return EMPTY_WORLD_SHAPE;
-  const filtered = surfaces.filter((s): s is SurfaceSpec =>
-    isInputRecord(s) && typeof s['role'] === 'string',
-  );
-  const entropy = isInputRecord(probe.worldSetup['entropy'])
-    ? (probe.worldSetup['entropy'] as WorldShape['entropy'])
-    : undefined;
-  if (entropy === undefined) {
-    return { surfaces: filtered };
-  }
-  return { surfaces: filtered, entropy };
+  const resolved = resolveProbeWorld(probe.worldSetup);
+  return resolved ?? EMPTY_WORLD_SHAPE;
 }
 
 function inferCohort(probe: Probe): ProbeSurfaceCohort {
