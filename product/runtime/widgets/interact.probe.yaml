@@ -156,3 +156,27 @@ fixtures:
     exercises:
       - rung: role-dispatcher
       - composition: role-disambiguation
+
+  - name: click-submit-inside-login-form
+    description: |
+      Dispatch click on a Submit button inside a form landmark.
+      Uses the login-form preset — the substrate renders a real
+      <form onSubmit={preventDefault}> containing two textboxes
+      and a Submit button. The probe tests that click traverses
+      form-nested focusable elements correctly at rung 3.
+    input:
+      action: click
+      target: { role: button, name: "Submit" }
+    world:
+      preset: login-form
+      entropy:
+        seed: interact-submit-login
+        wrapperDepth: [1, 2]
+        chromeTone: [reef, atlas]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role-dispatcher
+      - composition: form-submit
+      - preset: login-form

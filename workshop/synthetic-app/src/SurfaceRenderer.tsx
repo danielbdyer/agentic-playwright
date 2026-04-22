@@ -186,10 +186,23 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
     );
   }
 
+  // Form surface — renders a real <form> element (role=form is
+  // implicit) so submit semantics work. onSubmit preventsDefault so
+  // substrate navigation stays stable when a probe triggers submit
+  // via Enter or a submit-type button.
+  if (spec.role === 'form') {
+    const nameAttr = spec.name !== undefined ? { 'aria-label': spec.name } : {};
+    return (
+      <form onSubmit={(e) => e.preventDefault()} {...nameAttr} {...commonRoleAttrs}>
+        {children}
+      </form>
+    );
+  }
+
   // Container / landmark / composed roles — render as a div carrying
   // the declared role + optional accessible name + recursive children.
   // Covers: region, alert, status, navigation, main, banner,
-  // complementary, contentinfo, form, search, grid, gridcell, row,
+  // complementary, contentinfo, search, grid, gridcell, row,
   // rowheader, list, listitem, radiogroup, tablist, tab, tabpanel,
   // searchbox.
   const nameAttr = spec.name !== undefined ? { 'aria-label': spec.name } : {};
