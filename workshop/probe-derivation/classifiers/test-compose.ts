@@ -40,20 +40,18 @@
  *
  * ## Error family classification
  *
- * test-compose's manifest entry declares two error families:
+ * test-compose's manifest entry declares three error families
+ * (post Gap-4 resolution in probe-spike-verdict-02 → Slice C):
+ *   - `assertion-like`: the handler's input-shape validator
+ *     threw. The validator IS an assertion, so this is the
+ *     closest semantic family.
  *   - `malformed-response`: output generation failed (e.g., AST
- *     print threw). At rung 2 this does not fire because we don't
- *     run the AST emitter; always `unclassified` is the fallback.
+ *     print threw). Not fired at rung 2 — rung 3+ wires it.
  *   - `unclassified`: any failure that doesn't match a named family.
  *
- * Shape-validation failure maps to `assertion-like`... except that's
- * NOT in test-compose's manifest error-families list. So we route
- * shape-validation failures to `unclassified`, the closest named
- * family. The fixture's `unknown-facet-fails-assertion` is therefore
- * a known parity mismatch under fixture-replay — documented in
- * probe-spike-verdict-02.md (scope 3f) as a honest signal that
- * either (a) test-compose should add `assertion-like` to its
- * error families, or (b) the fixture should retarget its expectation.
+ * Shape-validation failure routes to `assertion-like`. Non-object
+ * inputs fall back to `unclassified` because they don't even reach
+ * the validator's assertion path.
  */
 
 import { Effect } from 'effect';
@@ -80,11 +78,20 @@ function isTestComposeShape(input: unknown): boolean {
  *  beyond the trivial `Effect.succeed` wrapper, because this
  *  classifier runs at rung 2 (fixture-replay) where the substrate
  *  is inert. Higher-rung classifiers will compose with Layers. */
+function isRecordInput(input: unknown): input is Record<string, unknown> {
+  return isRecord(input);
+}
+
 function classifyTestCompose(probe: Probe): Effect.Effect<ProbeOutcome['observed'], Error, never> {
-  const observed: ProbeOutcome['observed'] = isTestComposeShape(probe.input)
-    ? { classification: 'matched', errorFamily: null }
-    : { classification: 'failed', errorFamily: 'unclassified' };
-  return Effect.succeed(observed);
+  if (isTestComposeShape(probe.input)) {
+    return Effect.succeed({ classification: 'matched', errorFamily: null });
+  }
+  // An input that is at least a mapping routes through the
+  // validator's assertion path → assertion-like. A non-object
+  // input falls back to unclassified (it cannot even be asserted
+  // over). Both cases classify as failed.
+  const errorFamily = isRecordInput(probe.input) ? 'assertion-like' : 'unclassified';
+  return Effect.succeed({ classification: 'failed', errorFamily });
 }
 
 /** The test-compose classifier registration. Consumed by

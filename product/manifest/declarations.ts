@@ -90,7 +90,13 @@ export const testComposeVerb = declareVerb({
     declaredIn: 'product/instruments/codegen/spec-codegen.ts',
     summary: 'The emitted spec file path, the AST digest, and the referenced-facet index.',
   },
-  errorFamilies: ['malformed-response', 'unclassified'],
+  // Gap 4 resolution (probe-spike-verdict-02): the handler's input-
+  // shape validator rejects malformed inputs by throwing, and the
+  // closest semantic family for a shape-validation error is
+  // `assertion-like` — the handler's guard is an assertion. The
+  // workshop's test-compose classifier routes shape failures here
+  // once this family is declared.
+  errorFamilies: ['assertion-like', 'malformed-response', 'unclassified'],
   sinceVersion: '2.1.0',
   declaredIn: 'product/instruments/codegen/spec-codegen.ts',
 });

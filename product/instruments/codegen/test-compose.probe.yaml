@@ -38,9 +38,9 @@ fixtures:
     description: |
       Input omits the required `imports` object. The handler's
       shape validator rejects — classification: failed, error-
-      family: unclassified (matches test-compose's declared error
-      families in the manifest, which do NOT include
-      assertion-like; shape failures route to unclassified).
+      family: assertion-like (the validator IS an assertion; Gap-4
+      resolution in probe-spike-verdict-02 widened test-compose's
+      manifest error families to declare assertion-like).
     input:
       flow:
         name: policy-search-broken-path
@@ -50,6 +50,6 @@ fixtures:
             facet: policy-search:DOES_NOT_EXIST
     expected:
       classification: failed
-      error-family: unclassified
+      error-family: assertion-like
     exercises:
-      - error-family: unclassified
+      - error-family: assertion-like

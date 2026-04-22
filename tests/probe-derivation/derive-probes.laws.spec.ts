@@ -63,11 +63,11 @@ describe('probe IR fixture-loader laws', () => {
     );
     expect(doc).not.toBeNull();
     expect(doc!.verb).toBe('test-compose');
-    // The failed-path fixture's error-family is `unclassified` —
-    // test-compose's manifest entry does not declare
-    // assertion-like. Shape-validation failures route to the
-    // closest named family (unclassified) per Step 5.5 scope 3d.
-    expect(doc!.fixtures.some((f) => f.expected.errorFamily === 'unclassified')).toBe(true);
+    // Gap-4 resolution (Slice C): test-compose's manifest entry
+    // now declares assertion-like; the failed-path fixture
+    // retargets to that family. The validator IS an assertion,
+    // so shape-validation failures classify there.
+    expect(doc!.fixtures.some((f) => f.expected.errorFamily === 'assertion-like')).toBe(true);
   });
 
   test('loads the facet-query.probe.yaml fixture', () => {

@@ -43,19 +43,21 @@ describe('test-compose classifier laws', () => {
     expect(result).toEqual({ classification: 'matched', errorFamily: null });
   });
 
-  test('T2: missing imports → failed/unclassified', async () => {
+  test('T2: missing imports on object input → failed/assertion-like', async () => {
     const result = await classify({ flow: { name: 'x' } });
-    expect(result).toEqual({ classification: 'failed', errorFamily: 'unclassified' });
+    expect(result).toEqual({ classification: 'failed', errorFamily: 'assertion-like' });
   });
 
-  test('T3: missing flow → failed/unclassified', async () => {
+  test('T3: missing flow on object input → failed/assertion-like', async () => {
     const result = await classify({
       imports: { fixtures: './f', scenarioContext: './sc' },
     });
-    expect(result).toEqual({ classification: 'failed', errorFamily: 'unclassified' });
+    expect(result).toEqual({ classification: 'failed', errorFamily: 'assertion-like' });
   });
 
   test('T4: non-object input → failed/unclassified', async () => {
+    // Only object inputs reach the validator's assertion path;
+    // primitives short-circuit to unclassified per Gap-4 logic.
     const result = await classify('not an object');
     expect(result).toEqual({ classification: 'failed', errorFamily: 'unclassified' });
   });
