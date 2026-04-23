@@ -66,15 +66,26 @@ export function computeScoreboard(
     const store = yield* ReceiptStore;
 
     // Step 1 — parallel-safe fetches.
-    const [hypotheses, probeReceipts, scenarioReceipts, ratchets] = yield* Effect.all(
-      [
-        ledger.listAll(),
-        store.latestProbeReceipts(),
-        store.latestScenarioReceipts(),
-        store.listRatchets(),
-      ],
-      { concurrency: 'unbounded' },
-    );
+    // Z10c note: priorHypothesisReceipts is ALSO fetched here from
+    // the store, making multi-cycle trajectories automatic across
+    // CLI invocations. Callers that want to pin a specific prior
+    // slice (tests) can still override via
+    // options.priorHypothesisReceipts — when set, it REPLACES the
+    // store read rather than appending to it, because tests want
+    // hermetic control over trajectory length.
+    const [hypotheses, probeReceipts, scenarioReceipts, ratchets, storedPriorReceipts] =
+      yield* Effect.all(
+        [
+          ledger.listAll(),
+          store.latestProbeReceipts(),
+          store.latestScenarioReceipts(),
+          store.listRatchets(),
+          options.priorHypothesisReceipts === undefined
+            ? store.listHypothesisReceipts()
+            : Effect.succeed(options.priorHypothesisReceipts),
+        ],
+        { concurrency: 'unbounded' },
+      );
 
     // Step 2 — parallel-safe per-hypothesis evaluation.
     const buildOptions = {
@@ -92,8 +103,13 @@ export function computeScoreboard(
     }
 
     // Step 4 — pure derived read-models.
+    // Trajectories include every prior hypothesis receipt the store
+    // has ever persisted (Z10c) plus the new receipts computed this
+    // cycle. Deduplication-by-fingerprint is unnecessary: each cycle
+    // produces receipts whose `computedAt` differs, so appending the
+    // new receipts gives a strictly longer trajectory tail.
     const allHypothesisReceipts = [
-      ...(options.priorHypothesisReceipts ?? []),
+      ...storedPriorReceipts,
       ...newHypothesisReceipts,
     ];
     const trajectories = computeTrajectories(hypotheses, allHypothesisReceipts);
