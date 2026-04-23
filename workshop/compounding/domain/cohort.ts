@@ -13,6 +13,18 @@
  *                              scenarioId + topologyId) whose
  *                              ScenarioReceipts form the stream.
  *
+ * Step 11 Z11a adds a third variant:
+ *
+ *   - `customer-compilation` — a customer-backlog corpus slice (one
+ *                              of `'resolvable'` or `'needs-human'`)
+ *                              whose CompilationReceipts form the
+ *                              stream. The two sub-corpuses test
+ *                              complementary invariants: the
+ *                              resolvable corpus probes the
+ *                              happy-path resolution rate; the
+ *                              needs-human corpus probes the
+ *                              intervention-fidelity rate.
+ *
  * `cohortKey` produces a deterministic string identity that
  * TrajectoryEntry uses to group receipts. The key is stable
  * across runs and process boundaries.
@@ -36,8 +48,25 @@ export interface ScenarioTrajectoryCohort {
   readonly topologyId: string;
 }
 
+/** Cohort variant identifying a customer-compilation corpus slice.
+ *  The corpus tag discriminates the two evidence shapes Z11a
+ *  authors:
+ *    - `'resolvable'`    cases whose steps resolve fully under the
+ *                        lookup chain; tested against
+ *                        confirmation-rate.
+ *    - `'needs-human'`   cases whose steps force the 7th lookup
+ *                        slot; tested against intervention-fidelity.
+ */
+export interface CustomerCompilationCohort {
+  readonly kind: 'customer-compilation';
+  readonly corpus: 'resolvable' | 'needs-human';
+}
+
 /** The closed Cohort union. */
-export type Cohort = ProbeSurfaceCohortRef | ScenarioTrajectoryCohort;
+export type Cohort =
+  | ProbeSurfaceCohortRef
+  | ScenarioTrajectoryCohort
+  | CustomerCompilationCohort;
 
 /** Exhaustive Cohort fold. Adding a variant is a typecheck error
  *  until every call site adds the case. */
@@ -46,18 +75,21 @@ export function foldCohort<R>(
   cases: {
     readonly probeSurface: (c: ProbeSurfaceCohortRef) => R;
     readonly scenarioTrajectory: (c: ScenarioTrajectoryCohort) => R;
+    readonly customerCompilation: (c: CustomerCompilationCohort) => R;
   },
 ): R {
   switch (cohort.kind) {
-    case 'probe-surface':       return cases.probeSurface(cohort);
-    case 'scenario-trajectory': return cases.scenarioTrajectory(cohort);
+    case 'probe-surface':         return cases.probeSurface(cohort);
+    case 'scenario-trajectory':   return cases.scenarioTrajectory(cohort);
+    case 'customer-compilation':  return cases.customerCompilation(cohort);
   }
 }
 
 /** Deterministic string identity used for trajectory grouping.
  *  Format per variant:
- *    probe-surface       → `probe-surface:<probeSurfaceCohortKey>`
- *    scenario-trajectory → `scenario:<id>|topology:<topology>`
+ *    probe-surface         → `probe-surface:<probeSurfaceCohortKey>`
+ *    scenario-trajectory   → `scenario:<id>|topology:<topology>`
+ *    customer-compilation  → `customer-compilation:corpus:<corpus>`
  *
  *  Two cohorts are comparable iff their keys are byte-equal.
  */
@@ -65,5 +97,6 @@ export function cohortKey(cohort: Cohort): string {
   return foldCohort(cohort, {
     probeSurface: (c) => `probe-surface:${probeSurfaceCohortKey(c.cohort)}`,
     scenarioTrajectory: (c) => `scenario:${c.scenarioId}|topology:${c.topologyId}`,
+    customerCompilation: (c) => `customer-compilation:corpus:${c.corpus}`,
   });
 }

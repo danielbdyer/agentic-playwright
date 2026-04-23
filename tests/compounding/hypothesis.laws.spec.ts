@@ -9,6 +9,15 @@
  *   ZC3 (Cohort key derivation): cohortKey is deterministic; same
  *       inputs → same key; different kinds → differently-prefixed keys.
  *
+ * Step 11 Z11a.1 extensions:
+ *
+ *   ZC2.c (intervention-fidelity routing): foldPrediction dispatches
+ *       the new prediction kind to its branch.
+ *   ZC3.f (customer-compilation routing): foldCohort dispatches the
+ *       new cohort variant to its branch.
+ *   ZC3.g (customer-compilation cohortKey): keys are deterministic
+ *       per corpus and differ between the two corpuses.
+ *
  * ZC4–ZC9 + ZC9.b land in Z1b alongside the runtime evidence types
  * and the domain-purity filesystem walk.
  */
@@ -23,6 +32,7 @@ import {
   foldPrediction,
   type ConfirmationRatePrediction,
   type CoverageGrowthPrediction,
+  type InterventionFidelityPrediction,
   type Prediction,
   type ReceiptFamilyShiftPrediction,
   type RegressionFreedomPrediction,
@@ -31,6 +41,7 @@ import {
   cohortKey,
   foldCohort,
   type Cohort,
+  type CustomerCompilationCohort,
 } from '../../workshop/compounding/domain/cohort';
 
 const SAMPLE_PROBE_COHORT: Cohort = {
@@ -42,6 +53,16 @@ const SAMPLE_SCENARIO_COHORT: Cohort = {
   kind: 'scenario-trajectory',
   scenarioId: 'form-success-recovery',
   topologyId: 'login-form',
+};
+
+const SAMPLE_RESOLVABLE_COHORT: CustomerCompilationCohort = {
+  kind: 'customer-compilation',
+  corpus: 'resolvable',
+};
+
+const SAMPLE_NEEDS_HUMAN_COHORT: CustomerCompilationCohort = {
+  kind: 'customer-compilation',
+  corpus: 'needs-human',
 };
 
 function sampleHypothesis(): Hypothesis {
@@ -103,6 +124,7 @@ describe('Compounding domain Z1a — hypothesis + prediction + cohort', () => {
       { kind: 'receipt-family-shift', from: 'not-visible', to: 'matched' } satisfies ReceiptFamilyShiftPrediction,
       { kind: 'coverage-growth', verb: 'observe', facetKind: 'element', fromRatio: 0.5, toRatio: 0.9 } satisfies CoverageGrowthPrediction,
       { kind: 'regression-freedom', receiptIds: ['r1', 'r2'] } satisfies RegressionFreedomPrediction,
+      { kind: 'intervention-fidelity', atLeast: 0.9, overCycles: 3 } satisfies InterventionFidelityPrediction,
     ];
     const tags = predictions.map((p) =>
       foldPrediction(p, {
@@ -110,9 +132,10 @@ describe('Compounding domain Z1a — hypothesis + prediction + cohort', () => {
         receiptFamilyShift: () => 'rfs',
         coverageGrowth: () => 'cg',
         regressionFreedom: () => 'rf',
+        interventionFidelity: () => 'if',
       }),
     );
-    expect(tags).toEqual(['cr', 'rfs', 'cg', 'rf']);
+    expect(tags).toEqual(['cr', 'rfs', 'cg', 'rf', 'if']);
   });
 
   test('ZC2.b: foldPrediction forwards payload to the matched branch', () => {
@@ -122,8 +145,21 @@ describe('Compounding domain Z1a — hypothesis + prediction + cohort', () => {
       receiptFamilyShift: () => 'nope',
       coverageGrowth: () => 'nope',
       regressionFreedom: () => 'nope',
+      interventionFidelity: () => 'nope',
     });
     expect(summary).toBe('0.8@5');
+  });
+
+  test('ZC2.c: foldPrediction forwards intervention-fidelity payload', () => {
+    const p: Prediction = { kind: 'intervention-fidelity', atLeast: 0.85, overCycles: 3 };
+    const summary = foldPrediction(p, {
+      confirmationRate: () => 'nope',
+      receiptFamilyShift: () => 'nope',
+      coverageGrowth: () => 'nope',
+      regressionFreedom: () => 'nope',
+      interventionFidelity: (pr) => `fidelity:${pr.atLeast}@${pr.overCycles}`,
+    });
+    expect(summary).toBe('fidelity:0.85@3');
   });
 
   test('ZC3: cohortKey is deterministic on probe-surface', () => {
@@ -164,12 +200,34 @@ describe('Compounding domain Z1a — hypothesis + prediction + cohort', () => {
     const tag = foldCohort(SAMPLE_PROBE_COHORT, {
       probeSurface: () => 'ps',
       scenarioTrajectory: () => 'st',
+      customerCompilation: () => 'cc',
     });
     expect(tag).toBe('ps');
     const tag2 = foldCohort(SAMPLE_SCENARIO_COHORT, {
       probeSurface: () => 'ps',
       scenarioTrajectory: () => 'st',
+      customerCompilation: () => 'cc',
     });
     expect(tag2).toBe('st');
+    const tag3 = foldCohort(SAMPLE_RESOLVABLE_COHORT, {
+      probeSurface: () => 'ps',
+      scenarioTrajectory: () => 'st',
+      customerCompilation: (c) => `cc:${c.corpus}`,
+    });
+    expect(tag3).toBe('cc:resolvable');
+  });
+
+  test('ZC3.f: customer-compilation cohortKey is deterministic per corpus', () => {
+    const a = cohortKey(SAMPLE_RESOLVABLE_COHORT);
+    const b = cohortKey({ ...SAMPLE_RESOLVABLE_COHORT });
+    expect(a).toBe(b);
+    expect(a).toBe('customer-compilation:corpus:resolvable');
+  });
+
+  test('ZC3.g: customer-compilation cohortKey distinguishes the two corpuses', () => {
+    const r = cohortKey(SAMPLE_RESOLVABLE_COHORT);
+    const n = cohortKey(SAMPLE_NEEDS_HUMAN_COHORT);
+    expect(r).not.toBe(n);
+    expect(n).toBe('customer-compilation:corpus:needs-human');
   });
 });

@@ -11,7 +11,7 @@
  * `foldPrediction` — a typecheck error until every consumer adds
  * it. No Effect imports; pure types + fold.
  *
- * Four kinds seeded for the Z1 domain:
+ * Five kinds:
  *
  *   - `confirmation-rate`     — "this cohort's receipts confirm at
  *                                least X over N cycles"
@@ -20,6 +20,13 @@
  *   - `coverage-growth`       — "probe coverage for (verb, facetKind)
  *                                rises from X to Y"
  *   - `regression-freedom`    — "these named receipts never regress"
+ *   - `intervention-fidelity` — "emitted InterventionHandoffs carry
+ *                                a valid missingContext payload at
+ *                                least X% of the time over N cycles"
+ *                                (Z11a: mechanical — missingContext
+ *                                is non-null + shape-valid. Z11d
+ *                                upgrade: semantic — the handoff
+ *                                names the right ambiguity.)
  */
 
 /** Predicted sustained confirmation rate over a rolling window. */
@@ -59,12 +66,35 @@ export interface RegressionFreedomPrediction {
   readonly receiptIds: readonly string[];
 }
 
+/** Predicted intervention fidelity: of the CompilationReceipts
+ *  that emitted handoffs, at least `atLeast` carried a valid
+ *  missingContext payload, sustained over `overCycles` cycles.
+ *
+ *  The denominator is *emitted handoffs*, not total receipts — a
+ *  cycle with zero emitted handoffs (e.g., because no case in this
+ *  cohort's corpus failed to resolve) is inconclusive, not
+ *  confirmed or refuted.
+ *
+ *  Z11a judgment floor: validity is mechanical — the handoff has a
+ *  non-null, shape-valid `missingContext` field. Z11d upgrades the
+ *  judgment to semantic: the handoff names the actual missing
+ *  catalog entry. The receipt shape stays stable across the
+ *  upgrade; only the judgment gets richer. */
+export interface InterventionFidelityPrediction {
+  readonly kind: 'intervention-fidelity';
+  /** 0 ≤ atLeast ≤ 1. */
+  readonly atLeast: number;
+  /** Integer ≥ 1. */
+  readonly overCycles: number;
+}
+
 /** The closed Prediction union. */
 export type Prediction =
   | ConfirmationRatePrediction
   | ReceiptFamilyShiftPrediction
   | CoverageGrowthPrediction
-  | RegressionFreedomPrediction;
+  | RegressionFreedomPrediction
+  | InterventionFidelityPrediction;
 
 /** Exhaustive Prediction fold. Adding a kind is a typecheck error
  *  until every call site adds the case. */
@@ -75,12 +105,14 @@ export function foldPrediction<R>(
     readonly receiptFamilyShift: (p: ReceiptFamilyShiftPrediction) => R;
     readonly coverageGrowth: (p: CoverageGrowthPrediction) => R;
     readonly regressionFreedom: (p: RegressionFreedomPrediction) => R;
+    readonly interventionFidelity: (p: InterventionFidelityPrediction) => R;
   },
 ): R {
   switch (prediction.kind) {
-    case 'confirmation-rate':    return cases.confirmationRate(prediction);
-    case 'receipt-family-shift': return cases.receiptFamilyShift(prediction);
-    case 'coverage-growth':      return cases.coverageGrowth(prediction);
-    case 'regression-freedom':   return cases.regressionFreedom(prediction);
+    case 'confirmation-rate':     return cases.confirmationRate(prediction);
+    case 'receipt-family-shift':  return cases.receiptFamilyShift(prediction);
+    case 'coverage-growth':       return cases.coverageGrowth(prediction);
+    case 'regression-freedom':    return cases.regressionFreedom(prediction);
+    case 'intervention-fidelity': return cases.interventionFidelity(prediction);
   }
 }

@@ -51,6 +51,13 @@ export function confirmationFromPrediction(
     receiptFamilyShift: (p) => evaluateReceiptFamilyShift(p, evidence),
     coverageGrowth: (p) => evaluateCoverageGrowth(p, evidence),
     regressionFreedom: (p) => evaluateRegressionFreedom(p, evidence),
+    // Z11a.1: intervention-fidelity's evaluator needs CompilationReceipts
+    // in HypothesisEvidence. The port + evidence shape widens at
+    // Z11a.4 (emitter wiring); until then this branch emits an
+    // `inconclusive` judgment over an empty evidence set so the
+    // fold typechecks and no silent confirmation fires. The real
+    // evaluator lands at Z11a.5.
+    interventionFidelity: () => EMPTY,
   });
 }
 
