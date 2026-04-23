@@ -28,10 +28,10 @@ import {
   type SubstrateAssertion,
 } from '../domain/assertion';
 import {
-  invariantHeld,
   type Invariant,
   type InvariantOutcome,
 } from '../domain/invariant';
+import { evaluateInvariantPure } from '../application/evaluate-invariants';
 import type {
   Scenario,
   ScenarioStep,
@@ -94,7 +94,12 @@ export function createDryScenarioHarness(opts?: {
         }),
       ),
 
-    evaluateInvariant: (_session, invariant: Invariant, _trace) =>
-      Effect.succeed<InvariantOutcome>(invariantHeld(`dry-harness echoes invariant ${invariant.kind}`)),
+    evaluateInvariant: (_session, invariant: Invariant, trace) =>
+      // Dry harness delegates to the pure evaluator. Invariants
+      // that need cross-step counting (alert-once) DO register
+      // when step postconditions explicitly include those
+      // assertions; invariants needing rung-3-specific data
+      // (focus snapshots, mutation events) vacuously hold here.
+      Effect.sync<InvariantOutcome>(() => evaluateInvariantPure(invariant, trace)),
   };
 }
