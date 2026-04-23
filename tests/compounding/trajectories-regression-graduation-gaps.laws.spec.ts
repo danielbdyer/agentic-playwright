@@ -257,7 +257,30 @@ describe('Z5b — computeGraduationGate (ZC23)', () => {
     ],
   };
 
-  test('ZC23: holds iff all four conditions hold', () => {
+  test('ZC23: holds iff all four conditions hold (with minSustainedCycles=1 for test brevity)', () => {
+    const report = computeGraduationGate({
+      probeCoverageRatio: 1,
+      scenarioPassRatio: 1,
+      trajectories: [FULL_TRAJ],
+      regression: {
+        baselineFingerprint: '',
+        currentFingerprint: '',
+        newlyFailing: [],
+        newlyPassing: [],
+        ratchetBreaks: [],
+      },
+      confirmationRateFloor: 0.8,
+      confirmationRateWindow: 10,
+      priorHolds: false,
+      minSustainedCycles: 1,
+    });
+    expect(report.state).toBe('holds');
+    expect(report.missingConditions).toEqual([]);
+  });
+
+  test('ZC23.d: single-cycle evidence defaults to not-yet (sustained gate)', () => {
+    // Default minSustainedCycles = 3; single-entry trajectory fails
+    // the sustained gate even if the rate meets the floor.
     const report = computeGraduationGate({
       probeCoverageRatio: 1,
       scenarioPassRatio: 1,
@@ -273,8 +296,8 @@ describe('Z5b — computeGraduationGate (ZC23)', () => {
       confirmationRateWindow: 10,
       priorHolds: false,
     });
-    expect(report.state).toBe('holds');
-    expect(report.missingConditions).toEqual([]);
+    expect(report.state).toBe('not-yet');
+    expect(report.missingConditions).toEqual(['hypothesis-confirmation-rate-sustained']);
   });
 
   test('ZC23.b: missing conditions listed in GRADUATION_CONDITIONS order', () => {
@@ -306,6 +329,7 @@ describe('Z5b — computeGraduationGate (ZC23)', () => {
       confirmationRateFloor: 0.8,
       confirmationRateWindow: 10,
       priorHolds: true,
+      minSustainedCycles: 1,
     });
     expect(report.state).toBe('regressed');
   });
@@ -380,7 +404,9 @@ describe('Z5b — computeScoreboard end-to-end integration (ZC25)', () => {
       ratchets: [],
     });
     const scoreboard = await Effect.runPromise(
-      computeScoreboard({ now: () => PINNED_NOW }).pipe(Effect.provide(layer)),
+      computeScoreboard({ now: () => PINNED_NOW, minSustainedCycles: 1 }).pipe(
+        Effect.provide(layer),
+      ),
     );
     expect(scoreboard.generatedAt).toBe(PINNED_NOW.toISOString());
     expect(scoreboard.probeCoverageRatio).toBe(1);

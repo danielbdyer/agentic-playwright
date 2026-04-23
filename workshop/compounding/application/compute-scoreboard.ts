@@ -48,6 +48,10 @@ export interface ComputeScoreboardOptions {
   readonly priorHolds?: boolean;
   readonly confirmationRateFloor?: number;
   readonly confirmationRateWindow?: number;
+  /** Minimum trajectory entries (per cohort, max across cohorts)
+   *  needed before the sustained-rate gate can hold. Default 3.
+   *  Tests that want single-cycle graduation override to 1. */
+  readonly minSustainedCycles?: number;
   /** Probe coverage inputs — target set + the surfaces the manifest
    *  declares as measurable. */
   readonly gapInputs?: Omit<GapInputs, 'probeReceipts' | 'scenarioReceipts' | 'now'>;
@@ -130,6 +134,7 @@ export function computeScoreboard(
       confirmationRateFloor: options.confirmationRateFloor ?? 0.8,
       confirmationRateWindow: options.confirmationRateWindow ?? 10,
       priorHolds: options.priorHolds ?? false,
+      minSustainedCycles: options.minSustainedCycles,
     });
 
     void currentPassing; // captured; the Z7 snapshot store will read it.

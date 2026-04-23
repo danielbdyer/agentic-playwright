@@ -44,13 +44,22 @@ export interface GraduationInputs {
    *  current evaluation has missing conditions, state becomes
    *  'regressed' rather than 'not-yet'. */
   readonly priorHolds: boolean;
+  /** Minimum number of cycle entries the aggregate trajectory must
+   *  carry before the rate gate can hold. This enforces the
+   *  "sustained over N cycles" semantic: fewer entries → rate gate
+   *  is "insufficient evidence" even if the rate itself meets the
+   *  floor. Default 3 (matches M5 MIN_TRAJECTORY_POINTS). */
+  readonly minSustainedCycles?: number;
 }
 
 export function computeGraduationGate(inputs: GraduationInputs): GraduationGateReport {
+  const minSustainedCycles = inputs.minSustainedCycles ?? 3;
   const probeCoverageHeld = inputs.probeCoverageRatio >= 1;
   const scenarioCorpusHeld = inputs.scenarioPassRatio >= 1;
-  const sustainedRate = computeSustainedRate(inputs);
-  const rateHeld = sustainedRate !== null && sustainedRate >= inputs.confirmationRateFloor;
+  const { rate: sustainedRate, deepestSampled } = computeSustainedRate(inputs);
+  const sustainedEnough = deepestSampled >= minSustainedCycles;
+  const rateHeld =
+    sustainedRate !== null && sustainedEnough && sustainedRate >= inputs.confirmationRateFloor;
   const noRatchetBreaks =
     inputs.regression === null || inputs.regression.ratchetBreaks.length === 0;
 
@@ -75,9 +84,11 @@ export function computeGraduationGate(inputs: GraduationInputs): GraduationGateR
       detail:
         sustainedRate === null
           ? 'insufficient evidence to compute confirmation rate'
-          : rateHeld
-            ? `rolling rate ${sustainedRate.toFixed(3)} >= floor ${inputs.confirmationRateFloor}`
-            : `rolling rate ${sustainedRate.toFixed(3)} < floor ${inputs.confirmationRateFloor}`,
+          : !sustainedEnough
+            ? `only ${deepestSampled} cycle(s) observed; need >= ${minSustainedCycles} to sustain`
+            : rateHeld
+              ? `rolling rate ${sustainedRate.toFixed(3)} >= floor ${inputs.confirmationRateFloor}`
+              : `rolling rate ${sustainedRate.toFixed(3)} < floor ${inputs.confirmationRateFloor}`,
     },
     {
       name: GRADUATION_CONDITIONS[3]!,
@@ -96,23 +107,34 @@ export function computeGraduationGate(inputs: GraduationInputs): GraduationGateR
 }
 
 /** Compute the aggregate rolling confirmation rate across all
- *  cohort trajectories, weighted by sampleSize across the window. */
-function computeSustainedRate(inputs: GraduationInputs): number | null {
+ *  cohort trajectories, plus the deepest per-cohort sample count
+ *  (how many cycle entries the longest trajectory carries within
+ *  the window). The deepest count feeds the "sustained enough"
+ *  gate so single-cycle evidence doesn't prematurely graduate. */
+function computeSustainedRate(inputs: GraduationInputs): {
+  rate: number | null;
+  deepestSampled: number;
+} {
   let confirmed = 0;
   let refuted = 0;
   let hasAny = false;
+  let deepestSampled = 0;
   for (const trajectory of inputs.trajectories) {
     const slice = trajectory.entries.slice(-inputs.confirmationRateWindow);
     if (slice.length === 0) continue;
     hasAny = true;
+    if (slice.length > deepestSampled) deepestSampled = slice.length;
     for (const entry of slice) {
       confirmed += entry.confirmedCount;
       refuted += entry.refutedCount;
     }
   }
-  if (!hasAny) return null;
+  if (!hasAny) return { rate: null, deepestSampled: 0 };
   const denom = confirmed + refuted;
-  return denom === 0 ? null : confirmed / denom;
+  return {
+    rate: denom === 0 ? null : confirmed / denom,
+    deepestSampled,
+  };
 }
 
 // Re-export rollingRate for convenience (callers that want a
