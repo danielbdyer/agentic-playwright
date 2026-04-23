@@ -31,6 +31,12 @@ export interface ScenarioReceipt extends WorkflowMetadata<'evidence'> {
     }[];
     readonly verdict: ScenarioVerdict;
     readonly provenance: ScenarioProvenance;
+    /** Optional hypothesis id this scenario run is verifying. Null
+     *  for runs that are not under a hypothesis-verification loop.
+     *  The compounding engine's ReceiptStore reads by this field to
+     *  collect per-hypothesis evidence. Added in
+     *  docs/v2-compounding-engine-plan.md Z3. */
+    readonly hypothesisId: string | null;
   };
 }
 

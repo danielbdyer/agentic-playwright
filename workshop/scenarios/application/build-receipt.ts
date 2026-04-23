@@ -25,7 +25,10 @@ import {
   scenarioReceiptFingerprint,
 } from './fingerprint';
 
-export function buildScenarioReceipt(output: RunOutput): ScenarioReceipt {
+export function buildScenarioReceipt(
+  output: RunOutput,
+  options: { readonly hypothesisId?: string | null } = {},
+): ScenarioReceipt {
   const sf = scenarioFingerprint(output.scenario);
   const draft: Omit<ScenarioReceipt, 'fingerprints'> & {
     readonly fingerprints: { readonly artifact: Fingerprint<'artifact'>; readonly content: Fingerprint<'content'> };
@@ -59,6 +62,7 @@ export function buildScenarioReceipt(output: RunOutput): ScenarioReceipt {
         completedAt: output.completedAt.toISOString(),
         totalElapsedMs: output.completedAt.getTime() - output.startedAt.getTime(),
       },
+      hypothesisId: options.hypothesisId ?? null,
     },
   };
 
