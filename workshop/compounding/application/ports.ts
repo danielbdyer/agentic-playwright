@@ -98,6 +98,20 @@ export interface ReceiptStoreService {
   readonly appendHypothesisReceipt: (
     r: HypothesisReceipt,
   ) => Effect.Effect<void, CompoundingError, never>;
+  /** Z10c — list prior hypothesis receipts so multi-cycle
+   *  trajectories can accumulate across CLI invocations. The
+   *  compounding engine's `hypothesis-confirmation-rate-sustained`
+   *  gate requires ≥N distinct trajectory entries (default 3); that
+   *  semantic only works if each `compounding-scoreboard` invocation
+   *  can observe the receipts emitted by prior cycles. Before
+   *  Z10c, trajectories re-zeroed every invocation because the CLI
+   *  passed no priorHypothesisReceipts.
+   *
+   *  Contract: returns the full accumulated HypothesisReceipt[] for
+   *  every cycle emitted to the store — callers dedupe + filter.
+   *  Sorted ascending by `payload.provenance.computedAt` so
+   *  trajectory-entry ordering is deterministic across adapters. */
+  readonly listHypothesisReceipts: () => Effect.Effect<readonly HypothesisReceipt[], CompoundingError, never>;
   readonly appendRatchet: (r: Ratchet) => Effect.Effect<void, CompoundingError, never>;
   readonly listRatchets: () => Effect.Effect<readonly Ratchet[], CompoundingError, never>;
 }

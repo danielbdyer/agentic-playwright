@@ -34,14 +34,14 @@ export interface CompoundingHypothesizeResult {
 }
 
 export const compoundingHypothesizeCommand = createCommandSpec({
-  flags: [] as const,
-  parse: () => ({
+  flags: ['--input'] as const,
+  parse: (context) => ({
     command: 'compounding-hypothesize',
     strictExitOnUnbound: false,
     postureInput: {},
     execute: (paths) => {
       const layer = liveCompoundingLayer({ rootDir: paths.rootDir });
-      const inputPath = resolveInputPathFromArgv();
+      const inputPath = context.flags.input ?? resolveInputPathFromArgv();
       if (!inputPath) {
         return Effect.fail(
           new Error(

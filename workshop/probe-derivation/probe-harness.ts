@@ -85,8 +85,10 @@ export class ProbeHarness extends Context.Tag('workshop/probe-derivation/ProbeHa
 // stays stable; only the Layer composition swaps.
 
 /** Infer the probe-surface cohort from a Probe's identity and its
- *  expected outcome. Pure. */
-function inferCohort(probe: Probe): ProbeSurfaceCohort {
+ *  expected outcome. Pure. Exported so upstream consumers (e.g. the
+ *  compounding engine's probe-target deriver in Z10b) can compute the
+ *  expected cohort triple from a Probe without rerunning the harness. */
+export function inferCohort(probe: Probe): ProbeSurfaceCohort {
   // The cohort's facet-kind is drawn from the fixture's input.
   // Fixtures put it under either `input.surface.facet-kind` (observe-
   // style) or top-level `input.facet-kind`. When neither is present,

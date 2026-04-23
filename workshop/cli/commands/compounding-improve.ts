@@ -26,6 +26,22 @@ import {
   liveCompoundingLayer,
   defaultReceiptLogDir,
 } from '../../compounding/composition/live-services';
+import { deriveProbesFromDisk } from '../../probe-derivation/derive-probes';
+import {
+  deriveProbeTargets,
+  type ProbeTarget,
+} from '../../probe-derivation/probe-targets';
+
+/** Z10b — mirrors compounding-scoreboard's loader; see its comment
+ *  block for why a tempdir without a manifest falls back to []. */
+function loadProbeTargetsOrEmpty(rootDir: string): readonly ProbeTarget[] {
+  try {
+    const { derivation } = deriveProbesFromDisk(rootDir);
+    return deriveProbeTargets(derivation);
+  } catch {
+    return [];
+  }
+}
 
 export const compoundingImproveCommand = createCommandSpec({
   flags: [] as const,
@@ -36,6 +52,11 @@ export const compoundingImproveCommand = createCommandSpec({
     execute: (paths) => {
       const layer = liveCompoundingLayer({ rootDir: paths.rootDir });
       const snapshotStore = createSnapshotStore({ logDir: defaultReceiptLogDir(paths.rootDir) });
+      // Z10b — mirrors compounding-scoreboard: derive the probe
+      // target set from the manifest's fixture corpus so gap +
+      // coverage reporting surface real uncovered surfaces, not
+      // a vacuous "no targets, therefore no gaps".
+      const probeTargets = loadProbeTargetsOrEmpty(paths.rootDir);
 
       return Effect.gen(function* () {
         const prior = yield* snapshotStore.readMostRecent();
@@ -46,6 +67,7 @@ export const compoundingImproveCommand = createCommandSpec({
           priorPassing,
           priorScoreboardFingerprint: prior?.fingerprint,
           priorHolds,
+          gapInputs: { probeTargets, scenarioTargets: [] },
         });
 
         const missingConditions = scoreboard.graduation.conditions.filter((c) => !c.held);

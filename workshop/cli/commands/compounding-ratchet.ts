@@ -27,14 +27,14 @@ export interface CompoundingRatchetResult {
 }
 
 export const compoundingRatchetCommand = createCommandSpec({
-  flags: [] as const,
-  parse: () => ({
+  flags: ['--scenario-id'] as const,
+  parse: (context) => ({
     command: 'compounding-ratchet',
     strictExitOnUnbound: false,
     postureInput: {},
     execute: (paths) => {
       const layer = liveCompoundingLayer({ rootDir: paths.rootDir });
-      const scenarioId = resolveScenarioIdFromArgv();
+      const scenarioId = context.flags.scenarioId ?? resolveScenarioIdFromArgv();
       if (!scenarioId) {
         return Effect.fail(
           new Error(

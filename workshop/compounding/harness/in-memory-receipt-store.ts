@@ -66,6 +66,21 @@ export function createInMemoryReceiptStore(
       emittedHypothesisReceiptsLog.push(r);
     });
 
+  /** Z10c — symmetric with the filesystem adapter; returns the
+   *  accumulated hypothesis-receipt log in ascending computedAt
+   *  order. Tests reaching for prior-cycle trajectories use this
+   *  the same way the live CLI does. */
+  const listHypothesisReceipts = (): Effect.Effect<
+    readonly HypothesisReceipt[],
+    CompoundingError,
+    never
+  > =>
+    Effect.sync(() =>
+      [...emittedHypothesisReceiptsLog].sort((a, b) =>
+        a.payload.provenance.computedAt.localeCompare(b.payload.provenance.computedAt),
+      ),
+    );
+
   const appendRatchet = (r: Ratchet): Effect.Effect<void, CompoundingError, never> =>
     Effect.sync(() => {
       if (!ratchets.some((existing) => existing.id === r.id)) {
@@ -82,6 +97,7 @@ export function createInMemoryReceiptStore(
     latestProbeReceipts,
     latestScenarioReceipts,
     appendHypothesisReceipt,
+    listHypothesisReceipts,
     appendRatchet,
     listRatchets,
     emittedHypothesisReceipts: () => [...emittedHypothesisReceiptsLog],

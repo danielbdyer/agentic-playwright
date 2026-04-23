@@ -142,6 +142,24 @@ export function createFilesystemReceiptStore(
       catch: (cause) => logIoFailed(hrDir, String(cause)),
     });
 
+  /** Z10c — read all accumulated hypothesis receipts so multi-cycle
+   *  trajectories reconstruct deterministically across CLI
+   *  invocations. Filename sort (timestamp-prefixed) gives ascending
+   *  computedAt order; a final in-memory sort defends against
+   *  filename drift. */
+  const listHypothesisReceipts = (): Effect.Effect<
+    readonly HypothesisReceipt[],
+    CompoundingError,
+    never
+  > =>
+    Effect.map(
+      readJsonFiles<HypothesisReceipt>(hrDir),
+      (receipts) =>
+        [...receipts].sort((a, b) =>
+          a.payload.provenance.computedAt.localeCompare(b.payload.provenance.computedAt),
+        ),
+    );
+
   const appendRatchet = (r: Ratchet): Effect.Effect<void, CompoundingError, never> =>
     Effect.gen(function* () {
       const existing = yield* readRatchets();
@@ -164,6 +182,7 @@ export function createFilesystemReceiptStore(
     latestProbeReceipts,
     latestScenarioReceipts,
     appendHypothesisReceipt,
+    listHypothesisReceipts,
     appendRatchet,
     listRatchets,
   };
