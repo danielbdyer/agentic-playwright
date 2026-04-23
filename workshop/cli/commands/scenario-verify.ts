@@ -19,6 +19,7 @@
  */
 
 import { Effect, Layer } from 'effect';
+import path from 'node:path';
 import { createCommandSpec } from '../../../product/cli/shared';
 import {
   defaultCorpusDir,
@@ -32,12 +33,14 @@ import { runScenario, type RunOutput, verdictPasses } from '../../scenarios/appl
 import { createDryScenarioHarness } from '../../scenarios/harness/dry-scenario-harness';
 import { createFixtureReplayScenarioHarness } from '../../scenarios/harness/fixture-replay-scenario-harness';
 import { buildScenarioReceipt } from '../../scenarios/application/build-receipt';
+import { emitScenarioReceiptsToFilesystem } from '../../scenarios/application/receipt-emitter';
+import type { ScenarioReceipt } from '../../scenarios/domain/scenario-receipt';
 import { startSubstrateServer } from '../../synthetic-app/server';
 import { launchHeadedHarness } from '../../../product/instruments/tooling/headed-harness';
 import { createPlaywrightLiveScenarioHarness } from '../../scenarios/harness/playwright-live-scenario-harness';
 
 export const scenarioVerifyCommand = createCommandSpec({
-  flags: ['--adapter'] as const,
+  flags: ['--adapter', '--emit-receipts', '--hypothesis-id'] as const,
   parse: (context) => ({
     command: 'scenario-verify',
     strictExitOnUnbound: false,
@@ -57,29 +60,44 @@ export const scenarioVerifyCommand = createCommandSpec({
           loadErrors: errorIssues,
           results: [] as readonly { id: string; verdict: string }[],
           allPassed: false,
+          receiptsEmittedTo: null as string | null,
         }));
       }
 
+      const emission: EmissionFlags = {
+        emitReceipts: context.flags.emitReceipts === true,
+        hypothesisId: context.flags.hypothesisId,
+      };
+      const logDir = path.join(paths.rootDir, 'workshop', 'logs');
+
       if (adapter === 'playwright-live') {
-        return runScenarioCorpusPlaywright(paths.rootDir, corpus);
+        return runScenarioCorpusPlaywright(paths.rootDir, corpus, emission, logDir);
       }
 
       const harness =
         adapter === 'fixture-replay'
           ? createFixtureReplayScenarioHarness()
           : createDryScenarioHarness();
-      return runScenarioCorpus(harness, corpus, adapter);
+      return runScenarioCorpus(harness, corpus, adapter, emission, logDir);
     },
   }),
 });
+
+interface EmissionFlags {
+  readonly emitReceipts: boolean;
+  readonly hypothesisId: string | undefined;
+}
 
 function runScenarioCorpus(
   harness: ScenarioHarnessService,
   corpus: ReturnType<typeof loadCorpusFromDirectory>,
   adapter: string,
+  emission: EmissionFlags,
+  logDir: string,
 ) {
   return Effect.gen(function* () {
     const results: { id: string; verdict: string }[] = [];
+    const receipts: ScenarioReceipt[] = [];
     for (const [id, scenario] of corpus.scenarios) {
       const output: RunOutput = yield* runScenario(scenario).pipe(
         Effect.provide(Layer.succeed(ScenarioHarness, harness)),
@@ -95,9 +113,18 @@ function runScenarioCorpus(
           } satisfies RunOutput),
         ),
       );
-      const receipt = buildScenarioReceipt(output);
-      void receipt; // future S9b: append to log
+      const receipt = buildScenarioReceipt(output, {
+        hypothesisId: emission.hypothesisId,
+      });
+      receipts.push(receipt);
       results.push({ id, verdict: output.verdict });
+    }
+    if (emission.emitReceipts) {
+      yield* emitScenarioReceiptsToFilesystem({
+        logDir,
+        receipts,
+        hypothesisId: emission.hypothesisId,
+      });
     }
     const allPassed = results.every((r) => verdictPasses(r.verdict as never));
     return {
@@ -106,6 +133,7 @@ function runScenarioCorpus(
       loadErrors: [] as string[],
       results,
       allPassed,
+      receiptsEmittedTo: emission.emitReceipts ? logDir : null,
     };
   });
 }
@@ -113,6 +141,8 @@ function runScenarioCorpus(
 function runScenarioCorpusPlaywright(
   rootDir: string,
   corpus: ReturnType<typeof loadCorpusFromDirectory>,
+  emission: EmissionFlags,
+  logDir: string,
 ) {
   return Effect.scoped(
     Effect.gen(function* () {
@@ -128,7 +158,8 @@ function runScenarioCorpusPlaywright(
         appUrl: server.baseUrl,
         harness: headed,
       });
-      return yield* runScenarioCorpus(harness, corpus, 'playwright-live');
+      return yield* runScenarioCorpus(harness, corpus, 'playwright-live', emission, logDir);
     }),
   );
 }
+

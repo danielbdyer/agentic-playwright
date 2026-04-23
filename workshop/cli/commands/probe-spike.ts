@@ -17,15 +17,17 @@
  */
 
 import { Effect, Layer } from 'effect';
+import path from 'node:path';
 import { deriveProbesFromDisk } from '../../probe-derivation/derive-probes';
 import { ProbeHarness } from '../../probe-derivation/probe-harness';
 import { createProbeHarnessForAdapter } from '../../probe-derivation/adapter-factory';
 import { runSpike } from '../../probe-derivation/spike-harness';
 import { runPlaywrightLiveSpike } from '../../probe-derivation/playwright-live-harness';
+import { emitProbeReceiptsToFilesystem } from '../../probe-derivation/receipt-emitter';
 import { createCommandSpec } from '../../../product/cli/shared';
 
 export const probeSpikeCommand = createCommandSpec({
-  flags: ['--adapter'] as const,
+  flags: ['--adapter', '--emit-receipts', '--hypothesis-id'] as const,
   parse: (context) => ({
     command: 'probe-spike',
     strictExitOnUnbound: false,
@@ -33,17 +35,40 @@ export const probeSpikeCommand = createCommandSpec({
     execute: (paths) => {
       const { manifest, derivation } = deriveProbesFromDisk(paths.rootDir);
       const adapter = context.flags.adapter ?? 'dry-harness';
-      if (adapter === 'playwright-live') {
-        return runPlaywrightLiveSpike({
-          rootDir: paths.rootDir,
-          manifest,
-          derivation,
-        });
-      }
-      const harness = createProbeHarnessForAdapter(adapter);
-      return runSpike({ manifest, derivation }).pipe(
-        Effect.provide(Layer.succeed(ProbeHarness, harness)),
-      );
+      const emission = {
+        emitReceipts: context.flags.emitReceipts === true,
+        hypothesisId: context.flags.hypothesisId,
+      } as const;
+      const logDir = path.join(paths.rootDir, 'workshop', 'logs');
+
+      return Effect.gen(function* () {
+        let verdict;
+        if (adapter === 'playwright-live') {
+          verdict = yield* runPlaywrightLiveSpike({
+            rootDir: paths.rootDir,
+            manifest,
+            derivation,
+          });
+        } else {
+          const harness = createProbeHarnessForAdapter(adapter);
+          verdict = yield* runSpike({ manifest, derivation }).pipe(
+            Effect.provide(Layer.succeed(ProbeHarness, harness)),
+          );
+        }
+        if (emission.emitReceipts) {
+          yield* emitProbeReceiptsToFilesystem({
+            logDir,
+            receipts: verdict.receipts,
+            hypothesisId: emission.hypothesisId,
+          });
+        }
+        return {
+          ...verdict,
+          receiptsEmittedTo: emission.emitReceipts ? logDir : null,
+          hypothesisId: emission.emitReceipts ? (emission.hypothesisId ?? null) : null,
+        };
+      });
     },
   }),
 });
+

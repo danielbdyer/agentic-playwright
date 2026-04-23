@@ -68,6 +68,17 @@ export interface ParsedFlags {
   autoEvolve?: boolean;
   posture?: string;
   adapter?: ProbeAdapter;
+  /** Z10a — probe-spike / scenario-verify opt-in receipt emission to
+   *  `workshop/logs/{probe,scenario}-receipts/`. Read by the
+   *  compounding engine's FilesystemReceiptStore. Default off to
+   *  preserve existing read-only spike-inspection semantics. */
+  emitReceipts?: boolean;
+  /** Z10a — optional hypothesis attribution override. When set
+   *  alongside `--emit-receipts`, each emitted receipt's
+   *  `payload.hypothesisId` is stamped with this value so the
+   *  compounding engine's filter-evidence pass binds the receipts
+   *  to a specific authored Hypothesis. */
+  hypothesisId?: string;
 }
 
 export type FlagName = keyof typeof flagDescriptorTable;
@@ -124,6 +135,8 @@ type FlagToParsedKey = {
   '--disable-translation-cache': 'disableTranslationCache';
   '--posture': 'posture';
   '--adapter': 'adapter';
+  '--emit-receipts': 'emitReceipts';
+  '--hypothesis-id': 'hypothesisId';
 };
 type ParsedFlagKeys<TFlags extends readonly FlagName[]> = FlagToParsedKey[TFlags[number]];
 export type ParsedFlagsFor<TFlags extends readonly FlagName[]> = Partial<Pick<ParsedFlags, ParsedFlagKeys<TFlags>>>;
@@ -398,6 +411,8 @@ export const flagDescriptorTable = {
   '--disable-translation-cache': booleanDescriptor('--disable-translation-cache', 'disableTranslationCache'),
   '--posture': valueDescriptor('--posture', 'posture', (value) => readFlagValue('--posture', value)),
   '--adapter': valueDescriptor('--adapter', 'adapter', (value) => parseEnum('--adapter', value, probeAdapters)),
+  '--emit-receipts': booleanDescriptor('--emit-receipts', 'emitReceipts'),
+  '--hypothesis-id': valueDescriptor('--hypothesis-id', 'hypothesisId', (value) => readFlagValue('--hypothesis-id', value)),
 } as const;
 
 export type FlagDecodeResult = {
