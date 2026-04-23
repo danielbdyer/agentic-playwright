@@ -1,0 +1,42 @@
+{
+  "id": "90106",
+  "revision": 1,
+  "title": "Verify user can complete a three-step onboarding wizard",
+  "suitePath": "customer-backlog/wizards",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "wizards",
+    "multi-step",
+    "P2",
+    "backlog:medium"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the onboarding wizard</p>",
+      "expected": "<p>The wizard displays step 1 of 3 with a progress indicator</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Fill in the step 1 fields and click Next</p>",
+      "expected": "<p>Step 2 of 3 appears; the progress indicator advances</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Fill in the step 2 fields and click Next</p>",
+      "expected": "<p>Step 3 of 3 appears; the progress indicator advances again</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Review the summary and click Finish</p>",
+      "expected": "<p>The wizard closes and a success status message confirms onboarding completion</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90106-wizard-multi-step-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

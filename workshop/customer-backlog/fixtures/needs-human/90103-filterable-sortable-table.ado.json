@@ -1,0 +1,44 @@
+{
+  "id": "90103",
+  "revision": 1,
+  "title": "Verify user can sort and filter a data table",
+  "suitePath": "customer-backlog/data",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "data",
+    "grid",
+    "sort",
+    "filter",
+    "P1",
+    "backlog:high"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the records list page</p>",
+      "expected": "<p>A data table displays with sortable column headers and a filter textbox</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Type a filter term into the table's search textbox</p>",
+      "expected": "<p>The table's rows reduce to only those matching the filter term</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click the Name column header to sort the table by Name</p>",
+      "expected": "<p>The table rows reorder alphabetically by Name with a sort indicator on the column</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Click the Name column header again to reverse the sort direction</p>",
+      "expected": "<p>The table rows reorder reverse-alphabetically and the sort indicator flips</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90103-filterable-sortable-table-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

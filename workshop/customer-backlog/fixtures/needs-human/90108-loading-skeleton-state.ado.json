@@ -1,0 +1,37 @@
+{
+  "id": "90108",
+  "revision": 1,
+  "title": "Verify loading skeleton is replaced by real content once the fetch completes",
+  "suitePath": "customer-backlog/async",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "async",
+    "loading-state",
+    "P2",
+    "backlog:medium"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the customer overview page</p>",
+      "expected": "<p>A skeleton placeholder appears while data is fetched</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Wait for the data fetch to complete</p>",
+      "expected": "<p>The skeleton is removed and the actual customer overview data appears in its place</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Observe the populated overview</p>",
+      "expected": "<p>Customer details, including name and id, are displayed</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90108-loading-skeleton-state-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

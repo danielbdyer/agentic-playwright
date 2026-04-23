@@ -72,11 +72,18 @@ role+name pairs, each has a deterministic expected outcome.
 
 ## Surface coverage of the needs-human corpus
 
-See `needs-human/README.md` and `docs/v2-synthetic-app-surface-backlog.md`
-for the list of missing substrate surfaces each case exercises.
+14 cases (90101–90114), one per row in
+`docs/v2-synthetic-app-surface-backlog.md`. Each case references
+a substrate gap that no adapter can resolve because the surface
+itself is not rendered. See `needs-human/README.md` for the
+id → backlog-row map and the promotion-to-resolvable workflow.
+
 The needs-human corpus is *designed* to outrun substrate
 capability — that's what makes the intervention-fidelity
-judgment meaningful.
+judgment meaningful. Confirmation rates here do not rise with
+adapter capability; they rise with substrate capability. The
+two dimensions are separable, which is the load-bearing
+property of the cohort split.
 
 ## Authoring guidance
 

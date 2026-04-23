@@ -1,0 +1,38 @@
+{
+  "id": "90107",
+  "revision": 1,
+  "title": "Verify form-scoped error banner is distinct from field-level errors",
+  "suitePath": "customer-backlog/accessibility",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "forms",
+    "accessibility",
+    "error-banner",
+    "P2",
+    "backlog:medium"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the claims submission form</p>",
+      "expected": "<p>A form displays with required fields and a Submit button</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Enter invalid values into multiple fields and click Submit</p>",
+      "expected": "<p>A form-scoped error banner appears above the form summarizing the submission failure</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Observe the form-scoped banner and the per-field inline errors simultaneously</p>",
+      "expected": "<p>The banner is distinct from the field-level errors; both sets of messages are present</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90107-form-error-banner-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

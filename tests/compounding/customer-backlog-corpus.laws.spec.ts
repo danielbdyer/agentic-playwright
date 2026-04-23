@@ -104,4 +104,24 @@ describe('Customer-backlog corpus Z11a.2 — structural laws', () => {
     const unique = new Set(ids);
     expect(unique.size).toBe(ids.length);
   });
+
+  test('ZC34.f: needs-human corpus has coverage across the surface backlog', () => {
+    // Pins the expectation that every substrate gap in
+    // docs/v2-synthetic-app-surface-backlog.md has at least one ADO
+    // case in needs-human/. Today the backlog names 14 gaps; the
+    // corpus carries 14 cases. Promoting a case to resolvable/
+    // requires deleting the corresponding backlog row in the same
+    // commit, so the cardinality stays pinned.
+    const cases = loadCorpus(NEEDS_HUMAN_DIR);
+    expect(cases.length).toBeGreaterThanOrEqual(14);
+  });
+
+  test('ZC34.g: needs-human cases carry a backlog:* tag naming the importance tier', () => {
+    const cases = loadCorpus(NEEDS_HUMAN_DIR);
+    const tiers = new Set(['backlog:high', 'backlog:medium', 'backlog:low']);
+    for (const c of cases) {
+      const hasTier = c.tags.some((t) => tiers.has(t));
+      expect(hasTier, `ADO ${c.id} missing a backlog:{high|medium|low} tag`).toBe(true);
+    }
+  });
 });

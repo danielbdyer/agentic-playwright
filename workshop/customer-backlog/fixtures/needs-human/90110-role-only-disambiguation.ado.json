@@ -1,0 +1,37 @@
+{
+  "id": "90110",
+  "revision": 1,
+  "title": "Verify the only primary button on the page can be located by role alone",
+  "suitePath": "customer-backlog/accessibility",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "accessibility",
+    "role-only",
+    "P3",
+    "backlog:low"
+  ],
+  "priority": 3,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the minimalist action page</p>",
+      "expected": "<p>A page displays containing exactly one button with no accessible name</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Locate the button using only its role (no name)</p>",
+      "expected": "<p>The button is uniquely found by its role</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click the button</p>",
+      "expected": "<p>The primary action fires</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90110-role-only-disambiguation-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

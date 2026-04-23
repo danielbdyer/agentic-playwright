@@ -1,0 +1,37 @@
+{
+  "id": "90109",
+  "revision": 1,
+  "title": "Verify user can toggle a field from read-only to editable and save changes",
+  "suitePath": "customer-backlog/forms",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "forms",
+    "readonly-toggle",
+    "P3",
+    "backlog:low"
+  ],
+  "priority": 3,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the record detail page</p>",
+      "expected": "<p>The record's Name field is displayed in read-only mode</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click the Edit button next to the Name field</p>",
+      "expected": "<p>The Name field becomes editable and the Edit button becomes a Save button</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Edit the Name field's value and click Save</p>",
+      "expected": "<p>The Name field returns to read-only mode displaying the updated value</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90109-readonly-editable-toggle-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

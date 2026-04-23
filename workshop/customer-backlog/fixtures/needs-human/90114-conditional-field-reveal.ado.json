@@ -1,0 +1,43 @@
+{
+  "id": "90114",
+  "revision": 1,
+  "title": "Verify a State field is revealed when Country is set to United States",
+  "suitePath": "customer-backlog/forms",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "forms",
+    "conditional-field",
+    "cross-field",
+    "P2",
+    "backlog:medium"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the address form</p>",
+      "expected": "<p>A form displays with a Country dropdown but no State field visible</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Select United States from the Country dropdown</p>",
+      "expected": "<p>A State dropdown appears below the Country field</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Select California from the State dropdown</p>",
+      "expected": "<p>The State dropdown accepts the value and the form remains valid</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Change the Country selection to Canada</p>",
+      "expected": "<p>The State dropdown is hidden and replaced with a Province dropdown</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90114-conditional-field-reveal-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

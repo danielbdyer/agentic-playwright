@@ -1,0 +1,42 @@
+{
+  "id": "90105",
+  "revision": 1,
+  "title": "Verify user can select multiple tags from a multi-select picker",
+  "suitePath": "customer-backlog/forms",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "forms",
+    "multiselect",
+    "P2",
+    "backlog:medium"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the record tagging page</p>",
+      "expected": "<p>A form displays with a Tags multi-select picker</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Open the Tags multi-select picker</p>",
+      "expected": "<p>A listbox of selectable tags appears</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Select the tags Urgent and Billing from the listbox</p>",
+      "expected": "<p>Both tags display as selected in the picker and appear as chips in the form</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Click Save</p>",
+      "expected": "<p>A success status message confirms the tags were saved</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90105-multi-select-picker-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}
