@@ -1,0 +1,80 @@
+# Tests the correction path: submit empty → see error alert → fill
+# both required fields → resubmit → see success status. Exercises
+# the form's submit-reveal FSM at rung 3 + the
+# validation-errors-clear-on-correction invariant.
+
+scenario: form-success-recovery
+schemaVersion: 1
+description: |
+  User submits an empty login form, sees a validation error,
+  fills both required fields, re-submits, and sees the success
+  status. Tests the correction path + submit-reveal FSM.
+
+topology:
+  preset: login-form
+
+steps:
+  - name: observe-submit-button
+    probe:
+      verb: observe
+      input:
+        target: { role: button, name: "Submit" }
+    expected:
+      classification: matched
+      error-family: null
+
+  - name: submit-empty-reveals-error
+    probe:
+      verb: interact
+      input:
+        action: click
+        target: { role: button, name: "Submit" }
+    expected:
+      classification: matched
+      error-family: null
+    postconditions:
+      - kind: surface-present
+        target: { role: alert, name: "Please complete required fields" }
+
+  - name: fill-identifier
+    probe:
+      verb: interact
+      input:
+        action: input
+        target: { role: textbox, name: "Identifier" }
+        value: "alice"
+    expected:
+      classification: matched
+      error-family: null
+
+  - name: fill-passphrase
+    probe:
+      verb: interact
+      input:
+        action: input
+        target: { role: textbox, name: "Passphrase" }
+        value: "secret"
+    expected:
+      classification: matched
+      error-family: null
+
+  - name: resubmit-reveals-success
+    probe:
+      verb: interact
+      input:
+        action: click
+        target: { role: button, name: "Submit" }
+    expected:
+      classification: matched
+      error-family: null
+    postconditions:
+      - kind: surface-present
+        target: { role: status, name: "Signed in" }
+
+invariants:
+  - kind: validation-errors-clear-on-correction
+    fieldName: "Identifier"
+    errorAlertName: "Please complete required fields"
+
+expected:
+  verdict: trajectory-holds

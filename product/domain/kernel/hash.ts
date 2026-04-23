@@ -177,7 +177,24 @@ export type FingerprintTag =
   | 'harvest-input'
   | 'harvest-receipt'
   | 'harvest-index'
-  | 'semantic-core';
+  | 'semantic-core'
+  // Scenario corpus (Step 8 / docs/v2-scenario-corpus-plan.md §3.4)
+  // — `'scenario'` keys an authored Scenario value (excludes
+  // cosmetic fields per scenarioKeyableShape); `'scenario-receipt'`
+  // keys a ScenarioReceipt envelope. Fingerprints stamp on
+  // ScenarioReceipt provenance for drift-detection across
+  // substrate-version bumps.
+  | 'scenario'
+  | 'scenario-receipt'
+  // Compounding engine (Step 9 / docs/v2-compounding-engine-plan.md §3.1,
+  // §3.3). `'hypothesis'` keys an authored Hypothesis value (excludes
+  // cosmetic fields per hypothesisKeyableShape); `'hypothesis-receipt'`
+  // keys a HypothesisReceipt envelope emitted per evaluation cycle.
+  // Stamped on scoreboard snapshots so regression detection can
+  // tie observed outcomes back to the authored predictions that
+  // generated them.
+  | 'hypothesis'
+  | 'hypothesis-receipt';
 
 /** Adopt an existing string as a tagged fingerprint. Use sparingly
  *  — this is the type-system "I know what I'm doing" escape hatch

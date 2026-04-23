@@ -21,6 +21,11 @@ import { evolveCommand } from './evolve';
 import { experimentsCommand } from './experiments';
 import { generateCommand } from './generate';
 import { probeSpikeCommand } from './probe-spike';
+import { scenarioVerifyCommand } from './scenario-verify';
+import { compoundingScoreboardCommand } from './compounding-scoreboard';
+import { compoundingImproveCommand } from './compounding-improve';
+import { compoundingHypothesizeCommand } from './compounding-hypothesize';
+import { compoundingRatchetCommand } from './compounding-ratchet';
 
 export const workshopCommandRegistry: Partial<Record<CommandName, CommandSpec>> = {
   benchmark: benchmarkCommand,
@@ -30,4 +35,9 @@ export const workshopCommandRegistry: Partial<Record<CommandName, CommandSpec>> 
   experiments: experimentsCommand,
   generate: generateCommand,
   'probe-spike': probeSpikeCommand,
+  'scenario-verify': scenarioVerifyCommand,
+  'compounding-scoreboard': compoundingScoreboardCommand,
+  'compounding-improve': compoundingImproveCommand,
+  'compounding-hypothesize': compoundingHypothesizeCommand,
+  'compounding-ratchet': compoundingRatchetCommand,
 };
