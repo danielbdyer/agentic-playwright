@@ -1,0 +1,11 @@
+{
+  "id": "h-observe-substantive",
+  "description": "Observe verb confirms matched receipts at 80%+ over 3 cycles under the dry-harness.",
+  "cohort": {
+    "kind": "probe-surface",
+    "cohort": { "verb": "observe", "facetKind": "element", "errorFamily": null }
+  },
+  "prediction": { "kind": "confirmation-rate", "atLeast": 0.8, "overCycles": 3 },
+  "author": "step-10.Z10d",
+  "requiredConsecutiveConfirmations": 3
+}
