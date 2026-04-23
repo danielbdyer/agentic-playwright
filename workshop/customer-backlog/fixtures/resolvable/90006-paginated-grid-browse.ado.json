@@ -1,0 +1,41 @@
+{
+  "id": "90006",
+  "revision": 1,
+  "title": "Verify user can paginate through a multi-page data grid",
+  "suitePath": "customer-backlog/data",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "data",
+    "pagination",
+    "P2"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the paginated grid page</p>",
+      "expected": "<p>A grid displays with rows and a pagination navigation region</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Observe the row headers of the grid</p>",
+      "expected": "<p>The grid has rowheaders named Name and Created</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click the Page 2 link in the pagination navigation</p>",
+      "expected": "<p>The page advances to the next set of rows</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Click the Previous link</p>",
+      "expected": "<p>The page returns to the prior set of rows</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90006-paginated-grid-browse-z11a2",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

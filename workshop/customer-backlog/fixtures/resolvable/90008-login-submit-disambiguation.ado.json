@@ -1,0 +1,36 @@
+{
+  "id": "90008",
+  "revision": 1,
+  "title": "Verify Submit button is uniquely identifiable among sibling controls",
+  "suitePath": "customer-backlog/auth",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "auth",
+    "locator-disambiguation",
+    "P3"
+  ],
+  "priority": 3,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the login page</p>",
+      "expected": "<p>The login form is displayed with its Submit button</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Observe the Submit button</p>",
+      "expected": "<p>The Submit button is present and distinguishable from any neighboring controls by its accessible name</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click the Submit button</p>",
+      "expected": "<p>The click dispatches without ambiguity</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90008-login-submit-disambiguation-z11a2",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

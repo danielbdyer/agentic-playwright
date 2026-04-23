@@ -1,0 +1,41 @@
+{
+  "id": "90005",
+  "revision": 1,
+  "title": "Verify user can switch between tabs to view distinct tabpanels",
+  "suitePath": "customer-backlog/navigation",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "smoke",
+    "navigation",
+    "tabs",
+    "P1"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the tabbed interface page</p>",
+      "expected": "<p>The page displays three tabs named Alpha, Beta, and Gamma</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Observe the Alpha tab is initially active</p>",
+      "expected": "<p>The Alpha tabpanel is visible</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click the Beta tab</p>",
+      "expected": "<p>The Beta tabpanel becomes visible</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Click the Gamma tab</p>",
+      "expected": "<p>The Gamma tabpanel becomes visible</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90005-tab-navigation-z11a2",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

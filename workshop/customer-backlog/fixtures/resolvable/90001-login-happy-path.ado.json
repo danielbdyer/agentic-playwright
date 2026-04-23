@@ -1,0 +1,58 @@
+{
+  "id": "90001",
+  "revision": 1,
+  "title": "Verify user can log in with valid credentials",
+  "suitePath": "customer-backlog/auth",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "smoke",
+    "auth",
+    "P1"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the login page</p>",
+      "expected": "<p>Login form displays with Identifier and Passphrase fields</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Enter a valid identifier in the Identifier field</p>",
+      "expected": "<p>Identifier field accepts the value</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Enter a valid passphrase in the Passphrase field</p>",
+      "expected": "<p>Passphrase field accepts the value</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Click the Submit button</p>",
+      "expected": "<p>A success status message appears</p>"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "identifier",
+      "values": [
+        "user@example.com"
+      ]
+    },
+    {
+      "name": "passphrase",
+      "values": [
+        "correct-horse-battery-staple"
+      ]
+    }
+  ],
+  "dataRows": [
+    {
+      "identifier": "user@example.com",
+      "passphrase": "correct-horse-battery-staple"
+    }
+  ],
+  "contentHash": "sha256:90001-login-happy-path-z11a2",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}
