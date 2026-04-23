@@ -75,7 +75,7 @@ export type ExecutionProfile = 'interactive' | 'ci-batch' | 'dogfood';
 export type WriteMode = 'persist' | 'no-write';
 export type WorkflowLane = 'intent' | 'knowledge' | 'control' | 'resolution' | 'execution' | 'governance' | 'projection';
 export type WorkflowStage = 'preparation' | 'resolution' | 'execution' | 'evidence' | 'proposal' | 'projection';
-export type WorkflowScope = 'scenario' | 'step' | 'run' | 'suite' | 'workspace' | 'control';
+export type WorkflowScope = 'scenario' | 'step' | 'run' | 'suite' | 'workspace' | 'control' | 'hypothesis';
 export type ResolutionMode = 'deterministic' | 'translation' | 'agentic';
 export type StepWinningSource =
   | 'scenario-explicit'
