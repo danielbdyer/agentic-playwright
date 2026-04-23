@@ -1,0 +1,50 @@
+# Tests observation against the prefilled-form topology — the
+# happy submission path where required fields carry initialValues.
+# The first observe locates the Save button; the click reveals
+# the success status; the third observe finds the success alert.
+
+scenario: observation-against-prefilled
+schemaVersion: 1
+description: |
+  prefilled-form has required Title + Body with default values.
+  Observing Save → clicking → observing the revealed success
+  status exercises the rung-3 substrate's stateful FormRenderer
+  and the post-submit DOM mutation.
+
+topology:
+  preset: prefilled-form
+
+steps:
+  - name: observe-save-button
+    probe:
+      verb: observe
+      input:
+        target: { role: button, name: "Save" }
+    expected:
+      classification: matched
+      error-family: null
+
+  - name: click-save-reveals-success
+    probe:
+      verb: interact
+      input:
+        action: click
+        target: { role: button, name: "Save" }
+    expected:
+      classification: matched
+      error-family: null
+    postconditions:
+      - kind: surface-present
+        target: { role: status, name: "Changes saved" }
+
+  - name: observe-success-status
+    probe:
+      verb: observe
+      input:
+        target: { role: status, name: "Changes saved" }
+    expected:
+      classification: matched
+      error-family: null
+
+expected:
+  verdict: trajectory-holds

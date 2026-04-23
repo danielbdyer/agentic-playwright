@@ -1,0 +1,63 @@
+# Tests landmark-aware observation through nested ARIA topology.
+# The landmark-page topology exposes 5 landmarks; the scenario
+# walks observe across each in turn.
+
+scenario: landmark-navigation
+schemaVersion: 1
+description: |
+  Walks observe through the 5 ARIA landmarks rendered by the
+  landmark-page topology (banner, navigation, main, complementary,
+  contentinfo). Verifies role-based queries resolve in a
+  multi-landmark world.
+
+topology:
+  preset: landmark-page
+
+steps:
+  - name: observe-banner
+    probe:
+      verb: observe
+      input:
+        target: { role: banner, name: "Page header" }
+    expected:
+      classification: matched
+      error-family: null
+
+  - name: observe-navigation
+    probe:
+      verb: observe
+      input:
+        target: { role: navigation, name: "Primary" }
+    expected:
+      classification: matched
+      error-family: null
+
+  - name: observe-main
+    probe:
+      verb: observe
+      input:
+        target: { role: main, name: "Content" }
+    expected:
+      classification: matched
+      error-family: null
+
+  - name: observe-complementary
+    probe:
+      verb: observe
+      input:
+        target: { role: complementary, name: "Related" }
+    expected:
+      classification: matched
+      error-family: null
+
+  - name: observe-contentinfo
+    probe:
+      verb: observe
+      input:
+        target: { role: contentinfo, name: "Page footer" }
+    expected:
+      classification: matched
+      error-family: null
+
+expected:
+  verdict: trajectory-holds

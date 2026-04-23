@@ -1,0 +1,47 @@
+# Tests that submitting an empty form a second time does not
+# re-announce the error alert (live-region deduplication).
+# The aria-alert-announces-exactly-once invariant catches the
+# anti-pattern.
+
+scenario: role-alert-deduplication
+schemaVersion: 1
+description: |
+  Submit an empty form twice; the error alert should appear once,
+  not twice (matching the FormRenderer's reveal-only-once
+  semantics).
+
+topology:
+  preset: login-form
+
+steps:
+  - name: first-submit-reveals-alert
+    probe:
+      verb: interact
+      input:
+        action: click
+        target: { role: button, name: "Submit" }
+    expected:
+      classification: matched
+      error-family: null
+    postconditions:
+      - kind: surface-present
+        target: { role: alert, name: "Please complete required fields" }
+
+  - name: second-submit-does-not-duplicate
+    probe:
+      verb: interact
+      input:
+        action: click
+        target: { role: button, name: "Submit" }
+    expected:
+      classification: matched
+      error-family: null
+    # No postcondition — the FormRenderer's revealAlert is
+    # idempotent; we test absence-of-duplication via the invariant.
+
+invariants:
+  - kind: aria-alert-announces-exactly-once
+    target: { role: alert, name: "Please complete required fields" }
+
+expected:
+  verdict: trajectory-holds

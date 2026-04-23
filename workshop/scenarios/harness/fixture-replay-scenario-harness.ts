@@ -96,11 +96,12 @@ export function createFixtureReplayScenarioHarness(
             sessionOpenFailed(scenario.id, `unknown topology preset "${scenario.topology.preset}"`),
           );
         }
+        const surfaces = deepCopySurfaces(initialSurfaces);
         const session: FixtureReplaySession = {
           kind: 'fixture-replay-session',
           scenarioId: scenario.id,
-          surfaces: deepCopySurfaces(initialSurfaces),
-          fieldValues: new Map(),
+          surfaces,
+          fieldValues: collectInitialFieldValues(surfaces),
         };
         return session as SessionHandle;
       }),
@@ -185,6 +186,23 @@ export function createFixtureReplayScenarioHarness(
 }
 
 // ─── Helpers ───
+
+/** Walk the surface tree and pre-populate fieldValues with each
+ *  textbox's initialValue. Required so prefilled-form scenarios
+ *  see the correct submit-reveal outcome on the first click. */
+function collectInitialFieldValues(surfaces: readonly SurfaceSpec[]): Map<string, string> {
+  const out = new Map<string, string>();
+  function walk(s: SurfaceSpec): void {
+    if (s.role === 'textbox' && s.name !== undefined && s.initialValue !== undefined) {
+      out.set(s.name, s.initialValue);
+    }
+    if (s.children !== undefined) {
+      for (const c of s.children) walk(c);
+    }
+  }
+  for (const s of surfaces) walk(s);
+  return out;
+}
 
 function resolveInitialSurfaces(
   scenario: Scenario,
