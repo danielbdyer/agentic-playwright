@@ -189,7 +189,8 @@ export type CommandName =
   | 'evolve'
   | 'experiments'
   | 'generate'
-  | 'probe-spike';
+  | 'probe-spike'
+  | 'scenario-verify';
 
 export const commandNames: readonly CommandName[] = [
   'sync',
@@ -222,6 +223,7 @@ export const commandNames: readonly CommandName[] = [
   'experiments',
   'generate',
   'probe-spike',
+  'scenario-verify',
 ] as const;
 
 export function withDefinedValues<TValue extends Record<string, unknown>>(value: TValue): Partial<TValue> {
