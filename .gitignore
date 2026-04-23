@@ -15,6 +15,13 @@ test-results/
 .tesseract/*
 !.tesseract/policy/
 !.tesseract/policy/trust-policy.yaml
+# ── Workshop logs (per-run receipt + snapshot state) ─────────────
+# Compounding engine writes cycle receipts + scoreboard snapshots
+# here (docs/v2-compounding-engine-plan.md §6.1). All of it is
+# regenerated on demand by CLI runs — never commit. Authored
+# hypotheses + ratchets, when landed by operators, will be
+# explicitly allowlisted here.
+workshop/logs/
 # ── Dogfood clean room ───────────────────────────────────────────
 # All training data lives under dogfood/.  The flywheel regenerates
 # from scratch on each cold-start run.  Never merge evolvable
