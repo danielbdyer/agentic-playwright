@@ -7,6 +7,38 @@
 > to ground the Z11g.d.0 distillation-algorithm spec in actual
 > evidence rather than hypothetical assumptions about OS DOM
 > shape.
+>
+> ### 🚨 Critical scope note (post-research correction)
+>
+> **The corpus in this survey is OutSystems *Traditional Web*
+> (ASP.NET WebForms-backed output). The target for Z11g.d's
+> Platonic-form distillation is OutSystems *Reactive Web* (SPA-
+> style, JS-hydrated).** These are different generators with
+> different DOM conventions; findings in §§3–7 describe
+> Traditional Web canonical shape and DO NOT generalize to
+> Reactive without re-validation.
+>
+> **Two further consequences surfaced during the survey:**
+>
+> 1. **Curl cannot capture Reactive.** Reactive pages serve a
+>    shell + JS bundles; the real DOM forms post-hydration.
+>    Any Reactive harvest requires a JS-executing browser —
+>    most naturally, `product/`'s existing snapshotting /
+>    Playwright-bridge harness (per operator guidance on
+>    2026-04-24).
+> 2. **Observation scope must widen beyond ARIA.** The
+>    Z11g.d.1 harvest must capture class tokens, `data-*`
+>    names + values, computed styles (visibility / display /
+>    color), layout geometry, text content, event-listener
+>    presence, form association, framework markers, focus
+>    state, and Shadow-DOM presence — not just the ARIA tree.
+>    See §11 for the full observation-axis catalog.
+>
+> Sections §§3–7 are retained as the authoritative Traditional
+> Web ground truth (a useful artifact in its own right), with
+> a per-section "⚠️ Traditional Web" marker where the finding
+> does not generalize. §§8, 10, 11 are the Reactive-pivot
+> sections the Z11g.d.0 spec should act on.
 
 ## 0. Why this document exists
 
@@ -36,8 +68,9 @@ Z11g.d.1's real harvest.
 - §6 — Layout + typography utility taxonomy
 - §7 — Post-back / form pattern
 - §8 — Known limitations and gaps in this corpus
-- §9 — Distillation-algorithm calibration inputs
-- §10 — Next-step harvest recommendations for Z11g.d.1
+- §9 — Distillation-algorithm calibration inputs (Traditional Web scope)
+- §10 — Two-track next-step plan (Traditional-grounded vs Reactive-harness-first)
+- §11 — Beyond ARIA: observation axes for Reactive harvest
 
 ## 1. Methodology + corpus scope
 
@@ -80,6 +113,39 @@ returned HTTP 503 after repeated attempts from this session's
 sandbox. Wayback Machine access is also unavailable via the
 sandbox's WebFetch. This is a **real blocker** for widget-variant
 characterization and is surfaced as a §8 limitation.
+
+### 1.5 Curl captures pre-hydration only (critical limitation)
+
+`curl` retrieves the HTML as served, not as rendered. For
+Traditional Web this is mostly sufficient — ASP.NET WebForms
+emits fully-populated DOM server-side; client JS adds AJAX
+wiring but the DOM skeleton is already present. For Reactive
+Web this is **structurally insufficient** — Reactive serves a
+shell plus JS bundles, and the meaningful DOM (widget tree,
+ARIA structure, form inputs, table rows) forms only after the
+OS runtime hydrates the shell. A curl-based harvest of a
+Reactive page captures:
+
+- The outer HTML shell (usually `<html><head><link><script>
+  ... <body><div id="root|app|osui-app"></div></body></html>`).
+- The bootstrap script list.
+- Any server-rendered SEO metadata.
+
+It does NOT capture:
+
+- The widget tree the user actually sees.
+- Post-hydration class tokens (most `osui-*` classes are
+  injected by the runtime, not in the shell).
+- Data attribute values populated from the OS runtime state.
+- ARIA structure introduced by widget components.
+- Computed geometry / visibility.
+
+**Implication**: Z11g.d.1's Reactive harvest pipeline MUST
+drive a real browser. The most natural path is to extend
+`product/`'s existing Playwright-bridge / snapshotting
+machinery to consume external URLs (currently scoped to
+`workshop/synthetic-app/` only). See §10 for the two-track
+plan.
 
 ## 2. Corpus inventory
 
@@ -564,15 +630,70 @@ The observed chrome is likely the **floor** of variance, not
 the mean. Per-customer theme drift (color, font, custom
 class prefixes layered on top) has not been characterized.
 
-### 8.2 Traditional Web only
+### 8.2 Traditional Web only — AND TARGET IS REACTIVE
 
 The corpus is exclusively Traditional Web (ASP.NET WebForms-
 backed) output. OutSystems Reactive Web and OutSystems Mobile
 use different generators and different DOM conventions (the
 `osui-*` prefix lives in Reactive/Mobile per Z11f plan
-assumption; see §3.6's correction). Z11g.d.0's algorithm spec
-must explicitly name which OS variant it targets; Z11g.d.1
-harvest must sample all three variants.
+assumption; see §3.6's correction).
+
+**This is not merely "three variants to sample" — Reactive is
+THE target.** Per operator guidance on 2026-04-24, the Z11g.d
+distillation's Platonic-form target is Reactive Web. Traditional
+is in the field (many existing customer apps) but the Z11g
+substrate-ladder rung-4 target is Reactive because that's
+where the modern OS platform is headed and where customer
+app development now lives (OutSystems Developer Cloud is
+Reactive-only).
+
+**Consequences for Z11g.d.0**:
+
+- The §§3–7 canonical shape is informative for Traditional
+  Web classifier tuning but is NOT the canonical target.
+- §§3.1 (`__OSVSTATE`) and 3.2 (`OsAjax`) do NOT apply to
+  Reactive — Reactive uses a different state machine.
+- §§4 chrome and §5 menu-dropdown widget anatomy are
+  Traditional-specific. Reactive's chrome is React-component-
+  based, hydrated client-side.
+- §7's post-back-with-hidden-state pattern is Traditional-
+  only. Reactive does not use WebForms state.
+
+**What IS likely preserved across variants** (to be validated
+at Z11g.d.1):
+
+- Class-prefix families (with naming-convention variance —
+  `OS*` PascalCase in Traditional, `osui-*` kebab-case in
+  Reactive; both refer to the same conceptual utilities).
+- `ThemeGrid_*` grid system (the OS design system's layout
+  vocabulary, shared).
+- Typography + spacing utilities (probably retained with
+  renamed prefixes).
+- ARIA role vocabulary (standards-based, shared).
+
+Treat §§3.6, 6.1–6.8 class-family taxonomy as
+variant-correspondence hypotheses, not confirmed invariants.
+
+### 8.9 Curl captured pre-hydration; Reactive requires JS-executing harness
+
+Per §1.5, curl captures the shell only. Reactive harvest
+requires either:
+
+1. **A Playwright-driven harness** — most naturally an
+   extension of `product/`'s existing Playwright-bridge
+   machinery (`product/instruments/tooling/playwright-bridge.ts`,
+   `workshop/probe-derivation/playwright-live-harness.ts`) to
+   point at external URLs, wait for hydration, and capture
+   the post-render DOM.
+2. **A WARC-based approach** — Common Crawl and similar
+   web-archives sometimes include rendered snapshots, but
+   this is not reliable for SPA content.
+
+(1) is the natural architectural fit: the workshop already
+has the machinery, it's just never been pointed at an external
+URL. The survey did NOT attempt (1) because it's a non-trivial
+code addition (CORS handling, wait-for-hydration heuristics,
+snapshot serialization) — see §10.2 below.
 
 ### 8.3 Interactive widget pages unreachable
 
@@ -730,93 +851,324 @@ single-form-with-hidden-state pattern (§7.1):
 Probes on OS Traditional Web must assume this post-back
 backbone.
 
-## 10. Next-step harvest recommendations for Z11g.d.1
+## 10. Two-track next-step plan
 
-What Z11g.d.1's production harvest should prioritize, in
-ranked order of expected information gain.
+Given the §8.2 variant-mismatch (Traditional captured,
+Reactive target) and §8.9 / §1.5 curl limitation, Z11g.d.0
+has two paths. Operator chooses which track.
 
-### 10.1 Priority-A samples (blocking for canonical-target
-completeness)
+### 10.A — Land Z11g.d.0 with Traditional-grounded evidence now; defer Reactive to Z11g.d.1
 
-1. **Style-Guide widget sub-pages**: Buttons.aspx,
-   FormElements.aspx, TableRecords.aspx, EditableTable.aspx,
-   Popup.aspx, Tabs.aspx, Notification.aspx,
-   FeedbackMessage.aspx, FeedbackAjaxWait.aspx. These are the
-   single-source-of-truth for real OS widget DOM. Blocked
-   from this survey; Z11g.d.1 must retry with either different
-   IP egress or a Wayback snapshot source.
-2. **Screen-template examples**: ScreenTemplates.aspx. These
-   show full-page compositions — login, search, detail, list.
+**What Z11g.d.0 ships**:
 
-### 10.2 Priority-B samples (variance characterization)
+- Algorithm spec + amalgamation policy based on §9 Traditional
+  Web calibration inputs.
+- Platform-fingerprint classifier (Traditional-Web-only
+  variant) with §3.6's corrections.
+- Explicit "Reactive-pending" flag on every class-family
+  claim + widget-anatomy seed.
+- Architecture-law skeletons that fail-by-default until
+  Z11g.d.1 produces either a Reactive harvest pipeline or
+  Reactive-validated fixtures.
 
-3. **Customer apps on `*.outsystemscloud.com`**: locate 5-10
-   public-facing customer apps to sample real per-app theme
-   variance. These reveal customer-theme class drift atop
-   the platform invariants.
-4. **OutSystems Forge demo apps**: Forge apps are often
-   publicly hosted and exhibit real-world widget composition.
-5. **Reactive Web samples**: a separate class-prefix convention
-   (`osui-*`). Z11g.d.1 must sample Reactive pages to
-   characterize this variant distinct from Traditional Web.
+**Pros**: cheap, keeps Z11g.d momentum, leverages three-page
+corpus that is genuinely informative. Traditional Web remains
+a real OS variant in production, so the spec is useful even
+if it is not the primary target.
 
-### 10.3 Priority-C samples (time-variance + edge cases)
+**Cons**: the primary-target algorithm sits unvalidated; the
+"multi-rung-grounded" graduation classification Z11g targets
+does not actually have Reactive evidence until Z11g.d.1. Risk
+of building the wrong spec and having to rework at Z11g.d.1.
 
-6. **Wayback Machine historical snapshots**: same domains as
-   above, at 6-month intervals going back 3-5 years. Reveals
-   how OS DOM has drifted over platform versions.
-7. **Authenticated-state snapshots**: populated taskboxes,
-   open dialogs, mid-edit forms. Requires a cooperating test
-   account; out-of-scope for public harvest.
-8. **Mobile variant**: OS Mobile apps serve different DOM;
-   sample these to characterize the third variant.
+### 10.B — Build the Reactive-harness capability first; then Z11g.d.0
 
-### 10.4 Recommended corpus size for first distillation
+**What ships first (a new Z11g.d.0a phase)**:
 
-Based on §9.1's 5-sample floor per world-shape + ~20 expected
-world-shapes (one per widget family + templates), the minimum
-useful first-run corpus is ~100 samples. A more robust run
-would be 500 samples spanning Traditional + Reactive + 10
-customer apps.
+- `workshop/probe-derivation/external-snapshot-harness.ts` —
+  extends the existing Playwright-live machinery to accept
+  external URLs. Serves the OS app in a real Chromium
+  context, waits for hydration, captures the observable DOM.
+- `workshop/substrate-study/application/snapshot-harvest.ts`
+  — consumes a seed URL list, drives the external-snapshot
+  harness, persists per-page `SnapshotRecord`s (not just
+  HTML — the §11 observation axes).
+- A bounded seed URL list of Reactive OS apps (5-10 URLs).
+- Legal / rigor envelope (Z11f-prime §6.4) authored in
+  parallel for retention of what the harness captures.
 
-This exceeds the current session's ability to harvest
-manually. The Z11g.d.1 pipeline must automate the fetch loop
-with appropriate rate-limiting and source-diversity controls.
+**Then Z11g.d.0 proper**: algorithm spec authored against
+the Reactive corpus the new harness harvests.
 
-### 10.5 Sandbox egress requirements for Z11g.d.1
+**Pros**: aligns with the operator's direction (2026-04-24);
+grounds Z11g.d.0 in its true target variant; unblocks
+Z11g.d.1 at scale by giving it a working harness to
+generalize; exercises existing product machinery (the
+Playwright bridge, the snapshot writer) in a new mode.
 
-Z11g.d.1's runtime environment must allow:
+**Cons**: significantly more engineering in the critical path
+(est. +3-5 days for 10.B.harness work before Z11g.d.0 can
+start); risk of harness scope creep; requires resolving the
+"what does success look like for snapshotting external URLs"
+design question (Reactive hydration is non-deterministic —
+wait for stable DOM? wait for network idle? wait fixed ms?).
+
+### 10.C — Recommendation and compromise
+
+**Recommendation: 10.B**, with a lean harness scoped to
+"minimum viable external snapshot capture." Specifically:
+
+- Single-URL capture (no crawler logic).
+- Fixed 3-second post-load wait + network-idle heuristic.
+- Record all §11 observation axes.
+- No crawl scheduling, no retry logic, no WARC integration.
+- Operator-driven — human picks URLs, runs the CLI, reviews
+  samples.
+
+This is ~2-3 days of engineering, not 5. The harness is a
+research tool, not a production pipeline. Z11g.d.0 can then
+author the algorithm spec against a real Reactive corpus
+within the same week. Z11g.d.1 later generalizes the harness
+to a production pipeline with scheduling + retention.
+
+### 10.4 Sandbox egress requirements
+
+Z11g.d.0a's harness runtime must allow:
+
 - Outbound HTTPS to `*.outsystems.com`, `*.outsystemscloud.com`,
-  `*.outsystemsenterprise.com`, `commoncrawl.org`,
-  `web.archive.org`.
-- User-agent strings that don't trigger bot-detection (this
-  survey's `tesseract-substrate-survey/0.1` UA may have been
-  the 503 trigger; Z11g.d.1 must adopt a rotating, ethically-
-  disclosed UA policy).
-- Sufficient bandwidth for WARC range reads (CC WARC files
-  are 1-5GB each; range reads via S3 are the canonical
-  approach).
+  `*.outsystemsenterprise.com`, and a seed list of known
+  Reactive OS customer demos.
+- Chromium launch inside the sandbox (already available for
+  `playwright-live-harness.ts` against the synthetic-app;
+  generalize to external URLs).
+- User-agent strings that declare the research intent (the
+  current session's `curl/` default UA is almost certainly
+  what triggered 503s on adjacent pages — an ethical,
+  disclosed Playwright UA is a prerequisite).
 
-### 10.6 What Z11g.d.0 can do today with this evidence
+### 10.5 Priority-A seed URL candidates
 
-With the §9 calibration inputs in hand, Z11g.d.0 can
-legitimately commit to:
+Once a harness exists, prioritize harvesting:
 
-1. The **platform-fingerprint classifier** (§3 evidence is
-   solid); OS page → OS page is a decidable question.
-2. The **chrome central tendency** as the first canonical
-   target (§4 is solid); every OS Traditional Web page's
-   outer shell is known.
-3. The **class-prefix partition decision tree** (§9.3 is a
-   deterministic four-way fold).
-4. The **amalgamation policy** in its starting form (§9.1
-   parameters are defensible given the corpus).
-5. A **pending-verification flag** on every widget-level
-   canonical-target-seed (§9.4) that Z11g.d.1 must discharge.
+1. **OutSystems UI framework showcase** — the Reactive
+   counterpart of the Traditional Style Guide.
+2. **Public Forge demo apps** — real customer-style app
+   compositions.
+3. **OutSystems's own marketing site** — confirmed Reactive
+   per the 2026-04-24 curl probe returning content.
+4. **5-10 public `*.outsystemscloud.com` customer apps** —
+   real per-app theme variance.
+5. **Mobile variant** — a separate harness mode (device
+   emulation) sampling OS Mobile pages.
 
-The Z11g.d.0 spec that lands on top of this survey has
-evidence-grounded starting positions on every parameter it
-would otherwise hand-wave. It is NOT a hypothetical spec.
+### 10.6 Priority-B seed URL candidates (deferred to Z11g.d.1)
+
+6. **Wayback Machine historical snapshots** for time-variance
+   characterization.
+7. **Common Crawl CDX-indexed samples** for at-scale corpus
+   size.
+8. **Authenticated-state snapshots** for populated widget
+   states. Requires a cooperating test account; operator
+   decision needed.
+
+## 11. Beyond ARIA: observation axes for Reactive harvest
+
+Per operator guidance (2026-04-24), the Reactive harvest
+(Z11g.d.0a in track 10.B) must capture more than just the
+ARIA tree. This section catalogs the observation axes the
+harness should record per DOM node, grouped by what each
+contributes to the distillation.
+
+### 11.1 Identity axes (always capture)
+
+- **Tag name** — native HTML element (button, input, select,
+  textarea, a, div, span, heading tags). Interaction-relevant.
+- **ID** — DOM id attribute. Low entropy in the general case
+  (OS generates long stable IDs) but high value for widget
+  reference.
+- **Class tokens** — all space-separated class names, ordered
+  as declared.
+- **Data attributes** — closed-map of data-* name → value.
+  Distill name-frequency from the corpus; value-frequency
+  separately for low-cardinality values.
+
+### 11.2 Semantic axes (always capture)
+
+- **ARIA role** — explicit `role=` attribute.
+- **ARIA state** — `aria-expanded`, `aria-selected`,
+  `aria-checked`, `aria-pressed`, `aria-disabled`,
+  `aria-hidden`, `aria-busy`, `aria-invalid`, `aria-current`,
+  `aria-live`, `aria-atomic`.
+- **ARIA naming** — `aria-label`, `aria-labelledby`,
+  `aria-describedby` (resolve labelledby/describedby targets).
+- **Accessible name** — Playwright's computed accessible name
+  (distinct from aria-label since it may resolve from content).
+- **Accessible description** — Playwright's computed a11y
+  description.
+
+### 11.3 Interaction axes (always capture)
+
+- **Event-listener presence** — click, input, change, submit,
+  focus, blur, keydown. Even if listeners are attached via
+  addEventListener (invisible to static HTML), Playwright's
+  CDP can expose some via DOM.getEventListeners. Worst-case,
+  detect interactive surface heuristically by tag + role +
+  `tabindex`.
+- **Tab-index** — `tabindex` attribute value (or -1 default
+  for non-interactive).
+- **Focusable** — whether Playwright reports the element as
+  focusable.
+- **Form association** — for `<input>`/`<select>`/`<textarea>`,
+  the closest `<form>` + the name/id of the input + its type.
+- **Input type** — `type="text|email|password|checkbox|radio|
+  search|number|date|hidden|submit|button|file"`.
+- **Disabled / readonly** — `disabled`, `readonly` attributes.
+- **Required** — `required` attribute.
+- **Placeholder** — `placeholder` attribute.
+
+### 11.4 Visual / layout axes (capture conditionally)
+
+- **Computed visibility**: `display`, `visibility`, `opacity`
+  > 0. Collapse to a single `visible | display-none |
+  visibility-hidden | zero-opacity | zero-sized | off-screen`
+  enum matching `workshop/substrate/surface-spec.ts`'s
+  `SurfaceVisibility` closed union.
+- **Bounding rect**: x, y, width, height from `getBoundingClientRect`.
+  Used for layout-position classification (above-fold,
+  below-fold, sidebar, main-column). Optional at coarse
+  precision (bucket into ~10px bins) to avoid pixel-drift
+  noise.
+- **Clipped**: whether the element is clipped by an ancestor's
+  overflow.
+- **Computed color / background** (optional): useful for
+  theme-variant classification but high-cardinality; likely
+  only sampled for named-widget roots (cards, buttons).
+- **z-index / stacking context** (optional): useful for
+  modal-dialog detection.
+
+### 11.5 Content axes (capture with care)
+
+- **Direct text content** — the `textContent` of the node.
+  This is sensitive: raw user text can leak PII.
+  **Discipline**: for the Reactive harvest, capture text of
+  elements classified as "label-like" (heading, label, button
+  text, aria-label content) — these are layout/signage text.
+  Skip text of `<td>`, `<li>`, input values — those are
+  data content.
+- **Text-content length bucket** — for elements whose text is
+  data-classified, record the length bucket (0 / 1-10 / 11-50
+  / 51+ chars) without the content itself.
+- **Number of text nodes** — structural signal without leaking
+  data.
+
+### 11.6 Framework markers (capture for variant classification)
+
+- **Shadow DOM presence** — `attachShadow` / `shadowRoot`
+  attribute. OS Mobile sometimes uses shadow DOM.
+- **Web components** — `is=` attribute, custom element names
+  (`osui-button`, `osui-input`).
+- **React fiber**: `__reactFiber$<hash>` / `__reactProps$<hash>`
+  property presence (introspected via evaluate in Playwright).
+- **Angular**: `ng-version`, `_ngcontent-*`, `_nghost-*`
+  attribute presence.
+- **Vue**: `data-v-*` attribute presence.
+
+(Most Reactive OS apps are React-based; the framework-marker
+axes help detect variant drift across platform updates.)
+
+### 11.7 Structural position (capture via walk)
+
+- **Depth in tree** — `0` for root descendants, incrementing.
+- **Parent tag + role + class-prefix family** — the immediate
+  parent's identity axes, for "button inside form inside
+  navigation" context.
+- **Sibling index / count** — ordinal position among siblings.
+
+### 11.8 What the harness does NOT capture
+
+- **Inline event-handler implementations** — the string
+  value of `onclick="..."` is captured (for Traditional Web's
+  `OsAjax(...)` pattern); for Reactive, onclick strings are
+  typically absent (listeners are `.addEventListener`).
+- **JavaScript state** — the OS runtime's internal state is
+  not surfaced; only what's in the DOM.
+- **User input** — forms mid-edit or logged-in user data are
+  out of scope for unauthenticated harvest.
+- **Network activity** — XHR / fetch responses during
+  hydration are not retained (the rendered DOM is).
+
+### 11.9 Record shape (indicative)
+
+A `SnapshotNode` record, per DOM node the harness observes:
+
+```ts
+interface SnapshotNode {
+  readonly path: string; // CSS-selector-path from document root
+  readonly depth: number;
+  readonly tag: string;
+  readonly id: string | null;
+  readonly classTokens: readonly string[];
+  readonly dataAttrs: Readonly<Record<string, string>>;
+  readonly ariaRole: string | null;
+  readonly ariaState: Readonly<Record<string, string>>;
+  readonly ariaNaming: {
+    readonly label: string | null;
+    readonly labelledByText: string | null;
+    readonly describedByText: string | null;
+    readonly accessibleName: string | null;
+  };
+  readonly interaction: {
+    readonly tabindex: number | null;
+    readonly focusable: boolean;
+    readonly formRef: { formId: string | null; name: string; type: string } | null;
+    readonly disabled: boolean;
+    readonly readonly: boolean;
+    readonly required: boolean;
+    readonly placeholder: string | null;
+    readonly hasClickListener: boolean;
+    readonly hasInputListener: boolean;
+    // ... other event kinds
+  };
+  readonly visibility: 'visible' | 'display-none' | 'visibility-hidden' | 'zero-opacity' | 'zero-sized' | 'off-screen';
+  readonly boundingRect: { xBin: number; yBin: number; wBin: number; hBin: number };
+  readonly clipped: boolean;
+  readonly framework: {
+    readonly hasShadowRoot: boolean;
+    readonly customElementName: string | null;
+    readonly reactFiber: boolean;
+    readonly angular: boolean;
+    readonly vue: boolean;
+  };
+  readonly structural: {
+    readonly parentTag: string | null;
+    readonly parentRole: string | null;
+    readonly parentClassFamily: string | null;
+    readonly siblingIndex: number;
+    readonly siblingCount: number;
+  };
+  readonly labelText: string | null; // only for label-classified elements
+  readonly textLengthBucket: '0' | '1-10' | '11-50' | '51+' | null;
+  readonly textNodeCount: number;
+}
+```
+
+A `SnapshotRecord` is a list of `SnapshotNode` plus a page-
+level envelope (url, timestamp, userAgent, pageSize,
+hydration-wait-strategy, substrate-version-of-harness).
+
+The distillation algorithm at Z11g.d.1 consumes these
+records (not raw HTML) to produce canonical targets.
+
+---
+
+**Survey patch summary (2026-04-24)**: added §0 scope-
+correction banner, §1.5 curl pre-hydration limitation,
+§8.2/8.9 Reactive-is-target clarifications, §10 rewritten
+as two-track plan (10.A = ship with Traditional grounding /
+10.B = build Reactive harness first / 10.C = recommend
+lean 10.B), §11 added covering 7 observation-axis groups +
+record shape. Original §§3–7 Traditional-Web findings
+retained as authoritative for that variant.
 
 ---
 
