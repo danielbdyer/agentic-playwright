@@ -38,7 +38,7 @@ theorem has executable evidence across all four rungs.**
   - §5.3 Numeric parity-band tolerance
   - §5.4 Corpus-coverage metric
   - §5.5 Catalog-driven generation invariant
-- §6 — Z11f-prime: the legal re-scope
+- §6 — Z11f-prime: the technical-rigor re-scope
 - §7 — Domain model additions
 - §8 — Phased sub-commits (Z11g.a through Z11g.d)
 - §9 — Laws per phase
@@ -582,23 +582,30 @@ not have a catalog entry, the remediation is to add a catalog
 entry or delete the synthetic-app code — never to special-case
 the law.
 
-## 6. Z11f-prime: the legal re-scope
+## 6. Z11f-prime: the technical-rigor re-scope
 
 The existing Z11f plan (`docs/v2-substrate-study-plan.md`)
 commits to harvesting OutSystems DOMs from Common Crawl,
-Wayback, and OS showcase pages under a legal envelope that
-retains **only stripped shapes**: `stripToShape()` destroys
+Wayback, and OS showcase pages under a retention envelope that
+keeps **only stripped shapes**: `stripToShape()` destroys
 the raw HTML in the same function it produces the
 `SampleShape`; raw HTML "never lands on disk as-is"
 (`docs/v2-substrate-study-plan.md:60–63`). That envelope is
 correct for Z11f's matcher-proposal goal but insufficient for
 the substrate-rung use: a real-DOM replay needs real HTML.
 
-Z11g declares **Z11f-prime** as a widened legal envelope that
-retains enough HTML to drive a Playwright page, under
-additional controls appropriate to the retention. This
-section names what Z11f-prime commits; the actual legal
-review sits at **Z11g.d.0** (the re-scoped checkbox).
+Z11g declares **Z11f-prime** as a widened retention envelope
+that keeps enough HTML to drive a Playwright page, under
+additional controls appropriate to the retention. **The
+envelope is a self-imposed technical-rigor bar, not an
+external counsel review.** The operator's stance: implement
+as if counsel were watching, apply the full discipline, own
+the controls. Z11g.d.0 (§8.4) is therefore a **design-depth
+gate** — the commit that authors the envelope, sensitive-
+content gate, retention horizon, and jurisdiction scoping in
+the depth that would survive a legal review if one were
+formally commissioned — not a wall-clock-blocking external
+dependency.
 
 ### 6.1 What Z11f-prime retains beyond Z11f
 
@@ -670,41 +677,52 @@ contributes one shape (for matcher-proposal distillation) and
 zero-or-one retained fragments (for substrate-rung replay),
 depending on whether the sensitive-content gate passes.
 
-### 6.4 Legal-review checkbox (Z11g.d.0)
+### 6.4 Design-depth gate (Z11g.d.0)
 
-Z11g.d.0 is the legal-review checkpoint for Z11f-prime. It
-is a **separate review from Z11f.0**; the scope is different
-(shape retention vs. fragment retention), and the precedent
-at Z11f.0 does not automatically transfer. Required reviewer
-outputs:
+Z11g.d.0 is the design-depth checkpoint for Z11f-prime. It
+authors the envelope's self-imposed controls in the depth
+that would survive external counsel review if one were
+commissioned. The required outputs are engineering artifacts,
+not approval signatures:
 
-1. **Approve or refuse fragment retention** per the §6.1
-   envelope.
-2. **Name the jurisdiction cap** — which source-domain-origins
-   the retention envelope covers (e.g., US-hosted OS showcase
-   pages, EU-hosted customer archives with GDPR implications,
-   etc.). This constrains which `HarvestSourceKind`s feed the
-   retained pipeline.
-3. **Set the retention horizon** — default: 2 years per
-   quarterly purge; legal may shorten.
-4. **Approve the sensitive-content gate's pattern list** or
-   require additions.
+1. **Explicit fragment-retention specification** per the §6.1
+   envelope — what is retained, what is stripped, how each
+   gate is implemented.
+2. **Jurisdiction-origin allowlist** — which source-domain-
+   origins the retention envelope covers (e.g., US-hosted
+   OS showcase pages, EU-hosted customer archives with GDPR
+   implications, etc.). This constrains which
+   `HarvestSourceKind`s feed the retained pipeline. Operator
+   authors the list; trust-policy enforces it.
+3. **Retention horizon policy** — default: 2 years per
+   quarterly purge; operator may tighten per jurisdiction.
+4. **Sensitive-content gate pattern list** — the PII / PHI /
+   secret patterns that trigger harvest rejection. Operator
+   authors; architecture-law asserts the gate runs on every
+   retention.
 
-Worst-case outcomes:
+This is a **code-plus-doc deliverable**, not a wait-for-counsel
+gate. It lands as a concrete commit with the retention
+pipeline's discipline encoded.
 
-- **Counsel refuses all Wayback fragment retention** but
-  approves showcase + commoncrawl. The commoncrawl rung lands
-  with narrower coverage; the `corpus-coverage` metric reports
-  the narrowing honestly. Substrate-invariance can still be
-  tested against the narrower corpus.
-- **Counsel refuses all fragment retention.** Rung-4 becomes
-  non-viable as designed. Fallback: the reifier path (§13's
-  retired option (c)) becomes the forced path, and Z11g
-  acknowledges the rung collapses toward rung-3's synthetic
-  app. The plan does not pre-commit to this fallback; the
-  expected outcome is approval with controls.
-- **Counsel approves with time horizons.** Retention pipeline
-  includes a quarterly purge per the jurisdiction cap.
+**Contingency modes** (operator-triggered, not externally-
+imposed):
+
+- **Narrower-corpus mode.** If operator judgment (or later
+  external counsel) narrows the retention scope — e.g., excludes
+  Wayback — the `corpus-coverage` metric reports the narrowing
+  honestly. Substrate-invariance can still be tested against
+  the narrower corpus.
+- **Fallback-to-reifier mode.** If operator judgment determines
+  real-fragment retention is not viable, the rung-4 adapter
+  degrades to shape-reifier (the retired option (c) from
+  scoping). The adapter tag remains `'commoncrawl-derived'`
+  only if real-DOM replay is the mechanism; a reifier-backed
+  rung would use `'commoncrawl-reified'`. The plan does not
+  pre-commit to this fallback; the expected path is real-DOM
+  replay under the self-imposed envelope.
+- **Retention-horizon mode.** The default quarterly-purge
+  policy applies; operator tightens per jurisdiction.
 
 ## 7. Domain model additions
 
@@ -983,19 +1001,25 @@ parity law runs.
 
 **Four internal sub-phases:**
 
-#### Z11g.d.0 — Legal re-scope (external, engineering=0)
+#### Z11g.d.0 — Design-depth gate (~2 days, engineering-only)
 
 Triggered **immediately** on Z11g landing this plan. Parallel
-to engineering on Z11g.a/b/c; no engineering dependency.
+to engineering on Z11g.a/b/c; no external dependency.
 
-- Legal review brief prepared from §6.
-- Counsel-approved envelope returned; jurisdiction cap,
-  retention horizon, and sensitive-content pattern list
-  finalized.
+- Retention-envelope specification authored per §6.1 as a
+  concrete technical doc at `workshop/substrate-study/docs/
+  retention-envelope.md`.
+- Jurisdiction-origin allowlist + retention-horizon policy +
+  sensitive-content gate pattern list encoded as data in
+  `workshop/substrate-study/policy/retention-envelope.yaml`
+  with a trust-policy read.
+- Architecture-law skeleton for L-Fragment-Script-Stripped /
+  L-Fragment-Third-Party-Stripped / L-Fragment-Sensitive-
+  Content-Gate stubbed (tests that fail-by-default until d.1
+  provides the pipeline they assert against).
 
-Worst-case handling per §6.4. Plan assumes approval with
-controls; fallback modes are triggered only on explicit
-counsel refusal.
+Contingency modes per §6.4 are operator-triggered during d.1
+or later, not pre-committed here.
 
 #### Z11g.d.1 — Retention pipeline (~3 days, post-d.0)
 
@@ -1081,9 +1105,9 @@ Z11g.d.0 (legal review) ──► Z11g.d.1 (retention)   ┐
                                                     ┘
 ```
 
-Total engineering effort ~15 days if legal review is
-non-blocking; legal review's wall-clock dominates Z11g.d's
-calendar.
+Total engineering effort ~17 days end-to-end (d.0 is ~2d
+design-depth, not an external wait). All phases are
+engineering-paced.
 
 ## 9. Laws per phase
 
@@ -1146,27 +1170,29 @@ might not survive contact), execution-fragile (depends on
 tooling / shapes outside the repo), measurement-fragile (could
 pass laws while not actually helping).
 
-### R1 — Legal review times out or narrows (execution-fragile)
+### R1 — Self-imposed envelope under-specifies retention controls (design-fragile)
 
-**Likelihood**: High. Enterprise legal on "retain HTML
-fragments from public web archives" is not a 2-day question.
-**Impact**: High. Z11g.d as designed assumes approval with
-controls; a refusal or indefinite pause collapses the
-commoncrawl rung.
+**Likelihood**: Medium. The envelope is operator-authored, not
+externally reviewed; a control we forgot is a control that
+doesn't exist. Without the friction of counsel review, the
+design-depth gate is the only forcing function.
+**Impact**: High. An under-specified envelope that ships means
+retained fragments carry risks the operator didn't anticipate.
 
 **Mitigations**:
-- Launch Z11g.d.0 **immediately** on this plan landing.
-  Engineering on Z11g.a/b/c does not block on it.
-- Maintain a fallback mode (the shape-reifier path from the
-  retired option (c) in the scoping pass): if counsel refuses
-  fragment retention outright, the rung-4 adapter can use
-  shape-reified skeletons, acknowledging in scorecard output
-  that the rung collapses toward rung-3. This is a
-  pre-designed degradation, not an ad-hoc patch.
-- Communicate scope-narrowing to the trust policy: if counsel
-  approves showcase + commoncrawl but refuses Wayback,
-  `scorecard.cohorts.rung4.coverage` reports the narrower
-  corpus explicitly.
+- Treat Z11g.d.0 as a **rigor-first deliverable**, not a
+  rubber-stamp. Author retention-envelope.md as if counsel
+  were going to review it; apply the external bar as a
+  self-imposed bar.
+- Architecture laws land in d.0 as fail-by-default tests
+  (script-stripped, third-party-stripped, sensitive-content-
+  gated). d.1's retention pipeline must light them up; d.0's
+  skeleton forces the shape of what d.1 has to satisfy.
+- Contingency modes are pre-designed (§6.4). Narrower-corpus
+  mode uses `scorecard.cohorts.rung4.coverage` to report
+  scope honestly; fallback-to-reifier mode is a distinct
+  adapter tag (`'commoncrawl-reified'`), never a silent
+  degradation of `'commoncrawl-derived'`.
 
 ### R2 — Catalog-driven law surfaces irremediable drift (design-fragile)
 
@@ -1413,7 +1439,6 @@ independent.
 ---
 
 **Plan summary**: 4 phases, 24 laws, 6 risks, 10 open
-questions, ~15 engineering days, legal-review wall-clock
-dominates Z11g.d's calendar. Retires Z11b. Orthogonal to
-Z11d. Enables Verdict-12's multi-rung-grounded
-classification.
+questions, ~17 engineering days end-to-end (no external
+dependencies). Retires Z11b. Orthogonal to Z11d. Enables
+Verdict-12's multi-rung-grounded classification.
