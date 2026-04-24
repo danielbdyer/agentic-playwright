@@ -90,6 +90,10 @@ export interface ParsedFlags {
    *  compounding-ratchet. Registered for the same
    *  "parser-must-know-to-accept-it" reason as --input. */
   scenarioId?: string;
+  /** Z11a.5 — customer-backlog corpus filter for the
+   *  `tesseract compile-corpus` command. When set, restricts the
+   *  corpus walk to a single sub-corpus. Unset = both corpuses. */
+  corpus?: string;
 }
 
 export type FlagName = keyof typeof flagDescriptorTable;
@@ -150,6 +154,7 @@ type FlagToParsedKey = {
   '--hypothesis-id': 'hypothesisId';
   '--input': 'input';
   '--scenario-id': 'scenarioId';
+  '--corpus': 'corpus';
 };
 type ParsedFlagKeys<TFlags extends readonly FlagName[]> = FlagToParsedKey[TFlags[number]];
 export type ParsedFlagsFor<TFlags extends readonly FlagName[]> = Partial<Pick<ParsedFlags, ParsedFlagKeys<TFlags>>>;
@@ -220,7 +225,8 @@ export type CommandName =
   | 'compounding-scoreboard'
   | 'compounding-improve'
   | 'compounding-hypothesize'
-  | 'compounding-ratchet';
+  | 'compounding-ratchet'
+  | 'compile-corpus';
 
 export const commandNames: readonly CommandName[] = [
   'sync',
@@ -258,6 +264,7 @@ export const commandNames: readonly CommandName[] = [
   'compounding-improve',
   'compounding-hypothesize',
   'compounding-ratchet',
+  'compile-corpus',
 ] as const;
 
 export function withDefinedValues<TValue extends Record<string, unknown>>(value: TValue): Partial<TValue> {
@@ -428,6 +435,7 @@ export const flagDescriptorTable = {
   '--hypothesis-id': valueDescriptor('--hypothesis-id', 'hypothesisId', (value) => readFlagValue('--hypothesis-id', value)),
   '--input': valueDescriptor('--input', 'input', (value) => readFlagValue('--input', value)),
   '--scenario-id': valueDescriptor('--scenario-id', 'scenarioId', (value) => readFlagValue('--scenario-id', value)),
+  '--corpus': valueDescriptor('--corpus', 'corpus', (value) => readFlagValue('--corpus', value)),
 } as const;
 
 export type FlagDecodeResult = {

@@ -218,6 +218,22 @@ const ALWAYS_ALLOWED_PRODUCT_PATHS: readonly string[] = [
   // Playwright adapter utilities with no product-domain entanglement
   // — shared-contract, same justification as product/domain/kernel/hash.
   'product/instruments/tooling',
+  // ADO intent types. `AdoSnapshot`, `AdoStep`, `AdoParameter` —
+  // the authored-input schema for a Test-Case sync. Z11a.2-onward
+  // the customer-backlog corpus is authored as AdoSnapshot JSON;
+  // workshop/customer-backlog/ loads + classifies them. Product
+  // authors the type; workshop consumes it as data — shared-
+  // contract same as product/domain/governance.
+  'product/domain/intent',
+  // Pattern-ladder kernel. The Rung / Matcher / Pattern types +
+  // the intent classifier + the shared matchers all live at
+  // product/domain/resolution/patterns/. Workshop's customer-
+  // backlog heuristic classifier reuses the intent-classifier
+  // regex so both layers see the same intent shape. Both sides
+  // depend on the same pattern-authoring primitives; neither
+  // owns them exclusively — shared-contract same as
+  // product/domain/governance.
+  'product/domain/resolution/patterns',
 ];
 
 function isManifestDeclaredOrLogPath(
