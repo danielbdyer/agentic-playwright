@@ -209,7 +209,15 @@ export type FingerprintTag =
   // fingerprint, substrate version). Computed inside
   // probeReceipt() so L-Invariant-Content-Pure holds by
   // construction.
-  | 'probe-receipt-invariant';
+  | 'probe-receipt-invariant'
+  // Substrate-study snapshot (Step 11 Z11g.d.0a). Keys the
+  // structural signature of a SnapshotRecord — a fingerprint
+  // over the captured DOM's (depth, tag, role, class-prefix-
+  // family, data-attr-names) tuples, sorted by path, sha256'd.
+  // Used by the hydration-detector's Phase C signature-
+  // stability check (docs/v2-substrate-ladder-plan.d0a-harness-
+  // design.md §4.3).
+  | 'snapshot-signature';
 
 /** Adopt an existing string as a tagged fingerprint. Use sparingly
  *  — this is the type-system "I know what I'm doing" escape hatch
