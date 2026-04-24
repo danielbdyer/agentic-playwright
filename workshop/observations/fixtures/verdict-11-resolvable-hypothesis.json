@@ -1,0 +1,11 @@
+{
+  "id": "h-customer-compilation-resolvable",
+  "description": "Under Z11a.5 heuristic compile, the resolvable corpus resolves at least 80% of steps per case, sustained over 3 cycles.",
+  "cohort": {
+    "kind": "customer-compilation",
+    "corpus": "resolvable"
+  },
+  "prediction": { "kind": "confirmation-rate", "atLeast": 0.8, "overCycles": 3 },
+  "author": "step-11.Z11a.7",
+  "requiredConsecutiveConfirmations": 3
+}
