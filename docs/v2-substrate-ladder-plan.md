@@ -13,13 +13,14 @@
 ## 0. The verdict in one sentence
 
 **Extend the probe-harness ladder from three rungs to four by
-adding a CommonCrawl-derived "ideal target" rung that replays
-real OutSystems DOMs under a Z11f-prime legal re-scope, commit
-catalog-driven generation as the synthetic React app's
-invariant, and resolve the three load-bearing doc-silences
-(dry-rung byte-identical-receipt law, numeric parity-band
-tolerance, corpus-coverage metric) so the substrate-invariance
-theorem has executable evidence across all four rungs.**
+adding a CommonCrawl-derived rung that probes a Platonic-form
+canonical target distilled in perpetuity from harvested
+OutSystems DOM evidence, commit catalog-driven generation as
+the synthetic React app's invariant, and resolve the three
+load-bearing doc-silences (dry-rung byte-identical-receipt
+law, numeric parity-band tolerance, corpus-coverage metric)
+so the substrate-invariance theorem has executable evidence
+across all four rungs.**
 
 ## Table of contents
 
@@ -38,7 +39,7 @@ theorem has executable evidence across all four rungs.**
   - §5.3 Numeric parity-band tolerance
   - §5.4 Corpus-coverage metric
   - §5.5 Catalog-driven generation invariant
-- §6 — Z11f-prime: the technical-rigor re-scope
+- §6 — Z11f-prime: the Platonic-form distillation
 - §7 — Domain model additions
 - §8 — Phased sub-commits (Z11g.a through Z11g.d)
 - §9 — Laws per phase
@@ -338,80 +339,61 @@ corresponding `product/catalog/` entry and a declared
 projection path from catalog-to-DOM. This is the
 anti-parallel-apparatus gate (v2-substrate.md §7:161).
 
-### 4.4 Rung 4: CommonCrawl-derived (ideal target)
+### 4.4 Rung 4: CommonCrawl-derived (Platonic-form target)
 
-**Epistemic role.** The closest-to-production ground truth
-accessible under a legal envelope that does not require a
-customer tenant. A commoncrawl-derived receipt proves "the
-product's classifier, running against a real OutSystems DOM
-harvested from a public source, reaches the expected verdict."
-Divergence from rung-3 is substrate drift: either the
-synthetic app has drifted from real-world OutSystems, or the
-harvested DOM has drifted outside the catalog's declared
-world-shape.
+**Epistemic role.** The canonical center-target of the
+OutSystems DOM, distilled in perpetuity from harvested
+evidence, with edge cases amalgamated into the target to
+harden test variety. A rung-4 receipt proves "the product's
+classifier, running against the Platonic-form OutSystems DOM
+for this world-shape, reaches the expected verdict."
+Divergence from rung-3 is not per-page drift; it is drift
+between the synthetic app's catalog-projection and the
+distilled-from-evidence canonical target.
 
-**Substrate shape.** Under Z11f-prime (§6), harvested DOMs are
-retained with enough fidelity to be served by the same
-synthetic-app server (or a parallel `harvested-app` server;
-see §7). The adapter composes:
+**Substrate shape.** Under Z11f-prime (§6), harvested
+`SampleShape`s feed a **distillation pipeline** that produces
+a **canonical DOM target** per world-shape — not a per-page
+archive. The rung-4 adapter serves the canonical target
+to Playwright. The pipeline is in-perpetuity: new harvests
+extend the evidence base; the distillation re-runs; the
+canonical target evolves as evidence accumulates.
 
-1. A `HarvestedWorldFixture` (§7) addressing a retained DOM by
-   `(harvestSourceKey, sampleId)`.
-2. An **expected-classification sidecar** (§4.4, below) that
-   carries the operator-curated `{ verb, expected.classification,
-   expected.errorFamily }` tuple for each harvested fixture.
-3. A Playwright bridge injected against a server that serves
-   the retained DOM at a stable URL.
+The canonical target for a given world-shape is a DOM
+generator whose output captures:
+
+1. **The central tendency** — the most-frequent
+   structural / ARIA / class-prefix pattern observed across
+   harvests for that world-shape.
+2. **Hardened edge-case variants** — lower-frequency-but-
+   non-noise variants amalgamated as alternate renderings
+   of the same world-shape, so a probe classified on the
+   central tendency is also probed against the variants in
+   the same rung.
 
 **Adapter tag.** `'commoncrawl-derived'` (new; §7 widens the
 enum).
 
 **Parity obligation.** Upward to rung-3: on invariant-band
-axes, `observed` matches within tolerance. Divergences are
-the workshop's refutation signal — either the synthetic-app
-rung's catalog-projection is incomplete, or the harvested page
-is outside the covered world-shape set (the latter is recorded
-via §5.4's corpus-coverage metric, not as a law failure).
+axes, `observed` matches within tolerance for the central
+tendency AND for every amalgamated edge-case variant.
+Divergences are the workshop's refutation signal — either
+the synthetic-app rung's catalog-projection is incomplete
+(a variant exists in real OS DOMs that the synthetic app
+doesn't render), or the product classifier is fragile to a
+variant it should be invariant under.
 
-**The expected-classification sidecar.** Harvested DOMs are
-unlabeled. Z11f's existing pipeline produces site-level
-(`OSFingerprintVerdict`) and pattern-level (`PatternKind`)
-labels but not per-probe ground truth. Z11g introduces an
-operator-curated sidecar:
+**No per-page retention.** Harvests contribute evidence to
+the distillation; individual harvest fragments are not
+retained as replayable artifacts. The Platonic-form target
+is the stored substrate; its DOM is a derivative of many
+harvests, not a copy of any one.
 
-```
-workshop/substrate-study/logs/labels/
-  <quarter>/
-    <sample-id-prefix>/
-      <sample-id>.labels.json     (append-only, operator-curated)
-```
-
-The `labels.json` record is a closed shape:
-
-```ts
-readonly sampleId: Fingerprint<'substrate-sample'>;
-readonly source: HarvestSourceKind;    // provenance threaded
-readonly labels: readonly {
-  readonly verb: VerbName;
-  readonly fixture: FixtureRef;        // addresses a probe fixture
-  readonly expected: {
-    readonly classification: ProbeClassification;
-    readonly errorFamily: ProbeErrorFamily | null;
-  };
-  readonly curator: OperatorId;
-  readonly curatedAt: IsoTimestamp;
-  readonly rationale: NonEmptyString;  // why this harvest exhibits this classification
-}[];
-```
-
-An unlabeled harvest is **not eligible to be a commoncrawl-
-derived fixture**. The operator-curation gate is part of the
-trust-policy enforcement (workshop/policy/), not a free-form
-annotation.
-
-**What Z11g adds.** Everything: the adapter, the retention
-pipeline (under Z11f-prime), the labeling sidecar, the
-corpus-coverage metric, and the cross-rung parity law for
+**What Z11g adds.** Everything: the adapter, the distillation
+pipeline (§6 Z11f-prime extension), the world-shape → canonical-
+target mapping, the corpus-coverage metric (§5.4; measures
+which world-shapes have sufficient evidence to have a
+canonical target), and the cross-rung parity law for
 live↔commoncrawl.
 
 ## 5. Resolving the doc-silences
@@ -582,81 +564,90 @@ not have a catalog entry, the remediation is to add a catalog
 entry or delete the synthetic-app code — never to special-case
 the law.
 
-## 6. Z11f-prime: the technical-rigor re-scope
+## 6. Z11f-prime: the Platonic-form distillation
 
 The existing Z11f plan (`docs/v2-substrate-study-plan.md`)
-commits to harvesting OutSystems DOMs from Common Crawl,
-Wayback, and OS showcase pages under a retention envelope that
-keeps **only stripped shapes**: `stripToShape()` destroys
-the raw HTML in the same function it produces the
-`SampleShape`; raw HTML "never lands on disk as-is"
-(`docs/v2-substrate-study-plan.md:60–63`). That envelope is
-correct for Z11f's matcher-proposal goal but insufficient for
-the substrate-rung use: a real-DOM replay needs real HTML.
+harvests OutSystems DOMs from Common Crawl, Wayback, and OS
+showcase pages and distills them into `SampleShape` records
+plus frequency tables; raw HTML "never lands on disk as-is"
+(`docs/v2-substrate-study-plan.md:60–63`). That pipeline is
+correct for matcher-proposal distillation. It is also
+**structurally correct for the rung-4 substrate reframe** —
+the workshop does not need per-page retention; it needs a
+**canonical DOM target** distilled from harvested evidence.
 
-Z11g declares **Z11f-prime** as a widened retention envelope
-that keeps enough HTML to drive a Playwright page, under
-additional controls appropriate to the retention. **The
-envelope is a self-imposed technical-rigor bar, not an
-external counsel review.** The operator's stance: implement
-as if counsel were watching, apply the full discipline, own
-the controls. Z11g.d.0 (§8.4) is therefore a **design-depth
-gate** — the commit that authors the envelope, sensitive-
-content gate, retention horizon, and jurisdiction scoping in
-the depth that would survive a legal review if one were
-formally commissioned — not a wall-clock-blocking external
-dependency.
+Z11g declares **Z11f-prime** as a distillation extension on
+top of Z11f's existing shape pipeline: harvested SampleShapes
+feed a new pipeline stage that produces a **Platonic-form DOM
+target per world-shape**, amalgamating the central-tendency
+structure plus hardened edge-case variants. No per-page
+retention; no retention horizon; no quarterly purge. The
+canonical target evolves in perpetuity as evidence accumulates.
 
-### 6.1 What Z11f-prime retains beyond Z11f
+**What Z11g.d.0 is** (§8.4): a **design-depth gate** that
+specifies the distillation algorithm — how SampleShapes map
+to a canonical target, what counts as a hardened edge-case
+variant vs. noise, how world-shape identity is preserved
+across harvests. The gate lands concrete engineering
+artifacts (algorithm spec + amalgamation policy +
+architecture-law skeletons), not approval signatures.
+No external dependency; no wall-clock wait.
 
-Z11f-prime extends the retention envelope with:
+### 6.1 What Z11f-prime adds on top of Z11f
 
-- **Rendered HTML fragment**: the `<body>` subtree of the
-  harvested page, serialized. Scripts stripped (no JS execution
-  on replay). External stylesheets inlined or removed. Images
-  replaced with 1×1 placeholders. Forms retained structurally
-  with `action` attributes neutered (no real submission).
-- **Minimal inline CSS**: whatever the page's own stylesheet
-  directly applied to retained elements, flattened. This
-  preserves the visual affordances a classifier's ARIA tree
-  might be sensitive to (e.g., `display: none`).
-- **No tracking / analytics / third-party scripts or URLs.**
-  Explicit stripping of `google-analytics`, `gtm`, `facebook`,
-  `linkedin`, and an allowlist-based third-party domain filter.
-- **No user-generated content** beyond what is structurally
-  necessary. Text nodes are retained, but a "sensitive content"
-  classifier — run at harvest time — triggers review if any
-  retained text matches PII patterns (emails, phone numbers,
-  national IDs).
-- **Provenance expansion.** The `HarvestedWorldFixture` (§7)
-  records the original URL, retrieval timestamp, harvest
-  source (`common-crawl` / `wayback` / `showcase`), and
-  fingerprint of both the original-page-digest and the
-  retained-fragment-digest. The fingerprint pair lets a later
-  audit verify that the retained fragment is a faithful
-  subset of what was at the URL.
+Z11f-prime extends Z11f's output side with distillation:
 
-### 6.2 What Z11f-prime still refuses
+- **World-shape → canonical target map.** A new
+  `CanonicalTarget` record per world-shape, derived from the
+  population of `SampleShape`s observed for that world-shape.
+  The canonical target specifies a DOM generator that produces
+  the central-tendency structure when invoked.
+- **Edge-case variant amalgamation.** SampleShape variants
+  that diverge from the central tendency above a noise floor
+  (but below the level that would constitute a new world-shape)
+  are attached to the canonical target as **hardened variants**.
+  The rung-4 adapter probes the world-shape N+1 times: once
+  against the central tendency, N times against each hardened
+  variant.
+- **Evidence aggregation provenance.** Each `CanonicalTarget`
+  carries the list of contributing `SampleShape` fingerprints
+  and the amalgamation decisions (which variants promoted,
+  which rejected as noise). Append-only; evolution over time
+  is traceable.
+- **In-perpetuity evolution.** The distillation re-runs when
+  new harvests land. A `CanonicalTarget` version bump occurs
+  when the amalgamation changes materially (new edge-case
+  promoted, or central-tendency drift exceeds threshold). The
+  canonical target's `SUBSTRATE_VERSION` stamp lets scorecards
+  distinguish receipts across target evolutions.
 
-Z11f-prime does NOT widen to:
+### 6.2 What Z11f-prime does NOT do
 
-- **Authenticated pages.** Unchanged from Z11f. Googlebot sees
-  public pages only.
-- **Customer-specific data.** A harvested page with visible
-  PII/PHI is rejected at the sensitive-content gate, not
-  retained.
-- **Wholesale page snapshots.** The retained fragment is a
-  processed derivative, not a raw copy. `view-source` fidelity
-  is not a goal.
-- **Live fetching.** Retention happens at harvest; replay
-  serves from the retention store. No runtime calls to
-  archive.org / commoncrawl.org.
+Z11f-prime does not:
+
+- **Retain per-page fragments.** No individual harvested page
+  is stored as a replayable artifact. Raw HTML remains as in
+  Z11f: "consumed and discarded in the same function; never
+  lands on disk as-is."
+- **Replay specific pages.** The substrate-under-test is the
+  canonical target, not a specific page. A rung-4 probe does
+  not have a "source page" — it has a canonical-target
+  version, a world-shape, and an amalgamated-variant index.
+- **Rely on authenticated access.** Unchanged from Z11f.
+  Distillation consumes only Googlebot-visible evidence.
+- **Require jurisdiction caps or retention horizons.** The
+  Platonic-form framing eliminates per-page concerns. The
+  distillation is the stored artifact; no purge needed.
+- **Live-fetch.** Harvests are batched; distillation runs
+  offline; rung-4 serves the canonical target from the
+  already-distilled store.
 
 ### 6.3 Z11f-prime's relationship to Z11f
 
-Z11f-prime **extends** Z11f; it does not replace it. The shape-
-frequency pipeline (Z11f) and the retained-fragment pipeline
-(Z11f-prime) run **in parallel** on the same harvest stream:
+Z11f-prime **extends** Z11f's pipeline with a distillation
+stage. Both sides index the same `sampleId`; Z11f's matcher-
+proposal side continues unchanged, and the distillation side
+reads the same `SampleShape` output:
 
 ```
 harvest source (commoncrawl/wayback/showcase)
@@ -664,65 +655,68 @@ harvest source (commoncrawl/wayback/showcase)
        ▼
   fetch raw HTML
        │
-       ├──► stripToShape()   ──► SampleShape      (Z11f)
-       │
-       └──► retainFragment() ──► RetainedFragment (Z11f-prime)
-                                        │
-                                        ▼
-                                HarvestedWorldFixture
+       ▼
+  stripToShape()   ──► SampleShape
+                               │
+                               ├──► matcher-proposal distillation (Z11f)
+                               │
+                               └──► canonical-target distillation (Z11f-prime)
+                                            │
+                                            ▼
+                                   CanonicalTarget<world-shape>
+                                            │
+                                            ▼
+                                    rung-4 adapter
 ```
 
-Both sides index the same `sampleId`; a given harvest
-contributes one shape (for matcher-proposal distillation) and
-zero-or-one retained fragments (for substrate-rung replay),
-depending on whether the sensitive-content gate passes.
+No new retention; no new legal posture. The engineering
+delta is the distillation algorithm + amalgamation policy +
+canonical-target storage.
 
 ### 6.4 Design-depth gate (Z11g.d.0)
 
 Z11g.d.0 is the design-depth checkpoint for Z11f-prime. It
-authors the envelope's self-imposed controls in the depth
-that would survive external counsel review if one were
-commissioned. The required outputs are engineering artifacts,
-not approval signatures:
+authors the distillation algorithm + amalgamation policy in
+enough depth to survive engineering scrutiny. The required
+outputs are engineering artifacts:
 
-1. **Explicit fragment-retention specification** per the §6.1
-   envelope — what is retained, what is stripped, how each
-   gate is implemented.
-2. **Jurisdiction-origin allowlist** — which source-domain-
-   origins the retention envelope covers (e.g., US-hosted
-   OS showcase pages, EU-hosted customer archives with GDPR
-   implications, etc.). This constrains which
-   `HarvestSourceKind`s feed the retained pipeline. Operator
-   authors the list; trust-policy enforces it.
-3. **Retention horizon policy** — default: 2 years per
-   quarterly purge; operator may tighten per jurisdiction.
-4. **Sensitive-content gate pattern list** — the PII / PHI /
-   secret patterns that trigger harvest rejection. Operator
-   authors; architecture-law asserts the gate runs on every
-   retention.
+1. **Distillation algorithm specification** — how a population
+   of `SampleShape`s for a given world-shape produces a
+   `CanonicalTarget`. What the central-tendency aggregation
+   is (mode over whitelisted attributes? median over
+   continuous features? typed-pattern union?). How ambiguity
+   resolves.
+2. **Edge-case amalgamation policy** — what threshold
+   separates "hardened variant worth probing" from "noise,
+   ignore." What happens when a variant's support is high
+   enough to suggest a new world-shape rather than a variant
+   of an existing one.
+3. **World-shape identity preservation** — the rule that a
+   harvested page's classification into a world-shape (via
+   Z11f's `PatternKind` / classifier output) is stable
+   enough for the distillation to group correctly. What
+   happens when a page exhibits multiple world-shapes.
+4. **Canonical-target versioning rule** — when does a
+   material amalgamation change warrant a `SUBSTRATE_VERSION`
+   MINOR bump vs. a MAJOR bump. Rules per §3.3.
 
-This is a **code-plus-doc deliverable**, not a wait-for-counsel
-gate. It lands as a concrete commit with the retention
-pipeline's discipline encoded.
+This is a **code-plus-doc deliverable**, not an approval gate.
+It lands as a concrete commit with the distillation pipeline's
+algorithm encoded.
 
-**Contingency modes** (operator-triggered, not externally-
-imposed):
+**Contingency modes** (operator-triggered):
 
-- **Narrower-corpus mode.** If operator judgment (or later
-  external counsel) narrows the retention scope — e.g., excludes
-  Wayback — the `corpus-coverage` metric reports the narrowing
-  honestly. Substrate-invariance can still be tested against
-  the narrower corpus.
-- **Fallback-to-reifier mode.** If operator judgment determines
-  real-fragment retention is not viable, the rung-4 adapter
-  degrades to shape-reifier (the retired option (c) from
-  scoping). The adapter tag remains `'commoncrawl-derived'`
-  only if real-DOM replay is the mechanism; a reifier-backed
-  rung would use `'commoncrawl-reified'`. The plan does not
-  pre-commit to this fallback; the expected path is real-DOM
-  replay under the self-imposed envelope.
-- **Retention-horizon mode.** The default quarterly-purge
-  policy applies; operator tightens per jurisdiction.
+- **Narrow-corpus mode.** If a world-shape's harvest evidence
+  is below a configured floor (e.g., <5 samples), the
+  distillation refuses to produce a canonical target for it;
+  the `corpus-coverage` metric reports the floor-miss
+  explicitly. Rung-4 probes for that world-shape are
+  unavailable until more evidence accumulates.
+- **Drift-detection mode.** If the central tendency for a
+  world-shape shifts materially (defined per §6.4.4) between
+  two distillation runs, a `SUBSTRATE_VERSION` MAJOR bump
+  fires; scorecard baselines for rung-4 reset for that
+  world-shape.
 
 ## 7. Domain model additions
 
@@ -796,51 +790,51 @@ export interface Rung4CommoncrawlScorecard {
 
 ### 7.2 New types
 
-**`HarvestedWorldFixture`** — the retained-fragment fixture:
+**`CanonicalTarget`** — the distilled Platonic-form substrate:
 
 ```ts
-// workshop/substrate-study/domain/harvested-world-fixture.ts
-export interface HarvestedWorldFixture extends WorkflowMetadata<'preparation'> {
-  readonly sampleId: Fingerprint<'substrate-sample'>;
-  readonly source: HarvestSourceKind;
-  readonly originalUrl: Url;
-  readonly retrievedAt: IsoTimestamp;
-  readonly originalDigest: Fingerprint<'harvested-original'>;
-  readonly retainedFragment: RetainedFragment;
-  readonly retainedDigest: Fingerprint<'harvested-retained'>;
-  readonly sensitiveContentGate: SensitiveContentGateResult;
-  readonly jurisdictionCap: JurisdictionCapKind;
-  readonly retentionHorizonQuarters: PositiveInt;
+// workshop/substrate-study/domain/canonical-target.ts
+export interface CanonicalTarget extends WorkflowMetadata<'preparation'> {
+  readonly worldShape: WorldShapeId;
+  readonly targetVersion: CanonicalTargetVersion;  // monotone per world-shape
+  readonly centralTendency: CanonicalDomGenerator;
+  readonly hardenedVariants: readonly HardenedVariant[];
+  readonly contributingSamples: readonly Fingerprint<'substrate-sample-shape'>[];
+  readonly amalgamationDecisions: readonly AmalgamationDecision[];
+  readonly substrateVersion: SubstrateVersion;
 }
 
-export interface RetainedFragment {
-  readonly bodyHtml: NonEmptyString;
-  readonly inlineStyles: readonly InlineStyleRule[];
-  readonly strippedScriptCount: NonNegativeInt;
-  readonly strippedThirdPartyDomains: readonly Domain[];
+export interface CanonicalDomGenerator {
+  // A pure function from (worldShape, variantIndex | null) to a DOM
+  // tree. The rung-4 adapter invokes it with variantIndex=null for
+  // the central tendency or an index into hardenedVariants.
+  readonly generate: (variantIndex: number | null) => DomTree;
+  readonly generatorFingerprint: Fingerprint<'canonical-target-generator'>;
+}
+
+export interface HardenedVariant {
+  readonly variantIndex: NonNegativeInt;
+  readonly support: NonNegativeInt;  // contributing-sample count
+  readonly divergenceSignature: Fingerprint<'canonical-target-variant'>;
+  readonly rationale: NonEmptyString;
+}
+
+export interface AmalgamationDecision {
+  readonly sampleFingerprint: Fingerprint<'substrate-sample-shape'>;
+  readonly outcome: 'central-tendency' | 'hardened-variant' | 'noise-rejected';
+  readonly rationaleFingerprint: Fingerprint<'amalgamation-decision'>;
 }
 ```
 
-**`HarvestedFixtureLabel`** — the operator-curated
-expected-classification sidecar (see §4.4):
+Storage at `workshop/substrate-study/logs/canonical-targets/
+<world-shape-id>/<target-version>.json` — append-only (new
+versions land as new files; prior versions retained for
+scorecard back-comparison).
 
-```ts
-// workshop/substrate-study/domain/harvested-fixture-label.ts
-export interface HarvestedFixtureLabel extends WorkflowMetadata<'preparation'> {
-  readonly sampleId: Fingerprint<'substrate-sample'>;
-  readonly labels: readonly {
-    readonly verb: VerbName;
-    readonly fixture: FixtureRef;
-    readonly expected: {
-      readonly classification: ProbeClassification;
-      readonly errorFamily: ProbeErrorFamily | null;
-    };
-    readonly curator: OperatorId;
-    readonly curatedAt: IsoTimestamp;
-    readonly rationale: NonEmptyString;
-  }[];
-}
-```
+No per-page retention. No `HarvestedWorldFixture` type.
+No `HarvestedFixtureLabel` type. The Platonic-form framing
+removes both — labeling happens at world-shape identity
+time in Z11f's existing classifier pipeline, not per-page.
 
 **`ParityFailureRecord`** — cross-rung parity refutation:
 
@@ -865,9 +859,9 @@ export interface ParityFailureRecord extends WorkflowMetadata<'evidence'> {
 
 ### 7.3 Relationship to existing envelopes
 
-- `HarvestedWorldFixture` and `HarvestedFixtureLabel` stamp
-  `stage: 'preparation'` — they are fixture-preparation
-  artifacts consumed by the rung-4 adapter.
+- `CanonicalTarget` stamps `stage: 'preparation'` — it is
+  a substrate-preparation artifact consumed by the rung-4
+  adapter.
 - `ParityFailureRecord` stamps `stage: 'evidence'` — a parity
   failure is evidence against the substrate-invariance
   theorem.
@@ -875,7 +869,10 @@ export interface ParityFailureRecord extends WorkflowMetadata<'evidence'> {
   scorecard envelope (stage `'projection'`), no new envelope
   needed.
 - All new fingerprint tags register in
-  `product/domain/kernel/hash.ts`'s closed tag registry.
+  `product/domain/kernel/hash.ts`'s closed tag registry:
+  `'canonical-target-generator'`, `'canonical-target-variant'`,
+  `'amalgamation-decision'`, `'substrate-sample-shape'`,
+  `'probe-receipt-invariant'`.
 
 ## 8. Phased sub-commits (Z11g.a through Z11g.d)
 
@@ -1006,93 +1003,79 @@ parity law runs.
 Triggered **immediately** on Z11g landing this plan. Parallel
 to engineering on Z11g.a/b/c; no external dependency.
 
-- Retention-envelope specification authored per §6.1 as a
-  concrete technical doc at `workshop/substrate-study/docs/
-  retention-envelope.md`.
-- Jurisdiction-origin allowlist + retention-horizon policy +
-  sensitive-content gate pattern list encoded as data in
-  `workshop/substrate-study/policy/retention-envelope.yaml`
-  with a trust-policy read.
-- Architecture-law skeleton for L-Fragment-Script-Stripped /
-  L-Fragment-Third-Party-Stripped / L-Fragment-Sensitive-
-  Content-Gate stubbed (tests that fail-by-default until d.1
-  provides the pipeline they assert against).
+- Distillation-algorithm specification authored at
+  `workshop/substrate-study/docs/canonical-target-algorithm.md`
+  — central-tendency aggregation, edge-case amalgamation
+  threshold, world-shape identity preservation.
+- Amalgamation-policy data at
+  `workshop/substrate-study/policy/amalgamation-policy.yaml`
+  — support thresholds for variant promotion, noise floor,
+  divergence-signature similarity bounds.
+- Architecture-law skeletons for L-Canonical-Target-Derivable /
+  L-Amalgamation-Deterministic / L-Variant-Support-Floor
+  stubbed (fail-by-default until d.1 provides the pipeline).
 
 Contingency modes per §6.4 are operator-triggered during d.1
 or later, not pre-committed here.
 
-#### Z11g.d.1 — Retention pipeline (~3 days, post-d.0)
+#### Z11g.d.1 — Distillation pipeline (~4 days, post-d.0)
 
 **Deliverables:**
 
-1. `workshop/substrate-study/infrastructure/retain-fragment.ts`
-   — processes raw HTML from Z11f's fetch step into a
-   `RetainedFragment`: script stripping, third-party filter,
-   sensitive-content gate, inline-style flattening.
-2. `workshop/substrate-study/domain/harvested-world-fixture.ts`
-   — new `HarvestedWorldFixture` type per §7.2.
-3. Parallel branch in the harvest pipeline: Z11f's
-   `stripToShape` and Z11g.d's `retainFragment` both run on
-   the same fetched HTML; outputs land in sibling log
-   directories under `workshop/substrate-study/logs/{samples,
-   retained}/`.
-4. Quarterly purge cron-equivalent: `npx tsx scripts/
-   substrate-purge.ts --as-of <date>` — deletes
-   `RetainedFragment`s past the retention horizon. Laws
-   assert no purge of unlabeled-but-within-horizon fragments.
+1. `workshop/substrate-study/application/distill-canonical-
+   target.ts` — consumes `SampleShape` populations per
+   world-shape, applies the amalgamation policy, produces
+   `CanonicalTarget` records. Append-only at
+   `workshop/substrate-study/logs/canonical-targets/
+   <world-shape-id>/<target-version>.json`.
+2. `workshop/substrate-study/domain/canonical-target.ts`
+   — new `CanonicalTarget` type + `CanonicalDomGenerator`
+   + `HardenedVariant` + `AmalgamationDecision` per §7.2.
+3. `workshop/substrate-study/infrastructure/canonical-
+   target-store.ts` — read / write adapter for canonical-
+   target records; version-monotone per world-shape.
+4. Re-distillation trigger: `npx tsx scripts/speedrun.ts
+   redistill --world-shape <id>` — re-runs distillation for
+   a specific world-shape, typically after new harvests
+   land. Always emits a new target-version file; never
+   overwrites.
 
-**Graduation.** Retention pipeline runs; ≥1 quarter of
-harvest produces ≥N labeled fragments (N = trust-policy-
-seed, starts at 5; calibrates per §11's open question).
+**Graduation.** Distillation pipeline runs end-to-end across
+Z11f's existing SampleShape corpus; ≥1 `CanonicalTarget`
+emitted per world-shape where sample count ≥ floor; laws
+L-Canonical-Target-Derivable + L-Amalgamation-Deterministic
++ L-Variant-Support-Floor all green.
 
-#### Z11g.d.2 — Labeling sidecar + workflow (~2 days, parallel to d.1)
-
-**Deliverables:**
-
-1. `workshop/substrate-study/domain/harvested-fixture-label.ts`
-   — new `HarvestedFixtureLabel` type per §7.2.
-2. `workshop/substrate-study/application/label-fixture.ts`
-   — Effect program accepting an operator's labeling input,
-   validating against the harvested fixture's retained
-   fragment, emitting the append-only label record.
-3. CLI: `npx tsx scripts/mcp-call.ts label_harvested_fixture
-   '{"sampleId":"...","labels":[...]}'` — the labeling
-   entrypoint; trust-policy gate enforces curator-id is a
-   known operator.
-4. Dashboard extension: `dashboard/mcp/` exposes
-   `list_unlabeled_harvests` as a read-only view of samples
-   awaiting curation.
-
-**Graduation.** ≥5 labeled fixtures covering ≥3 distinct
-verbs. Labeled fixtures pass the sensitive-content gate check
-on curation (double-check).
-
-#### Z11g.d.3 — Rung-4 adapter + parity law (~3 days, post-d.1 + d.2)
+#### Z11g.d.3 — Rung-4 adapter + parity law (~3 days, post-d.1)
 
 **Deliverables:**
 
 1. `workshop/probe-derivation/commoncrawl-derived-harness.ts`
-   — new `ProbeHarnessService` adapter serving the retained
-   fragment to Playwright Chromium, stamping receipts with
-   `adapter: 'commoncrawl-derived'`.
+   — new `ProbeHarnessService` adapter invoking
+   `CanonicalDomGenerator.generate(variantIndex)` per probe,
+   serving the generated DOM to Playwright Chromium,
+   stamping receipts with `adapter: 'commoncrawl-derived'`
+   and the `targetVersion` + `variantIndex` in provenance.
 2. Widen `ProbeHarnessAdapter` enum per §7.1; bump
    `SUBSTRATE_VERSION` MINOR.
 3. `workshop/probe-derivation/tests/rung-parity.laws.spec.ts`
    extended with:
-   - **L-LiveCommoncrawl-Parity** — for every labeled
-     harvested fixture, live-rung `invariantContent` matches
-     commoncrawl-rung `invariantContent` within §5.3's
-     tolerance. Fixtures without sufficient catalog coverage
-     route to the corpus-coverage metric rather than causing
-     parity failure.
+   - **L-LiveCommoncrawl-Parity** — for every world-shape
+     that has a `CanonicalTarget`, live-rung and rung-4
+     (central-tendency) `invariantContent` fingerprints
+     match. Additionally, rung-4 probes each hardened
+     variant; variant-divergence receipts are parity-tested
+     against the live rung as well.
 4. `workshop/compounding/metrics/corpus-coverage.ts` — new
-   per-visitor metric per §5.4.
+   per-visitor metric per §5.4. Reports world-shapes with
+   a canonical target (covered), without one (corpus-floor-
+   miss), or structurally inaccessible (auth-gated).
 5. `ScorecardCohorts.rung4` populated per §7.1.
 
-**Graduation.** Live↔commoncrawl parity law green across the
-labeled fixture set; corpus-coverage metric reports both
-covered and uncovered `PatternKind`s; rung-4 scorecard
-generated.
+**Graduation.** Live↔commoncrawl parity law green across
+world-shapes with canonical targets + all hardened variants;
+corpus-coverage metric reports both covered and
+floor-miss world-shapes; rung-4 scorecard generated.
 
 ### 8.5 Sequencing summary
 
@@ -1100,14 +1083,12 @@ generated.
 Z11g.a (dry)   ──► Z11g.b (parity)   ──► Z11g.c (catalog-discipline)
                                       \
                                        ──► (independent)
-Z11g.d.0 (legal review) ──► Z11g.d.1 (retention)   ┐
-                         \─► Z11g.d.2 (labeling)    ├──► Z11g.d.3 (rung-4 + parity)
-                                                    ┘
+Z11g.d.0 (algorithm spec) ──► Z11g.d.1 (distillation) ──► Z11g.d.3 (rung-4 + parity)
 ```
 
-Total engineering effort ~17 days end-to-end (d.0 is ~2d
-design-depth, not an external wait). All phases are
-engineering-paced.
+Total engineering effort ~14 days end-to-end (no d.2 — the
+Platonic-form reframe eliminates per-page labeling; d.0 is
+~2d, d.1 ~4d, d.3 ~3d). All phases are engineering-paced.
 
 ## 9. Laws per phase
 
@@ -1147,18 +1128,16 @@ phase ships it.
 
 | Law | File | Asserts |
 |---|---|---|
-| **L-Fragment-Script-Stripped** | `workshop/substrate-study/tests/retain-fragment.laws.spec.ts` | Every `RetainedFragment.bodyHtml` contains zero executable `<script>` elements and zero `on*=` inline-handler attributes. |
-| **L-Fragment-Third-Party-Stripped** | same | `retainedDigest` fingerprints a fragment whose external-resource references are exclusively within the approved domain allowlist. |
-| **L-Fragment-Sensitive-Content-Gate** | same | Every `HarvestedWorldFixture` either records `sensitiveContentGate.passed: true` or is not stored (no partial artifacts). |
-| **L-Fragment-Horizon-Purge** | same | `substrate-purge` deletes no fragment whose `retainedAt + retentionHorizonQuarters` exceeds `asOf`. |
-| **L-Label-Curator-Known** | `workshop/substrate-study/tests/label-fixture.laws.spec.ts` | Every `HarvestedFixtureLabel` carries a `curator` that passes `workshop/policy/trust-policy.yaml`'s operator allowlist. |
-| **L-Label-Append-Only** | same | Labels are append-only; a second label for the same `(sampleId, verb, fixture)` triple is allowed only if it records a different curator (multi-curator endorsement). In-place mutation fails. |
-| **L-Label-Covers-Harvest** | same | Every label's `expected.errorFamily` is drawn from the error-families declared in the probe's fixture for the referenced `(verb, fixture)` triple. |
-| **L-LiveCommoncrawl-Parity** | `workshop/probe-derivation/tests/rung-parity.laws.spec.ts` (extended) | For every labeled harvested fixture, playwright-live and commoncrawl-derived `invariantContent` fingerprints match exactly. Variant-band `elapsedMs` within §5.3 tolerance. |
-| **L-Corpus-Coverage-Complete** | `workshop/compounding/tests/corpus-coverage.laws.spec.ts` | For every `PatternKind` in the trust-policy-approved pattern set, `scorecard.cohorts.rung4.coverage[patternKind]` exists (either covered or uncovered); no silent omissions. |
-| **L-Rung4-Scorecard-Substrate-Version** | same | Every `Rung4CommoncrawlScorecard` carries the `SUBSTRATE_VERSION` of the harvest + labeling epoch; scorecards across versions are not comparable. |
+| **L-Canonical-Target-Derivable** | `workshop/substrate-study/tests/canonical-target.laws.spec.ts` | Given a `SampleShape` population for a world-shape at support ≥ floor, the distillation produces exactly one `CanonicalTarget`; the generator's output is a valid DOM tree per the project's DomTree schema. |
+| **L-Amalgamation-Deterministic** | same | The distillation is a pure function of its `SampleShape` input set + the amalgamation policy. Running it twice on the same inputs yields byte-identical `CanonicalTarget` records (including `amalgamationDecisions`). |
+| **L-Variant-Support-Floor** | same | Every `HardenedVariant.support` meets the amalgamation policy's noise floor. Variants below the floor are classified `noise-rejected` in `amalgamationDecisions`, never promoted. |
+| **L-Canonical-Target-Version-Monotone** | same | For any world-shape, `CanonicalTarget.targetVersion` strictly increases across distillation runs; no two records at the same `(worldShape, targetVersion)` exist. |
+| **L-Contributing-Samples-Audited** | same | Every `CanonicalTarget.contributingSamples` entry has a corresponding `AmalgamationDecision` entry; the two sets match exactly. |
+| **L-LiveCommoncrawl-Parity** | `workshop/probe-derivation/tests/rung-parity.laws.spec.ts` (extended) | For every world-shape with a `CanonicalTarget`, rung-3 and rung-4 (central tendency) `invariantContent` fingerprints match exactly; rung-4 hardened-variant receipts also match rung-3's classification on invariant-band axes. Variant-band `elapsedMs` within §5.3 tolerance. |
+| **L-Corpus-Coverage-Complete** | `workshop/compounding/tests/corpus-coverage.laws.spec.ts` | For every `PatternKind` in the trust-policy-approved pattern set, `scorecard.cohorts.rung4.coverage[patternKind]` exists with one of: `covered` (canonical target exists), `corpus-floor-miss` (evidence below floor), or `structurally-inaccessible` (auth-gated). No silent omissions. |
+| **L-Rung4-Scorecard-Substrate-Version** | same | Every `Rung4CommoncrawlScorecard` carries the `SUBSTRATE_VERSION` of the canonical-target epoch; scorecards across `SUBSTRATE_VERSION` MAJOR bumps are not cross-compared. |
 
-**Law count**: 24 total (5 in a, 4 in b, 4 in c, 11 in d),
+**Law count**: 22 total (5 in a, 4 in b, 4 in c, 9 in d),
 enforced at either unit, architecture, or laws test level.
 None are convention-only.
 
@@ -1170,29 +1149,27 @@ might not survive contact), execution-fragile (depends on
 tooling / shapes outside the repo), measurement-fragile (could
 pass laws while not actually helping).
 
-### R1 — Self-imposed envelope under-specifies retention controls (design-fragile)
+### R1 — Amalgamation policy fails to converge on stable canonical targets (design-fragile)
 
-**Likelihood**: Medium. The envelope is operator-authored, not
-externally reviewed; a control we forgot is a control that
-doesn't exist. Without the friction of counsel review, the
-design-depth gate is the only forcing function.
-**Impact**: High. An under-specified envelope that ships means
-retained fragments carry risks the operator didn't anticipate.
+**Likelihood**: Medium. The distillation's amalgamation policy
+is operator-authored; picking thresholds that are too loose
+(every variant becomes a hardened variant) or too tight (real
+variants get rejected as noise) degrades rung-4's value.
+**Impact**: High. An unstable canonical target means rung-4
+parity results are noise; Verdict-12's multi-rung-grounded
+classification loses its teeth.
 
 **Mitigations**:
-- Treat Z11g.d.0 as a **rigor-first deliverable**, not a
-  rubber-stamp. Author retention-envelope.md as if counsel
-  were going to review it; apply the external bar as a
-  self-imposed bar.
-- Architecture laws land in d.0 as fail-by-default tests
-  (script-stripped, third-party-stripped, sensitive-content-
-  gated). d.1's retention pipeline must light them up; d.0's
-  skeleton forces the shape of what d.1 has to satisfy.
-- Contingency modes are pre-designed (§6.4). Narrower-corpus
-  mode uses `scorecard.cohorts.rung4.coverage` to report
-  scope honestly; fallback-to-reifier mode is a distinct
-  adapter tag (`'commoncrawl-reified'`), never a silent
-  degradation of `'commoncrawl-derived'`.
+- Treat Z11g.d.0 as a **rigor-first deliverable**. The
+  amalgamation policy's support thresholds, divergence-
+  signature similarity bounds, and world-shape identity
+  preservation rule land with explicit rationale.
+- L-Amalgamation-Deterministic forces the pipeline to be a
+  pure function; parameter sweeps across policy values become
+  possible without side effects.
+- L-Canonical-Target-Version-Monotone means policy tuning
+  appends new targets, never rewrites old ones; scorecards
+  can back-compare to detect destabilization empirically.
 
 ### R2 — Catalog-driven law surfaces irremediable drift (design-fragile)
 
@@ -1214,29 +1191,31 @@ catalog doesn't model.
   (v2-synthetic-workshop-dogfood.md:90–92) treats this as
   the correct resolution.
 
-### R3 — Rung-4 parity failures are false positives (measurement-fragile)
+### R3 — Rung-4 parity failures reflect catalog gaps, not product drift (measurement-fragile)
 
-**Likelihood**: Medium. Real OutSystems DOMs carry
-version drift, A/B test variants, customer-theme CSS that the
-synthetic app's catalog projection will not model. Some
-parity failures will flag world-shapes outside the catalog's
-coverage, not product-behavior drift.
-**Impact**: Medium. False positives erode the rung's
-credibility as the "ideal target."
+**Likelihood**: Medium. Real OutSystems DOMs in aggregate
+reveal world-shape variants the synthetic app's catalog
+projection does not model. Some parity failures will flag
+world-shapes whose hardened variants exceed the catalog's
+rendering capacity, not product-classifier drift.
+**Impact**: Medium. False positives erode rung-4's credibility
+as the Platonic-form target.
 
 **Mitigations**:
-- §5.4's `corpus-coverage` metric is the explicit sink for
-  un-coverable world-shapes. Harvested fixtures not labeled
-  against catalog-backed world-shapes route to the coverage
-  metric, not to `ParityFailureRecord`.
-- The `HarvestedFixtureLabel.rationale` field carries the
-  operator's judgment about whether a harvest exhibits a
-  catalog-modeled world-shape. Unlabeled harvests are not
-  eligible for parity checks.
-- Quarterly operator review of `ParityFailureRecord`s with a
-  trust-policy gate: recurring failures that trace to
-  catalog-coverage gaps trigger a catalog extension proposal
-  through the existing `workshop/policy/` pipeline.
+- §5.4's `corpus-coverage` metric explicitly distinguishes
+  canonical-target-covered world-shapes from floor-missed and
+  structurally-inaccessible ones. Parity failures route only
+  over covered world-shapes; the other two categories are
+  reported as coverage gaps, not refutations.
+- Hardened-variant amalgamation follows from evidence, not
+  operator judgment. If a variant consistently fails rung-3
+  parity, the investigation points at either the synthetic
+  app's catalog projection (add a variant rendering) or the
+  product classifier (genuine fragility under a variant it
+  should be invariant under). Both are actionable.
+- Periodic operator review of recurring `ParityFailureRecord`s:
+  catalog extensions flow through `workshop/policy/`; product
+  classifier fixes flow through normal product channels.
 
 ### R4 — SUBSTRATE_VERSION bump cadence exceeds operator throughput (measurement-fragile)
 
@@ -1257,62 +1236,44 @@ window and make graduation harder to detect.
   `SUBSTRATE_VERSION`. Cross-version comparison is an
   opt-in, not the default.
 
-### R5 — Labeling bottleneck (execution-fragile)
+### R5 — Canonical-target drift under accumulating evidence (measurement-fragile)
 
-**Likelihood**: High. Rung-4 parity needs labeled fixtures;
-labeling is operator-gated and human-rate-limited.
-**Impact**: Medium-high. Rung-4's graduation depends on
-label count × coverage breadth.
-
-**Mitigations**:
-- The Z11f pipeline already produces `PatternKind` hits; the
-  labeling workflow can bootstrap by surfacing high-
-  confidence pattern-matches as **proposed** labels for
-  curator review, not blank slates.
-- The corpus-coverage metric explicitly reports label count
-  so operator throughput is visible in the scorecard.
-- An explicit throughput target — e.g., 10 labeled fixtures /
-  quarter per operator — is an open question (§11) but the
-  plan does not block on it.
-
-### R6 — Reifier fallback path silently activates (design-fragile)
-
-**Likelihood**: Low-medium. If Z11g.d.0 partially approves
-(e.g., commoncrawl only, no Wayback), the scope-narrowed
-rung-4 might degrade toward the reifier path without a
-deliberate operator decision.
-**Impact**: High. A silent degradation means the scorecard's
-rung-4 field no longer measures what its name implies.
+**Likelihood**: Medium. The in-perpetuity distillation means
+the canonical target evolves as new harvests land. A target
+that drifts faster than scorecards can baseline fragments the
+comparison window.
+**Impact**: Medium. If rung-4 scorecard baselines reset every
+quarter because the target version bumps, cross-quarter
+trajectory measurements lose continuity.
 
 **Mitigations**:
-- The reifier path is NOT part of Z11g.d as written. It is
-  the worst-case fallback if counsel refuses outright. No
-  partial-reifier hybrid.
-- If counsel narrows scope, the corpus-coverage metric
-  reports the narrower corpus; the adapter remains "real-DOM
-  replay" against the narrower set, not a shape-reifier.
-- The adapter tag `'commoncrawl-derived'` stays tied to
-  real-DOM replay. A future plan that introduces the reifier
-  path (if ever) must use a distinct tag
-  (`'commoncrawl-reified'` or similar).
+- `SUBSTRATE_VERSION` MAJOR/MINOR discipline governs when
+  cross-comparison resets vs. when scorecards continue
+  additively. Central-tendency drift without hardened-variant
+  changes is MINOR; material re-classification of existing
+  hardened variants is MAJOR.
+- L-Canonical-Target-Version-Monotone keeps all prior
+  target-versions retained; a scorecard can explicitly
+  specify which `targetVersion` it baselines against.
+- An open question (§11 Q2) calibrates the material-drift
+  threshold empirically after the first distillation runs.
 
 ## 11. Open questions
 
-Ten questions the plan does not pre-decide. Each flagged with
-the phase that blocks on its answer.
+Nine questions the plan does not pre-decide. Each flagged
+with the phase that blocks on its answer.
 
 | # | Question | Blocks |
 |---|---|---|
 | Q1 | `elapsedMs` tolerance bound: is 100× right, or should it be tighter / wider? Calibrate after Z11g.b first runs. | Z11g.b calibration pass |
-| Q2 | Minimum label count for rung-4 graduation: is ≥5 sufficient, or should the gate scale with `PatternKind` count? | Z11g.d.3 graduation |
-| Q3 | Per-curator operator throughput target for labeling. | Z11g.d.2 long-term planning (not blocking first commit) |
+| Q2 | Canonical-target-version MAJOR-bump threshold: how much central-tendency drift between distillation runs warrants a baseline reset vs. a MINOR additive bump? | Z11g.d.1 distillation parameter tuning |
+| Q3 | Amalgamation support threshold: what's the minimum sample count for a variant to be promoted from `noise-rejected` to `hardened-variant`? Calibrate once real harvests run. | Z11g.d.0 algorithm spec |
 | Q4 | Does the `ParityFailureRecord` log append-only indefinitely or purge at `SUBSTRATE_VERSION` MAJOR bumps? | Z11g.b retention design |
-| Q5 | Should the corpus-coverage metric distinguish "absent from corpus" (harvest hasn't yet seen it) from "structurally inaccessible" (behind auth)? | Z11g.d.3 metric design |
-| Q6 | Do multi-curator endorsements (same `(sampleId, verb, fixture)` triple labeled by multiple curators) factor into a label-confidence score, or does the first label bind? | Z11g.d.2 label semantics |
-| Q7 | Jurisdiction-cap enforcement: does the harvest pipeline filter at fetch time, retain time, or both? | Z11g.d.1 retention design |
-| Q8 | Quarterly purge: hard delete or soft delete with audit trail? | Z11g.d.1 retention design |
-| Q9 | For rung-4 receipts on world-shapes outside catalog coverage, does the receipt carry `classification: 'ambiguous'` or route to the coverage metric entirely (no receipt)? | Z11g.d.3 adapter semantics |
-| Q10 | If a `HarvestedFixtureLabel` is later revoked (curator error), what happens to receipts emitted against fixtures using that label before revocation? | Z11g.d.2 long-term (not blocking first commit) |
+| Q5 | Corpus-coverage state taxonomy: three states (`covered` / `corpus-floor-miss` / `structurally-inaccessible`) vs. finer-grained? Does a world-shape observed but not yet distilled warrant its own state? | Z11g.d.3 metric design |
+| Q6 | World-shape identity stability: when Z11f's classifier re-labels a previously-categorized page (e.g., after a classifier improvement), do existing `CanonicalTarget`s for the affected world-shape rebuild, or do we version-bump and keep history? | Z11g.d.1 re-classification policy |
+| Q7 | Hardened-variant count cap: is there a maximum number of variants per canonical target, and if so, how are overflow variants resolved? | Z11g.d.0 algorithm spec |
+| Q8 | Distillation re-run trigger cadence: does distillation re-run on every harvest batch, on a fixed schedule, or on a material-evidence-delta threshold? | Z11g.d.1 operational design |
+| Q9 | For rung-4 receipts on world-shapes outside canonical-target coverage, does the receipt carry `classification: 'ambiguous'` with a coverage-gap tag, or route to the coverage metric entirely (no receipt)? | Z11g.d.3 adapter semantics |
 
 ## 12. Graduation and success criteria
 
@@ -1324,21 +1285,25 @@ Each phase's own graduation (§§8.1–8.4) independently met.
 
 ### 12.2 Substrate-ladder law set green
 
-All 24 laws (§9) green on a single commit. Particularly:
+All 22 laws (§9) green on a single commit. Particularly:
 - L-Dry-BIR, L-DryReplay-Parity, L-ReplayLive-Parity green →
   the three existing rungs are mutually consistent.
 - L-CatalogDriven green → the synthetic app is not parallel
   apparatus.
+- L-Canonical-Target-Derivable + L-Amalgamation-Deterministic
+  green → the Platonic-form distillation is a pure, stable
+  projection of harvested evidence.
 - L-LiveCommoncrawl-Parity green → the substrate-invariance
-  theorem has real-DOM evidence.
+  theorem has distilled-real-DOM evidence.
 
 ### 12.3 Corpus-coverage honesty
 
 `scorecard.cohorts.rung4.coverage` reports every
-trust-policy-approved `PatternKind` as either covered (with
-`supportCount ≥ 3`) or explicitly uncovered (with a reason:
-`absent-from-corpus` / `structurally-inaccessible` /
-`pending-labeling`). No `undefined` states; no silent gaps.
+trust-policy-approved `PatternKind` as `covered` (a canonical
+target exists with `supportCount ≥ amalgamation-policy-floor`)
+or explicitly uncategorized (`corpus-floor-miss` or
+`structurally-inaccessible`). No `undefined` states; no
+silent gaps.
 
 ### 12.4 Verdict-12 candidate
 
@@ -1349,8 +1314,8 @@ classification** along two honesty axes:
    (rung-parity.json) demonstrate the substrate-invariance
    theorem holds across all three adjacent rung pairs.
 2. **Real-world grounding axis**: the rung-4 corpus-coverage
-   metric demonstrates the workshop's ceiling is honestly
-   named.
+   metric demonstrates which world-shapes the Platonic-form
+   target covers and which remain floor-missed.
 
 Verdict-12's classification rubric advances from multi-
 cohort-synthetic (Verdict-11) to **multi-rung-grounded**.
@@ -1358,13 +1323,13 @@ cohort-synthetic (Verdict-11) to **multi-rung-grounded**.
 ### 12.5 What graduation does NOT require
 
 - **Customer-production access.** Deferred to a future plan.
-- **100% corpus coverage.** Only the trust-policy-approved
-  pattern set must be covered; the overall harvest-corpus
-  coverage floor is calibrated in Q2.
-- **Zero parity failures across all fixtures.** Failures that
-  route to the corpus-coverage metric (i.e., outside catalog
-  coverage) do not block graduation. Failures on catalog-
-  covered fixtures do.
+- **100% world-shape coverage.** Only the trust-policy-
+  approved pattern set must have canonical targets; overall
+  harvest coverage calibrates via Q2/Q3/Q8.
+- **Zero parity failures across all world-shapes.** Failures
+  on floor-missed world-shapes route to the coverage metric,
+  not to graduation gating. Failures on covered world-shapes
+  do block graduation.
 
 ## 13. Retirement of the Z11b plan
 
@@ -1438,7 +1403,9 @@ independent.
 
 ---
 
-**Plan summary**: 4 phases, 24 laws, 6 risks, 10 open
-questions, ~17 engineering days end-to-end (no external
-dependencies). Retires Z11b. Orthogonal to Z11d. Enables
-Verdict-12's multi-rung-grounded classification.
+**Plan summary**: 4 phases, 22 laws, 5 risks, 9 open
+questions, ~14 engineering days end-to-end (no external
+dependencies). Rung-4 is a Platonic-form distillation of
+harvested OutSystems DOM evidence, not per-page retention.
+Retires Z11b. Orthogonal to Z11d. Enables Verdict-12's
+multi-rung-grounded classification.
