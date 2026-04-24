@@ -534,35 +534,65 @@ patterns; see the handoff doc §"What's exciting" at
 
 The playwright-live rung's synthetic React app is the piece
 most at risk of becoming "parallel apparatus" (v2-substrate.md
-§7:161) because the workshop *owns* it. Z11g commits the
-catalog-driven invariant:
+§7:161) because the workshop *owns* it. The "catalog" Z11g
+enforces against is the **workshop-owned substrate vocabulary**
+at `workshop/substrate/surface-spec.ts` — the closed
+`SurfaceRole` union and its sibling closed axes. The renderer
+at `workshop/synthetic-app/src/SurfaceRenderer.tsx` must be a
+**total projection** of that vocabulary: every `SurfaceRole`
+has a renderer strategy declared in an explicit projection
+record, and every branch of the renderer corresponds to a
+declared projection entry.
 
-> **L-CatalogDriven (Catalog-Driven Generation).** Every
-> world-shape rendered by `workshop/synthetic-app/src/
-> SubstrateRenderer.tsx` must project from a
-> `product/catalog/` entry via a declared projection path. A
-> world-shape the synthetic app can render that does not
-> correspond to a catalog entry is a **build error**.
+> **L-CatalogDriven (Total Substrate-Vocab Projection).** Every
+> `SurfaceRole` in the closed union has exactly one entry in
+> `workshop/synthetic-app/catalog-projection.ts`'s
+> `SURFACE_ROLE_PROJECTION` record, whose strategy is one of
+> `'specialized'` (the renderer has an explicit `if (spec.role
+> === 'X')` handler) or `'generic'` (the renderer falls through
+> to the catchall `<div role={spec.role}>` path). The record is
+> typed as `Record<SurfaceRole, {strategy, rationale}>`, so
+> missing entries fail the build at type-check time.
 
 **Architecture-law enforcement.**
-`workshop/synthetic-app/tests/catalog-driven.laws.spec.ts`
-— asserts that for every `ShapeKind` the renderer dispatches
-on, there exists a `product/catalog/*/surface.yaml` entry
-producing a shape of that kind. The test walks the catalog
-tree and the renderer's dispatch table; divergence fails the
-build.
+`tests/synthetic-app/catalog-driven.laws.spec.ts`
+— three laws:
+
+- **L-CatalogDriven**: `SURFACE_ROLE_PROJECTION` is keyed by
+  exactly the `SurfaceRole` values (enforced by TypeScript at
+  type-check, re-checked at runtime against
+  `SURFACE_ROLE_VALUES`).
+- **L-Projection-Total**: every role in `SURFACE_ROLE_VALUES`
+  has a declared strategy.
+- **L-Projection-Terminal**: every strategy is one of the
+  closed union values; every `'specialized'` entry corresponds
+  to an explicit handler branch in the renderer source (static
+  grep of the renderer file for `spec.role === '<role>'`);
+  every `'generic'` entry is absent from that grep (i.e.,
+  actually falls through).
+
+**Why not `product/catalog/`?** The plan originally named
+`product/catalog/*/surface.yaml` as the source of truth.
+The repo's actual vocabulary source is
+`workshop/substrate/surface-spec.ts` — workshop-owned
+because the substrate vocabulary is workshop's measurement
+domain, not product's runtime domain. The anti-parallel-
+apparatus invariant still holds: the synthetic app cannot
+acknowledge a role the vocabulary doesn't declare, and the
+vocabulary cannot declare a role the renderer doesn't project.
+The source-of-truth arrow is workshop-internal.
 
 **What this does NOT forbid.** Entropy-wrapper perturbations
 (`EntropyWrapper.tsx`) are permitted and required — they are
 chrome invariance exercises, not alternate world-shapes. The
-law scopes to `SubstrateRenderer`'s shape dispatch, not to
+law scopes to `SurfaceRenderer`'s role dispatch, not to
 the entropy perturbations around it.
 
 **Retroactive application.** If the audit at Z11g.c time
-surfaces synthetic-app code rendering a world-shape that does
-not have a catalog entry, the remediation is to add a catalog
-entry or delete the synthetic-app code — never to special-case
-the law.
+surfaces renderer code handling a role that is NOT in
+`SurfaceRole`, the remediation is to add the role to the
+closed union (if legitimate) or delete the renderer branch
+(if not) — never to special-case the law.
 
 ## 6. Z11f-prime: the Platonic-form distillation
 
@@ -951,43 +981,50 @@ to §5.3's tolerance).
 **Dependency.** Z11g.a must land first — `invariantContent`
 is the key parity laws compare on.
 
-### 8.3 Z11g.c — Catalog-driven generation enforcement (~4 days)
+### 8.3 Z11g.c — Total substrate-vocab projection enforcement (~2 days)
 
-**Goal.** The synthetic React app's world-shapes must project
-from `product/catalog/` entries with architecture-law
-enforcement. The rung-3 substrate stops being at-risk of
-parallel-apparatus drift.
+**Goal.** The synthetic React app's renderer must be a total
+projection of `workshop/substrate/`'s vocabulary (the closed
+`SurfaceRole` union and its sibling closed axes). The rung-3
+substrate stops being at-risk of parallel-apparatus drift
+because a missing or stale role in either the vocabulary or
+the renderer fails the build.
 
 **Deliverables:**
 
-1. Audit `workshop/synthetic-app/src/{SubstrateRenderer,
-   SurfaceRenderer, FormRenderer}.tsx` against `product/
-   catalog/`. Enumerate every `ShapeKind` the renderer
-   dispatches on; for each, identify the catalog entry it
-   projects from. Outcome: a projection table (new file at
-   `workshop/synthetic-app/catalog-projection.ts`).
-2. Any synthetic-app rendering code lacking a catalog
-   projection is remediated — either by adding a catalog
-   entry (if the shape is legitimately part of the product
-   surface) or by deleting the synthetic-app code (if it's
-   orphan scaffolding). No special cases in the law.
-3. `workshop/synthetic-app/tests/catalog-driven.laws.spec.ts`
-   — new laws file:
+1. `workshop/substrate/surface-spec.ts` extended with a
+   runtime `SURFACE_ROLE_VALUES: readonly SurfaceRole[]`
+   constant + a compile-time exhaustiveness witness that
+   forces the array to match the type.
+2. `workshop/synthetic-app/catalog-projection.ts` — new file
+   exporting `SURFACE_ROLE_PROJECTION: Record<SurfaceRole,
+   {strategy: 'specialized' | 'generic', rationale: string}>`.
+   Missing entries fail the type check; orphan entries fail
+   the type check. The rationale is human-readable; the
+   strategy classification is mechanically testable against
+   the renderer source.
+3. `tests/synthetic-app/catalog-driven.laws.spec.ts` — new
+   laws file under workshop-side test tree (not under
+   `product/tests/architecture/` because workshop imports
+   from workshop):
    - **L-CatalogDriven** per §5.5.
-   - **L-Projection-Total** — the projection table covers
-     every `ShapeKind` the renderer's dispatch table references.
-4. `product/tests/architecture/seam-enforcement.laws.spec.ts`
-   widens — workshop reads from `product/catalog/` is
-   permitted only for the projection mapping, not for
-   runtime re-derivation.
+   - **L-Projection-Total** — `SURFACE_ROLE_PROJECTION`
+     covers every value in `SURFACE_ROLE_VALUES`.
+   - **L-Projection-Terminal** — `'specialized'` entries
+     correspond to explicit `if (spec.role === '<role>')`
+     branches in `SurfaceRenderer.tsx` source; `'generic'`
+     entries have no such branch.
 
 **Graduation.** Architecture laws green; the synthetic app's
-shape vocabulary is a subset of the catalog's declared
-surfaces.
+renderer vocabulary is the exact set of `SurfaceRole` values.
+A new role added to the union without a corresponding
+projection entry fails the type check; a projection entry
+without a matching renderer branch fails the law.
 
-**Dependency.** Independent of Z11g.b mechanically, but
-calling out: if Z11g.b surfaces a parity failure that traces
-to catalog-divergence, Z11g.c's audit must handle it.
+**Dependency.** Independent of Z11g.b mechanically. No
+seam-enforcement changes are needed because the projection
+record is workshop→workshop (substrate→synthetic-app), not
+workshop→product.
 
 ### 8.4 Z11g.d — CommonCrawl-derived rung (legal-gated)
 
@@ -1119,10 +1156,9 @@ phase ships it.
 
 | Law | File | Asserts |
 |---|---|---|
-| **L-CatalogDriven** | `workshop/synthetic-app/tests/catalog-driven.laws.spec.ts` | Every `ShapeKind` dispatched by `SubstrateRenderer` / `SurfaceRenderer` / `FormRenderer` has a projection entry in `workshop/synthetic-app/catalog-projection.ts` pointing at a `product/catalog/*/surface.yaml` declaration. |
-| **L-Projection-Total** | same | The projection table covers every `ShapeKind` the renderer dispatch table references. Missing entries fail the build. |
-| **L-Projection-Terminal** | same | Projection entries point at real catalog files; a pointer to a non-existent or deleted catalog entry fails the build. |
-| **L-Seam-Catalog-Read-Only** | `product/tests/architecture/seam-enforcement.laws.spec.ts` (extended) | Workshop's read from `product/catalog/` is restricted to the projection-mapping path; runtime re-derivation of catalog entries from workshop is forbidden. |
+| **L-CatalogDriven** | `tests/synthetic-app/catalog-driven.laws.spec.ts` | `SURFACE_ROLE_PROJECTION` is keyed by exactly the `SurfaceRole` values in `SURFACE_ROLE_VALUES`; missing roles and orphan keys both fail. TypeScript exhaustiveness provides the first gate; runtime symmetric-difference check provides the second. |
+| **L-Projection-Total** | same | Every role in `SURFACE_ROLE_VALUES` has a declared strategy in the projection record. |
+| **L-Projection-Terminal** | same | `'specialized'` entries correspond to explicit `if (spec.role === '<role>')` branches in `SurfaceRenderer.tsx` source (static grep); `'generic'` entries are absent from that grep (actually fall through to the catchall `<div role={spec.role}>`). |
 
 ### 9.4 Z11g.d laws
 
@@ -1137,7 +1173,7 @@ phase ships it.
 | **L-Corpus-Coverage-Complete** | `workshop/compounding/tests/corpus-coverage.laws.spec.ts` | For every `PatternKind` in the trust-policy-approved pattern set, `scorecard.cohorts.rung4.coverage[patternKind]` exists with one of: `covered` (canonical target exists), `corpus-floor-miss` (evidence below floor), or `structurally-inaccessible` (auth-gated). No silent omissions. |
 | **L-Rung4-Scorecard-Substrate-Version** | same | Every `Rung4CommoncrawlScorecard` carries the `SUBSTRATE_VERSION` of the canonical-target epoch; scorecards across `SUBSTRATE_VERSION` MAJOR bumps are not cross-compared. |
 
-**Law count**: 22 total (5 in a, 4 in b, 4 in c, 9 in d),
+**Law count**: 21 total (5 in a, 4 in b, 3 in c, 9 in d),
 enforced at either unit, architecture, or laws test level.
 None are convention-only.
 
@@ -1285,7 +1321,7 @@ Each phase's own graduation (§§8.1–8.4) independently met.
 
 ### 12.2 Substrate-ladder law set green
 
-All 22 laws (§9) green on a single commit. Particularly:
+All 21 laws (§9) green on a single commit. Particularly:
 - L-Dry-BIR, L-DryReplay-Parity, L-ReplayLive-Parity green →
   the three existing rungs are mutually consistent.
 - L-CatalogDriven green → the synthetic app is not parallel
@@ -1403,9 +1439,9 @@ independent.
 
 ---
 
-**Plan summary**: 4 phases, 22 laws, 5 risks, 9 open
-questions, ~14 engineering days end-to-end (no external
-dependencies). Rung-4 is a Platonic-form distillation of
-harvested OutSystems DOM evidence, not per-page retention.
-Retires Z11b. Orthogonal to Z11d. Enables Verdict-12's
-multi-rung-grounded classification.
+**Plan summary**: 4 phases, 21 laws, 5 risks, 9 open
+questions, ~12 engineering days end-to-end (Z11g.c simplified
+from 4d to 2d by reframing to workshop-internal projection).
+Rung-4 is a Platonic-form distillation of harvested OutSystems
+DOM evidence, not per-page retention. Retires Z11b. Orthogonal
+to Z11d. Enables Verdict-12's multi-rung-grounded classification.

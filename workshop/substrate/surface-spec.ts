@@ -66,6 +66,66 @@ export type SurfaceRole =
   | 'tabpanel'
   | 'textbox';
 
+/** Runtime enumeration of every `SurfaceRole` value. Paired with
+ *  the compile-time exhaustiveness witness below so that adding
+ *  or removing a role from the union forces this array to stay
+ *  synchronized.
+ *
+ *  Used by `workshop/synthetic-app/catalog-projection.ts`
+ *  (projection-total law, plan §9.3 / Z11g.c) and by any caller
+ *  that needs to iterate every role — e.g. a fuzz-test over the
+ *  substrate vocabulary.
+ *
+ *  Order mirrors the union declaration for human legibility. */
+export const SURFACE_ROLE_VALUES: readonly SurfaceRole[] = [
+  'alert',
+  'banner',
+  'button',
+  'checkbox',
+  'combobox',
+  'complementary',
+  'contentinfo',
+  'form',
+  'grid',
+  'gridcell',
+  'heading',
+  'link',
+  'list',
+  'listitem',
+  'main',
+  'navigation',
+  'radio',
+  'radiogroup',
+  'region',
+  'row',
+  'rowheader',
+  'search',
+  'searchbox',
+  'status',
+  'tab',
+  'tablist',
+  'tabpanel',
+  'textbox',
+] as const;
+
+/** Compile-time exhaustiveness witness. The `Record<SurfaceRole,
+ *  true>` type forces every union member to appear as a key in
+ *  the derived map. A role added to the union but not to
+ *  `SURFACE_ROLE_VALUES` fails assignment at type-check; an
+ *  orphan string in the array fails to widen to `SurfaceRole`.
+ *  Emitted as a `void` reference below so the const is retained
+ *  under `noUnusedLocals`. */
+const _SURFACE_ROLE_VALUES_EXHAUSTIVE: Record<SurfaceRole, true> = Object.freeze(
+  SURFACE_ROLE_VALUES.reduce<Record<SurfaceRole, true>>(
+    (acc, role) => {
+      acc[role] = true;
+      return acc;
+    },
+    {} as Record<SurfaceRole, true>,
+  ),
+);
+void _SURFACE_ROLE_VALUES_EXHAUSTIVE;
+
 /** How the surface is (not) visible. */
 export type SurfaceVisibility =
   | 'visible'
