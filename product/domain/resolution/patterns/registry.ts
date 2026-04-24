@@ -18,7 +18,12 @@
  */
 
 import type { Pattern } from './rung-kernel';
+import { dialogConfirmationPattern } from './patterns/dialog-confirmation.pattern';
+import { fieldInputByLabelPattern } from './patterns/field-input-by-label.pattern';
 import { formSubmissionPattern } from './patterns/form-submission.pattern';
+import { locatorByRoleAndNamePattern } from './patterns/locator-by-role-and-name.pattern';
+import { navigationLinkByNamePattern } from './patterns/navigation-link-by-name.pattern';
+import { observationByAssertionPhrasePattern } from './patterns/observation-by-assertion-phrase.pattern';
 
 export interface PatternRegistry {
   readonly patterns: readonly Pattern[];
@@ -28,7 +33,15 @@ export function createPatternRegistry(patterns: readonly Pattern[]): PatternRegi
   return { patterns };
 }
 
-/** The production default registry. Grows as Z11a.4c adds patterns. */
+/** The production default registry. Ordered specific → generic so
+ *  tightly-scoped patterns fire before broad-applicability ones.
+ *  Agent-discovered customer-specific patterns prepend to this list
+ *  at composition time via the proposal-gated catalog flow. */
 export const DEFAULT_PATTERN_REGISTRY: PatternRegistry = createPatternRegistry([
-  formSubmissionPattern,
+  dialogConfirmationPattern,           // narrowest: dialog-scoped buttons
+  navigationLinkByNamePattern,         // narrow: nav-landmark-scoped links
+  formSubmissionPattern,               // narrow: form-scoped submit
+  fieldInputByLabelPattern,            // input verb; includes form-single-textbox fallback
+  observationByAssertionPhrasePattern, // observe verb; includes status/alert inference
+  locatorByRoleAndNamePattern,         // generic: any role+name intent
 ]);
