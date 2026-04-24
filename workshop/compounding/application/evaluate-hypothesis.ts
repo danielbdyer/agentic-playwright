@@ -22,16 +22,22 @@ import {
   buildHypothesisReceipt,
   type BuildHypothesisReceiptOptions,
 } from './build-hypothesis-receipt';
-import type { ProbeReceiptLike, ScenarioReceiptLike } from './ports';
+import type { CompilationReceiptLike, ProbeReceiptLike, ScenarioReceiptLike } from './ports';
 
 export function evaluateHypothesis(
   hypothesis: Hypothesis,
   probeReceipts: readonly ProbeReceiptLike[],
   scenarioReceipts: readonly ScenarioReceiptLike[],
   options: BuildHypothesisReceiptOptions,
+  compilationReceipts: readonly CompilationReceiptLike[] = [],
 ): Effect.Effect<HypothesisReceipt, CompoundingError, never> {
   return Effect.sync(() => {
-    const evidence = filterEvidenceForHypothesis(hypothesis, probeReceipts, scenarioReceipts);
+    const evidence = filterEvidenceForHypothesis(
+      hypothesis,
+      probeReceipts,
+      scenarioReceipts,
+      compilationReceipts,
+    );
     const judgment = confirmationFromPrediction(hypothesis.prediction, evidence);
     return buildHypothesisReceipt(hypothesis, judgment, options);
   });

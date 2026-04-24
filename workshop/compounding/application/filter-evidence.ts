@@ -19,21 +19,29 @@
  */
 
 import type { Hypothesis } from '../domain/hypothesis';
-import type { ProbeReceiptLike, ScenarioReceiptLike } from './ports';
+import type { CompilationReceiptLike, ProbeReceiptLike, ScenarioReceiptLike } from './ports';
 
 export interface HypothesisEvidence {
   readonly probeReceipts: readonly ProbeReceiptLike[];
   readonly scenarioReceipts: readonly ScenarioReceiptLike[];
+  /** Z11a.6 — CompilationReceipts attributed to this hypothesis.
+   *  Filled by the customer-compilation cohort's evaluation pass.
+   *  Older evidence-filter callers that pass only probe + scenario
+   *  receive an empty array here, preserving backward-compat for
+   *  tests that pin compilation evidence at zero. */
+  readonly compilationReceipts: readonly CompilationReceiptLike[];
 }
 
 export function filterEvidenceForHypothesis(
   hypothesis: Hypothesis,
   probeReceipts: readonly ProbeReceiptLike[],
   scenarioReceipts: readonly ScenarioReceiptLike[],
+  compilationReceipts: readonly CompilationReceiptLike[] = [],
 ): HypothesisEvidence {
   const id = hypothesis.id;
   return {
     probeReceipts: probeReceipts.filter((r) => r.payload.hypothesisId === id),
     scenarioReceipts: scenarioReceipts.filter((r) => r.payload.hypothesisId === id),
+    compilationReceipts: compilationReceipts.filter((r) => r.payload.hypothesisId === id),
   };
 }
