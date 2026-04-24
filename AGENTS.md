@@ -14,26 +14,26 @@ The three things v2's `product/` ships (details in `docs/v2-direction.md §1`):
 The workshop's job (details in `docs/v2-direction.md §5` and `docs/v2-substrate.md §7`):
 - Derive **probes** from the manifest, run them through the product's normal authoring flow, derive metrics over run records, gate proposal activation against the trust policy, and append hypothesis receipts to the workshop's log. Graduate when probe coverage = 100% and `metric-hypothesis-confirmation-rate` sustains above floor.
 
-## If you're a fresh agent session, your next action is Step 5
+## If you're a fresh agent session, your next action is to read the post-Z11a handoff
 
-**Status as of 2026-04-21.** Phase 1 and Phase 2 of the construction order (Steps 0 through 4c) have landed on main / the active feature branch. The tree is compartmentalized; the seam is compile-enforced; the Reasoning port is unified; the dashboard MCP server routes through manifest-declared verbs. `product/` imports zero files from `workshop/` or `dashboard/` (RULE_3 grandfather list is empty).
+**Status as of 2026-04-24.** Verdict-11 landed. The compounding engine now measures three cohorts (probe-surface, customer-compilation-resolvable, customer-compilation-needs-human) across two prediction kinds (confirmation-rate, intervention-fidelity). The pattern ladder slotted into the 11-rung resolution precedence at `'shared-patterns'` with six seed patterns + seven seed matchers. Graduation holds under both the Z10 single-cohort sequence and the full three-cohort drive-through. 3,890 tests green; ~165 compounding-family/pattern/customer-backlog laws.
 
-**Next action: Step 5 — probe IR spike.** The workshop currently measures against a transitional probe set landed at Step 1. Step 5 validates whether manifest-derived probes can exercise real verb surfaces meaningfully.
+**Start here**: [`workshop/observations/handoff-post-z11a.md`](workshop/observations/handoff-post-z11a.md) — comprehensive orientation doc covering what landed, what's exciting, three forward paths (Z11d / Z11b / Z11f) with leverage + effort estimates, read-order for orientation, seam map, invariants, honest limitations, and the "if you get stuck" playbook. ~15 minutes.
 
-**Start here**: [`docs/v2-probe-ir-spike.md`](docs/v2-probe-ir-spike.md) — the postdoctoral design memo that covers the ontological claim, the atomic/compositional/longitudinal reductions, the FP/Effect/DDD praxis, the executable five-step spike protocol, the substrate-backed harness specs, graduation metrics, and a 40-minute hand-off playbook for the next agent. **This is the primary Step 5 document; the references below elaborate.**
+**Three forward paths, each independently scoped**:
 
-The spike scaffolding is already in place and runnable: `npm run build && node dist/bin/tesseract.js probe-spike` produces a `SpikeVerdict` showing `3/8 verbs (37.5%) — gate FAIL @ 80%` under the dry-harness. The failure is informative: it names the five uncovered verbs that need fixture YAMLs. First actionable task for the next agent is authoring `product/domain/memory/facet-mint.probe.yaml`; see §8.3 of the memo.
+1. **Z11d — Live Reasoning Adapter** (Claude-as-adapter via file-mediated record/fill/replay triad + autotelic hooks). Plan: [`docs/v2-live-adapter-plan.md`](docs/v2-live-adapter-plan.md). ~6 days. Highest-novelty + highest-leverage: replaces Z11a.5's heuristic classifier with real reasoning; activates semantic intervention-fidelity; makes customer-compilation resolvable trajectory meaningful.
 
-Related doctrine references (read after the memo if a specific section is load-bearing):
-1. `docs/v2-direction.md §5` (the probe IR concept) and `§6 Step 5` (the spike step definition). ~10 minutes.
-2. `docs/v2-substrate.md §6a` (the spike protocol). ~5 minutes.
-3. `docs/v2-readiness.md §4` (fixture grammar). ~5 minutes.
+2. **Z11b — Executed-Test Cohort** (stability-rate prediction kind over N-repeat Playwright runs). Plan: [`docs/v2-executed-test-cohort-plan.md`](docs/v2-executed-test-cohort-plan.md). ~4.5 days. Most mechanical; follows the established Z11a template; adds the third leg of the quality stool.
+
+3. **Z11f — Substrate Study** (offline harvest of public OutSystems DOMs → distilled frequency tables → operator-gated matcher proposals). Plan: [`docs/v2-substrate-study-plan.md`](docs/v2-substrate-study-plan.md). ~8–12 days, blocked on Z11f.0 legal review. Grounds the OutSystems-generic pattern tier in real evidence.
 
 If you're instead picking up a specific forcing-function remediation, the finished graduation ledger lives in `product/tests/architecture/seam-enforcement.laws.spec.ts` — the commented history at the top of RULE_1/2/3 narrates what's already landed.
 
-**Shipping milestone (Step 6) sequencing.** Step 5's output is a go/no-go. If it goes, Step 6 (first customer ship under workshop supervision) follows directly. If it surfaces hand-schema gaps, the gaps are named and Step 6 proceeds in parallel with hand-written schemas for the named verbs.
-
-**Post-Step-4c compounding workstream (not blocking Step 5).** The v2 synthetic workshop dogfood spike is the next-generation replacement for v1's `dogfood/scenarios/` corpus. Its design memo is at `docs/v2-synthetic-workshop-dogfood.md` (landed 2026-04-21). This is parallelizable with Step 5; both inform Phase 3 compounding design.
+**Reference: prior graduation milestones.**
+- Verdict-10 (2026-04-23, commit `aea4f97`) — first compounding-engine graduation on the single probe-surface cohort. Structural-plus-narrow rubric classification.
+- Verdict-11 (2026-04-24, commit `a721cd9`) — three-cohort multi-prediction graduation. Multi-cohort-synthetic rubric classification.
+- Next verdict should be verdict-12, authored by whichever of Z11b/Z11d/Z11f completes next.
 
 ## New-session orientation (read in this order)
 
