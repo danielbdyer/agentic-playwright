@@ -201,7 +201,15 @@ export type FingerprintTag =
   // resolution outcomes (resolved / needs-human / blocked step
   // counts) plus the intervention-fidelity floor used by the
   // needs-human corpus's hypothesis judgment.
-  | 'compilation-receipt';
+  | 'compilation-receipt'
+  // Substrate ladder (Step 11 Z11g). Keys the invariant-band
+  // sub-fingerprint of a ProbeReceipt — a pure projection over
+  // the axes cross-rung parity laws compare on (probeId,
+  // observed classification, observed error-family, fixture
+  // fingerprint, substrate version). Computed inside
+  // probeReceipt() so L-Invariant-Content-Pure holds by
+  // construction.
+  | 'probe-receipt-invariant';
 
 /** Adopt an existing string as a tagged fingerprint. Use sparingly
  *  — this is the type-system "I know what I'm doing" escape hatch

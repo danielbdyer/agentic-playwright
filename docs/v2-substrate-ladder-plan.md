@@ -1103,8 +1103,8 @@ phase ships it.
 | **L-Dry-BIR** | `workshop/probe-derivation/tests/probe-harness-laws.spec.ts` | Three consecutive `runSpike` invocations against `DryProbeHarness` with pinned `now` yield identical `ProbeReceipt.provenance.content` fingerprints for every receipt. |
 | **L-Invariant-Content-Pure** | same | `invariantContent` is a pure function of `(probe-id, observed.classification, observed.errorFamily, exercises[].rung, fixtureFingerprint, substrateVersion)`. Varying other fields (startedAt, adapter) does not change `invariantContent`. |
 | **L-Invariant-Content-Total** | same | Every `ProbeReceipt` carries a non-empty `invariantContent` — the field is never optional. |
-| **L-Fixture-Schema** | `product/tests/architecture/fixture-schema.laws.spec.ts` | Every `*.probe.yaml` under `product/` validates against §5.2's schema 1. Unknown top-level keys fail the build. |
-| **L-Fixture-World-Manifest-Aligned** | same | `world.*` leaf values that reference facet-kinds / error-families are declared in `product/manifest/manifest.json`. Manifest drift fails the build. |
+| **L-Fixture-Schema** | `tests/probe-derivation/fixture-schema.laws.spec.ts` | Every `*.probe.yaml` under `product/` validates against §5.2's schema 1. Unknown top-level keys fail the build. Parser exceptions fail the build. The test lives on workshop's side of the seam (workshop reads product fixtures; the law guards workshop's contract against product). |
+| **L-Fixture-World-Manifest-Aligned** | same | Every fixture's declared `expected.error-family` (when non-null) is a member of `manifest.verbs[verb].errorFamilies`. Manifest drift fails the build. |
 
 ### 9.2 Z11g.b laws
 
