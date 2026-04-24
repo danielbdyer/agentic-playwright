@@ -1,0 +1,37 @@
+{
+  "id": "90101",
+  "revision": 1,
+  "title": "Verify user must confirm deletion via a modal dialog",
+  "suitePath": "customer-backlog/dialogs",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "dialogs",
+    "modal",
+    "P1",
+    "backlog:high"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the record detail page</p>",
+      "expected": "<p>A Delete button appears on the page</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click the Delete button</p>",
+      "expected": "<p>A modal confirmation dialog appears with a Confirm and a Cancel button</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click the Confirm button inside the modal dialog</p>",
+      "expected": "<p>The modal closes and the record is removed</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90101-modal-confirm-dialog-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

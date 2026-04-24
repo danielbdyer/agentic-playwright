@@ -1,0 +1,35 @@
+{
+  "id": "90007",
+  "revision": 1,
+  "title": "Verify landmark regions and primary navigation are observable",
+  "suitePath": "customer-backlog/accessibility",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "accessibility",
+    "navigation",
+    "P2"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the landmark page</p>",
+      "expected": "<p>The page displays banner, navigation, main, complementary, and contentinfo landmarks</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Observe the main landmark's article heading</p>",
+      "expected": "<p>The main region contains a heading labeled Article title</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click the Archive link in the navigation landmark</p>",
+      "expected": "<p>The navigation region advances to the Archive surface</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90007-landmark-navigation-z11a2",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

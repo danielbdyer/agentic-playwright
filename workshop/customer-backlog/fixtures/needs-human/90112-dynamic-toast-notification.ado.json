@@ -1,0 +1,37 @@
+{
+  "id": "90112",
+  "revision": 1,
+  "title": "Verify a toast notification appears and auto-dismisses after a successful save",
+  "suitePath": "customer-backlog/async",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "async",
+    "toast",
+    "P2",
+    "backlog:medium"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the settings page</p>",
+      "expected": "<p>A form displays with a Save button</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Change a setting and click Save</p>",
+      "expected": "<p>A toast notification appears in the corner of the screen announcing the save succeeded</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Wait for the toast notification to auto-dismiss</p>",
+      "expected": "<p>After a few seconds the toast disappears without user action</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90112-dynamic-toast-notification-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

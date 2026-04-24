@@ -26,6 +26,7 @@ import { compoundingScoreboardCommand } from './compounding-scoreboard';
 import { compoundingImproveCommand } from './compounding-improve';
 import { compoundingHypothesizeCommand } from './compounding-hypothesize';
 import { compoundingRatchetCommand } from './compounding-ratchet';
+import { compileCorpusCommand } from './compile-corpus';
 
 export const workshopCommandRegistry: Partial<Record<CommandName, CommandSpec>> = {
   benchmark: benchmarkCommand,
@@ -40,4 +41,5 @@ export const workshopCommandRegistry: Partial<Record<CommandName, CommandSpec>> 
   'compounding-improve': compoundingImproveCommand,
   'compounding-hypothesize': compoundingHypothesizeCommand,
   'compounding-ratchet': compoundingRatchetCommand,
+  'compile-corpus': compileCorpusCommand,
 };

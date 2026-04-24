@@ -69,6 +69,27 @@ export interface ScenarioReceiptLike {
   };
 }
 
+/** Narrow CompilationReceipt shape the engine needs (Z11a.6).
+ *  The full CompilationReceipt from
+ *  `workshop/compounding/domain/compilation-receipt.ts`
+ *  structurally satisfies this shape. */
+export interface CompilationReceiptLike {
+  readonly payload: {
+    readonly adoId: string;
+    readonly corpus: 'resolvable' | 'needs-human';
+    readonly hypothesisId: string | null;
+    readonly totalStepCount: number;
+    readonly resolvedStepCount: number;
+    readonly needsHumanStepCount: number;
+    readonly blockedStepCount: number;
+    readonly handoffsEmitted: number;
+    readonly handoffsWithValidMissingContext: number;
+  };
+  readonly fingerprints: {
+    readonly artifact: string;
+  };
+}
+
 /** The append-only hypothesis store. Writes are one-shot (an
  *  authored hypothesis); reads are id lookup, cohort-indexed, or
  *  full-list. Dedupe on id. */
@@ -95,6 +116,14 @@ export interface ReceiptStoreService {
   ) => Effect.Effect<readonly ScenarioReceiptLike[], CompoundingError, never>;
   readonly latestProbeReceipts: () => Effect.Effect<readonly ProbeReceiptLike[], CompoundingError, never>;
   readonly latestScenarioReceipts: () => Effect.Effect<readonly ScenarioReceiptLike[], CompoundingError, never>;
+  /** Z11a.6 — customer-compilation receipts produced by the
+   *  `tesseract compile-corpus` CLI. Filter by hypothesisId to
+   *  bind evidence to an authored Hypothesis, same pattern as
+   *  probe + scenario. */
+  readonly compilationReceiptsForHypothesis: (
+    id: HypothesisId,
+  ) => Effect.Effect<readonly CompilationReceiptLike[], CompoundingError, never>;
+  readonly latestCompilationReceipts: () => Effect.Effect<readonly CompilationReceiptLike[], CompoundingError, never>;
   readonly appendHypothesisReceipt: (
     r: HypothesisReceipt,
   ) => Effect.Effect<void, CompoundingError, never>;

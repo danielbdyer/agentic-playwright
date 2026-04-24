@@ -194,7 +194,14 @@ export type FingerprintTag =
   // tie observed outcomes back to the authored predictions that
   // generated them.
   | 'hypothesis'
-  | 'hypothesis-receipt';
+  | 'hypothesis-receipt'
+  // Customer-compilation cohort (Step 11 Z11a). Keys a
+  // CompilationReceipt envelope emitted per `tesseract compile
+  // --emit-compounding-receipt` invocation. The receipt captures
+  // resolution outcomes (resolved / needs-human / blocked step
+  // counts) plus the intervention-fidelity floor used by the
+  // needs-human corpus's hypothesis judgment.
+  | 'compilation-receipt';
 
 /** Adopt an existing string as a tagged fingerprint. Use sparingly
  *  — this is the type-system "I know what I'm doing" escape hatch

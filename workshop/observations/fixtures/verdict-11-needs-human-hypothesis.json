@@ -1,0 +1,11 @@
+{
+  "id": "h-customer-compilation-needs-human",
+  "description": "Under Z11a.5 heuristic compile, emitted InterventionHandoffs carry mechanically-valid missingContext payloads at 90%+ over 3 cycles. Z11d upgrade: semantic-validity judgment (did the handoff name the right ambiguity?).",
+  "cohort": {
+    "kind": "customer-compilation",
+    "corpus": "needs-human"
+  },
+  "prediction": { "kind": "intervention-fidelity", "atLeast": 0.9, "overCycles": 3 },
+  "author": "step-11.Z11a.7",
+  "requiredConsecutiveConfirmations": 3
+}

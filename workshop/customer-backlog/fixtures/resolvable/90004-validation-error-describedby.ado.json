@@ -1,0 +1,35 @@
+{
+  "id": "90004",
+  "revision": 1,
+  "title": "Verify invalid-field error message is readable via describedBy",
+  "suitePath": "customer-backlog/accessibility",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "accessibility",
+    "forms",
+    "P2"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the form showing a validation error</p>",
+      "expected": "<p>The form displays with a field marked invalid</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Observe the invalid field</p>",
+      "expected": "<p>The field has aria-invalid set to true</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Observe the error description text</p>",
+      "expected": "<p>A description is attached to the invalid field explaining what is wrong</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90004-validation-error-describedby-z11a2",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

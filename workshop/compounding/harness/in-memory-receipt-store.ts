@@ -17,6 +17,7 @@ import type { HypothesisReceipt } from '../domain/hypothesis-receipt';
 import type { Ratchet } from '../domain/ratchet';
 import type { CompoundingError } from '../domain/compounding-error';
 import type {
+  CompilationReceiptLike,
   ProbeReceiptLike,
   ReceiptStoreService,
   ScenarioReceiptLike,
@@ -25,6 +26,7 @@ import type {
 export interface InMemoryReceiptStoreSeed {
   readonly probeReceipts?: readonly ProbeReceiptLike[];
   readonly scenarioReceipts?: readonly ScenarioReceiptLike[];
+  readonly compilationReceipts?: readonly CompilationReceiptLike[];
   readonly ratchets?: readonly Ratchet[];
 }
 
@@ -40,6 +42,7 @@ export function createInMemoryReceiptStore(
 ): InMemoryReceiptStore {
   const probeReceipts: ProbeReceiptLike[] = [...(seed.probeReceipts ?? [])];
   const scenarioReceipts: ScenarioReceiptLike[] = [...(seed.scenarioReceipts ?? [])];
+  const compilationReceipts: CompilationReceiptLike[] = [...(seed.compilationReceipts ?? [])];
   const ratchets: Ratchet[] = [...(seed.ratchets ?? [])];
   const emittedHypothesisReceiptsLog: HypothesisReceipt[] = [];
 
@@ -58,6 +61,14 @@ export function createInMemoryReceiptStore(
 
   const latestScenarioReceipts = (): Effect.Effect<readonly ScenarioReceiptLike[], CompoundingError, never> =>
     Effect.sync(() => [...scenarioReceipts]);
+
+  const compilationReceiptsForHypothesis = (
+    id: HypothesisId,
+  ): Effect.Effect<readonly CompilationReceiptLike[], CompoundingError, never> =>
+    Effect.sync(() => compilationReceipts.filter((r) => r.payload.hypothesisId === id));
+
+  const latestCompilationReceipts = (): Effect.Effect<readonly CompilationReceiptLike[], CompoundingError, never> =>
+    Effect.sync(() => [...compilationReceipts]);
 
   const appendHypothesisReceipt = (
     r: HypothesisReceipt,
@@ -96,6 +107,8 @@ export function createInMemoryReceiptStore(
     scenarioReceiptsForHypothesis,
     latestProbeReceipts,
     latestScenarioReceipts,
+    compilationReceiptsForHypothesis,
+    latestCompilationReceipts,
     appendHypothesisReceipt,
     listHypothesisReceipts,
     appendRatchet,

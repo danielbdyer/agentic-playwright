@@ -1,0 +1,37 @@
+{
+  "id": "90104",
+  "revision": 1,
+  "title": "Verify user can attach a document via file upload",
+  "suitePath": "customer-backlog/forms",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "forms",
+    "file-upload",
+    "P2",
+    "backlog:medium"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the document submission form</p>",
+      "expected": "<p>A form displays with a file upload control labeled Attach Document</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click the Attach Document control and select a PDF file from the filesystem</p>",
+      "expected": "<p>The selected file's name appears next to the file upload control</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click the Submit button</p>",
+      "expected": "<p>A success status message confirms the document was attached</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90104-file-upload-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

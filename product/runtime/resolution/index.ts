@@ -17,6 +17,8 @@ import { createStrategyRegistry } from './strategy-registry';
 import { buildPipelineDAG, validateDAG } from '../../domain/resolution/pipeline-dag';
 import { freeSearchAsync } from '../../domain/algebra/free-forgetful';
 import { TesseractError } from '../../domain/kernel/errors';
+import { DEFAULT_PATTERN_REGISTRY } from '../../domain/resolution/patterns/registry';
+import { createPatternResolutionStrategy } from './patterns/pattern-resolution-strategy';
 import type { RuntimeAgentStageContext, RuntimeStepAgentContext, StageEffects } from './types';
 import { mergeEffectsIntoStage } from './types';
 import { interpretStepIntent } from './interpret-intent';
@@ -201,8 +203,12 @@ const preAccumulatorStrategies: readonly ResolutionStrategy[] = [
 
 function buildPostAccumulatorStrategies(accRef: { current: ResolutionAccumulator }, semanticMatchRef: { current: SemanticDictionaryMatch | null }): readonly ResolutionStrategy[] {
   return [
-    pureStrategy('approved-knowledge', ['approved-screen-knowledge', 'shared-patterns', 'prior-evidence'], true,
+    // Step 11 Z11a.4b: 'shared-patterns' carved out of approved-knowledge
+    // into its own strategy (createPatternResolutionStrategy below).
+    // approved-knowledge now claims only catalog + evidence rungs.
+    pureStrategy('approved-knowledge', ['approved-screen-knowledge', 'prior-evidence'], true,
       (stage) => tryApprovedKnowledgeResolution(stage, accRef.current)),
+    createPatternResolutionStrategy(DEFAULT_PATTERN_REGISTRY),
     pureStrategy('semantic-dictionary', ['semantic-dictionary'], true,
       (stage) => {
         const result = trySemanticDictionaryResolution(stage, accRef.current);

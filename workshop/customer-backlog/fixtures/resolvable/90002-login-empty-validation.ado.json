@@ -1,0 +1,36 @@
+{
+  "id": "90002",
+  "revision": 1,
+  "title": "Verify login form rejects empty submission with an error alert",
+  "suitePath": "customer-backlog/auth",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "auth",
+    "validation",
+    "P2"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the login page</p>",
+      "expected": "<p>Login form displays with Identifier and Passphrase fields</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click the Submit button without entering any values</p>",
+      "expected": "<p>An error alert appears indicating that required fields are missing</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Observe the error alert text</p>",
+      "expected": "<p>The alert names the required fields that were left blank</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90002-login-empty-validation-z11a2",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

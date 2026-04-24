@@ -1,0 +1,35 @@
+{
+  "id": "90003",
+  "revision": 1,
+  "title": "Verify user can save a prefilled form without edits",
+  "suitePath": "customer-backlog/forms",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "forms",
+    "P2"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the prefilled form page</p>",
+      "expected": "<p>The form displays with fields already populated</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Observe the prefilled values</p>",
+      "expected": "<p>Each field contains its stored value</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click the Save button</p>",
+      "expected": "<p>A success status message confirms the save</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90003-prefilled-save-z11a2",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

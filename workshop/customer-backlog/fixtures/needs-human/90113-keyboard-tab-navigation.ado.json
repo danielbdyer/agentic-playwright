@@ -1,0 +1,37 @@
+{
+  "id": "90113",
+  "revision": 1,
+  "title": "Verify user can traverse a form using only the keyboard Tab key",
+  "suitePath": "customer-backlog/accessibility",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "accessibility",
+    "keyboard-navigation",
+    "P3",
+    "backlog:low"
+  ],
+  "priority": 3,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the registration form</p>",
+      "expected": "<p>A form displays with four fields and a Submit button</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Press the Tab key repeatedly to move focus through the form controls in order</p>",
+      "expected": "<p>Each Tab advances focus to the next control in tab order; focus is visible on each</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Press Enter while Submit is focused</p>",
+      "expected": "<p>The form submits without mouse input</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90113-keyboard-tab-navigation-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

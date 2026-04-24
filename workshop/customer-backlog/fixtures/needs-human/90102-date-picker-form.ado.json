@@ -1,0 +1,42 @@
+{
+  "id": "90102",
+  "revision": 1,
+  "title": "Verify user can select a date via the date picker widget",
+  "suitePath": "customer-backlog/forms",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "forms",
+    "date-picker",
+    "P1",
+    "backlog:high"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the appointment booking form</p>",
+      "expected": "<p>A form displays with an Appointment Date field backed by a date picker</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click the Appointment Date field to open the date picker</p>",
+      "expected": "<p>A calendar grid opens</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Select the 15th of the current month from the calendar</p>",
+      "expected": "<p>The date picker closes and the Appointment Date field displays the selected date</p>"
+    },
+    {
+      "index": 4,
+      "action": "<p>Click the Save button</p>",
+      "expected": "<p>A success status message confirms the appointment</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90102-date-picker-form-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}

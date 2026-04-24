@@ -73,12 +73,13 @@ export function computeScoreboard(
     // options.priorHypothesisReceipts — when set, it REPLACES the
     // store read rather than appending to it, because tests want
     // hermetic control over trajectory length.
-    const [hypotheses, probeReceipts, scenarioReceipts, ratchets, storedPriorReceipts] =
+    const [hypotheses, probeReceipts, scenarioReceipts, compilationReceipts, ratchets, storedPriorReceipts] =
       yield* Effect.all(
         [
           ledger.listAll(),
           store.latestProbeReceipts(),
           store.latestScenarioReceipts(),
+          store.latestCompilationReceipts(),
           store.listRatchets(),
           options.priorHypothesisReceipts === undefined
             ? store.listHypothesisReceipts()
@@ -93,7 +94,9 @@ export function computeScoreboard(
       manifestVersion: options.manifestVersion ?? 1,
     } as const;
     const newHypothesisReceipts = yield* Effect.all(
-      hypotheses.map((h) => evaluateHypothesis(h, probeReceipts, scenarioReceipts, buildOptions)),
+      hypotheses.map((h) =>
+        evaluateHypothesis(h, probeReceipts, scenarioReceipts, buildOptions, compilationReceipts),
+      ),
       { concurrency: 'unbounded' },
     );
 

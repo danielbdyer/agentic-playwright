@@ -51,6 +51,11 @@ export function confirmationFromPrediction(
     receiptFamilyShift: (p) => evaluateReceiptFamilyShift(p, evidence),
     coverageGrowth: (p) => evaluateCoverageGrowth(p, evidence),
     regressionFreedom: (p) => evaluateRegressionFreedom(p, evidence),
+    // Z11a.6 — real evaluator over CompilationReceipts replaces the
+    // Z11a.1 inconclusive stub. Denominator-zero (no handoffs emitted)
+    // yields inconclusive; otherwise validHandoffs / emittedHandoffs
+    // is compared against atLeast.
+    interventionFidelity: (p) => evaluateInterventionFidelity(p, evidence),
   });
 }
 
@@ -60,7 +65,8 @@ function evaluateConfirmationRate(
 ): Judgment {
   const probeIds = evidence.probeReceipts.map((r) => r.fingerprints.artifact);
   const scenarioIds = evidence.scenarioReceipts.map((r) => r.fingerprints.artifact);
-  const evidenceIds = [...probeIds, ...scenarioIds];
+  const compilationIds = evidence.compilationReceipts.map((r) => r.fingerprints.artifact);
+  const evidenceIds = [...probeIds, ...scenarioIds, ...compilationIds];
 
   const probeConfirms = evidence.probeReceipts.filter(
     (r) => r.payload.outcome.completedAsExpected,
@@ -71,8 +77,22 @@ function evaluateConfirmationRate(
   ).length;
   const scenarioRefutes = evidence.scenarioReceipts.length - scenarioConfirms;
 
-  const confirmedCount = probeConfirms + scenarioConfirms;
-  const refutedCount = probeRefutes + scenarioRefutes;
+  // Z11a.6 — CompilationReceipts contribute to confirmation-rate
+  // judgments when the hypothesis's cohort is customer-compilation
+  // with a 'resolvable' corpus. A compilation receipt counts as
+  // confirmed when resolvedStepCount / totalStepCount >= atLeast;
+  // refuted otherwise. Step-level counts are not exposed as
+  // individual judgments — one judgment per receipt (= per ADO case)
+  // keeps the trajectory numerator interpretable.
+  const compilationConfirms = evidence.compilationReceipts.filter((r) => {
+    const total = r.payload.totalStepCount;
+    if (total === 0) return false;
+    return r.payload.resolvedStepCount / total >= prediction.atLeast;
+  }).length;
+  const compilationRefutes = evidence.compilationReceipts.length - compilationConfirms;
+
+  const confirmedCount = probeConfirms + scenarioConfirms + compilationConfirms;
+  const refutedCount = probeRefutes + scenarioRefutes + compilationRefutes;
   const denom = confirmedCount + refutedCount;
 
   if (denom === 0) {
@@ -86,6 +106,60 @@ function evaluateConfirmationRate(
     outcome,
     confirmedCount,
     refutedCount,
+    inconclusiveCount: 0,
+    cycleRate,
+    evidenceReceiptIds: evidenceIds,
+  };
+}
+
+function evaluateInterventionFidelity(
+  prediction: Extract<Prediction, { kind: 'intervention-fidelity' }>,
+  evidence: HypothesisEvidence,
+): Judgment {
+  // Z11a.6 real evaluator (replaces the Z11a.1 inconclusive stub).
+  //
+  // Over the compilation receipts attributed to this hypothesis,
+  // compute:
+  //   numerator   = sum(handoffsWithValidMissingContext)
+  //   denominator = sum(handoffsEmitted)
+  //
+  // Denominator zero (no handoffs emitted in cycle) → inconclusive,
+  // matching the denominator-zero semantics of confirmation-rate
+  // (§Z11a.1). This is important: a cycle with no handoffs carries
+  // no intervention-fidelity signal and must not contribute to the
+  // trajectory as a refuted cycle.
+  //
+  // Cycle rate = numerator / denominator. Outcome is confirmed iff
+  // cycleRate >= atLeast; refuted otherwise.
+  //
+  // The receipts referenced are the compilation receipts; probe +
+  // scenario receipts are not consulted under this prediction kind
+  // because they don't carry handoff counts.
+  const evidenceIds = evidence.compilationReceipts.map((r) => r.fingerprints.artifact);
+
+  if (evidence.compilationReceipts.length === 0) {
+    return { ...EMPTY, evidenceReceiptIds: evidenceIds };
+  }
+
+  let handoffsEmitted = 0;
+  let handoffsValid = 0;
+  for (const r of evidence.compilationReceipts) {
+    handoffsEmitted += r.payload.handoffsEmitted;
+    handoffsValid += r.payload.handoffsWithValidMissingContext;
+  }
+
+  if (handoffsEmitted === 0) {
+    // Zero-handoff cycle: inconclusive by §Z11a.1.
+    return { ...EMPTY, evidenceReceiptIds: evidenceIds };
+  }
+
+  const cycleRate = handoffsValid / handoffsEmitted;
+  const outcome: ConfirmationOutcome = cycleRate >= prediction.atLeast ? 'confirmed' : 'refuted';
+
+  return {
+    outcome,
+    confirmedCount: handoffsValid,
+    refutedCount: handoffsEmitted - handoffsValid,
     inconclusiveCount: 0,
     cycleRate,
     evidenceReceiptIds: evidenceIds,

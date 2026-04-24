@@ -31,6 +31,7 @@ import {
   type CompoundingError,
 } from '../domain/compounding-error';
 import type {
+  CompilationReceiptLike,
   ProbeReceiptLike,
   ReceiptStoreService,
   ScenarioReceiptLike,
@@ -47,6 +48,10 @@ export interface FilesystemReceiptStoreOptions {
   /** Directory (relative to logDir) for hypothesis-receipt output.
    *  Default 'hypothesis-receipts'. */
   readonly hypothesisReceiptsDir?: string;
+  /** Directory (relative to logDir) holding compilation-receipt
+   *  JSON files written by `tesseract compile-corpus` (Z11a.5).
+   *  Default 'compilation-receipts'. */
+  readonly compilationReceiptsDir?: string;
   /** Filename (relative to logDir) for the ratchets JSONL. Default
    *  'ratchets.jsonl'. */
   readonly ratchetsFile?: string;
@@ -58,6 +63,7 @@ export function createFilesystemReceiptStore(
   const probeDir = path.join(options.logDir, options.probeReceiptsDir ?? 'probe-receipts');
   const scenarioDir = path.join(options.logDir, options.scenarioReceiptsDir ?? 'scenario-receipts');
   const hrDir = path.join(options.logDir, options.hypothesisReceiptsDir ?? 'hypothesis-receipts');
+  const compilationDir = path.join(options.logDir, options.compilationReceiptsDir ?? 'compilation-receipts');
   const ratchetsFile = path.join(options.logDir, options.ratchetsFile ?? 'ratchets.jsonl');
 
   const readJsonFiles = <T>(dir: string): Effect.Effect<readonly T[], CompoundingError, never> =>
@@ -128,6 +134,19 @@ export function createFilesystemReceiptStore(
       all.filter((r) => r.payload.hypothesisId === id),
     );
 
+  const latestCompilationReceipts = (): Effect.Effect<
+    readonly CompilationReceiptLike[],
+    CompoundingError,
+    never
+  > => readJsonFiles<CompilationReceiptLike>(compilationDir);
+
+  const compilationReceiptsForHypothesis = (
+    id: HypothesisId,
+  ): Effect.Effect<readonly CompilationReceiptLike[], CompoundingError, never> =>
+    Effect.map(latestCompilationReceipts(), (all) =>
+      all.filter((r) => r.payload.hypothesisId === id),
+    );
+
   const appendHypothesisReceipt = (
     r: HypothesisReceipt,
   ): Effect.Effect<void, CompoundingError, never> =>
@@ -181,6 +200,8 @@ export function createFilesystemReceiptStore(
     scenarioReceiptsForHypothesis,
     latestProbeReceipts,
     latestScenarioReceipts,
+    compilationReceiptsForHypothesis,
+    latestCompilationReceipts,
     appendHypothesisReceipt,
     listHypothesisReceipts,
     appendRatchet,

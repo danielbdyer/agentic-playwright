@@ -1,0 +1,38 @@
+{
+  "id": "90111",
+  "revision": 1,
+  "title": "Verify the correct Save button is targeted when multiple identically-named buttons exist",
+  "suitePath": "customer-backlog/accessibility",
+  "areaPath": "customer-backlog",
+  "iterationPath": "customer-backlog/sprint-1",
+  "tags": [
+    "regression",
+    "accessibility",
+    "duplicate-name",
+    "surface-id",
+    "P2",
+    "backlog:medium"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the multi-panel editor page</p>",
+      "expected": "<p>The page displays three distinct panels, each with its own Save button</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Edit a value inside the middle panel</p>",
+      "expected": "<p>The middle panel's Save button becomes enabled</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Click the Save button that belongs to the middle panel (not the other two)</p>",
+      "expected": "<p>Only the middle panel's changes are persisted; the other two panels remain unchanged</p>"
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:90111-duplicate-name-save-buttons-z11a3",
+  "syncedAt": "2026-04-23T00:00:00.000Z"
+}
