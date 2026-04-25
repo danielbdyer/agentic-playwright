@@ -92,56 +92,31 @@ describe('classifyClassPrefix (Z11g.d.0a §3.3)', () => {
     expect(classifyClassPrefix([])).toBeNull();
   });
 
-  test('osui- (kebab-case) → "osui"', () => {
+  test('osui- (kebab-case) → "osui" (the Reactive-Web marker)', () => {
     expect(classifyClassPrefix(['osui-button'])).toBe('osui');
     expect(classifyClassPrefix(['osui-input-text', 'other-class'])).toBe('osui');
   });
 
-  test('OS* PascalCase → "os" (distinct from osui-)', () => {
-    expect(classifyClassPrefix(['OSFillParent'])).toBe('os');
-    expect(classifyClassPrefix(['OSInline'])).toBe('os');
-    expect(classifyClassPrefix(['OSAutoMarginTop'])).toBe('os');
-  });
-
-  test('"os" alone (lowercase) is not an OS-family match — app-specific', () => {
-    // Guards against false-positive for app classes like "os-icon"
-    // that happen to start with "os" but aren't the PascalCase OS
-    // utility convention.
-    expect(classifyClassPrefix(['os-icon'])).toBe('app-specific');
-    expect(classifyClassPrefix(['osmetic'])).toBe('app-specific');
-  });
-
-  test('ThemeGrid_* → "theme-grid"', () => {
-    expect(classifyClassPrefix(['ThemeGrid_Container'])).toBe('theme-grid');
-    expect(classifyClassPrefix(['ThemeGrid_Width10'])).toBe('theme-grid');
-  });
-
-  test('Menu_* → "menu"', () => {
-    expect(classifyClassPrefix(['Menu_DropDownButton'])).toBe('menu');
-    expect(classifyClassPrefix(['Menu_TopMenu'])).toBe('menu');
-  });
-
-  test('EPATaskbox_* → "epa-taskbox"', () => {
-    expect(classifyClassPrefix(['EPATaskbox_Container'])).toBe('epa-taskbox');
-  });
-
-  test('Feedback_* → "feedback"', () => {
-    expect(classifyClassPrefix(['Feedback_AjaxWait'])).toBe('feedback');
-  });
-
-  test('RichWidgets_* → "rich-widgets"', () => {
-    expect(classifyClassPrefix(['RichWidgets_wt10'])).toBe('rich-widgets');
-  });
-
-  test('fa / fa-* → "fa"', () => {
-    expect(classifyClassPrefix(['fa'])).toBe('fa');
-    expect(classifyClassPrefix(['fa-angellist'])).toBe('fa');
+  test('OS* PascalCase → "app-specific" (Traditional Web is out of scope)', () => {
+    // Traditional-Web families (OS PascalCase utilities,
+    // ThemeGrid_*, Menu_*, EPATaskbox_*, Feedback_*, fa-*,
+    // RichWidgets_*) were removed when Z11g.d's rung-4 target
+    // was scoped to Reactive only. They fall to 'app-specific'
+    // like any other unknown token.
+    expect(classifyClassPrefix(['OSFillParent'])).toBe('app-specific');
+    expect(classifyClassPrefix(['ThemeGrid_Container'])).toBe('app-specific');
+    expect(classifyClassPrefix(['Menu_DropDownButton'])).toBe('app-specific');
+    expect(classifyClassPrefix(['EPATaskbox_Container'])).toBe('app-specific');
+    expect(classifyClassPrefix(['Feedback_AjaxWait'])).toBe('app-specific');
+    expect(classifyClassPrefix(['RichWidgets_wt10'])).toBe('app-specific');
+    expect(classifyClassPrefix(['fa-angellist'])).toBe('app-specific');
   });
 
   test('unknown prefix → "app-specific"', () => {
     expect(classifyClassPrefix(['app-logo'])).toBe('app-specific');
     expect(classifyClassPrefix(['card'])).toBe('app-specific');
     expect(classifyClassPrefix(['home-banner'])).toBe('app-specific');
+    expect(classifyClassPrefix(['os-icon'])).toBe('app-specific');
   });
 
   test('only the FIRST token determines family', () => {
@@ -214,13 +189,11 @@ describe('classifyVariant (Z11g.d.0a §4.4)', () => {
 
   const base: VariantClassifierSignals = {
     osuiClassCount: 0,
-    osPascalClassCount: 0,
     osvstatePresent: false,
-    mobileMarkerPresent: false,
     ...FRAMEWORK_NONE,
   };
 
-  test('Reactive: ≥3 osui-* + zero __OSVSTATE + React marker', () => {
+  test('Reactive: ≥3 osui-* + zero __OSVSTATE + framework marker', () => {
     const v = classifyVariant({
       ...base,
       osuiClassCount: 15,
@@ -235,91 +208,85 @@ describe('classifyVariant (Z11g.d.0a §4.4)', () => {
     }
   });
 
-  test('Reactive requires ALL three: count ≥3, no __OSVSTATE, framework marker', () => {
-    // osui count below threshold
-    expect(classifyVariant({ ...base, osuiClassCount: 2, reactDetected: true }).kind).not.toBe('reactive');
-    // no framework marker
-    expect(classifyVariant({ ...base, osuiClassCount: 10 }).kind).not.toBe('reactive');
-    // __OSVSTATE present → ambiguous, not reactive
+  test('Reactive requires ALL three conditions', () => {
+    // osui count below threshold → not-reactive
+    expect(
+      classifyVariant({ ...base, osuiClassCount: 2, reactDetected: true }).kind,
+    ).toBe('not-reactive');
+    // no framework marker → not-reactive
+    expect(classifyVariant({ ...base, osuiClassCount: 10 }).kind).toBe(
+      'not-reactive',
+    );
+    // __OSVSTATE present with strong osui-* signal → ambiguous
     expect(
       classifyVariant({
         ...base,
         osuiClassCount: 10,
         reactDetected: true,
         osvstatePresent: true,
-        osPascalClassCount: 5,
       }).kind,
     ).toBe('ambiguous');
   });
 
-  test('Traditional: __OSVSTATE + ≥1 OS* PascalCase class', () => {
-    const v = classifyVariant({
-      ...base,
-      osvstatePresent: true,
-      osPascalClassCount: 8,
-    });
-    expect(v.kind).toBe('traditional');
-    if (v.kind === 'traditional') {
-      expect(v.osvstatePresent).toBe(true);
-    }
-  });
-
-  test('Mobile: mobile-marker presence is sufficient', () => {
-    const v = classifyVariant({ ...base, mobileMarkerPresent: true });
-    expect(v.kind).toBe('mobile');
-  });
-
-  test('Ambiguous: conflicting signals (Reactive + Traditional) → ambiguous with evidence', () => {
+  test('Ambiguous: osui-* strong AND __OSVSTATE present', () => {
     const v = classifyVariant({
       ...base,
       osuiClassCount: 10,
-      osPascalClassCount: 10,
       osvstatePresent: true,
       reactDetected: true,
     });
     expect(v.kind).toBe('ambiguous');
     if (v.kind === 'ambiguous') {
-      expect(v.conflictingEvidence.length).toBeGreaterThanOrEqual(2);
       expect(v.conflictingEvidence).toEqual(
         expect.arrayContaining([
           expect.stringContaining('reactive candidate'),
-          expect.stringContaining('traditional candidate'),
+          expect.stringContaining('__OSVSTATE'),
         ]),
       );
     }
   });
 
-  test('Not-OS: no OS markers + no frameworks', () => {
+  test('Not-reactive: no osui-* signal', () => {
     const v = classifyVariant(base);
-    expect(v.kind).toBe('not-os');
+    expect(v.kind).toBe('not-reactive');
   });
 
-  test('Not-OS (framework-only): React present but no OS classes', () => {
+  test('Not-reactive (framework-only): React present but no osui- classes', () => {
     const v = classifyVariant({ ...base, reactDetected: true });
-    expect(v.kind).toBe('not-os');
-    if (v.kind === 'not-os') {
+    expect(v.kind).toBe('not-reactive');
+    if (v.kind === 'not-reactive') {
       expect(v.evidence).toEqual(
-        expect.arrayContaining([expect.stringContaining('React present')]),
+        expect.arrayContaining([expect.stringContaining('osui-* count below threshold')]),
+      );
+    }
+  });
+
+  test('Not-reactive (osvstate-present): Traditional markers disqualify', () => {
+    const v = classifyVariant({
+      ...base,
+      osuiClassCount: 0,
+      osvstatePresent: true,
+    });
+    expect(v.kind).toBe('not-reactive');
+    if (v.kind === 'not-reactive') {
+      expect(v.evidence).toEqual(
+        expect.arrayContaining([expect.stringContaining('__OSVSTATE')]),
       );
     }
   });
 
   test('evidence fields are non-empty for every verdict', () => {
-    // Every verdict kind must carry at least one piece of
-    // evidence so post-hoc review is possible.
     const verdicts = [
-      classifyVariant({ ...base }), // not-os
-      classifyVariant({ ...base, osvstatePresent: true, osPascalClassCount: 1 }), // traditional
+      classifyVariant({ ...base }), // not-reactive
+      classifyVariant({ ...base, osvstatePresent: true }), // not-reactive (traditional marker)
       classifyVariant({
         ...base,
         osuiClassCount: 5,
         reactDetected: true,
       }), // reactive
-      classifyVariant({ ...base, mobileMarkerPresent: true }), // mobile
       classifyVariant({
         ...base,
         osuiClassCount: 5,
-        osPascalClassCount: 5,
         osvstatePresent: true,
         reactDetected: true,
       }), // ambiguous

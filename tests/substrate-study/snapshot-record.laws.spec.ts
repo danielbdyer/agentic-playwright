@@ -157,23 +157,22 @@ describe('SnapshotRecord domain laws (Z11g.d.0a Phase 1)', () => {
   });
 
   describe('L-Variant-Classifier-Exhaustive', () => {
-    test('foldVariantClassifier covers all 5 union members', () => {
+    test('foldVariantClassifier covers all 3 union members', () => {
+      // Reactive-Web-only scope per 2026-04-24 Z11g.d
+      // clarification. Traditional and Mobile branches removed;
+      // they belong to a different distillation pipeline.
       const cases = [
         { kind: 'reactive', osuiClassCount: 10, evidence: ['osui-button ×10'] },
-        { kind: 'traditional', osvstatePresent: true, evidence: ['__OSVSTATE present'] },
-        { kind: 'mobile', evidence: ['cordova-app'] },
-        { kind: 'not-os', evidence: ['no OS markers'] },
+        { kind: 'not-reactive', evidence: ['no osui-* classes'] },
         { kind: 'ambiguous', conflictingEvidence: ['osui-* AND __OSVSTATE'] },
       ] satisfies VariantClassifierVerdict[];
       for (const v of cases) {
         const result = foldVariantClassifier(v, {
           reactive: () => 'reactive',
-          traditional: () => 'traditional',
-          mobile: () => 'mobile',
-          notOs: () => 'notOs',
+          notReactive: () => 'not-reactive',
           ambiguous: () => 'ambiguous',
         });
-        expect(result).toBe(v.kind === 'not-os' ? 'notOs' : v.kind);
+        expect(result).toBe(v.kind);
       }
     });
   });

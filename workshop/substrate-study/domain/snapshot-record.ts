@@ -37,43 +37,37 @@ import type { HydrationVerdict } from './hydration-verdict';
 // ─── Closed-union axes ───────────────────────────────────────
 
 /** Family of the element's first class token, used by the
- *  distillation to partition platform vs. app-specific tokens
- *  (design §3.3). `app-specific` is the catchall; unknown
- *  platform prefixes fall here until the lookup map expands. */
-export type ClassPrefixFamily =
-  | 'osui'
-  | 'os'
-  | 'theme-grid'
-  | 'menu'
-  | 'epa-taskbox'
-  | 'feedback'
-  | 'fa'
-  | 'rich-widgets'
-  | 'app-specific';
+ *  distillation to partition platform vs. app-specific tokens.
+ *  Scoped to **Reactive Web** per the 2026-04-24 Z11g.d
+ *  variant clarification — `osui-*` is the Reactive-Web class
+ *  prefix. Traditional-Web-specific families (OS PascalCase,
+ *  ThemeGrid_*, Menu_*, EPATaskbox_*, Feedback_*, fa-*,
+ *  RichWidgets_*) were removed when the v2 rung-4 target was
+ *  pinned to Reactive; they belong to a different distillation
+ *  pipeline the workshop does not currently build for. */
+export type ClassPrefixFamily = 'osui' | 'app-specific';
 
-/** Closed visibility enum matching
- *  workshop/substrate/surface-spec.ts's SurfaceVisibility. The
- *  harness computes this from getComputedStyle + offsetParent
- *  + getClientRects (design §3.3). */
-export type SurfaceVisibility =
-  | 'visible'
-  | 'display-none'
-  | 'visibility-hidden'
-  | 'off-screen'
-  | 'zero-size';
+/** Closed visibility enum. Re-exported from the single source
+ *  of truth at `workshop/substrate/surface-spec.ts`. A prior
+ *  version of this module declared its own parallel union with
+ *  a comment claiming convention-equivalence; that risked
+ *  drift across the two declarations and has been collapsed.
+ *  See `foldSurfaceVisibility` for exhaustive dispatch. */
+import type { SurfaceVisibility } from '../../substrate/surface-spec';
+export type { SurfaceVisibility };
 
 /** Length-bucket categorical for non-label text content.
  *  PII-safe: the exact length is not retained, only the
  *  bucket. */
 export type TextLengthBucket = '0' | '1-10' | '11-50' | '51+';
 
-/** Data-attr value representation. `observed-token` retains
- *  low-cardinality values from a closed set (populated by
- *  Z11g.d.1 observations); others preserve the name only. */
-export type DataAttrValue =
-  | { readonly kind: 'observed-token'; readonly value: string }
-  | { readonly kind: 'unobserved-cardinality' }
-  | { readonly kind: 'high-cardinality'; readonly fingerprintOnly: true };
+/** Data-attr value representation. v1 retains raw string
+ *  values; future cardinality partition (observed-token /
+ *  unobserved / high-cardinality) is deferred to Z11g.d.1
+ *  when we have a real corpus — at v1 every value lacks
+ *  observed-cardinality evidence so the discriminated-union
+ *  discipline was YAGNI. */
+export type DataAttrValue = string;
 
 /** Bounded bounding rect — bucketed to absorb sub-pixel drift
  *  per design §3.3. */
@@ -148,8 +142,15 @@ export interface SnapshotNode {
 // ─── VariantClassifierVerdict ────────────────────────────────
 
 /** Discriminated union folding the captured signals into a
- *  routing verdict per design §4.4. Each kind carries
- *  evidence-of-classification for post-hoc audit. */
+ *  routing verdict. Scoped to Reactive-Web detection per the
+ *  2026-04-24 Z11g.d clarification — the workshop only builds
+ *  for Reactive Web; Traditional and Mobile variants are
+ *  out-of-scope until a future plan revisits them. Each kind
+ *  carries evidence-of-classification for post-hoc audit.
+ *
+ *  - `reactive`   — all Reactive-indicative signals agree.
+ *  - `not-reactive` — signals are coherent but Reactive-negative.
+ *  - `ambiguous`  — signals conflict; operator review surfaces. */
 export type VariantClassifierVerdict =
   | {
       readonly kind: 'reactive';
@@ -157,12 +158,9 @@ export type VariantClassifierVerdict =
       readonly evidence: readonly string[];
     }
   | {
-      readonly kind: 'traditional';
-      readonly osvstatePresent: boolean;
+      readonly kind: 'not-reactive';
       readonly evidence: readonly string[];
     }
-  | { readonly kind: 'mobile'; readonly evidence: readonly string[] }
-  | { readonly kind: 'not-os'; readonly evidence: readonly string[] }
   | {
       readonly kind: 'ambiguous';
       readonly conflictingEvidence: readonly string[];
@@ -172,12 +170,12 @@ export type VariantClassifierVerdict =
 export function foldVariantClassifier<R>(
   verdict: VariantClassifierVerdict,
   cases: {
-    readonly reactive: (v: Extract<VariantClassifierVerdict, { kind: 'reactive' }>) => R;
-    readonly traditional: (
-      v: Extract<VariantClassifierVerdict, { kind: 'traditional' }>,
+    readonly reactive: (
+      v: Extract<VariantClassifierVerdict, { kind: 'reactive' }>,
     ) => R;
-    readonly mobile: (v: Extract<VariantClassifierVerdict, { kind: 'mobile' }>) => R;
-    readonly notOs: (v: Extract<VariantClassifierVerdict, { kind: 'not-os' }>) => R;
+    readonly notReactive: (
+      v: Extract<VariantClassifierVerdict, { kind: 'not-reactive' }>,
+    ) => R;
     readonly ambiguous: (
       v: Extract<VariantClassifierVerdict, { kind: 'ambiguous' }>,
     ) => R;
@@ -186,12 +184,8 @@ export function foldVariantClassifier<R>(
   switch (verdict.kind) {
     case 'reactive':
       return cases.reactive(verdict);
-    case 'traditional':
-      return cases.traditional(verdict);
-    case 'mobile':
-      return cases.mobile(verdict);
-    case 'not-os':
-      return cases.notOs(verdict);
+    case 'not-reactive':
+      return cases.notReactive(verdict);
     case 'ambiguous':
       return cases.ambiguous(verdict);
   }

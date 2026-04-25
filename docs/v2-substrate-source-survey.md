@@ -62,14 +62,10 @@ Z11g.d.1's real harvest.
 
 - §1 — Methodology + corpus scope
 - §2 — Corpus inventory (what was fetched, from where)
-- §3 — Platform fingerprint signatures (OS detection)
-- §4 — Chrome invariance (the page shell every OS Traditional-Web app ships)
-- §5 — Widget anatomy (observed)
-- §6 — Layout + typography utility taxonomy
-- §7 — Post-back / form pattern
+- §3 — Traditional-Web observational notes (appendix — informational only; see scope note)
 - §8 — Known limitations and gaps in this corpus
-- §9 — Distillation-algorithm calibration inputs (Traditional Web scope)
-- §10 — Two-track next-step plan (Traditional-grounded vs Reactive-harness-first)
+- §9 — Distillation-algorithm calibration inputs (Traditional Web scope — informational)
+- §10 — Two-track next-step plan (Reactive-harness-first recommended)
 - §11 — Beyond ARIA: observation axes for Reactive harvest
 
 ## 1. Methodology + corpus scope
@@ -176,445 +172,67 @@ application. Customer apps on `*.outsystemscloud.com` /
 nodes (approx); 3 distinct page templates observed; all
 Traditional Web (no Reactive / Mobile variant sampled).
 
-## 3. Platform fingerprint signatures
-
-The **near-unique** OS detectors — signatures that (empirically)
-appear on every Traditional Web OS page and rarely elsewhere.
-These feed `OSFingerprintVerdict`'s `confirmed` tier in Z11f's
-classifier (`docs/v2-substrate-study-plan.md:1385`).
-
-### 3.1 `__OSVSTATE` hidden input (corpus-backed, 3/3)
-
-Every sample contains:
-
-```html
-<input type="hidden" name="__OSVSTATE" id="__OSVSTATE" value="<base64-blob>" />
-```
-
-This is the single strongest OS signature observed. While
-`__VIEWSTATE` is standard ASP.NET WebForms, `__OSVSTATE` is
-OutSystems-specific — the platform's proprietary state
-envelope sits alongside the .NET one. Presence of `__OSVSTATE`
-is effectively dispositive for "this is an OS traditional-web
-page."
-
-### 3.2 `OsAjax(...)` inline handler (corpus-backed, 3/3)
-
-Every page has inline `onclick="OsAjax(arguments[0]||window.event,'<id>','<underscored-id>','Click','__OSVSTATE,','');return false;"`
-handlers on interactive elements. The `OsAjax` function name
-is unique to the OS AJAX framework.
-
-### 3.3 `outsystems.internal.$.get("/<App>/_status.aspx")` (corpus-backed, 3/3)
-
-Every page ends with:
-
-```html
-<script type="text/javascript">outsystems.internal.$.get("/WebStyleGuidePreview/_status.aspx")</script>
-```
-
-The `outsystems.internal` namespace + the `_status.aspx`
-health-check endpoint are OS runtime invariants.
-
-### 3.4 WebForms-style ID convention (corpus-backed, 3/3)
-
-IDs follow the pattern
-`wt<N>_<ModuleName>_wt<N>_block_wt<ComponentName>[_wt<N>_<ComponentName>]*`
-— a nested concatenation of generated `wt` tokens, module
-names, and block/widget names. Examples:
-
-```
-wt71_OutSystemsUIWeb_wt6_block_wtHeader
-wt71_OutSystemsUIWeb_wt6_block_wtContent_wtMain
-wt71_OutSystemsUIWeb_wt6_block_wtHeader_wtCenter_wt120_RichWidgets_wt10_block_wtDropDownPanel
-```
-
-Depth varies with widget nesting; `wt71` and `wt37` appear as
-top-level prefixes in the two apps observed (home/patterns
-share `wt71`; widgets has `wt37`), suggesting the top-level
-`wt<N>` is a per-app constant seed.
-
-### 3.5 Compiled-asset script path convention (corpus-backed, 3/3)
-
-Script `src` attributes consistently follow:
-
-```
-/<App>/Blocks/<Module>/<Category>/<Name>.<locale>.js?<build>
-```
-
-Examples from the corpus:
-
-```
-/EPA_Taskbox/Blocks/EPA_Taskbox/Inbox_Flow/Inbox.js?5183
-/WebStyleGuidePreview/Blocks/OutSystemsUIWeb/Layouts/LayoutMenuTop.en.js?5015
-/WebStyleGuidePreview/Blocks/RichWidgets/RichWidgets/DropDownMenu.en.js?5188
-```
-
-Presence of `/Blocks/` in script paths + `?<numeric-build>`
-query string is an OS compiled-asset pattern.
-
-### 3.6 Class-prefix families observed
-
-Named-widget prefixes appear in every sample (corpus-backed,
-3/3):
-
-- `Menu_*` — top-level nav menu widget (15 distinct matches
-  per page: `Menu_DropDownButton`, `Menu_TopMenu`,
-  `Menu_DropDownPanel`, `Menu_SubItemsPlaceholder`,
-  `Menu_TopMenuActive`, `Menu_TopMenus`)
-- `EPATaskbox_*` — inbox / taskbox widget chrome (13 distinct
-  per page; unconditionally present in the base layout)
-- `Feedback_*` — AJAX-wait + flash-message widgets
-  (`Feedback_AjaxWait`, `Feedback_Message_Wrapper`)
-- `NotifyWidget` — notification stub
-- `Application_Menu` — menu container
-- `ThemeGrid_*` — grid layout system
-  (`ThemeGrid_Container`, `ThemeGrid_Width<N>` where `<N>` is
-  1..12)
-- `OS*` PascalCase utility classes — `OSInline`, `OSFillParent`,
-  `OSAutoMarginTop`
-
-**Notable absence**: `osui-*` kebab-case classes, often cited
-as an OS signature in the Z11f plan (see `docs/v2-substrate-
-study-plan.md:123`), were **not observed** in this
-Traditional Web corpus. The `osui-*` prefix is likely specific
-to OutSystems Mobile / Reactive Web, which this survey did
-not sample. ⚠️ This is a **significant correction** to the
-Z11f plan's assumed signature set — Traditional Web uses
-PascalCase `OS*` and underscored widget-namespace prefixes,
-not `osui-*`.
-
-### 3.7 WebForms-style generated IDs (non-unique but supporting)
-
-Every interactive element carries a deeply-qualified generated
-ID. The ID itself is not uniquely OS (ASP.NET WebForms have
-similar patterns), but the combination of ID convention +
-`__OSVSTATE` is dispositive.
-
-## 4. Chrome invariance (the page-shell central tendency)
-
-Across all three samples, the outer page structure is
-**byte-identical modulo the top-level `wt<N>` prefix**. This
-is the highest-confidence central-tendency candidate the
-corpus supports: every OS Traditional Web page ships this
-skeleton, and the distillation's Platonic-form target for a
-"generic OS page" is exactly this skeleton.
-
-### 4.1 Document-level structure (corpus-backed, 3/3)
-
-```html
-<!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
-  <head>
-    <title>...</title>
-    <meta name="msapplication-tap-highlight" content="no" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, minimum-scale=1, minimal-ui" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="format-detection" content="telephone=no" />
-    <link type="image/x-icon" rel="shortcut icon" href="favicon.png" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <!-- inline <style> block with .OSFillParent, .OSInline, .OSAutoMarginTop, etc. -->
-    <!-- <link rel="stylesheet"> to /<App>/Blocks/... .css?<build> -->
-    <!-- <script> tags to /<App>/Blocks/... .js?<build> -->
-  </head>
-  <body>
-    <form method="post" action="<current-page>.aspx" id="..." enctype="...">
-      <input type="hidden" name="__OSVSTATE" value="..." />
-      <input type="hidden" name="__VIEWSTATE" value="" />
-      <input type="hidden" name="__VIEWSTATEGENERATOR" value="..." />
-      <!-- page chrome + content below -->
-    </form>
-    <script>outsystems.internal.$.get("/<App>/_status.aspx")</script>
-  </body>
-</html>
-```
-
-### 4.2 Layout chrome (corpus-backed, 3/3)
-
-Every sample renders the following landmark skeleton inside
-the form:
-
-```html
-<div class="layout layout-top layout-home">
-  <div class="main">
-    <header class="header" role="banner">
-      <div class="ThemeGrid_Container">
-        <a class="skip-nav" data-showskipcontent="False" aria-label="Skip to Content (Press Enter)" href="#...">Skip to Content (Press Enter)</a>
-        <div class="header-top display-flex">
-          <div class="menu-icon">
-            <div class="menu-icon-line"></div>
-            <div class="menu-icon-line"></div>
-            <div class="menu-icon-line"></div>
-          </div>
-          <div class="header-left display-flex align-items-center ph">
-            <!-- app-logo + application-name -->
-          </div>
-          <div class="header-center display-flex align-items-center flex1">
-            <nav class="Application_Menu OSInline" role="menubar">
-              <!-- Menu_DropDownButton × N -->
-            </nav>
-          </div>
-          <div class="header-right display-flex align-items-center ph"></div>
-        </div>
-        <div class="header-content"></div>
-      </div>
-    </header>
-    <div class="content">
-      <main class="main-content" role="main">
-        <!-- page-specific content -->
-      </main>
-      <footer class="content-bottom" role="contentinfo">
-        <div class="footer ThemeGrid_Container ph"></div>
-      </footer>
-    </div>
-  </div>
-</div>
-```
-
-### 4.3 Landmark ARIA roles (corpus-backed, 3/3)
-
-The corpus contains exactly these ARIA roles: `banner`,
-`button`, `contentinfo`, `main`, `menubar`, `menuitem`,
-`status`. No other roles observed. (⚠️ Widget-variant pages
-not sampled — `form`, `alert`, `dialog`, `grid`, `tab`,
-`tabpanel`, `region`, `listitem` likely appear on sub-pages.)
-
-### 4.4 ARIA-* attribute distribution (corpus-backed, 3/3)
-
-`aria-atomic`, `aria-controls`, `aria-expanded`, `aria-hidden`,
-`aria-label`, `aria-labelledby`, `aria-live`. No others.
-
-## 5. Widget anatomy (observed)
-
-The three-page corpus yielded one widget in full detail plus
-several widget-shell signatures. Interactive widgets (buttons,
-form inputs, tables) were **not** present in the sampled
-pages' bodies — that's the central limitation of this corpus
-(§8).
-
-### 5.1 Menu dropdown (corpus-backed, 3/3)
-
-Full anatomy of the nav-menu dropdown widget as rendered by
-OS Traditional Web:
-
-```html
-<div id="wt..._wtDropDownButtonRoot"
-     class="Menu_DropDownButton OSInline"
-     aria-expanded="false"
-     role="menuitem">
-  <div id="wt..._wtDropDownButtonElement"
-       class="Menu_TopMenu Menu_TopMenu"
-       aria-controls="wt..._wtDropDownPanel"
-       role="button">
-    <div id="wt..._wtMenuItem">
-      <a id="wt..._wtMenuItem_wt<N>"
-         tabindex="<N>"
-         href="<Page>.aspx">
-        <TextContent>
-      </a>
-    </div>
-  </div>
-  <div id="wt..._wtDropDownPanel" class="Menu_DropDownPanel">
-    <div id="wt..._wtMenuSubItems" class="Menu_SubItemsPlaceholder"></div>
-  </div>
-</div>
-```
-
-**World-shape signature** this widget would produce under
-Z11f's `SampleShape` extraction:
-
-- Root: `div[role="menuitem"][aria-expanded]` with
-  `Menu_DropDownButton` class token
-- Child: `div[role="button"][aria-controls]` with
-  `Menu_TopMenu` class token
-- Grandchild: `<a>` with anchor text
-- Sibling panel: `div.Menu_DropDownPanel` with empty
-  `div.Menu_SubItemsPlaceholder` (populated on interaction)
-
-This is a high-signal invariant — **every OS app's nav menu
-looks like this**, modulo the number of dropdowns.
-
-### 5.2 Card / content-block (corpus-backed, 2/3)
-
-Homepage landing cards and Widgets-page overview tiles share:
-
-```html
-<div class="columns-item">
-  <div class="card padding-xxl home-card">
-    <div class="heading1"><title-text></div>
-    <div class="margin-top-s heading6 font-regular text-neutral-8">
-      <body-text>
-    </div>
-    <div class="margin-top-xl">
-      <a class="font-size-base font-semi-bold" href="...">
-        <cta-text>
-      </a>
-    </div>
-  </div>
-</div>
-```
-
-Variants observed:
-- `card padding-xxl home-card` (homepage)
-- `pattern-overview-preview` / `pattern-overview-link`
-  (widgets page listing)
-
-### 5.3 Navigation-bar-item pattern (corpus-backed, 1/3 — single-sample)
-
-Patterns page uses a sub-pattern not visible on Home/Widgets:
-
-```html
-<div class="navigation-bar-item">
-  <div class="navigation-bar-item-title">...</div>
-  <div class="navigation-bar-item-content">...</div>
-  <div class="navigation-bar-item-subitem">...</div> <!-- 73 occurrences on Patterns -->
-</div>
-```
-
-Marked single-sample; Z11g.d.1 corpus expansion needs to
-confirm this recurs on other "index" pages (e.g., a customer
-app's landing-list page).
-
-### 5.4 Feedback widgets (shell-only, 3/3)
-
-`Feedback_AjaxWait`, `Feedback_Message_Wrapper` — these class
-wrappers are present in the corpus but their populated
-children (a spinner element or a flash-message card) are
-absent because neither was active at fetch time. Widget-active
-states (success alerts, error alerts, ajax-wait overlays)
-need Z11g.d.1 interactive sampling to characterize.
-
-### 5.5 EPATaskbox (shell-only, 3/3)
-
-`EPATaskbox_*` class family (13 distinct classes) wraps the
-inbox/tasks widget in every sample. None of the 13 wrappers
-contain visible content in this corpus — the taskbox is a
-closed-state shell. Populated-state content requires authenticated
-or session-bearing fetches, out of scope for this survey.
-
-## 6. Layout + typography utility taxonomy
-
-The following utility-class families are corpus-backed (≥2/3
-pages). These drive the per-shape layout decisions the
-renderer at Z11g.d.3 will need to make faithful.
-
-### 6.1 Grid system (ThemeGrid_*)
-
-- `ThemeGrid_Container` — outer wrapper (7 occurrences across
-  corpus)
-- `ThemeGrid_Width<1..12>` — 12-column widths (observed
-  explicitly: `ThemeGrid_Width10`, referenced in inline CSS as
-  `table[class*="ThemeGrid_Width"]`, `div[class*="ThemeGrid_Width"]`)
-
-### 6.2 Columns system
-
-- `columns` + `columns<N>` where N ∈ {2, 3, 5, 6} observed
-  (`columns2`, `columns3`, `columns5`, `columns6`)
-- `columns-item` — child (124 occurrences; dominant class)
-- `columns-small-left` — variant observed on Patterns page
-- Gutters: `gutter-xl` (24 occurrences — single uniform gutter
-  size observed)
-- Responsive breaks: `tablet-break-none`, `tablet-break-middle`,
-  `phone-break-all` — three named-breakpoint tokens
-
-### 6.3 Spacing utilities (margin-*, padding-*)
-
-- Margin scale: `margin-top-s`, `margin-top-m`,
-  `margin-top-l`, `margin-top-xl`, `margin-top-xxl`,
-  `margin-top-base`, `margin-y-xxl`, `margin-bottom-l`,
-  `margin-auto`
-- Padding scale: `padding-xxl`, `padding-y-m`
-- Single-letter shorthand: `ph` (likely "padding horizontal",
-  106 occurrences — one of the most-frequent classes)
-
-### 6.4 Typography
-
-- Headings: `heading1`, `heading3`, `heading4`, `heading6`
-  (discrete 1/3/4/6 observed; 2/5 not in corpus but likely
-  exist by convention)
-- Font size: `font-size-base`, `font-size-display`
-- Font weight: `font-semi-bold`, `font-regular`
-- Text color: `text-neutral-0`, `text-neutral-8`, `text-neutral-9`
-  — 10-step neutral scale (only 0, 8, 9 seen; scale likely 0..10)
-- Alignment: `text-align-center`
-
-### 6.5 Flex + display
-
-- `display-flex`, `display-block`
-- `align-items-center`
-- `flex1`
-- `full-height`
-
-### 6.6 Theme / background
-
-- `background-primary`, `background-neutral-0`,
-  `background-neutral-4`
-
-### 6.7 Separator / Divider
-
-- `separator`, `separator-horizontal` (10 occurrences each)
-
-### 6.8 State
-
-- `is--closed` (36 occurrences — BEM-style state modifier,
-  likely a closed/collapsed state toggle)
-- `hidden` (simple display:none toggle)
-
-### 6.9 Application-specific (single-app, not platform)
-
-Classes like `home-card`, `home-banner`, `home-menu`,
-`home-padding`, `app-logo`, `application-name`,
-`pattern-overview-preview`, `pattern-overview-link`,
-`website-section` are Style-Guide-app-specific, not platform
-invariants. The distillation must partition these out of the
-central tendency (they belong to per-app variants).
-
-## 7. Post-back / form pattern
-
-### 7.1 Every page is one <form> (corpus-backed, 3/3)
-
-Every OS Traditional Web page wraps its entire content in a
-single `<form method="post" action="<self>.aspx">`. Three
-inputs are **always** present inside:
-
-```html
-<input type="hidden" name="__OSVSTATE" id="__OSVSTATE" value="<base64>" />
-<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="" />
-<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="<hex>" />
-```
-
-`__OSVSTATE` carries the OS runtime's serialized state;
-`__VIEWSTATE` is the .NET WebForms state (often empty in
-practice but structurally present); `__VIEWSTATEGENERATOR` is
-the .NET anti-tamper hash.
-
-### 7.2 Implication for probe design
-
-A probe targeting a form-submission world-shape on OS must
-know:
-
-1. The `<form>` is the page, not a component. Probes look for
-   specific interactive widgets inside it.
-2. Hidden state fields are always present and must be
-   preserved on submit for the post-back to succeed.
-3. Interactive elements typically render as `<a>` or `<div
-   role="button">` with inline `OsAjax(...)` onclick — not
-   `<button type="submit">`. A probe searching for
-   `<button[type=submit]>` will miss the real primary-action
-   element.
-
-### 7.3 No observed `<button>` / `<input type="submit">` (corpus-backed, 3/3)
-
-Zero occurrences across 191KB of HTML. All interaction is
-routed through `<a>` or `role="button"` `<div>` elements
-connected to the OS AJAX runtime. This is a genuine behavioral
-difference from non-OS web pages and is a first-class signal
-the Z11g.d.0 algorithm must preserve.
-
-⚠️ Widget-pages not sampled (Buttons.aspx, Form.aspx) may
-break this invariant — true `<button>` / `<input type="text">`
-elements likely appear there. Z11g.d.1 corpus expansion is
-the check.
+## 3. Traditional-Web observational notes (appendix — informational only)
+
+> **Scope**: the three-page corpus (Homepage / Widgets /
+> UIPatterns) harvested on 2026-04-24 is entirely
+> OutSystems Traditional Web output. The Z11g.d rung-4
+> target is Reactive Web. Findings in this appendix
+> **do not generalize** to Reactive and must not feed the
+> Z11g.d.0 algorithm spec; they are retained as
+> informational notes + negative checks (things a Reactive
+> detector should NOT see). A prior version of this doc
+> presented these sections as §§3–7; they were compacted
+> here after the Reactive scope correction.
+
+### What the Traditional corpus exhibited
+
+- **`__OSVSTATE` hidden input** (3/3) — near-unique OS
+  detector on Traditional Web. Paired with `__VIEWSTATE` +
+  `__VIEWSTATEGENERATOR`. A Reactive page MUST NOT emit
+  `__OSVSTATE`.
+- **`OsAjax(...)` inline onclick handlers** (3/3) — OS AJAX
+  framework signature. Reactive routes events through
+  `addEventListener` (invisible to static HTML).
+- **Script bootstrap** `outsystems.internal.$.get("/<App>/_status.aspx")` (3/3).
+- **ID convention** `wt<N>_<Module>_wt<N>_block_wt<Component>...` (3/3).
+- **Script paths** `/<App>/Blocks/<Module>/<Category>/<Name>.<locale>.js?<build>` (3/3).
+- **Class-prefix families observed**: `OS*` PascalCase
+  utilities (OSInline, OSFillParent, OSAutoMarginTop),
+  `ThemeGrid_*`, `Menu_*`, `EPATaskbox_*`, `Feedback_*`,
+  `NotifyWidget`, `Application_Menu`, `RichWidgets_*` in IDs.
+  **No `osui-*` observed** — `osui-*` is the Reactive-Web
+  prefix.
+- **Chrome skeleton**: one `<form method="post">` wrapping
+  the entire page + landmark shell (`header[role=banner]`
+  → `nav[role=menubar]` → `main[role=main]` →
+  `footer[role=contentinfo]`).
+- **Post-back pattern**: one `<form>` per page + three
+  hidden state fields; interactive elements render as `<a>`
+  or `<div role="button">` (no `<button type="submit">`).
+- **Widget anatomy captured in full for the menu dropdown**
+  (nested-div chain with `role="menuitem"` → `role="button"`
+  → `<a href>` leaf). See git history prior to 2026-04-24
+  for the expanded per-widget walkthrough.
+
+### Why these findings do NOT port to Reactive
+
+Traditional Web is ASP.NET-WebForms-backed; DOM is rendered
+server-side with post-back state. Reactive Web is
+SPA-style: shell + JS bundles that hydrate client-side. The
+generators are entirely distinct. A Reactive-directed
+classifier must:
+
+- Ignore `__OSVSTATE` as a signal (may be absent from
+  Reactive entirely).
+- Focus on `osui-*` class-prefix recognition.
+- Expect React-fiber / Angular / Vue framework markers.
+- Expect post-hydration DOM that only a JS-executing
+  harness can capture (§1.5).
+
+The variant-classifier in
+`workshop/substrate-study/application/variant-classifier.ts`
+implements Reactive-only detection per this guidance.
 
 ## 8. Known limitations and gaps
 

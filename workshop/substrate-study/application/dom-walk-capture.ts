@@ -69,27 +69,22 @@ export function bucketTextLength(length: number): TextLengthBucket {
   return '51+';
 }
 
-/** Closed-map lookup for class-prefix family per design §3.3.
- *  Returns `null` when the token list is empty (no classes at
- *  all); `'app-specific'` when the first token doesn't match
- *  a known prefix. */
+/** Closed-map lookup for class-prefix family. Returns `null`
+ *  when the token list is empty; `'app-specific'` when the
+ *  first token is not `osui-*`.
+ *
+ *  Reactive-Web scoped: the only platform-invariant prefix the
+ *  workshop distills against is `osui-*`. Traditional-Web
+ *  prefixes (OS PascalCase, ThemeGrid_*, Menu_*, EPATaskbox_*,
+ *  Feedback_*, fa-*, RichWidgets_*) previously lived here; they
+ *  were removed when the Z11g.d rung-4 target was scoped to
+ *  Reactive. */
 export function classifyClassPrefix(
   classTokens: readonly string[],
 ): ClassPrefixFamily | null {
   if (classTokens.length === 0) return null;
   const first = classTokens[0]!;
   if (first.startsWith('osui-')) return 'osui';
-  if (first.startsWith('ThemeGrid_') || first.startsWith('ThemeGrid-'))
-    return 'theme-grid';
-  if (first.startsWith('Menu_')) return 'menu';
-  if (first.startsWith('EPATaskbox_')) return 'epa-taskbox';
-  if (first.startsWith('Feedback_')) return 'feedback';
-  if (first.startsWith('RichWidgets_')) return 'rich-widgets';
-  if (first.startsWith('fa-') || first === 'fa') return 'fa';
-  // OS PascalCase utilities — match "OS" prefix followed by an
-  // uppercase letter (OSInline, OSFillParent, OSAutoMarginTop).
-  // Must come AFTER osui- check since osui- also starts with "os".
-  if (/^OS[A-Z]/.test(first)) return 'os';
   return 'app-specific';
 }
 
@@ -146,14 +141,6 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
       if (classTokens.length === 0) return null;
       const first = classTokens[0]!;
       if (first.startsWith('osui-')) return 'osui';
-      if (first.startsWith('ThemeGrid_') || first.startsWith('ThemeGrid-'))
-        return 'theme-grid';
-      if (first.startsWith('Menu_')) return 'menu';
-      if (first.startsWith('EPATaskbox_')) return 'epa-taskbox';
-      if (first.startsWith('Feedback_')) return 'feedback';
-      if (first.startsWith('RichWidgets_')) return 'rich-widgets';
-      if (first.startsWith('fa-') || first === 'fa') return 'fa';
-      if (/^OS[A-Z]/.test(first)) return 'os';
       return 'app-specific';
     }
 
@@ -266,13 +253,14 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
       const classPrefixFamily = classifyClassPrefixIn(classTokens);
 
       const dataAttrNames: string[] = [];
-      const dataAttrValues: Record<string, { kind: string; value?: string }> = {};
+      const dataAttrValues: Record<string, string> = {};
       for (const attr of Array.from(root.attributes)) {
         if (attr.name.startsWith('data-')) {
           dataAttrNames.push(attr.name);
-          // v1: every value → unobserved-cardinality placeholder.
-          // Z11g.d.1 will populate observed-token set over time.
-          dataAttrValues[attr.name] = { kind: 'unobserved-cardinality' };
+          // v1: capture the raw value. Cardinality partition
+          // (observed-token / unobserved / high-cardinality)
+          // deferred to Z11g.d.1 when a real corpus exists.
+          dataAttrValues[attr.name] = attr.value;
         }
       }
 
@@ -503,9 +491,9 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
     type SnapshotNodeShape = {
       path: string; depth: number; tag: string; id: string | null;
       classTokens: readonly string[];
-      classPrefixFamily: 'osui' | 'os' | 'theme-grid' | 'menu' | 'epa-taskbox' | 'feedback' | 'fa' | 'rich-widgets' | 'app-specific' | null;
+      classPrefixFamily: 'osui' | 'app-specific' | null;
       dataAttrNames: readonly string[];
-      dataAttrValues: Readonly<Record<string, { kind: string; value?: string }>>;
+      dataAttrValues: Readonly<Record<string, string>>;
       ariaRole: string | null;
       ariaState: Readonly<Record<string, string>>;
       ariaNaming: { label: string | null; accessibleName: string | null };
@@ -571,17 +559,11 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
 
     // ─── Variant-classifier signals ────────────────────────
     let osuiClassCount = 0;
-    let osPascalClassCount = 0;
     for (const n of nodes) {
       if (n.classPrefixFamily === 'osui') osuiClassCount++;
-      if (n.classPrefixFamily === 'os') osPascalClassCount++;
     }
     const osvstatePresent =
       document.querySelector('input[name="__OSVSTATE"]') !== null;
-    const mobileMarkerPresent =
-      document.querySelector('[data-cordova-app]') !== null ||
-      document.querySelector('[is-phonegap]') !== null ||
-      document.body?.classList.contains('is-phonegap') === true;
 
     return {
       nodes,
@@ -595,9 +577,7 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
       },
       variantSignals: {
         osuiClassCount,
-        osPascalClassCount,
         osvstatePresent,
-        mobileMarkerPresent,
         reactDetected,
         angularDetected,
         vueDetected,

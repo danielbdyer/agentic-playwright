@@ -1,5 +1,5 @@
 /**
- * WorldShape — the first-principles replacement for WorldConfig.
+ * WorldShape — the substrate's canonical input language.
  *
  * A WorldShape declares the world's content (ordered SurfaceSpecs)
  * and its environmental entropy (an optional EntropyProfile). The
@@ -7,24 +7,18 @@
  *
  *     Substrate :: (WorldShape) → DOM
  *
- * Where WorldConfig's vocabulary was keyed by business-domain
- * identifiers ("policy-search:searchButton"), WorldShape speaks the
- * classifier's own language: role, name, visibility, enabled,
- * input-backing, detach-timing.
+ * Where earlier iterations keyed their vocabulary by business-
+ * domain identifiers ("policy-search:searchButton"), WorldShape
+ * speaks the classifier's own language: role, name, visibility,
+ * enabled, input-backing, detach-timing.
  *
- * ## Relationship to WorldConfig
+ * ## Wire format
  *
- * WorldConfig (workshop/substrate/world-config.ts) is retained as
- * a narrow legacy shape at the URL wire-format layer. During this
- * first-principles refactor, the substrate canonicalizes on
- * WorldShape internally; WorldConfig continues to serialize/parse
- * on the URL for back-compat with existing CLI/harness code, but
- * new callers should use WorldShape.
- *
- * The URL serializer (serializeWorldShapeToUrl) writes WorldShape
- * as the `world` query parameter directly. parseWorldShapeFromUrl
- * reads it back. Old clients that emit `{ facets: [...] }` continue
- * to parse via the legacy path — see conversion helpers below.
+ * The URL serializer (`serializeWorldShapeToUrl`) writes a
+ * WorldShape as the `shape` query parameter. `parseWorldShapeFromUrl`
+ * reads it back. The parameter name was deliberately renamed from
+ * `world` during the substrate refactor so legacy URL clients don't
+ * silently parse under the new grammar.
  *
  * Pure domain.
  */
@@ -47,9 +41,7 @@ export interface WorldShape {
   readonly preset?: string;
 }
 
-/** The query parameter the substrate URL carries. Renamed from
- *  'world' (which WorldConfig used) to 'shape' so legacy clients
- *  writing 'world' don't parse as the new format. */
+/** The query parameter the substrate URL carries. */
 export const WORLD_SHAPE_QUERY_PARAM = 'shape';
 
 /** The empty shape — renders nothing. */

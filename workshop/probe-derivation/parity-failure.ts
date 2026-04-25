@@ -35,6 +35,46 @@ import type { ProbeHarnessAdapter } from './probe-receipt';
  *  union — new axes require explicit plan + law updates. */
 export type ParityDivergenceAxis = 'classification' | 'error-family';
 
+/** Runtime enumeration of every `ParityDivergenceAxis` value.
+ *  Pairs with the compile-time exhaustiveness witness below so
+ *  adding a new axis to the union forces both updates. */
+export const PARITY_DIVERGENCE_AXIS_VALUES: readonly ParityDivergenceAxis[] = [
+  'classification',
+  'error-family',
+] as const;
+
+const _PARITY_DIVERGENCE_AXIS_EXHAUSTIVE: Record<
+  ParityDivergenceAxis,
+  true
+> = Object.freeze(
+  PARITY_DIVERGENCE_AXIS_VALUES.reduce<Record<ParityDivergenceAxis, true>>(
+    (acc, v) => {
+      acc[v] = true;
+      return acc;
+    },
+    {} as Record<ParityDivergenceAxis, true>,
+  ),
+);
+void _PARITY_DIVERGENCE_AXIS_EXHAUSTIVE;
+
+/** Exhaustive fold over ParityDivergenceAxis. Closes the gap
+ *  where the comment above claimed closedness but no
+ *  compile-time guard enforced it. */
+export function foldParityDivergenceAxis<R>(
+  axis: ParityDivergenceAxis,
+  cases: {
+    readonly classification: () => R;
+    readonly errorFamily: () => R;
+  },
+): R {
+  switch (axis) {
+    case 'classification':
+      return cases.classification();
+    case 'error-family':
+      return cases.errorFamily();
+  }
+}
+
 /** The reified refutation. Evidence-stage envelope. */
 export interface ParityFailureRecord extends WorkflowMetadata<'evidence'> {
   readonly kind: 'parity-failure';

@@ -134,6 +134,56 @@ export type SurfaceVisibility =
   | 'off-screen'
   | 'zero-size';
 
+/** Runtime enumeration of every `SurfaceVisibility` value.
+ *  Paired with the compile-time exhaustiveness witness below
+ *  so any widening forces this array to stay synchronized. */
+export const SURFACE_VISIBILITY_VALUES: readonly SurfaceVisibility[] = [
+  'visible',
+  'display-none',
+  'visibility-hidden',
+  'off-screen',
+  'zero-size',
+] as const;
+
+const _SURFACE_VISIBILITY_EXHAUSTIVE: Record<SurfaceVisibility, true> =
+  Object.freeze(
+    SURFACE_VISIBILITY_VALUES.reduce<Record<SurfaceVisibility, true>>(
+      (acc, v) => {
+        acc[v] = true;
+        return acc;
+      },
+      {} as Record<SurfaceVisibility, true>,
+    ),
+  );
+void _SURFACE_VISIBILITY_EXHAUSTIVE;
+
+/** Exhaustive fold over SurfaceVisibility. TypeScript enforces
+ *  coverage of every case at compile time; widening the union
+ *  without updating the fold's case object is a type error. */
+export function foldSurfaceVisibility<R>(
+  visibility: SurfaceVisibility,
+  cases: {
+    readonly visible: () => R;
+    readonly displayNone: () => R;
+    readonly visibilityHidden: () => R;
+    readonly offScreen: () => R;
+    readonly zeroSize: () => R;
+  },
+): R {
+  switch (visibility) {
+    case 'visible':
+      return cases.visible();
+    case 'display-none':
+      return cases.displayNone();
+    case 'visibility-hidden':
+      return cases.visibilityHidden();
+    case 'off-screen':
+      return cases.offScreen();
+    case 'zero-size':
+      return cases.zeroSize();
+  }
+}
+
 /** Backing realization for textbox-role surfaces. The choice drives
  *  whether Playwright's `fill()` succeeds or throws — exactly the
  *  axis the interact verb's `assertion-like` family rides on. */

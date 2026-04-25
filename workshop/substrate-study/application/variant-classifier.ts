@@ -1,109 +1,78 @@
 /**
  * Variant classifier — folds captured DOM signals into the
- * VariantClassifierVerdict routing tag per design §4.4.
+ * Reactive-Web detection verdict.
  *
- *   Reactive: ≥3 osui-* classes + zero __OSVSTATE + React
- *     (or Angular or Vue) marker.
- *   Traditional: __OSVSTATE present + ≥1 OS* PascalCase class.
- *   Mobile: cordova-app / is-phonegap / OS Mobile marker present.
- *   Not-OS: none of the OS signals + none of the frameworks.
- *   Ambiguous: conflicting signals (e.g., __OSVSTATE AND osui-*).
+ * Scope per operator direction (2026-04-24): Z11g.d targets
+ * Reactive Web only. The classifier's job is a three-way
+ * decision:
  *
- * The classifier is a pure function of the counts + booleans
- * the DOM walker gathers — it does not reach into a Playwright
- * Page itself. Tests drive it by constructing the input tuple
- * directly (fast, deterministic).
+ *   `reactive`     — ≥3 osui-* classes + zero __OSVSTATE +
+ *                    React / Angular / Vue framework marker.
+ *                    All three conditions required: osui-*
+ *                    alone could be a styling library; framework
+ *                    alone could be any JS app; __OSVSTATE
+ *                    presence disqualifies regardless.
+ *   `ambiguous`    — Reactive-positive signals AND Reactive-
+ *                    negative signals both present (e.g.,
+ *                    osui-* classes observed on a page that
+ *                    also emits __OSVSTATE). Surfaces the
+ *                    conflict rather than silently picking one.
+ *   `not-reactive` — neither the positive conjunction nor the
+ *                    conflict pattern holds. Page is Traditional,
+ *                    Mobile, or not-OS; the distillation pipeline
+ *                    rejects it.
  *
- * Pure domain.
+ * Pure domain — no Effect, no IO. Tests drive it by constructing
+ * the input tuple directly (fast, deterministic).
  */
 
-import type {
-  VariantClassifierVerdict,
-} from '../domain/snapshot-record';
+import type { VariantClassifierVerdict } from '../domain/snapshot-record';
 
-/** The signals the walker surfaces, which the classifier folds. */
+/** The signals the DOM walker surfaces. These are the
+ *  minimal evidence set the classifier folds. */
 export interface VariantClassifierSignals {
   /** Count of elements whose first class token starts with
-   *  `osui-` (kebab-case, Reactive Web marker). */
+   *  `osui-` (kebab-case, Reactive-Web marker). */
   readonly osuiClassCount: number;
-  /** Count of elements whose first class token is an OS*
-   *  PascalCase utility (OSFillParent, OSInline, etc. —
-   *  Traditional Web marker). */
-  readonly osPascalClassCount: number;
-  /** True iff a hidden input named __OSVSTATE is present
-   *  (dispositive Traditional Web marker). */
+  /** True iff a hidden input named `__OSVSTATE` is present
+   *  (Traditional-Web marker; disqualifies Reactive). */
   readonly osvstatePresent: boolean;
-  /** True iff a cordova-app / is-phonegap / OS Mobile marker
-   *  was detected. */
-  readonly mobileMarkerPresent: boolean;
-  /** Page-level framework detection. */
+  /** Page-level framework detection. Reactive requires at
+   *  least one of these. */
   readonly reactDetected: boolean;
   readonly angularDetected: boolean;
   readonly vueDetected: boolean;
 }
 
-/** Classify per design §4.4 rules. The verdict carries
- *  structured evidence so operator-review can understand why
- *  a page landed where it did.
- *
- *  Ambiguity gate: a page with meaningful osui-* signal AND
- *  __OSVSTATE present is inherently conflicted (Reactive uses
- *  osui-* and does NOT emit __OSVSTATE; Traditional emits
- *  __OSVSTATE and does NOT use osui-*). Surface this as
- *  ambiguous even though only the traditional branch's
- *  positive-rule is satisfied — the stronger osui-* signal
- *  should have matched reactive except the __OSVSTATE
- *  contradicts it. Same for mobile + other variants. */
+/** Minimum osui-* count for a Reactive-positive signal.
+ *  Below this threshold, a lone osui-* class could be a
+ *  styling library import on an otherwise-not-OS page. */
+const OSUI_THRESHOLD = 3;
+
+/** Classify a page's variant from its DOM signals. Pure. */
 export function classifyVariant(
   signals: VariantClassifierSignals,
 ): VariantClassifierVerdict {
-  const evidence: string[] = [];
+  const frameworkDetected =
+    signals.reactDetected || signals.angularDetected || signals.vueDetected;
+  const osuiStrong = signals.osuiClassCount >= OSUI_THRESHOLD;
 
-  const reactiveOK =
-    signals.osuiClassCount >= 3 &&
-    !signals.osvstatePresent &&
-    (signals.reactDetected || signals.angularDetected || signals.vueDetected);
-
-  const traditionalOK =
-    signals.osvstatePresent && signals.osPascalClassCount >= 1;
-
-  const mobileOK = signals.mobileMarkerPresent;
-
-  // Early ambiguity: osui-* present alongside __OSVSTATE. The
-  // two signals belong to different variants and MUST NOT
-  // coexist in a well-formed OS app; surfacing as ambiguous
-  // forces operator review rather than silently picking one.
-  const osuiAndOsvstateConflict =
-    signals.osuiClassCount >= 3 && signals.osvstatePresent;
-  if (osuiAndOsvstateConflict) {
-    evidence.push(
+  // Reactive-positive signals alongside a hard Traditional-Web
+  // marker → ambiguous. Route to operator review rather than
+  // silently picking.
+  if (osuiStrong && signals.osvstatePresent) {
+    const evidence: string[] = [
       `reactive candidate: osui-* count=${signals.osuiClassCount}`,
-    );
-    evidence.push(
-      `traditional candidate: __OSVSTATE + OS* pascal count=${signals.osPascalClassCount}`,
-    );
-    if (mobileOK) evidence.push('mobile marker detected');
+      'traditional marker present: __OSVSTATE hidden input',
+    ];
     return { kind: 'ambiguous', conflictingEvidence: evidence };
   }
 
-  // Count positive classifications across the three variant
-  // rules. More than one triggers ambiguous.
-  const positiveCount =
-    (reactiveOK ? 1 : 0) + (traditionalOK ? 1 : 0) + (mobileOK ? 1 : 0);
-
-  if (positiveCount > 1) {
-    if (reactiveOK)
-      evidence.push(`reactive candidate: osui-* count=${signals.osuiClassCount}`);
-    if (traditionalOK)
-      evidence.push(
-        `traditional candidate: __OSVSTATE + OS* pascal count=${signals.osPascalClassCount}`,
-      );
-    if (mobileOK) evidence.push('mobile marker detected');
-    return { kind: 'ambiguous', conflictingEvidence: evidence };
-  }
-
-  if (reactiveOK) {
-    evidence.push(`osui-* class count: ${signals.osuiClassCount}`);
+  // Clean Reactive detection — all three conditions agree.
+  if (osuiStrong && frameworkDetected && !signals.osvstatePresent) {
+    const evidence: string[] = [
+      `osui-* class count: ${signals.osuiClassCount}`,
+    ];
     if (signals.reactDetected) evidence.push('React fiber detected');
     if (signals.angularDetected) evidence.push('Angular marker detected');
     if (signals.vueDetected) evidence.push('Vue marker detected');
@@ -114,33 +83,19 @@ export function classifyVariant(
     };
   }
 
-  if (traditionalOK) {
-    evidence.push('__OSVSTATE hidden input present');
-    evidence.push(`OS* PascalCase count: ${signals.osPascalClassCount}`);
-    return {
-      kind: 'traditional',
-      osvstatePresent: true,
-      evidence,
-    };
+  // Not-reactive. Enumerate the missing conditions for
+  // diagnostic clarity.
+  const evidence: string[] = [];
+  if (signals.osvstatePresent) {
+    evidence.push('__OSVSTATE present (Traditional Web marker)');
   }
-
-  if (mobileOK) {
-    evidence.push('mobile platform marker present');
-    return { kind: 'mobile', evidence };
+  if (!osuiStrong) {
+    evidence.push(
+      `osui-* count below threshold: ${signals.osuiClassCount} < ${OSUI_THRESHOLD}`,
+    );
   }
-
-  // No OS markers at all.
-  if (!signals.reactDetected && !signals.angularDetected && !signals.vueDetected) {
-    evidence.push('no OS markers; no framework markers');
-    return { kind: 'not-os', evidence };
+  if (!frameworkDetected) {
+    evidence.push('no React/Angular/Vue framework marker detected');
   }
-
-  // Framework present but no OS classes — the page is a
-  // framework-driven page that isn't OS. Classify not-os with
-  // framework evidence.
-  if (signals.reactDetected) evidence.push('React present but no OS classes');
-  if (signals.angularDetected)
-    evidence.push('Angular present but no OS classes');
-  if (signals.vueDetected) evidence.push('Vue present but no OS classes');
-  return { kind: 'not-os', evidence };
+  return { kind: 'not-reactive', evidence };
 }
