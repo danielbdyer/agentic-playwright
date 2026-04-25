@@ -54,7 +54,31 @@ If you've just opened the repo, read this exact sequence before touching any cod
 - **`workshop/`** — measurement consumer. Imports `product/`'s manifest; derives probes; runs them through `product/`'s normal authoring flow; owns the seven-visitor metric tree, scorecard history, convergence-proof harness, trust-policy gate, hypothesis-receipt discipline. Can read `product/`; `product/` cannot read it. Puts itself out of a job when probe coverage = 100%.
 - **`dashboard/`** — read-only observer. Projects both upstreams through manifest-declared verbs. Writes nothing. Replaceable without touching either upstream.
 
-**The seam between folders is a compile error, not a convention.** An architecture test in `product/tests/architecture/seam-enforcement.laws.spec.ts` forbids `workshop/` or `dashboard/` from importing `product/` except through the **shared-contract set** (manifest, logs, ports, manifest invoker, errors, resilience, observation/dashboard, fitness, improvement, projection, proposal, handshake, governance, and the CLI contract). The shared-contract set is the compile-time half of the seam; the manifest verb registry is the runtime half. `product/` imports zero files from workshop or dashboard — the RULE_3 grandfather list is empty as of Step 4c.
+**The seam between folders is a compile error, not a convention.** An architecture test in `product/tests/architecture/seam-enforcement.laws.spec.ts` forbids `workshop/` or `dashboard/` from importing `product/` except through the **shared-contract set**. The shared-contract set is the compile-time half of the seam; the manifest verb registry is the runtime half. `product/` imports zero files from workshop or dashboard — the RULE_3 grandfather list is empty as of Step 4c.
+
+The shared-contract set, as enforced by `ALWAYS_ALLOWED_PRODUCT_PATHS` in the seam-enforcement law (authoritative; update this list when the law widens):
+
+- **`product/logs`** — the shared append-only log set (hypothesis receipts, compilation receipts, scoreboard snapshots, probe receipts, parity failures, snapshot records, etc.).
+- **`product/manifest`** + **`product/domain/manifest`** — the vocabulary manifest (JSON + runtime + type).
+- **`product/application/manifest`** — manifest invoker (dashboard MCP routes verb-calls through this).
+- **`product/application/ports`** — Effect Context.Tag definitions for DI (FileSystem, Dashboard, McpServer, …).
+- **`product/application/resilience`** — retry policies.
+- **`product/cli/shared`** + **`product/cli/registry`** — CLI contract (product/ + workshop/ both contribute to the merged registry).
+- **`product/domain/algebra`** — Monoid / Lattice / GaloisConnection / Hylomorphism / Free-Forgetful / ProductFold / ContextualMerge / SliceProjection / Quotient. Pure domain-neutral math primitives.
+- **`product/domain/fitness`** — measurement types (failure classes, proof obligations, scorecard shape).
+- **`product/domain/governance`** — envelopes, Stage, Scope, Lane, Governance, TrustPolicy, WorkflowMetadata.
+- **`product/domain/handshake`** — AgentWorkItem, InterventionHandoff.
+- **`product/domain/improvement`** — experiment / ledger / substrate-context types.
+- **`product/domain/intent`** — AdoSnapshot / AdoStep (shared by workshop customer-backlog classifier).
+- **`product/domain/kernel/errors`** — TesseractError hierarchy.
+- **`product/domain/kernel/hash`** — Fingerprint<Tag> phantom registry + stableStringify + fingerprintFor.
+- **`product/domain/observation/dashboard`** — DashboardEvent, WorkItemDecision, McpToolDefinition.
+- **`product/domain/projection`** — SceneState, FlywheelAct, SummaryView, etc. (read-model contract).
+- **`product/domain/proposal`** — ProposalBundle, cluster types, failure fragments.
+- **`product/domain/resolution/patterns`** — Rung / Matcher / Pattern kernel + shared intent classifier.
+- **`product/instruments/tooling`** — Playwright adapter utilities (launchHeadedHarness, createPlaywrightBridge).
+
+When widening this set, update both the law (`ALWAYS_ALLOWED_PRODUCT_PATHS` at `product/tests/architecture/seam-enforcement.laws.spec.ts:100-237`) and this list. Per-path rationale lives in the law's inline comments; keep the two in sync.
 
 **v1 lifecycle state (post Step 4c).** The `lib/` tree is gone; `product/`, `workshop/`, and `dashboard/` are the three compartments. The synthetic feature completion plan (v1-reference) folded into Steps 1–4c. Reference-canon retired at Step 1; the Reasoning port unified at Step 4b; the manifest-driven MCP tool catalog landed at Step 4c; the CLI split into `product/cli/ + workshop/cli/` with a merged registry at `bin/cli-registry.ts` at step-4c.cli-split. The last RULE_3 entry (headed-harness factory) graduated at step-4c.headed-harness-graduate by moving the Playwright bridge factory into `product/instruments/tooling/playwright-bridge.ts`.
 
