@@ -28,10 +28,8 @@
  */
 
 import type { WorkflowMetadata } from '../../../product/domain/governance/workflow-types';
-import {
-  fingerprintFor,
-  type Fingerprint,
-} from '../../../product/domain/kernel/hash';
+import { mintEvidenceEnvelope } from '../../../product/domain/governance/mint-envelope';
+import { type Fingerprint } from '../../../product/domain/kernel/hash';
 import { makeQuotient } from '../../../product/domain/algebra/quotient';
 import type { HydrationVerdict } from './hydration-verdict';
 
@@ -305,22 +303,12 @@ export function snapshotRecord(input: {
     framework: input.framework,
     variantClassifier: input.variantClassifier,
   };
-  return {
-    version: 1,
+  return mintEvidenceEnvelope({
     stage: 'preparation',
-    scope: 'run',
-    ids: {},
-    fingerprints: {
-      artifact: fingerprintFor('artifact', payload),
-      content: fingerprintFor('content', payload),
-    },
-    lineage: {
-      sources: [`external-snapshot:${input.url}`],
-      parents: [],
-      handshakes: ['preparation'],
-    },
-    governance: 'approved',
     kind: 'snapshot-record',
     payload,
-  };
+    lineage: {
+      sources: [`external-snapshot:${input.url}`],
+    },
+  });
 }

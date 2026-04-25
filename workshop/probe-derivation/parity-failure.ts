@@ -28,7 +28,8 @@
  */
 
 import type { WorkflowMetadata } from '../../product/domain/governance/workflow-types';
-import { fingerprintFor, type Fingerprint } from '../../product/domain/kernel/hash';
+import { mintEvidenceEnvelope } from '../../product/domain/governance/mint-envelope';
+import { type Fingerprint } from '../../product/domain/kernel/hash';
 import { closedUnion } from '../../product/domain/algebra/closed-union';
 import type { ProbeHarnessAdapter } from './probe-receipt';
 
@@ -126,22 +127,14 @@ export function parityFailureRecord(input: {
     detectedAt: input.detectedAt,
     observedFingerprints: input.observedFingerprints,
   };
-  return {
-    version: 1,
+  return mintEvidenceEnvelope({
     stage: 'evidence',
-    scope: 'run',
-    ids: {},
-    fingerprints: {
-      artifact: fingerprintFor('artifact', payload),
-      content: fingerprintFor('content', payload),
-    },
-    lineage: {
-      sources: [`parity-check:${input.rungPair[0]}↔${input.rungPair[1]}:${input.probeId}`],
-      parents: [],
-      handshakes: ['evidence'],
-    },
-    governance: 'approved',
     kind: 'parity-failure',
     payload,
-  };
+    lineage: {
+      sources: [
+        `parity-check:${input.rungPair[0]}↔${input.rungPair[1]}:${input.probeId}`,
+      ],
+    },
+  });
 }
