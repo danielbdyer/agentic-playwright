@@ -142,7 +142,7 @@ export function defaultCompositionPathForCategory(category: VerbCategory): Compo
       return { kind: 'external-source', sourceTag: 'ado' };
     case 'observe':
       return { kind: 'world-observation', substrate: 'synthetic' };
-    case 'interact':
+    case 'mutation':
       return { kind: 'world-observation', substrate: 'synthetic' };
     case 'compose':
       return { kind: 'atomic' };
