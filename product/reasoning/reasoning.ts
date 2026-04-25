@@ -40,6 +40,7 @@
 import { Context, type Effect } from 'effect';
 import type { TranslationReceipt, TranslationRequest } from '../domain/resolution/types';
 import type { AgentInterpretationRequest, AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
+import { closedUnion } from '../domain/algebra/closed-union';
 
 // ─── Operation discriminator ───
 
@@ -48,22 +49,14 @@ import type { AgentInterpretationRequest, AgentInterpretationResult } from '../d
  *  queryable by operation kind without inspecting payload shape. */
 export type ReasoningOp = 'select' | 'interpret' | 'synthesize';
 
-/** Runtime enumeration of every `ReasoningOp` value. Pairs
- *  with the compile-time exhaustiveness witness below so
- *  widening the union forces this array to stay synchronized. */
-export const REASONING_OP_VALUES: readonly ReasoningOp[] = [
+/** Runtime witness for the ReasoningOp closed union. */
+const REASONING_OP_UNION = closedUnion<ReasoningOp>([
   'select',
   'interpret',
   'synthesize',
-] as const;
+]);
 
-const _REASONING_OP_EXHAUSTIVE: Record<ReasoningOp, true> = Object.freeze(
-  REASONING_OP_VALUES.reduce<Record<ReasoningOp, true>>(
-    (acc, v) => ({ ...acc, [v]: true }),
-    {} as Record<ReasoningOp, true>,
-  ),
-);
-void _REASONING_OP_EXHAUSTIVE;
+export const REASONING_OP_VALUES = REASONING_OP_UNION.values;
 
 /** Exhaustive fold over ReasoningOp. TypeScript enforces
  *  coverage of every case at compile time; widening the union

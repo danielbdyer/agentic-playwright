@@ -17,6 +17,7 @@
  * Pure domain — no Effect, no IO.
  */
 
+import { closedUnion } from '../algebra/closed-union';
 import type {
   ResolutionMode,
   WorkflowLane,
@@ -26,22 +27,16 @@ import type {
 
 // ─── WorkflowStage ───────────────────────────────────────────
 
-export const WORKFLOW_STAGE_VALUES: readonly WorkflowStage[] = [
+const WORKFLOW_STAGE_UNION = closedUnion<WorkflowStage>([
   'preparation',
   'resolution',
   'execution',
   'evidence',
   'proposal',
   'projection',
-] as const;
+]);
 
-const _WORKFLOW_STAGE_EXHAUSTIVE: Record<WorkflowStage, true> = Object.freeze(
-  WORKFLOW_STAGE_VALUES.reduce<Record<WorkflowStage, true>>(
-    (acc, v) => ({ ...acc, [v]: true }),
-    {} as Record<WorkflowStage, true>,
-  ),
-);
-void _WORKFLOW_STAGE_EXHAUSTIVE;
+export const WORKFLOW_STAGE_VALUES = WORKFLOW_STAGE_UNION.values;
 
 export function foldWorkflowStage<R>(
   stage: WorkflowStage,
@@ -72,7 +67,7 @@ export function foldWorkflowStage<R>(
 
 // ─── WorkflowScope ───────────────────────────────────────────
 
-export const WORKFLOW_SCOPE_VALUES: readonly WorkflowScope[] = [
+const WORKFLOW_SCOPE_UNION = closedUnion<WorkflowScope>([
   'scenario',
   'step',
   'run',
@@ -81,15 +76,9 @@ export const WORKFLOW_SCOPE_VALUES: readonly WorkflowScope[] = [
   'control',
   'hypothesis',
   'compilation',
-] as const;
+]);
 
-const _WORKFLOW_SCOPE_EXHAUSTIVE: Record<WorkflowScope, true> = Object.freeze(
-  WORKFLOW_SCOPE_VALUES.reduce<Record<WorkflowScope, true>>(
-    (acc, v) => ({ ...acc, [v]: true }),
-    {} as Record<WorkflowScope, true>,
-  ),
-);
-void _WORKFLOW_SCOPE_EXHAUSTIVE;
+export const WORKFLOW_SCOPE_VALUES = WORKFLOW_SCOPE_UNION.values;
 
 export function foldWorkflowScope<R>(
   scope: WorkflowScope,
@@ -126,7 +115,7 @@ export function foldWorkflowScope<R>(
 
 // ─── WorkflowLane ────────────────────────────────────────────
 
-export const WORKFLOW_LANE_VALUES: readonly WorkflowLane[] = [
+const WORKFLOW_LANE_UNION = closedUnion<WorkflowLane>([
   'intent',
   'knowledge',
   'control',
@@ -134,15 +123,9 @@ export const WORKFLOW_LANE_VALUES: readonly WorkflowLane[] = [
   'execution',
   'governance',
   'projection',
-] as const;
+]);
 
-const _WORKFLOW_LANE_EXHAUSTIVE: Record<WorkflowLane, true> = Object.freeze(
-  WORKFLOW_LANE_VALUES.reduce<Record<WorkflowLane, true>>(
-    (acc, v) => ({ ...acc, [v]: true }),
-    {} as Record<WorkflowLane, true>,
-  ),
-);
-void _WORKFLOW_LANE_EXHAUSTIVE;
+export const WORKFLOW_LANE_VALUES = WORKFLOW_LANE_UNION.values;
 
 export function foldWorkflowLane<R>(
   lane: WorkflowLane,
@@ -176,19 +159,13 @@ export function foldWorkflowLane<R>(
 
 // ─── ResolutionMode ──────────────────────────────────────────
 
-export const RESOLUTION_MODE_VALUES: readonly ResolutionMode[] = [
+const RESOLUTION_MODE_UNION = closedUnion<ResolutionMode>([
   'deterministic',
   'translation',
   'agentic',
-] as const;
+]);
 
-const _RESOLUTION_MODE_EXHAUSTIVE: Record<ResolutionMode, true> = Object.freeze(
-  RESOLUTION_MODE_VALUES.reduce<Record<ResolutionMode, true>>(
-    (acc, v) => ({ ...acc, [v]: true }),
-    {} as Record<ResolutionMode, true>,
-  ),
-);
-void _RESOLUTION_MODE_EXHAUSTIVE;
+export const RESOLUTION_MODE_VALUES = RESOLUTION_MODE_UNION.values;
 
 export function foldResolutionMode<R>(
   mode: ResolutionMode,

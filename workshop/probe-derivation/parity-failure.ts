@@ -29,33 +29,21 @@
 
 import type { WorkflowMetadata } from '../../product/domain/governance/workflow-types';
 import { fingerprintFor, type Fingerprint } from '../../product/domain/kernel/hash';
+import { closedUnion } from '../../product/domain/algebra/closed-union';
 import type { ProbeHarnessAdapter } from './probe-receipt';
 
 /** The single axis on which a parity check can diverge. Closed
  *  union — new axes require explicit plan + law updates. */
 export type ParityDivergenceAxis = 'classification' | 'error-family';
 
-/** Runtime enumeration of every `ParityDivergenceAxis` value.
- *  Pairs with the compile-time exhaustiveness witness below so
- *  adding a new axis to the union forces both updates. */
-export const PARITY_DIVERGENCE_AXIS_VALUES: readonly ParityDivergenceAxis[] = [
+/** Runtime witness for the ParityDivergenceAxis closed union. */
+const PARITY_DIVERGENCE_AXIS_UNION = closedUnion<ParityDivergenceAxis>([
   'classification',
   'error-family',
-] as const;
+]);
 
-const _PARITY_DIVERGENCE_AXIS_EXHAUSTIVE: Record<
-  ParityDivergenceAxis,
-  true
-> = Object.freeze(
-  PARITY_DIVERGENCE_AXIS_VALUES.reduce<Record<ParityDivergenceAxis, true>>(
-    (acc, v) => {
-      acc[v] = true;
-      return acc;
-    },
-    {} as Record<ParityDivergenceAxis, true>,
-  ),
-);
-void _PARITY_DIVERGENCE_AXIS_EXHAUSTIVE;
+export const PARITY_DIVERGENCE_AXIS_VALUES =
+  PARITY_DIVERGENCE_AXIS_UNION.values;
 
 /** Exhaustive fold over ParityDivergenceAxis. Closes the gap
  *  where the comment above claimed closedness but no

@@ -31,6 +31,7 @@ import {
   type SnapshotNode,
 } from '../../workshop/substrate-study/domain/snapshot-record';
 import { asFingerprint } from '../../product/domain/kernel/hash';
+import { stubNode } from '../__fixtures__/snapshot-node-stub';
 
 describe('Quotient<T, Tag> algebra (W3.1)', () => {
   describe('makeQuotient constructor', () => {
@@ -162,52 +163,6 @@ describe('Quotient<T, Tag> algebra (W3.1)', () => {
   });
 
   describe('snapshotStructuralQuotient instance', () => {
-    function stubNode(overrides: Partial<SnapshotNode> = {}): SnapshotNode {
-      return {
-        path: 'body > div',
-        depth: 1,
-        tag: 'div',
-        id: null,
-        classTokens: [],
-        classPrefixFamily: null,
-        dataAttrNames: [],
-        dataAttrValues: {},
-        ariaRole: null,
-        ariaState: {},
-        ariaNaming: { label: null, accessibleName: null },
-        interaction: {
-          tabindex: null,
-          focusable: false,
-          interactive: false,
-          formRef: null,
-          inputType: null,
-          disabled: false,
-          readonly: false,
-          required: false,
-          placeholder: null,
-        },
-        visibility: 'visible',
-        boundingRect: { xBin: 0, yBin: 0, widthBin: 0, heightBin: 0 },
-        clipped: false,
-        framework: {
-          hasShadowRoot: false,
-          customElementName: null,
-          iframeSrc: null,
-        },
-        structural: {
-          parentTag: null,
-          parentRole: null,
-          parentClassFamily: null,
-          siblingIndex: 0,
-          siblingCount: 1,
-        },
-        labelText: null,
-        textLengthBucket: null,
-        textNodeCount: 0,
-        ...overrides,
-      };
-    }
-
     test('satisfies quotient laws across equivalent / distinct node lists', () => {
       const baseNodes = [stubNode({ path: 'body > main' })];
       const equivalent1 = baseNodes;

@@ -33,11 +33,9 @@ import {
   quarterSlug,
   sampleIdOfRecord,
 } from '../../workshop/substrate-study/infrastructure/snapshot-store';
-import {
-  snapshotRecord,
-  type SnapshotNode,
-} from '../../workshop/substrate-study/domain/snapshot-record';
+import { snapshotRecord } from '../../workshop/substrate-study/domain/snapshot-record';
 import type { HydrationVerdict } from '../../workshop/substrate-study/domain/hydration-verdict';
+import { stubNode } from '../__fixtures__/snapshot-node-stub';
 
 const STUB_VERDICT: HydrationVerdict = {
   kind: 'stable',
@@ -47,46 +45,7 @@ const STUB_VERDICT: HydrationVerdict = {
   mutationCount: 0,
 };
 
-function stubNode(): SnapshotNode {
-  return {
-    path: 'body > div',
-    depth: 1,
-    tag: 'div',
-    id: null,
-    classTokens: [],
-    classPrefixFamily: null,
-    dataAttrNames: [],
-    dataAttrValues: {},
-    ariaRole: null,
-    ariaState: {},
-    ariaNaming: { label: null, accessibleName: null },
-    interaction: {
-      tabindex: null,
-      focusable: false,
-      interactive: false,
-      formRef: null,
-      inputType: null,
-      disabled: false,
-      readonly: false,
-      required: false,
-      placeholder: null,
-    },
-    visibility: 'visible',
-    boundingRect: { xBin: 0, yBin: 0, widthBin: 0, heightBin: 0 },
-    clipped: false,
-    framework: { hasShadowRoot: false, customElementName: null, iframeSrc: null },
-    structural: {
-      parentTag: null,
-      parentRole: null,
-      parentClassFamily: null,
-      siblingIndex: 0,
-      siblingCount: 1,
-    },
-    labelText: null,
-    textLengthBucket: null,
-    textNodeCount: 0,
-  };
-}
+// stubNode now lives in tests/__fixtures__/snapshot-node-stub.ts
 
 function stubRecord(overrides: {
   readonly url?: string;

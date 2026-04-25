@@ -37,6 +37,7 @@ import {
   type SnapshotNode,
   type VariantClassifierVerdict,
 } from '../../workshop/substrate-study/domain/snapshot-record';
+import { stubNode } from '../__fixtures__/snapshot-node-stub';
 import {
   foldHydrationVerdict,
   isCaptureSuccessful,
@@ -51,47 +52,7 @@ const EMPTY_TIMINGS = {
   phaseEms: 0,
 } as const;
 
-function stubNode(overrides: Partial<SnapshotNode> = {}): SnapshotNode {
-  return {
-    path: 'body > div',
-    depth: 1,
-    tag: 'div',
-    id: null,
-    classTokens: [],
-    classPrefixFamily: null,
-    dataAttrNames: [],
-    dataAttrValues: {},
-    ariaRole: null,
-    ariaState: {},
-    ariaNaming: { label: null, accessibleName: null },
-    interaction: {
-      tabindex: null,
-      focusable: false,
-      interactive: false,
-      formRef: null,
-      inputType: null,
-      disabled: false,
-      readonly: false,
-      required: false,
-      placeholder: null,
-    },
-    visibility: 'visible',
-    boundingRect: { xBin: 0, yBin: 0, widthBin: 0, heightBin: 0 },
-    clipped: false,
-    framework: { hasShadowRoot: false, customElementName: null, iframeSrc: null },
-    structural: {
-      parentTag: null,
-      parentRole: null,
-      parentClassFamily: null,
-      siblingIndex: 0,
-      siblingCount: 1,
-    },
-    labelText: null,
-    textLengthBucket: null,
-    textNodeCount: 0,
-    ...overrides,
-  };
-}
+// stubNode now lives in tests/__fixtures__/snapshot-node-stub.ts
 
 function stubVerdict(): HydrationVerdict {
   return {

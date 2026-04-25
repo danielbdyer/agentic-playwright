@@ -29,6 +29,8 @@
  * Pure domain; no React imports.
  */
 
+import { closedUnion } from '../../product/domain/algebra/closed-union';
+
 /** The closed set of ARIA roles the substrate renders. Matches
  *  Playwright's getByRole first argument (`@playwright/test`). The
  *  v1 seed set below covers every role the current probe suite
@@ -66,18 +68,15 @@ export type SurfaceRole =
   | 'tabpanel'
   | 'textbox';
 
-/** Runtime enumeration of every `SurfaceRole` value. Paired with
- *  the compile-time exhaustiveness witness below so that adding
- *  or removing a role from the union forces this array to stay
- *  synchronized.
+/** Runtime witness for the SurfaceRole closed union.
  *
  *  Used by `workshop/synthetic-app/catalog-projection.ts`
  *  (projection-total law, plan §9.3 / Z11g.c) and by any caller
- *  that needs to iterate every role — e.g. a fuzz-test over the
- *  substrate vocabulary.
+ *  that needs to iterate every role — fuzz-tests, manifest
+ *  emission, dashboard projection.
  *
  *  Order mirrors the union declaration for human legibility. */
-export const SURFACE_ROLE_VALUES: readonly SurfaceRole[] = [
+const SURFACE_ROLE_UNION = closedUnion<SurfaceRole>([
   'alert',
   'banner',
   'button',
@@ -106,25 +105,9 @@ export const SURFACE_ROLE_VALUES: readonly SurfaceRole[] = [
   'tablist',
   'tabpanel',
   'textbox',
-] as const;
+]);
 
-/** Compile-time exhaustiveness witness. The `Record<SurfaceRole,
- *  true>` type forces every union member to appear as a key in
- *  the derived map. A role added to the union but not to
- *  `SURFACE_ROLE_VALUES` fails assignment at type-check; an
- *  orphan string in the array fails to widen to `SurfaceRole`.
- *  Emitted as a `void` reference below so the const is retained
- *  under `noUnusedLocals`. */
-const _SURFACE_ROLE_VALUES_EXHAUSTIVE: Record<SurfaceRole, true> = Object.freeze(
-  SURFACE_ROLE_VALUES.reduce<Record<SurfaceRole, true>>(
-    (acc, role) => {
-      acc[role] = true;
-      return acc;
-    },
-    {} as Record<SurfaceRole, true>,
-  ),
-);
-void _SURFACE_ROLE_VALUES_EXHAUSTIVE;
+export const SURFACE_ROLE_VALUES = SURFACE_ROLE_UNION.values;
 
 /** How the surface is (not) visible. */
 export type SurfaceVisibility =
@@ -134,28 +117,16 @@ export type SurfaceVisibility =
   | 'off-screen'
   | 'zero-size';
 
-/** Runtime enumeration of every `SurfaceVisibility` value.
- *  Paired with the compile-time exhaustiveness witness below
- *  so any widening forces this array to stay synchronized. */
-export const SURFACE_VISIBILITY_VALUES: readonly SurfaceVisibility[] = [
+/** Runtime witness for the SurfaceVisibility closed union. */
+const SURFACE_VISIBILITY_UNION = closedUnion<SurfaceVisibility>([
   'visible',
   'display-none',
   'visibility-hidden',
   'off-screen',
   'zero-size',
-] as const;
+]);
 
-const _SURFACE_VISIBILITY_EXHAUSTIVE: Record<SurfaceVisibility, true> =
-  Object.freeze(
-    SURFACE_VISIBILITY_VALUES.reduce<Record<SurfaceVisibility, true>>(
-      (acc, v) => {
-        acc[v] = true;
-        return acc;
-      },
-      {} as Record<SurfaceVisibility, true>,
-    ),
-  );
-void _SURFACE_VISIBILITY_EXHAUSTIVE;
+export const SURFACE_VISIBILITY_VALUES = SURFACE_VISIBILITY_UNION.values;
 
 /** Exhaustive fold over SurfaceVisibility. TypeScript enforces
  *  coverage of every case at compile time; widening the union
