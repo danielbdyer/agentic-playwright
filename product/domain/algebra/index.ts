@@ -7,3 +7,4 @@ export * from './product-fold';
 export * from './hylomorphism';
 export * from './free-forgetful';
 export * from './slice-projection';
+export * from './quotient';

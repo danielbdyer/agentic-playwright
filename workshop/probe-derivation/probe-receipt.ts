@@ -65,6 +65,7 @@
 
 import type { WorkflowMetadata } from '../../product/domain/governance/workflow-types';
 import { fingerprintFor, type Fingerprint } from '../../product/domain/kernel/hash';
+import { makeQuotient } from '../../product/domain/algebra/quotient';
 import type { ProbeClassification } from './probe-ir';
 import type { ProbeSurfaceCohort } from '../metrics/probe-surface-cohort';
 
@@ -241,28 +242,47 @@ export function probeReceipt(input: {
   };
 }
 
-/** Compute the invariant-band sub-fingerprint. Pure function of
- *  its five inputs; exposed separately so laws can exercise it
- *  directly and so cross-rung parity callers can compute the
- *  expected fingerprint without constructing a full receipt.
+/** The probe-receipt quotient: equivalence-by-projection onto
+ *  the invariant-band axes. Two ProbeReceipt-like inputs that
+ *  agree on `(probeId, observed.classification, observed.errorFamily,
+ *  fixtureFingerprint, substrateVersion)` land in the same
+ *  equivalence class — the cross-rung parity equality.
  *
- *  The input shape is a closed record with stable key order
- *  (lexicographic under stableStringify), so the fingerprint is
- *  determined solely by the value tuple. */
-export function computeInvariantContent(input: {
-  readonly probeId: string;
-  readonly observedClassification: ProbeClassification;
-  readonly observedErrorFamily: string | null;
-  readonly fixtureFingerprint: Fingerprint<'content'>;
-  readonly substrateVersion: string;
-}): Fingerprint<'probe-receipt-invariant'> {
-  return fingerprintFor('probe-receipt-invariant', {
+ *  Input type is the projection bag (not a full ProbeReceipt)
+ *  so callers can compute the witness without constructing a
+ *  full receipt. */
+export const probeReceiptInvariantQuotient = makeQuotient<
+  ProbeReceiptInvariantInput,
+  'probe-receipt-invariant'
+>({
+  tag: 'probe-receipt-invariant',
+  project: (input) => ({
     probeId: input.probeId,
     observedClassification: input.observedClassification,
     observedErrorFamily: input.observedErrorFamily,
     fixtureFingerprint: input.fixtureFingerprint,
     substrateVersion: input.substrateVersion,
-  });
+  }),
+});
+
+/** The closed projection-input shape. A value of this type is
+ *  what the quotient's `project` and `witness` consume. */
+export interface ProbeReceiptInvariantInput {
+  readonly probeId: string;
+  readonly observedClassification: ProbeClassification;
+  readonly observedErrorFamily: string | null;
+  readonly fixtureFingerprint: Fingerprint<'content'>;
+  readonly substrateVersion: string;
+}
+
+/** Compute the invariant-band sub-fingerprint. Thin alias over
+ *  `probeReceiptInvariantQuotient.witness` preserved for
+ *  backwards compatibility — callers should migrate to the
+ *  quotient directly. */
+export function computeInvariantContent(
+  input: ProbeReceiptInvariantInput,
+): Fingerprint<'probe-receipt-invariant'> {
+  return probeReceiptInvariantQuotient.witness(input);
 }
 
 /** True when the receipt confirms its fixture's expectation. */

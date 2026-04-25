@@ -32,6 +32,7 @@ import {
   fingerprintFor,
   type Fingerprint,
 } from '../../../product/domain/kernel/hash';
+import { makeQuotient } from '../../../product/domain/algebra/quotient';
 import type { HydrationVerdict } from './hydration-verdict';
 
 // ─── Closed-union axes ───────────────────────────────────────
@@ -236,23 +237,40 @@ interface SignatureTuple {
   readonly dataAttrNamesSorted: readonly string[];
 }
 
-/** Compute the structural signature over a node list per
- *  design §4.3. Pure; deterministic; the output is the
- *  cross-capture parity key. */
+/** The snapshot-record structural quotient: equivalence-by-
+ *  projection onto the structural axes of the captured DOM.
+ *  Two node lists that agree on (path, depth, tag, ariaRole,
+ *  classPrefixFamily, dataAttrNamesSorted) tuple-per-node land
+ *  in the same class — the cross-capture parity key used by
+ *  the hydration detector's Phase C + E stability checks. */
+export const snapshotStructuralQuotient = makeQuotient<
+  readonly SnapshotNode[],
+  'snapshot-signature'
+>({
+  tag: 'snapshot-signature',
+  project: (nodes) =>
+    nodes
+      .map(
+        (n): SignatureTuple => ({
+          path: n.path,
+          depth: n.depth,
+          tag: n.tag,
+          ariaRole: n.ariaRole,
+          classPrefixFamily: n.classPrefixFamily,
+          dataAttrNamesSorted: [...n.dataAttrNames].sort(),
+        }),
+      )
+      .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)),
+});
+
+/** Compute the structural signature over a node list. Thin
+ *  alias over `snapshotStructuralQuotient.witness` preserved
+ *  for backwards compatibility — callers should migrate to the
+ *  quotient directly. */
 export function computeStructuralSignature(
   nodes: readonly SnapshotNode[],
 ): Fingerprint<'snapshot-signature'> {
-  const projection: SignatureTuple[] = nodes
-    .map((n) => ({
-      path: n.path,
-      depth: n.depth,
-      tag: n.tag,
-      ariaRole: n.ariaRole,
-      classPrefixFamily: n.classPrefixFamily,
-      dataAttrNamesSorted: [...n.dataAttrNames].sort(),
-    }))
-    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-  return fingerprintFor('snapshot-signature', projection);
+  return snapshotStructuralQuotient.witness(nodes);
 }
 
 // ─── Constructor ─────────────────────────────────────────────
