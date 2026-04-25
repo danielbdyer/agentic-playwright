@@ -69,6 +69,63 @@ export function productFold3<T, A, B, C>(
 }
 
 /**
+ * Product of four folds — `φ₁ △ φ₂ △ φ₃ △ φ₄`.
+ * Higher-arity convenience over chaining productFold3 + productFold;
+ * used by aggregations that fold ≥4 metrics in a single pass.
+ */
+export function productFold4<T, A, B, C, D>(
+  foldA: Fold<T, A>,
+  foldB: Fold<T, B>,
+  foldC: Fold<T, C>,
+  foldD: Fold<T, D>,
+): Fold<T, readonly [A, B, C, D]> {
+  return {
+    initial: [foldA.initial, foldB.initial, foldC.initial, foldD.initial] as const,
+    step: (acc, item) => [
+      foldA.step(acc[0], item),
+      foldB.step(acc[1], item),
+      foldC.step(acc[2], item),
+      foldD.step(acc[3], item),
+    ] as const,
+  };
+}
+
+/**
+ * Product of six folds — `φ₁ △ φ₂ △ φ₃ △ φ₄ △ φ₅ △ φ₆`.
+ * The aliasOutcome aggregation in product/domain/proposal/quality.ts
+ * runs six metrics in one pass; this avoids the productFold(3) ∘
+ * productFold(3) nested-tuple composition (which works but yields
+ * `[[A,B,C],[D,E,F]]` instead of the flat tuple callers prefer).
+ */
+export function productFold6<T, A, B, C, D, E, F>(
+  foldA: Fold<T, A>,
+  foldB: Fold<T, B>,
+  foldC: Fold<T, C>,
+  foldD: Fold<T, D>,
+  foldE: Fold<T, E>,
+  foldF: Fold<T, F>,
+): Fold<T, readonly [A, B, C, D, E, F]> {
+  return {
+    initial: [
+      foldA.initial,
+      foldB.initial,
+      foldC.initial,
+      foldD.initial,
+      foldE.initial,
+      foldF.initial,
+    ] as const,
+    step: (acc, item) => [
+      foldA.step(acc[0], item),
+      foldB.step(acc[1], item),
+      foldC.step(acc[2], item),
+      foldD.step(acc[3], item),
+      foldE.step(acc[4], item),
+      foldF.step(acc[5], item),
+    ] as const,
+  };
+}
+
+/**
  * Post-process a fold's final result.
  * Unlike a true mapFold (which would require an inverse), this runs
  * the fold to completion and then transforms the result.

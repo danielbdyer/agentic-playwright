@@ -150,7 +150,7 @@ the authoritative baseline.
 | `probe-harness.ts` | ~80 | The `ProbeHarness` Context.Tag port + `ProbeHarnessService` interface + embedded `DryProbeHarness` adapter |
 | `fixture-replay-harness.ts` | 162 | Rung-2 adapter using per-verb classifiers + injected snapshot/catalog/clock Layers |
 | `playwright-live-harness.ts` | 233 | Rung-3 adapter composing the synthetic substrate server + Chromium browser + `Rung3ClassifierRegistry` with fallback to rung-2 |
-| `spike-harness.ts` | — | Runs a probe set against the currently-composed `ProbeHarness`, emits a `SpikeVerdict` |
+| `spike-harness.ts` | — | Runs a probe set against the currently-composed `ProbeHarness`, emits a `SpikeReport` |
 | `probe-receipt.ts` | 208 | `ProbeReceipt`, `ProbeOutcome`, `ProbeProvenance`, `ProbeHarnessAdapter` (currently a closed union of three tags) |
 | `classifiers/` | — | Nine per-verb classifiers at rung-2; subdirectory `rung-3/` with `interact`, `observe`, `port`, `registry` |
 
@@ -955,7 +955,7 @@ fixture-replay↔playwright-live parity laws go green.
 1. `workshop/probe-derivation/domain/parity-failure.ts` — new
    `ParityFailureRecord` type per §7.2.
 2. `workshop/probe-derivation/application/check-rung-parity.ts`
-   — Effect program that takes two `SpikeVerdict`s from
+   — Effect program that takes two `SpikeReport`s from
    different rungs and produces a list of parity failures.
 3. `workshop/probe-derivation/tests/rung-parity.laws.spec.ts`
    — new laws file:

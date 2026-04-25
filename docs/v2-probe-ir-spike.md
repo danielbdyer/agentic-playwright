@@ -132,11 +132,11 @@ The receipt's `payload.cohort` field is a `ProbeSurfaceCohort` triple (verb × f
 
 ### 4.4 The spike harness as a hylomorphism (Algebra)
 
-`workshop/probe-derivation/spike-harness.ts` exports `runSpike(input): Effect<SpikeVerdict, Error, ProbeHarness>`. The implementation has a clean hylomorphic shape:
+`workshop/probe-derivation/spike-harness.ts` exports `runSpike(input): Effect<SpikeReport, Error, ProbeHarness>`. The implementation has a clean hylomorphic shape:
 
 - **Unfold (anamorphism)**: `derivation.probes: readonly Probe[]` is itself the unfold of `(manifest, fixtures)` into a probe stream. The unfold happens once, at derivation time; it's pure.
 - **Action (the effectful middle)**: for each probe, `harness.execute(probe)` yields one `ProbeReceipt`. This is the only effectful layer; the rest is pure.
-- **Fold (catamorphism)**: `summarizeSpike({ manifest, derivation, receipts, generatedAt })` reduces the receipt stream into a `SpikeVerdict` carrying per-verb breakdowns, coverage percentage, and pass/fail gate.
+- **Fold (catamorphism)**: `summarizeSpike({ manifest, derivation, receipts, generatedAt })` reduces the receipt stream into a `SpikeReport` carrying per-verb breakdowns, coverage percentage, and pass/fail gate.
 
 This is structurally identical to the convergence-proof harness (`workshop/orchestration/convergence-proof.ts`) which is also a hylomorphism over cold-start trials. The codebase treats this pattern as first-class: `product/domain/algebra/hylomorphism.ts` declares `UnfoldStep<S, T>` + `Hylomorphism<S, T, A>` + `runHyloEffect`. The spike could be refactored onto the `runHyloEffect` primitive — for now it uses plain `Effect.gen` because the loop is simple enough that the primitive would obscure rather than clarify.
 
@@ -207,7 +207,7 @@ Fixture growth past 30 lines is the spike's **fail signal**: it means the verb's
 
 ### Step 5.4 — Compute the verdict
 
-The verdict is the `SpikeVerdict` the CLI already emits. Three discriminators:
+The verdict is the `SpikeReport` the CLI already emits. Three discriminators:
 
 - **Pass**: coverage ≥ 80%, all fixtures ≤ 30 lines, receipts confirm uniformly under the dry-harness.
 - **Pass with named gaps**: coverage ≥ 80%, but one or more verbs named as needing hand-lifted schemas.
@@ -327,7 +327,7 @@ The first two are static properties of the codebase. The third is a runtime prop
 ### 7.2 What the spike absolutely must prove
 
 - **One probe can run end-to-end under the dry-harness.** (Proven today by `tesseract probe-spike`.)
-- **The coverage percentage is computable.** (Proven by `SpikeVerdict.coverage.coveragePercentage`.)
+- **The coverage percentage is computable.** (Proven by `SpikeReport.coverage.coveragePercentage`.)
 - **Fixtures compose into probes mechanically.** (Proven by `deriveProbesFromInputs` + its 12 laws.)
 - **Receipts land in evidence-stage envelopes with M5-ready cohort keys.** (Proven by `ProbeReceipt extends WorkflowMetadata<'evidence'>` + S5 law.)
 - **Graduating to fixture-replay doesn't require reshaping any of the above.** (Proven by the Layer-swap discipline — same program, different adapter.)

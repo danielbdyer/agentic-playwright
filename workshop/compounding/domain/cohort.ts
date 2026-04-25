@@ -33,7 +33,10 @@
  */
 
 import type { ProbeSurfaceCohort } from '../../metrics/probe-surface-cohort';
-import { probeSurfaceCohortKey } from '../../metrics/probe-surface-cohort';
+import {
+  probeSurfaceCohortKey,
+  parseProbeSurfaceCohort,
+} from '../../metrics/probe-surface-cohort';
 
 /** Cohort variant wrapping the existing probe-surface triple. */
 export interface ProbeSurfaceCohortRef {
@@ -99,4 +102,44 @@ export function cohortKey(cohort: Cohort): string {
     scenarioTrajectory: (c) => `scenario:${c.scenarioId}|topology:${c.topologyId}`,
     customerCompilation: (c) => `customer-compilation:corpus:${c.corpus}`,
   });
+}
+
+/** Parse a cohort key back into a Cohort, returning null when
+ *  the string isn't in the canonical format. Together with
+ *  `cohortKey`, forms a partial Iso<Cohort, string>:
+ *
+ *    cohortKey(cohort) → string             (total)
+ *    parseCohortKey(s) → Cohort | null      (partial)
+ *
+ *  Round-trip law (verified by tests/compounding/cohort-iso):
+ *
+ *    parseCohortKey(cohortKey(c)) ≡ c        for every Cohort c
+ *
+ *  The reverse round-trip is partial: not every string is a
+ *  valid cohort key (the inverse parser returns null on
+ *  malformed input). The total⇔partial asymmetry is the
+ *  canonical "structural-projection-with-defensive-reader"
+ *  pattern — same as ado-content fingerprints, snapshot
+ *  signatures, and other structurally-projected identities. */
+export function parseCohortKey(key: string): Cohort | null {
+  if (key.startsWith('probe-surface:')) {
+    const inner = parseProbeSurfaceCohort(key.slice('probe-surface:'.length));
+    if (inner === null) return null;
+    return { kind: 'probe-surface', cohort: inner };
+  }
+  if (key.startsWith('scenario:')) {
+    const match = /^scenario:([^|]+)\|topology:(.+)$/.exec(key);
+    if (match === null) return null;
+    return {
+      kind: 'scenario-trajectory',
+      scenarioId: match[1]!,
+      topologyId: match[2]!,
+    };
+  }
+  if (key.startsWith('customer-compilation:corpus:')) {
+    const corpus = key.slice('customer-compilation:corpus:'.length);
+    if (corpus !== 'resolvable' && corpus !== 'needs-human') return null;
+    return { kind: 'customer-compilation', corpus };
+  }
+  return null;
 }

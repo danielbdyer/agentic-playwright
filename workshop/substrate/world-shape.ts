@@ -47,6 +47,47 @@ export const WORLD_SHAPE_QUERY_PARAM = 'shape';
 /** The empty shape — renders nothing. */
 export const EMPTY_WORLD_SHAPE: WorldShape = { surfaces: [] };
 
+/** Right-biased override Monoid<WorldShape>. Combines two
+ *  WorldShapes where the right (`b`) takes precedence on every
+ *  axis when defined:
+ *
+ *    empty                = EMPTY_WORLD_SHAPE
+ *    combine(a, b).surfaces  = b.surfaces.length > 0 ? b.surfaces : a.surfaces
+ *    combine(a, b).entropy   = b.entropy ?? a.entropy
+ *    combine(a, b).preset    = b.preset ?? a.preset
+ *
+ *  Used by `resolveTopology` (workshop/substrate/test-topology.ts)
+ *  to apply a registered topology under an explicit shape:
+ *
+ *    resolveTopology(shape, registry)
+ *      = combine(topologyShape, shape)   // shape wins on each axis
+ *
+ *  Right-biasing models "the explicit caller-supplied shape is
+ *  authoritative; preset values fill in gaps."
+ *
+ *  Associativity: combine(a, combine(b, c)) = combine(combine(a, b), c).
+ *  Both reduce to "the rightmost-defined value on each axis."
+ *  Identity laws: combine(empty, x) = x = combine(x, empty).
+ *
+ *  See `tests/substrate/world-shape-monoid.laws.spec.ts` for
+ *  the law-runner. */
+export const worldShapeOverrideMonoid: {
+  readonly empty: WorldShape;
+  readonly combine: (a: WorldShape, b: WorldShape) => WorldShape;
+} = {
+  empty: EMPTY_WORLD_SHAPE,
+  combine: (a, b) => {
+    const surfaces = b.surfaces.length > 0 ? b.surfaces : a.surfaces;
+    const entropy = b.entropy ?? a.entropy;
+    const preset = b.preset ?? a.preset;
+    return {
+      surfaces,
+      ...(entropy !== undefined ? { entropy } : {}),
+      ...(preset !== undefined ? { preset } : {}),
+    };
+  },
+};
+
 /** Serialize a WorldShape onto a URL. */
 export function serializeWorldShapeToUrl(
   baseUrl: string,

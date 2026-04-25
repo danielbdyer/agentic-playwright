@@ -9,7 +9,7 @@
  *   4. Executes each probe via the injected ProbeHarness.
  *   5. Collects receipts and computes the spike coverage verdict.
  *
- * The output is a `SpikeVerdict` — the one-page go/no-go the spike
+ * The output is a `SpikeReport` — the one-page go/no-go the spike
  * protocol calls for. Pass condition: ≥80% of verbs covered.
  *
  * ## Shape
@@ -18,7 +18,7 @@
  * service dependency (`ProbeHarness`) and no built-in IO other
  * than what the harness needs. Composition:
  *
- *    runSpike(input) :: Effect<SpikeVerdict, never, ProbeHarness>
+ *    runSpike(input) :: Effect<SpikeReport, never, ProbeHarness>
  *
  * Callers (CLI, tests) provide the harness via Layer.succeed and
  * runPromise at the boundary.
@@ -41,7 +41,7 @@ import { confirmsExpectation } from './probe-receipt';
 import { ProbeHarness } from './probe-harness';
 
 /** The spike verdict — the one-page go/no-go. */
-export interface SpikeVerdict {
+export interface SpikeReport {
   readonly manifestVersion: number;
   readonly generatedAt: string;
   readonly coverage: SpikeCoverageReport;
@@ -66,7 +66,7 @@ export function summarizeSpike(input: {
   readonly derivation: ProbeDerivation;
   readonly receipts: readonly ProbeReceipt[];
   readonly generatedAt: string;
-}): SpikeVerdict {
+}): SpikeReport {
   const { manifest, derivation, receipts, generatedAt } = input;
   const receiptsByVerb = new Map<string, ProbeReceipt[]>();
   for (const receipt of receipts) {
@@ -143,7 +143,7 @@ export function runSpike(input: {
   readonly manifest: Manifest;
   readonly derivation: ProbeDerivation;
   readonly now?: () => Date;
-}): Effect.Effect<SpikeVerdict, Error, ProbeHarness> {
+}): Effect.Effect<SpikeReport, Error, ProbeHarness> {
   const now = input.now ?? (() => new Date());
   return Effect.gen(function* () {
     const harness = yield* ProbeHarness;

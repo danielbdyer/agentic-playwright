@@ -88,6 +88,24 @@ export function candidateEnvelope<Payload>(
   return { kind: 'candidate', rationale, payload };
 }
 
+/** Functor map over the payload — preserves `kind`, `rationale`,
+ *  and `predictedDelta`. Parallels the
+ *  `WorkflowEnvelope.mapPayload` helper at
+ *  `product/domain/governance/workflow-types.ts:219`. Pure.
+ *
+ *  Functor laws (verified by tests/proposal-envelope.laws):
+ *
+ *    mapPayloadProposal(env, x => x) ≡ env             (identity)
+ *    mapPayloadProposal(mapPayloadProposal(env, f), g)
+ *      ≡ mapPayloadProposal(env, x => g(f(x)))         (composition)
+ */
+export function mapPayloadProposal<A, B>(
+  envelope: ProposalEnvelope<A>,
+  f: (payload: A) => B,
+): ProposalEnvelope<B> {
+  return { ...envelope, payload: f(envelope.payload) };
+}
+
 /** Exhaustive fold over the three kinds. Enforces compile-time
  *  handling of every variant — the pattern the rest of
  *  `product/domain/` uses for its discriminated unions. */
