@@ -823,6 +823,46 @@ The closed union + fold pair forms the compile-time exhaustiveness gate: when a 
 
 ---
 
+### Fold case-handler signatures: zero-arg vs value-arg
+
+A `fold*` function's case-object handlers come in two shapes; both are correct, and which one to use is a **function of the union, not stylistic preference**.
+
+**Zero-arg form** — when the union is a pure string-literal discriminator with no per-variant payload:
+
+```ts
+export type WorkflowStage = 'preparation' | 'resolution' | ...;
+export function foldWorkflowStage<R>(
+  stage: WorkflowStage,
+  cases: { readonly preparation: () => R; readonly resolution: () => R; ... },
+): R { ... }
+```
+
+The case handler doesn't need the value because re-passing the literal string is redundant — the case's *position* in the cases-object identifies which variant ran.
+
+**Value-arg form** — when variants carry a payload the handler needs:
+
+```ts
+export type HydrationVerdict =
+  | { kind: 'stable'; phaseTimings: ... }
+  | { kind: 'mutation-storm'; mutationCount: number; ... };
+export function foldHydrationVerdict<R>(
+  verdict: HydrationVerdict,
+  cases: { readonly stable: (v: HydrationVerdict) => R; readonly mutationStorm: (v: ...) => R },
+): R { ... }
+```
+
+The case handler receives the variant-narrowed value (often via `Extract<U, { kind: 'specific' }>`) so it can read the payload.
+
+**The rule**: pure string-literal unions get zero-arg; tagged-union-with-payload gets value-arg. **Never mix forms within a single fold's cases object.**
+
+Discriminated-payload unions where the payload is identical across variants (e.g., `{ kind: 'a' | 'b' | 'c'; common: T }`) can use either form depending on whether downstream code needs `common` accessible to the handler. Default to value-arg in that case so the future-extension path (one variant gaining unique payload) doesn't require a rewrite.
+
+**Reference exemplars**:
+- Zero-arg: `foldPhaseOutputSource`, `foldWorkflowStage`, `foldWorkflowScope`, `foldWorkflowLane`, `foldResolutionMode`, `foldReasoningOp`, `foldSurfaceVisibility`, `foldParityDivergenceAxis`, `foldInterventionTargetKind`.
+- Value-arg: `foldGovernance` (with `Approved<T>` / `Blocked<T>` / `ReviewRequired<T>` brands), `foldHydrationVerdict`, `foldVariantClassifier`, `foldReasoningError`, `foldResolutionEvent`, `foldPatternRungResult`.
+
+---
+
 ### In-page evaluators (browser-context modules)
 
 Code that runs inside a Playwright `page.evaluate(fn)` block executes in the browser, NOT in Node. Playwright serializes the function via `Function.prototype.toString()` and ships the source to the browser; **closure references are not preserved**. The function body must be self-contained.
