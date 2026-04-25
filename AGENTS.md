@@ -112,7 +112,7 @@ Scoped instructions under `.github/instructions/` still apply per-concern and ar
 - **Every agentic decision produces an `InterventionHandoff`.** The shape is required, not optional. No silent escalation; no `throw` as escape.
 - **Every reasoning call produces a `ReasoningReceipt<Op>`.** Provider-specific errors classify into the five named families (`rate-limited`, `context-exceeded`, `malformed-response`, `unavailable`, `unclassified`).
 - **Every proposal activation passes through the trust-policy gate.** The YAML-authored thresholds in `.tesseract/policy/trust-policy.yaml` are actively enforced via `product/application/policy/trust-policy.ts`; no receipt = no override; no threshold satisfaction = no activation.
-- **Every log is append-only.** The adapter refuses in-place updates; confidence derives on read from the evidence log; contradictions never overwrite.
+- **Every log is append-only.** The adapter refuses in-place updates; confidence derives on read from the evidence log; contradictions never overwrite. The full set is enumerated at `product/domain/logs/log-registry.ts` (~10 entries: hypothesis receipts, compilation receipts, scoreboard snapshots, probe receipts, scenario receipts, ratchets, substrate snapshots, hypotheses ledger, improvement-run ledger, dashboard journal). Adding a new log requires registering it; an architecture-law test enforces the registry's structural invariants.
 - **Every envelope carries the four phantom axes.** Stage × Source × Verdict × Fingerprint<Tag>; misuse is a compile error.
 - **Provenance is minted at the event, not reconstructed later.**
 - **Generated tests are disposable object code;** the facet catalog is the durable asset.
