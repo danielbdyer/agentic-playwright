@@ -117,6 +117,27 @@ export function parseWorldShapeFromUrl(url: string): WorldShape | null {
   return parsed;
 }
 
+/** WorldShape ⇄ URL string PartialIso, bound to a `baseUrl`.
+ *  Bundles serializeWorldShapeToUrl + parseWorldShapeFromUrl
+ *  under the product/domain/algebra/partial-iso.ts abstraction.
+ *
+ *  Per-baseUrl factory rather than a free constant because the
+ *  forward direction needs a baseUrl to attach the query string
+ *  to. The round-trip law:
+ *
+ *    parseWorldShapeFromUrl(serializeWorldShapeToUrl(b, s)) ≡ s
+ *
+ *  holds for every WorldShape s + every baseUrl b. */
+export function worldShapeUrlIso(baseUrl: string): {
+  readonly forward: (shape: WorldShape) => string;
+  readonly inverse: (url: string) => WorldShape | null;
+} {
+  return {
+    forward: (shape) => serializeWorldShapeToUrl(baseUrl, shape),
+    inverse: parseWorldShapeFromUrl,
+  };
+}
+
 function stripExistingShapeParam(url: string): string {
   const queryIndex = url.indexOf('?');
   if (queryIndex < 0) return url;

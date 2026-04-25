@@ -10,3 +10,4 @@ export * from './slice-projection';
 export * from './quotient';
 export * from './closed-union';
 export * from './keyed-set';
+export * from './partial-iso';

@@ -143,3 +143,13 @@ export function parseCohortKey(key: string): Cohort | null {
   }
   return null;
 }
+
+/** Cohort ⇄ string PartialIso. Bundles cohortKey (total
+ *  forward) + parseCohortKey (partial inverse) under the
+ *  product/domain/algebra/partial-iso.ts abstraction. The
+ *  round-trip law `parseCohortKey(cohortKey(c)) ≡ c` for
+ *  every Cohort c is verified by partialIsoLaws. */
+export const cohortIso = {
+  forward: cohortKey,
+  inverse: parseCohortKey,
+} as const;
