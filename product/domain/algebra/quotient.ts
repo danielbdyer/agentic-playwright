@@ -67,9 +67,26 @@ import {
   type FingerprintTag,
 } from '../kernel/hash';
 
-/** The quotient algebra itself. An instance is a witness that
- *  `T` has an equivalence relation induced by projection onto
- *  invariant-band axes. */
+/** Projection<T, P> — a pure structural projection from a
+ *  source type T onto a smaller record P. Names the
+ *  "select-the-invariant-axes" half of the quotient algebra.
+ *
+ *  A projection alone is not a quotient — it doesn't induce
+ *  an equivalence relation by itself. Pair it with a tagged
+ *  fingerprint (via `quotientOfProjection`) to get a Quotient.
+ *
+ *  Why factor: multiple quotients can share a projection. The
+ *  cohort key Iso, the invariant-content fingerprint, and a
+ *  hypothetical hash-mod-N shard could all project the same
+ *  axes but differ on what they do with the result. Factoring
+ *  the projection from the fingerprint lets these compose. */
+export interface Projection<T, P> {
+  readonly project: (t: T) => P;
+}
+
+/** The quotient algebra. An instance witnesses that `T` has
+ *  an equivalence relation induced by projection + tagged
+ *  fingerprint. */
 export interface Quotient<T, Tag extends FingerprintTag> {
   /** The fingerprint tag uniquely identifying this quotient.
    *  Prevents cross-quotient fingerprint comparison at the
@@ -84,15 +101,30 @@ export interface Quotient<T, Tag extends FingerprintTag> {
   readonly equal: (a: T, b: T) => boolean;
 }
 
-/** Construct a Quotient<T, Tag> from a pure projection.
+/** Lift a Projection<T, P> into a Quotient<T, Tag> by
+ *  fingerprinting the projected value with a tagged hash.
+ *  The projection becomes the equivalence relation; the
+ *  fingerprint becomes the equivalence-class label.
  *
- *  The `project` function pulls out the invariant-band axes
- *  as a serializable value; `fingerprintFor(tag, projected)`
- *  produces the tagged witness. The projected type is not
- *  exposed to callers — only the tagged fingerprint surfaces.
- *
- *  Callers supply `T`, `Tag`, and `project`; `witness` and
- *  `equal` are derived.
+ *  This is the **factored** form: a Projection<T, P> can be
+ *  reused under multiple tags. */
+export function quotientOfProjection<T, P, Tag extends FingerprintTag>(input: {
+  readonly tag: Tag;
+  readonly projection: Projection<T, P>;
+}): Quotient<T, Tag> {
+  const witness = (t: T): Fingerprint<Tag> =>
+    fingerprintFor(input.tag, input.projection.project(t));
+  const equal = (a: T, b: T): boolean => witness(a) === witness(b);
+  return {
+    tag: input.tag,
+    witness,
+    equal,
+  };
+}
+
+/** Construct a Quotient<T, Tag> directly from a `project`
+ *  function + tag. Convenience for the common case where the
+ *  projection isn't reused across tags.
  *
  *  Example:
  *
@@ -103,19 +135,17 @@ export interface Quotient<T, Tag extends FingerprintTag> {
  *    });
  *    receiptQuotient.witness(r1) === receiptQuotient.witness(r2)
  *    // iff r1 and r2 agree on probeId + obs, regardless of timing.
- */
+ *
+ *  When the projection IS reused, factor it out via
+ *  `quotientOfProjection` instead. */
 export function makeQuotient<T, Tag extends FingerprintTag>(input: {
   readonly tag: Tag;
   readonly project: (t: T) => unknown;
 }): Quotient<T, Tag> {
-  const witness = (t: T): Fingerprint<Tag> =>
-    fingerprintFor(input.tag, input.project(t));
-  const equal = (a: T, b: T): boolean => witness(a) === witness(b);
-  return {
+  return quotientOfProjection({
     tag: input.tag,
-    witness,
-    equal,
-  };
+    projection: { project: input.project },
+  });
 }
 
 /** Verify the quotient laws over a sample of T values.

@@ -21,6 +21,8 @@ import { describe, test, expect } from 'vitest';
 import {
   makeQuotient,
   quotientLaws,
+  quotientOfProjection,
+  type Projection,
 } from '../../product/domain/algebra/quotient';
 import {
   probeReceiptInvariantQuotient,
@@ -76,6 +78,64 @@ describe('Quotient<T, Tag> algebra (W3.1)', () => {
       // type error. This test asserts the runtime shape only.
       expect(typeof w).toBe('string');
       expect(w.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Projection<T, P> factored form (Move C)', () => {
+    test('quotientOfProjection produces equivalent results to makeQuotient', () => {
+      type X = { readonly a: number; readonly b: number };
+      const project = (x: X): { a: number } => ({ a: x.a });
+
+      const direct = makeQuotient<X, 'cohort'>({ tag: 'cohort', project });
+      const factored = quotientOfProjection<X, { a: number }, 'cohort'>({
+        tag: 'cohort',
+        projection: { project },
+      });
+
+      // Same projection + tag → same witnesses for any input.
+      const sample: X = { a: 7, b: 99 };
+      expect(factored.witness(sample)).toBe(direct.witness(sample));
+      expect(factored.tag).toBe(direct.tag);
+    });
+
+    test('one Projection<T, P> reused across multiple Quotients yields same equivalence-class', () => {
+      // The point of factoring: a single Projection captures
+      // the equivalence relation; different tags produce
+      // different fingerprint NAMES for the same class.
+      type X = { readonly a: number; readonly b: number };
+      const projection: Projection<X, { a: number }> = {
+        project: (x) => ({ a: x.a }),
+      };
+
+      const qReceiptInvariant = quotientOfProjection<X, { a: number }, 'probe-receipt-invariant'>({
+        tag: 'probe-receipt-invariant',
+        projection,
+      });
+      const qSnapshotSig = quotientOfProjection<X, { a: number }, 'snapshot-signature'>({
+        tag: 'snapshot-signature',
+        projection,
+      });
+
+      // Inputs with same projection are class-equal under EITHER
+      // quotient.
+      const left: X = { a: 1, b: 2 };
+      const right: X = { a: 1, b: 99 };
+      expect(qReceiptInvariant.equal(left, right)).toBe(true);
+      expect(qSnapshotSig.equal(left, right)).toBe(true);
+
+      // The runtime witnesses match (the fingerprint hash is
+      // computed over the projected value alone — the tag is a
+      // phantom-only type marker per product/domain/kernel/hash.ts).
+      // The TYPE-level gate prevents cross-tag fingerprint mixing
+      // at compile time; runtime values intentionally collide so
+      // hash callers can store them in a single Map without
+      // collision-by-tag.
+      expect(qReceiptInvariant.witness(left)).toBe(qSnapshotSig.witness(left));
+
+      // Tags differ at the type level (cross-tag comparison is a
+      // type error) and are accessible via the Quotient.tag field.
+      expect(qReceiptInvariant.tag).toBe('probe-receipt-invariant');
+      expect(qSnapshotSig.tag).toBe('snapshot-signature');
     });
   });
 
