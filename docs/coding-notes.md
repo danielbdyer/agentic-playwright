@@ -786,6 +786,60 @@ Reference files for the canonical pattern: `product/domain/governance/workflow-t
 
 ---
 
+### Verdict-carrying values (errors as data, not exceptions)
+
+When a function classifies an outcome that has multiple meaningful failure modes, return a closed-union **verdict** value rather than throwing. The verdict is the value the caller folds; failure modes are first-class data, not exceptional control flow.
+
+**Pattern**:
+
+```ts
+export type FooVerdict =
+  | { readonly kind: 'success'; readonly result: ... }
+  | { readonly kind: 'failure-A'; readonly evidence: readonly string[] }
+  | { readonly kind: 'failure-B'; readonly diagnostic: string };
+
+export function foldFooVerdict<R>(
+  v: FooVerdict,
+  cases: { readonly success: ...; readonly failureA: ...; readonly failureB: ... },
+): R { ... }
+```
+
+The discipline:
+
+1. **Closed-union discriminator**: `kind: 'specific-tag' | ...`. Adding a new failure mode is a deliberate widening that fails the fold's case object at type-check.
+2. **Per-variant evidence**: each kind carries the data the caller (or a future audit) needs to reason about WHY this verdict landed. Never an opaque error message; always structured.
+3. **Exhaustive fold**: a sibling `fold*` function with case-object-keyed dispatch. Used in place of switch statements anywhere downstream.
+4. **No throwing**: the function never throws; every code path returns a verdict. Programmer-error preconditions (cohort-key mismatch, etc.) MAY throw, since those represent caller bugs not failure modes.
+
+**Reference files**:
+- `product/domain/governance/workflow-types.ts:Governance` + `foldGovernance`
+- `product/domain/kernel/errors.ts:ReasoningError` + `foldReasoningError`
+- `workshop/probe-derivation/probe-receipt.ts:ProbeOutcome` + `confirmsExpectation`
+- `workshop/probe-derivation/parity-failure.ts:ParityDivergenceAxis` + `foldParityDivergenceAxis`
+- `workshop/substrate-study/domain/hydration-verdict.ts:HydrationVerdict` + `foldHydrationVerdict`
+- `workshop/substrate-study/domain/snapshot-record.ts:VariantClassifierVerdict` + `foldVariantClassifier`
+
+The closed union + fold pair forms the compile-time exhaustiveness gate: when a new variant lands, every fold callsite fails type-check until updated. This is the verdict-carrying pattern's load-bearing safety property.
+
+---
+
+### In-page evaluators (browser-context modules)
+
+Code that runs inside a Playwright `page.evaluate(fn)` block executes in the browser, NOT in Node. Playwright serializes the function via `Function.prototype.toString()` and ships the source to the browser; **closure references are not preserved**. The function body must be self-contained.
+
+**Discipline**:
+
+1. **No outer-scope references in the function body.** Every helper the in-page logic needs must be defined inside the `page.evaluate(...)` callback. Importing from another module and using it inside the body fails silently at runtime — the referenced symbol is `undefined` in the browser context.
+2. **Return value must be JSON-serializable.** Playwright marshals it back through CDP. No DOM nodes, no Functions, no class instances with prototypes — only POJOs, primitives, arrays.
+3. **No async-await across the boundary.** `page.evaluate(async () => ...)` is allowed but the awaited values inside must come from browser APIs (fetch, requestAnimationFrame), not Node-side handles.
+4. **Helper duplication is the closure constraint, not a violation.** Pure helpers may legitimately exist in two places: outer scope (for unit tests + reuse) AND inside the `page.evaluate` block (for the browser context). Both copies should compute the same logic; a parity-law test asserts they don't drift.
+
+**Naming convention**: when a file has substantial in-page logic, name the helpers with an `*InPage` suffix or co-locate them in a `*.in-page.ts` companion module. Sample: `workshop/substrate-study/application/dom-walk-capture.ts:walkDom` runs a single `page.evaluate(...)` block of ~400 lines; the inline helpers (`classifyClassPrefixIn`, `bucketTextLengthIn`, etc.) are duplicates of the outer-scope exports (`classifyClassPrefix`, `bucketTextLength`) for the closure-constraint reason.
+
+**Future-state**: when the harness has ≥2 in-page evaluators, extract the shared in-page helpers into a `*.in-page.ts` companion that loads via `page.addInitScript(content)` so the helpers are available in the browser's global scope. Each `page.evaluate` then references them by name. Until then, the inline-duplication discipline + parity-law test is the right point on the cost/value curve.
+
+---
+
 ## Scalability and Testability Conventions
 
 ### Law-style tests
