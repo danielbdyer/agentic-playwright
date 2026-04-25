@@ -35,18 +35,31 @@ export function hypothesisFingerprint(hypothesis: Hypothesis): Fingerprint<'hypo
 export function hypothesisReceiptFingerprint(
   receipt: HypothesisReceipt,
 ): Fingerprint<'hypothesis-receipt'> {
-  return fingerprintFor('hypothesis-receipt', {
-    hypothesisId: receipt.payload.hypothesisId,
-    hypothesisFingerprint: receipt.payload.hypothesisFingerprint,
-    outcome: receipt.payload.outcome,
-    evidenceReceiptIds: receipt.payload.evidenceReceiptIds,
-    confirmedCount: receipt.payload.confirmedCount,
-    refutedCount: receipt.payload.refutedCount,
-    inconclusiveCount: receipt.payload.inconclusiveCount,
-    cycleRate: receipt.payload.cycleRate,
+  return fingerprintFor(
+    'hypothesis-receipt',
+    hypothesisReceiptFingerprintSource(receipt.payload),
+  );
+}
+
+/** Pure projection of a HypothesisReceipt payload onto the
+ *  fields that constitute receipt identity. Exposed
+ *  separately so the builder can fingerprint without a fully-
+ *  constructed receipt. */
+export function hypothesisReceiptFingerprintSource(
+  payload: HypothesisReceipt['payload'],
+): unknown {
+  return {
+    hypothesisId: payload.hypothesisId,
+    hypothesisFingerprint: payload.hypothesisFingerprint,
+    outcome: payload.outcome,
+    evidenceReceiptIds: payload.evidenceReceiptIds,
+    confirmedCount: payload.confirmedCount,
+    refutedCount: payload.refutedCount,
+    inconclusiveCount: payload.inconclusiveCount,
+    cycleRate: payload.cycleRate,
     provenance: {
-      substrateVersion: receipt.payload.provenance.substrateVersion,
-      manifestVersion: receipt.payload.provenance.manifestVersion,
+      substrateVersion: payload.provenance.substrateVersion,
+      manifestVersion: payload.provenance.manifestVersion,
     },
-  });
+  };
 }

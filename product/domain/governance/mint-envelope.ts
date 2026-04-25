@@ -96,13 +96,18 @@ export interface MintEvidenceEnvelopeInput<
 
 /** Mint a `WorkflowEnvelope<Payload, Stage>` for an approved
  *  evidence-stage artifact. Computes artifact + content
- *  fingerprints internally; callers cannot supply or override
- *  them. Pure.
+ *  fingerprints internally from the payload via fingerprintFor;
+ *  callers cannot supply or override them. Pure.
  *
  *  Generics: `Stage`, `Kind`, and `Scope` are preserved as
  *  literal types so the returned envelope's properties narrow
  *  to the caller's exact discriminator/scope values (the
- *  default scope is the literal `'run'`). */
+ *  default scope is the literal `'run'`).
+ *
+ *  Camp-A semantics: artifact = content = fingerprintFor(tag,
+ *  payload). For Camp-B (caller-supplied projection-based
+ *  fingerprints, e.g., scenarioReceiptFingerprint over a
+ *  payload subset), use `mintEvidenceEnvelopeWithFingerprint`. */
 export function mintEvidenceEnvelope<
   Payload,
   Stage extends WorkflowStage,
@@ -114,7 +119,43 @@ export function mintEvidenceEnvelope<
   readonly kind: Kind;
   readonly scope: Scope;
 } {
-  const { stage, kind, payload, lineage } = input;
+  return mintEvidenceEnvelopeWithFingerprint({
+    ...input,
+    fingerprintSource: input.payload,
+  });
+}
+
+/** Camp-B variant: caller supplies the **fingerprint source**
+ *  — the value used to compute both artifact + content
+ *  fingerprints. Useful when the canonical receipt identity
+ *  is computed over a projection of the payload (e.g., the
+ *  scenario-receipt fingerprint covers only id + scenario
+ *  fingerprint + verdict, not the full trace).
+ *
+ *  Internally calls `fingerprintFor('artifact', source)` +
+ *  `fingerprintFor('content', source)` so the brand discipline
+ *  is preserved — no `as unknown as` casting at call sites.
+ *
+ *  Closes Agent C #5's brand-laundering finding by giving
+ *  Camp-B receipts a non-laundered path: rather than
+ *  initializing fingerprints to empty strings + overwriting
+ *  later with `as unknown as Fingerprint<'artifact'>`, the
+ *  caller passes the canonical source value once and the
+ *  helper mints both fingerprints correctly. */
+export function mintEvidenceEnvelopeWithFingerprint<
+  Payload,
+  Stage extends WorkflowStage,
+  Kind extends string,
+  Scope extends WorkflowScope = 'run',
+>(
+  input: MintEvidenceEnvelopeInput<Payload, Stage, Kind, Scope> & {
+    readonly fingerprintSource: unknown;
+  },
+): WorkflowEnvelope<Payload, Stage> & {
+  readonly kind: Kind;
+  readonly scope: Scope;
+} {
+  const { stage, kind, payload, lineage, fingerprintSource } = input;
   const scope = (input.scope ?? 'run') as Scope;
   const ids: Record<string, string> = input.ids ?? {};
   const handshakes =
@@ -127,8 +168,8 @@ export function mintEvidenceEnvelope<
     scope,
     ids,
     fingerprints: {
-      artifact: fingerprintFor('artifact', payload),
-      content: fingerprintFor('content', payload),
+      artifact: fingerprintFor('artifact', fingerprintSource),
+      content: fingerprintFor('content', fingerprintSource),
     },
     lineage: {
       sources: lineage.sources,

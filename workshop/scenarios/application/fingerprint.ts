@@ -31,18 +31,29 @@ export function scenarioFingerprint(scenario: Scenario): Fingerprint<'scenario'>
 export function scenarioReceiptFingerprint(
   receipt: ScenarioReceipt,
 ): Fingerprint<'scenario-receipt'> {
-  return fingerprintFor('scenario-receipt', {
-    scenarioId: receipt.payload.scenarioId,
-    scenarioFingerprint: receipt.payload.scenarioFingerprint,
-    trace: receipt.payload.trace,
-    invariantOutcomes: receipt.payload.invariantOutcomes,
-    verdict: receipt.payload.verdict,
+  return fingerprintFor('scenario-receipt', scenarioReceiptFingerprintSource(receipt.payload));
+}
+
+/** Pure projection of a ScenarioReceipt payload onto the fields
+ *  that constitute receipt identity. Used by both
+ *  scenarioReceiptFingerprint AND mintEvidenceEnvelopeWithFingerprint
+ *  callers — exposed separately so the builder doesn't need a
+ *  fully-constructed receipt to fingerprint its identity. */
+export function scenarioReceiptFingerprintSource(
+  payload: ScenarioReceipt['payload'],
+): unknown {
+  return {
+    scenarioId: payload.scenarioId,
+    scenarioFingerprint: payload.scenarioFingerprint,
+    trace: payload.trace,
+    invariantOutcomes: payload.invariantOutcomes,
+    verdict: payload.verdict,
     // Provenance excludes wall-clock timing fields so two runs
     // with pinned `now` produce identical fingerprints.
     provenance: {
-      harness: receipt.payload.provenance.harness,
-      substrateVersion: receipt.payload.provenance.substrateVersion,
-      manifestVersion: receipt.payload.provenance.manifestVersion,
+      harness: payload.provenance.harness,
+      substrateVersion: payload.provenance.substrateVersion,
+      manifestVersion: payload.provenance.manifestVersion,
     },
-  });
+  };
 }

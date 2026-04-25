@@ -14,8 +14,11 @@
  */
 
 import { SUBSTRATE_VERSION } from '../../substrate/version';
-import { asFingerprint, type Fingerprint } from '../../../product/domain/kernel/hash';
-import { hypothesisFingerprint, hypothesisReceiptFingerprint } from './fingerprint';
+import { mintEvidenceEnvelopeWithFingerprint } from '../../../product/domain/governance/mint-envelope';
+import {
+  hypothesisFingerprint,
+  hypothesisReceiptFingerprintSource,
+} from './fingerprint';
 import type { Hypothesis } from '../domain/hypothesis';
 import type { HypothesisReceipt } from '../domain/hypothesis-receipt';
 import type { Judgment } from './confirmation-judgments';
@@ -32,51 +35,31 @@ export function buildHypothesisReceipt(
 ): HypothesisReceipt {
   const hypFp = hypothesisFingerprint(hypothesis);
   const now = options.now();
+  const payload: HypothesisReceipt['payload'] = {
+    hypothesisId: hypothesis.id,
+    hypothesisFingerprint: hypFp,
+    outcome: judgment.outcome,
+    evidenceReceiptIds: judgment.evidenceReceiptIds,
+    confirmedCount: judgment.confirmedCount,
+    refutedCount: judgment.refutedCount,
+    inconclusiveCount: judgment.inconclusiveCount,
+    cycleRate: judgment.cycleRate,
+    provenance: {
+      substrateVersion: SUBSTRATE_VERSION,
+      manifestVersion: options.manifestVersion ?? 1,
+      computedAt: now.toISOString(),
+    },
+  };
 
-  const draft: Omit<HypothesisReceipt, 'fingerprints'> & {
-    readonly fingerprints: {
-      readonly artifact: Fingerprint<'artifact'>;
-      readonly content: Fingerprint<'content'>;
-    };
-  } = {
-    version: 1,
+  return mintEvidenceEnvelopeWithFingerprint({
     stage: 'evidence',
     scope: 'hypothesis',
     kind: 'hypothesis-receipt',
-    ids: {},
-    fingerprints: {
-      artifact: '' as Fingerprint<'artifact'>,
-      content: '' as Fingerprint<'content'>,
-    },
+    payload,
     lineage: {
       sources: [`hypothesis:${hypothesis.id}`],
       parents: [...judgment.evidenceReceiptIds],
-      handshakes: ['evidence'],
     },
-    governance: 'approved',
-    payload: {
-      hypothesisId: hypothesis.id,
-      hypothesisFingerprint: hypFp,
-      outcome: judgment.outcome,
-      evidenceReceiptIds: judgment.evidenceReceiptIds,
-      confirmedCount: judgment.confirmedCount,
-      refutedCount: judgment.refutedCount,
-      inconclusiveCount: judgment.inconclusiveCount,
-      cycleRate: judgment.cycleRate,
-      provenance: {
-        substrateVersion: SUBSTRATE_VERSION,
-        manifestVersion: options.manifestVersion ?? 1,
-        computedAt: now.toISOString(),
-      },
-    },
-  };
-
-  const receiptFp = hypothesisReceiptFingerprint(draft as HypothesisReceipt);
-  return {
-    ...draft,
-    fingerprints: {
-      artifact: asFingerprint('artifact', receiptFp),
-      content: asFingerprint('content', receiptFp),
-    },
-  };
+    fingerprintSource: hypothesisReceiptFingerprintSource(payload),
+  }) as HypothesisReceipt;
 }
