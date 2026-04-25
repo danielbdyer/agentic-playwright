@@ -234,6 +234,16 @@ const ALWAYS_ALLOWED_PRODUCT_PATHS: readonly string[] = [
   // owns them exclusively — shared-contract same as
   // product/domain/governance.
   'product/domain/resolution/patterns',
+  // Algebra library. Monoid / Lattice / GaloisConnection /
+  // Hylomorphism / Free-Forgetful / ProductFold / ContextualMerge
+  // / SliceProjection / Quotient — pure domain-algebra primitives
+  // that both compartments use to express shared structure.
+  // Quotient<T, Tag> in particular names the "equivalence-by-
+  // projection" pattern workshop's probe-receipt-invariant and
+  // snapshot-signature fingerprints both instantiate. Pure
+  // domain; no side effects; no product-entanglement — the
+  // abstractions are as domain-neutral as math itself.
+  'product/domain/algebra',
 ];
 
 function isManifestDeclaredOrLogPath(

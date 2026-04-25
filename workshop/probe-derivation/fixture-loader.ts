@@ -94,11 +94,17 @@ function parseFixture(raw: unknown, where: string): ProbeFixtureDocument['fixtur
   };
 }
 
-function parseExercise(raw: unknown, where: string): { readonly rung?: string; readonly errorFamily?: string | null } {
+function parseExercise(raw: unknown, where: string): { readonly locatorRung?: string; readonly errorFamily?: string | null } {
   if (!isRecord(raw)) {
     throw new Error(`${where}: exercise must be a mapping.`);
   }
-  const rung = typeof raw['rung'] === 'string' ? (raw['rung'] as string) : undefined;
+  // Accept both `locator-rung` (canonical) and `rung` (legacy
+  // alias for backward-compat with existing fixtures). The
+  // domain field is `locatorRung`; YAML-side stays kebab-case.
+  const locatorRungRaw =
+    raw['locator-rung'] ?? raw['rung'];
+  const locatorRung =
+    typeof locatorRungRaw === 'string' ? locatorRungRaw : undefined;
   const errorFamilyRaw = raw['error-family'];
   const errorFamily =
     errorFamilyRaw === null
@@ -107,7 +113,7 @@ function parseExercise(raw: unknown, where: string): { readonly rung?: string; r
         ? errorFamilyRaw
         : undefined;
   return {
-    ...(rung === undefined ? {} : { rung }),
+    ...(locatorRung === undefined ? {} : { locatorRung }),
     ...(errorFamily === undefined ? {} : { errorFamily }),
   };
 }

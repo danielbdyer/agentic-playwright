@@ -64,7 +64,8 @@
  */
 
 import type { WorkflowMetadata } from '../../product/domain/governance/workflow-types';
-import type { Fingerprint } from '../../product/domain/kernel/hash';
+import { fingerprintFor, type Fingerprint } from '../../product/domain/kernel/hash';
+import { makeQuotient } from '../../product/domain/algebra/quotient';
 import type { ProbeClassification } from './probe-ir';
 import type { ProbeSurfaceCohort } from '../metrics/probe-surface-cohort';
 
@@ -94,8 +95,13 @@ export interface ProbeOutcome {
   readonly completedAsExpected: boolean;
 }
 
-/** Adapter-level provenance for the probe execution. */
-export interface ProbeProvenance {
+/** Adapter-level provenance INPUT — what the harness supplies
+ *  when constructing a receipt. Does NOT include
+ *  `invariantContent`; that field is computed inside
+ *  `probeReceipt()` from the invariant-band axes so
+ *  L-Invariant-Content-Pure holds by construction (callers
+ *  cannot desynchronize it from its inputs). */
+export interface ProbeProvenanceInput {
   readonly adapter: ProbeHarnessAdapter;
   /** Manifest version the probe was derived against (from
    *  manifest.json's `version` field). */
@@ -113,6 +119,27 @@ export interface ProbeProvenance {
   readonly completedAt: string;
   /** Wall-clock latency in milliseconds. */
   readonly elapsedMs: number;
+}
+
+/** Adapter-level provenance — input plus the computed
+ *  invariant-band sub-fingerprint. Stored on every
+ *  ProbeReceipt.
+ *
+ *  ## Why `invariantContent` is a distinct fingerprint
+ *
+ *  The envelope-level `fingerprints.content` covers the full
+ *  receipt payload, which includes variant-band fields
+ *  (elapsedMs, startedAt, completedAt). Those fields
+ *  legitimately differ across runs and across rungs even when
+ *  the probe's observation is identical. Per the substrate-
+ *  ladder plan (docs/v2-substrate-ladder-plan.md §5.3), cross-
+ *  rung parity laws compare on the invariant-band axes only:
+ *  `(probeId, observed.classification, observed.errorFamily,
+ *  fixtureFingerprint, substrateVersion)`. `invariantContent`
+ *  is the sha256 of that tuple, tagged to prevent misuse as a
+ *  full-receipt identifier. */
+export interface ProbeProvenance extends ProbeProvenanceInput {
+  readonly invariantContent: Fingerprint<'probe-receipt-invariant'>;
 }
 
 /** The append-only probe receipt. Evidence-stage envelope. */
@@ -149,8 +176,10 @@ export interface ProbeReceipt extends WorkflowMetadata<'evidence'> {
 }
 
 /** Construct a ProbeReceipt from its pieces. The constructor
- *  computes `completedAsExpected` and assigns the stage/scope
- *  constants — callers supply only the meaningful fields. Pure. */
+ *  computes `completedAsExpected`, computes the
+ *  `invariantContent` sub-fingerprint over the invariant-band
+ *  axes, and assigns the stage/scope constants — callers supply
+ *  only the meaningful fields. Pure. */
 export function probeReceipt(input: {
   readonly probeId: string;
   readonly verb: string;
@@ -158,7 +187,7 @@ export function probeReceipt(input: {
   readonly cohort: ProbeSurfaceCohort;
   readonly expected: ProbeOutcome['expected'];
   readonly observed: ProbeOutcome['observed'];
-  readonly provenance: ProbeProvenance;
+  readonly provenance: ProbeProvenanceInput;
   readonly runRecordRef: ProbeReceipt['payload']['runRecordRef'];
   readonly hypothesisId: string | null;
   readonly artifactFingerprint: Fingerprint<'artifact'>;
@@ -167,6 +196,17 @@ export function probeReceipt(input: {
   const completedAsExpected =
     input.expected.classification === input.observed.classification &&
     input.expected.errorFamily === input.observed.errorFamily;
+  const invariantContent = computeInvariantContent({
+    probeId: input.probeId,
+    observedClassification: input.observed.classification,
+    observedErrorFamily: input.observed.errorFamily,
+    fixtureFingerprint: input.provenance.fixtureFingerprint,
+    substrateVersion: input.provenance.substrateVersion,
+  });
+  const provenance: ProbeProvenance = {
+    ...input.provenance,
+    invariantContent,
+  };
   return {
     version: 1,
     stage: 'evidence',
@@ -195,11 +235,54 @@ export function probeReceipt(input: {
         observed: input.observed,
         completedAsExpected,
       },
-      provenance: input.provenance,
+      provenance,
       runRecordRef: input.runRecordRef,
       hypothesisId: input.hypothesisId,
     },
   };
+}
+
+/** The probe-receipt quotient: equivalence-by-projection onto
+ *  the invariant-band axes. Two ProbeReceipt-like inputs that
+ *  agree on `(probeId, observed.classification, observed.errorFamily,
+ *  fixtureFingerprint, substrateVersion)` land in the same
+ *  equivalence class — the cross-rung parity equality.
+ *
+ *  Input type is the projection bag (not a full ProbeReceipt)
+ *  so callers can compute the witness without constructing a
+ *  full receipt. */
+export const probeReceiptInvariantQuotient = makeQuotient<
+  ProbeReceiptInvariantInput,
+  'probe-receipt-invariant'
+>({
+  tag: 'probe-receipt-invariant',
+  project: (input) => ({
+    probeId: input.probeId,
+    observedClassification: input.observedClassification,
+    observedErrorFamily: input.observedErrorFamily,
+    fixtureFingerprint: input.fixtureFingerprint,
+    substrateVersion: input.substrateVersion,
+  }),
+});
+
+/** The closed projection-input shape. A value of this type is
+ *  what the quotient's `project` and `witness` consume. */
+export interface ProbeReceiptInvariantInput {
+  readonly probeId: string;
+  readonly observedClassification: ProbeClassification;
+  readonly observedErrorFamily: string | null;
+  readonly fixtureFingerprint: Fingerprint<'content'>;
+  readonly substrateVersion: string;
+}
+
+/** Compute the invariant-band sub-fingerprint. Thin alias over
+ *  `probeReceiptInvariantQuotient.witness` preserved for
+ *  backwards compatibility — callers should migrate to the
+ *  quotient directly. */
+export function computeInvariantContent(
+  input: ProbeReceiptInvariantInput,
+): Fingerprint<'probe-receipt-invariant'> {
+  return probeReceiptInvariantQuotient.witness(input);
 }
 
 /** True when the receipt confirms its fixture's expectation. */

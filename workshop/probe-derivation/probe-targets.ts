@@ -23,6 +23,7 @@
 
 import type { ProbeDerivation } from './probe-ir';
 import { inferCohort } from './probe-harness';
+import { dedupByKey } from '../../product/domain/algebra/keyed-set';
 
 export interface ProbeTarget {
   readonly verb: string;
@@ -30,24 +31,30 @@ export interface ProbeTarget {
   readonly errorFamily: string | null;
 }
 
+/** The canonical key derivation — `verb|facetKind|errorFamily`
+ *  with `errorFamily: null` collapsed to the literal `'none'`.
+ *  Exported so cross-module dedup callers can use the same
+ *  identity. */
+export function targetKey(t: ProbeTarget): string {
+  return `${t.verb}|${t.facetKind}|${t.errorFamily ?? 'none'}`;
+}
+
 /** Derive the canonical target set from the derivation's probe
  *  list. Targets are the deduped (verb, facetKind, errorFamily)
  *  triples across all derived probes. Stable sort order so callers
- *  get reproducible diffs across cycles. */
+ *  get reproducible diffs across cycles.
+ *
+ *  Uses `dedupByKey` from product/domain/algebra/keyed-set —
+ *  the canonical "set-by-key" pattern (KeyedSetMonoid). */
 export function deriveProbeTargets(derivation: ProbeDerivation): readonly ProbeTarget[] {
-  const seen = new Map<string, ProbeTarget>();
-  for (const probe of derivation.probes) {
+  const targets: readonly ProbeTarget[] = derivation.probes.map((probe) => {
     const cohort = inferCohort(probe);
-    const target: ProbeTarget = {
+    return {
       verb: cohort.verb,
       facetKind: cohort.facetKind,
       errorFamily: cohort.errorFamily,
     };
-    seen.set(targetKey(target), target);
-  }
-  return Array.from(seen.values()).sort((a, b) => targetKey(a).localeCompare(targetKey(b)));
-}
-
-function targetKey(t: ProbeTarget): string {
-  return `${t.verb}|${t.facetKind}|${t.errorFamily ?? 'none'}`;
+  });
+  const deduped = dedupByKey({ items: targets, keyOf: targetKey });
+  return [...deduped].sort((a, b) => targetKey(a).localeCompare(targetKey(b)));
 }

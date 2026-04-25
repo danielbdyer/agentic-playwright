@@ -6,7 +6,7 @@
  *
  * Per docs/v2-compounding-engine-plan.md §4.5, the filesystem store
  * reads `<logDir>/probe-receipts/*.json`. Before Z10a, the CLI
- * `probe-spike` did not emit to that dir — it computed the SpikeVerdict
+ * `probe-spike` did not emit to that dir — it computed the SpikeReport
  * and returned it without writing. This module closes that glue gap.
  *
  * Design notes:

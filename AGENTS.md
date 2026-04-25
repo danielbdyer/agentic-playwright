@@ -14,26 +14,26 @@ The three things v2's `product/` ships (details in `docs/v2-direction.md §1`):
 The workshop's job (details in `docs/v2-direction.md §5` and `docs/v2-substrate.md §7`):
 - Derive **probes** from the manifest, run them through the product's normal authoring flow, derive metrics over run records, gate proposal activation against the trust policy, and append hypothesis receipts to the workshop's log. Graduate when probe coverage = 100% and `metric-hypothesis-confirmation-rate` sustains above floor.
 
-## If you're a fresh agent session, your next action is to read the post-Z11a handoff
+## If you're a fresh agent session, your next action is to read the substrate-ladder plan
 
-**Status as of 2026-04-24.** Verdict-11 landed. The compounding engine now measures three cohorts (probe-surface, customer-compilation-resolvable, customer-compilation-needs-human) across two prediction kinds (confirmation-rate, intervention-fidelity). The pattern ladder slotted into the 11-rung resolution precedence at `'shared-patterns'` with six seed patterns + seven seed matchers. Graduation holds under both the Z10 single-cohort sequence and the full three-cohort drive-through. 3,890 tests green; ~165 compounding-family/pattern/customer-backlog laws.
+**Status as of 2026-04-24 (late).** Z11g (substrate ladder) is actively in-flight. Rungs 1–3 (dry / fixture-replay / playwright-live) have the substrate-invariance theorem executable as law (Z11g.a/b/c landed). Rung-4 (Platonic-form distillation of real Reactive OutSystems DOM) has a Reactive-only harness design (`docs/v2-substrate-ladder-plan.d0a-harness-design.md`) and Phase 1–3 domain types + store + DOM walker landed; operator URL confirmation pending for manual validation. Z11b retired (see `docs/archive/v2-executed-test-cohort-plan.md`); Z11d (live reasoning adapter) + Z11f (substrate study) remain forward paths orthogonal to Z11g.
 
-**Start here**: [`workshop/observations/handoff-post-z11a.md`](workshop/observations/handoff-post-z11a.md) — comprehensive orientation doc covering what landed, what's exciting, three forward paths (Z11d / Z11b / Z11f) with leverage + effort estimates, read-order for orientation, seam map, invariants, honest limitations, and the "if you get stuck" playbook. ~15 minutes.
+**Start here**: [`docs/v2-substrate-ladder-plan.md`](docs/v2-substrate-ladder-plan.md) — the active plan. ~30 minutes. Companions: [`docs/v2-substrate-source-survey.md`](docs/v2-substrate-source-survey.md) (Reactive-is-target scope correction + observation-axes catalog) and [`docs/v2-substrate-ladder-plan.d0a-harness-design.md`](docs/v2-substrate-ladder-plan.d0a-harness-design.md) (sophisticated 4-phase hydration heuristic + in-page evaluator design).
 
-**Three forward paths, each independently scoped**:
+**Forward paths**:
 
-1. **Z11d — Live Reasoning Adapter** (Claude-as-adapter via file-mediated record/fill/replay triad + autotelic hooks). Plan: [`docs/v2-live-adapter-plan.md`](docs/v2-live-adapter-plan.md). ~6 days. Highest-novelty + highest-leverage: replaces Z11a.5's heuristic classifier with real reasoning; activates semantic intervention-fidelity; makes customer-compilation resolvable trajectory meaningful.
+1. **Z11g — Substrate Ladder** (active). Rungs 1–3 in `workshop/probe-derivation/`; rung-4 (Reactive distillation) scaffolded in `workshop/substrate-study/`. Plan: [`docs/v2-substrate-ladder-plan.md`](docs/v2-substrate-ladder-plan.md). Enables Verdict-12's multi-rung-grounded classification.
 
-2. **Z11b — Executed-Test Cohort** (stability-rate prediction kind over N-repeat Playwright runs). Plan: [`docs/v2-executed-test-cohort-plan.md`](docs/v2-executed-test-cohort-plan.md). ~4.5 days. Most mechanical; follows the established Z11a template; adds the third leg of the quality stool.
+2. **Z11d — Live Reasoning Adapter** (Claude-as-adapter via file-mediated record/fill/replay triad + autotelic hooks). Plan: [`docs/v2-live-adapter-plan.md`](docs/v2-live-adapter-plan.md). ~6 days. Orthogonal to Z11g; replaces Z11a.5's heuristic classifier with real reasoning.
 
-3. **Z11f — Substrate Study** (offline harvest of public OutSystems DOMs → distilled frequency tables → operator-gated matcher proposals). Plan: [`docs/v2-substrate-study-plan.md`](docs/v2-substrate-study-plan.md). ~8–12 days, blocked on Z11f.0 legal review. Grounds the OutSystems-generic pattern tier in real evidence.
+3. **Z11f — Substrate Study** (offline harvest of public OutSystems DOMs → distilled matchers). Plan: [`docs/v2-substrate-study-plan.md`](docs/v2-substrate-study-plan.md). ~8–12 days. Grounds the OutSystems-generic pattern tier in real evidence.
 
-If you're instead picking up a specific forcing-function remediation, the finished graduation ledger lives in `product/tests/architecture/seam-enforcement.laws.spec.ts` — the commented history at the top of RULE_1/2/3 narrates what's already landed.
+If you're instead picking up a specific forcing-function remediation, the finished graduation ledger lives in `product/tests/architecture/seam-enforcement.laws.spec.ts`.
 
 **Reference: prior graduation milestones.**
-- Verdict-10 (2026-04-23, commit `aea4f97`) — first compounding-engine graduation on the single probe-surface cohort. Structural-plus-narrow rubric classification.
-- Verdict-11 (2026-04-24, commit `a721cd9`) — three-cohort multi-prediction graduation. Multi-cohort-synthetic rubric classification.
-- Next verdict should be verdict-12, authored by whichever of Z11b/Z11d/Z11f completes next.
+- Verdict-10 (2026-04-23, commit `aea4f97`) — first compounding-engine graduation on the single probe-surface cohort.
+- Verdict-11 (2026-04-24, commit `a721cd9`) — three-cohort multi-prediction graduation.
+- Next verdict (12) slated for whichever of Z11g/Z11d/Z11f completes next. Z11g targets "multi-rung-grounded" classification.
 
 ## New-session orientation (read in this order)
 
@@ -54,7 +54,31 @@ If you've just opened the repo, read this exact sequence before touching any cod
 - **`workshop/`** — measurement consumer. Imports `product/`'s manifest; derives probes; runs them through `product/`'s normal authoring flow; owns the seven-visitor metric tree, scorecard history, convergence-proof harness, trust-policy gate, hypothesis-receipt discipline. Can read `product/`; `product/` cannot read it. Puts itself out of a job when probe coverage = 100%.
 - **`dashboard/`** — read-only observer. Projects both upstreams through manifest-declared verbs. Writes nothing. Replaceable without touching either upstream.
 
-**The seam between folders is a compile error, not a convention.** An architecture test in `product/tests/architecture/seam-enforcement.laws.spec.ts` forbids `workshop/` or `dashboard/` from importing `product/` except through the **shared-contract set** (manifest, logs, ports, manifest invoker, errors, resilience, observation/dashboard, fitness, improvement, projection, proposal, handshake, governance, and the CLI contract). The shared-contract set is the compile-time half of the seam; the manifest verb registry is the runtime half. `product/` imports zero files from workshop or dashboard — the RULE_3 grandfather list is empty as of Step 4c.
+**The seam between folders is a compile error, not a convention.** An architecture test in `product/tests/architecture/seam-enforcement.laws.spec.ts` forbids `workshop/` or `dashboard/` from importing `product/` except through the **shared-contract set**. The shared-contract set is the compile-time half of the seam; the manifest verb registry is the runtime half. `product/` imports zero files from workshop or dashboard — the RULE_3 grandfather list is empty as of Step 4c.
+
+The shared-contract set, as enforced by `ALWAYS_ALLOWED_PRODUCT_PATHS` in the seam-enforcement law (authoritative; update this list when the law widens):
+
+- **`product/logs`** — the shared append-only log set (hypothesis receipts, compilation receipts, scoreboard snapshots, probe receipts, parity failures, snapshot records, etc.).
+- **`product/manifest`** + **`product/domain/manifest`** — the vocabulary manifest (JSON + runtime + type).
+- **`product/application/manifest`** — manifest invoker (dashboard MCP routes verb-calls through this).
+- **`product/application/ports`** — Effect Context.Tag definitions for DI (FileSystem, Dashboard, McpServer, …).
+- **`product/application/resilience`** — retry policies.
+- **`product/cli/shared`** + **`product/cli/registry`** — CLI contract (product/ + workshop/ both contribute to the merged registry).
+- **`product/domain/algebra`** — Monoid / Lattice / GaloisConnection / Hylomorphism / Free-Forgetful / ProductFold / ContextualMerge / SliceProjection / Quotient. Pure domain-neutral math primitives.
+- **`product/domain/fitness`** — measurement types (failure classes, proof obligations, scorecard shape).
+- **`product/domain/governance`** — envelopes, Stage, Scope, Lane, Governance, TrustPolicy, WorkflowMetadata.
+- **`product/domain/handshake`** — AgentWorkItem, InterventionHandoff.
+- **`product/domain/improvement`** — experiment / ledger / substrate-context types.
+- **`product/domain/intent`** — AdoSnapshot / AdoStep (shared by workshop customer-backlog classifier).
+- **`product/domain/kernel/errors`** — TesseractError hierarchy.
+- **`product/domain/kernel/hash`** — Fingerprint<Tag> phantom registry + stableStringify + fingerprintFor.
+- **`product/domain/observation/dashboard`** — DashboardEvent, WorkItemDecision, McpToolDefinition.
+- **`product/domain/projection`** — SceneState, FlywheelAct, SummaryView, etc. (read-model contract).
+- **`product/domain/proposal`** — ProposalBundle, cluster types, failure fragments.
+- **`product/domain/resolution/patterns`** — Rung / Matcher / Pattern kernel + shared intent classifier.
+- **`product/instruments/tooling`** — Playwright adapter utilities (launchHeadedHarness, createPlaywrightBridge).
+
+When widening this set, update both the law (`ALWAYS_ALLOWED_PRODUCT_PATHS` at `product/tests/architecture/seam-enforcement.laws.spec.ts:100-237`) and this list. Per-path rationale lives in the law's inline comments; keep the two in sync.
 
 **v1 lifecycle state (post Step 4c).** The `lib/` tree is gone; `product/`, `workshop/`, and `dashboard/` are the three compartments. The synthetic feature completion plan (v1-reference) folded into Steps 1–4c. Reference-canon retired at Step 1; the Reasoning port unified at Step 4b; the manifest-driven MCP tool catalog landed at Step 4c; the CLI split into `product/cli/ + workshop/cli/` with a merged registry at `bin/cli-registry.ts` at step-4c.cli-split. The last RULE_3 entry (headed-harness factory) graduated at step-4c.headed-harness-graduate by moving the Playwright bridge factory into `product/instruments/tooling/playwright-bridge.ts`.
 
@@ -87,8 +111,8 @@ Scoped instructions under `.github/instructions/` still apply per-concern and ar
 - **The manifest is the contract.** `product/manifest/manifest.json` is generated from code at build time; a build check fails on non-additive drift. Verbs have frozen signatures from the moment they're published.
 - **Every agentic decision produces an `InterventionHandoff`.** The shape is required, not optional. No silent escalation; no `throw` as escape.
 - **Every reasoning call produces a `ReasoningReceipt<Op>`.** Provider-specific errors classify into the five named families (`rate-limited`, `context-exceeded`, `malformed-response`, `unavailable`, `unclassified`).
-- **Every proposal activation passes through the trust-policy gate.** The YAML-authored thresholds in `workshop/policy/trust-policy.yaml` are actively enforced; no receipt = no override; no threshold satisfaction = no activation.
-- **Every log is append-only.** The adapter refuses in-place updates; confidence derives on read from the evidence log; contradictions never overwrite.
+- **Every proposal activation passes through the trust-policy gate.** The YAML-authored thresholds in `.tesseract/policy/trust-policy.yaml` are actively enforced via `product/application/policy/trust-policy.ts`; no receipt = no override; no threshold satisfaction = no activation.
+- **Every log is append-only.** The adapter refuses in-place updates; confidence derives on read from the evidence log; contradictions never overwrite. The full set is enumerated at `product/domain/logs/log-registry.ts` (~10 entries: hypothesis receipts, compilation receipts, scoreboard snapshots, probe receipts, scenario receipts, ratchets, substrate snapshots, hypotheses ledger, improvement-run ledger, dashboard journal). Adding a new log requires registering it; an architecture-law test enforces the registry's structural invariants.
 - **Every envelope carries the four phantom axes.** Stage × Source × Verdict × Fingerprint<Tag>; misuse is a compile error.
 - **Provenance is minted at the event, not reconstructed later.**
 - **Generated tests are disposable object code;** the facet catalog is the durable asset.
@@ -350,7 +374,7 @@ If proposals show `generated > 0` but `activated = 0`, the activation pipeline m
 
 ## Trust policy boundary
 
-Trust policy lives in `workshop/policy/` (`workshop/policy/trust-policy.yaml` + `workshop/policy/evaluate.ts`). It evaluates activation of canonical changes — elements, postures, hints, patterns, surfaces, snapshot templates, routes — against confidence thresholds and evidence requirements. Active enforcement: every proposal activation passes through it.
+Trust policy's *evaluator* lives in `product/application/policy/trust-policy.ts` (product code runs it at activation time). Its *thresholds* (YAML-authored) live in `.tesseract/policy/trust-policy.yaml` (operator-owned, workspace-local). Together they evaluate activation of canonical changes — elements, postures, hints, patterns, surfaces, snapshot templates, routes — against confidence thresholds and evidence requirements. Active enforcement: every proposal activation passes through it.
 
 Trust policy does not block `product/` compiler output derived from existing canon; it does not block runtime-acquired canon that satisfies its thresholds. Numeric thresholds recalibrate as probes derived from the manifest surface real evidence — threshold changes land through the same proposal-gated discipline the policy already enforces on catalog writes.
 

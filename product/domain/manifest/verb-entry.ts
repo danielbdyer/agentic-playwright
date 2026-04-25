@@ -16,11 +16,17 @@
  */
 
 /** Top-level category groups the verb falls under. The categories
- *  map to the five primitives named in `docs/v2-substrate.md §2`. */
+ *  map to the five primitives named in `docs/v2-substrate.md §2`.
+ *  `mutation` was renamed from `interact` (per Agent B's polysemy
+ *  audit, 2026-04-25): the verb named `'interact'` was IN the
+ *  `'interact'` category alongside `navigate`, so the category
+ *  string and the verb name collided. `'mutation'` names the
+ *  category by what the verbs DO (mutate page state) rather than
+ *  by the canonical verb. */
 export type VerbCategory =
   | 'intent'      // agent receives and parses intent (e.g., ADO fetch, intent-parse)
   | 'observe'     // agent observes the world (e.g., aria snapshot, DOM probe)
-  | 'interact'    // agent acts on the world (e.g., click, type, navigate)
+  | 'mutation'    // agent acts on the world (e.g., click, type, navigate)
   | 'memory'      // agent reads/writes the facet catalog (facet-mint, facet-query)
   | 'reason'      // agent reasons (select, interpret, synthesize)
   | 'compose'     // agent emits a test (test-compose)

@@ -1,7 +1,7 @@
 {
   "kind": "product-manifest",
   "version": 1,
-  "generatedAt": "2026-04-22T18:25:50.784Z",
+  "generatedAt": "2026-04-25T18:14:26.260Z",
   "verbs": [
     {
       "name": "facet-enrich",
@@ -90,7 +90,7 @@
     },
     {
       "name": "interact",
-      "category": "interact",
+      "category": "mutation",
       "summary": "Dispatch a single action (click, input, select, wait) at a facet-referenced locator and return the outcome envelope.",
       "inputs": {
         "typeName": "InteractRequest",
@@ -134,7 +134,7 @@
     },
     {
       "name": "navigate",
-      "category": "interact",
+      "category": "mutation",
       "summary": "Navigate the active page to a new URL. The substrate reads the destination URL and renders the new world at that address.",
       "inputs": {
         "typeName": "NavigateRequest",

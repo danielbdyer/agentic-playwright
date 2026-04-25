@@ -55,8 +55,8 @@ test('mcpCategoryForVerbCategory flattens intent/memory/diagnostic/observe → o
   expect(mcpCategoryForVerbCategory('diagnostic')).toBe('observe');
 });
 
-test('mcpCategoryForVerbCategory flattens interact/reason/compose/execute → decide', () => {
-  expect(mcpCategoryForVerbCategory('interact')).toBe('decide');
+test('mcpCategoryForVerbCategory flattens mutation/reason/compose/execute → decide', () => {
+  expect(mcpCategoryForVerbCategory('mutation')).toBe('decide');
   expect(mcpCategoryForVerbCategory('reason')).toBe('decide');
   expect(mcpCategoryForVerbCategory('compose')).toBe('decide');
   expect(mcpCategoryForVerbCategory('execute')).toBe('decide');
@@ -96,7 +96,7 @@ test('inputSchema embeds error families for agent-legible error-handling hints',
 test('projectManifestVerbsToMcpTools preserves the input verb order', () => {
   const verbs: ReadonlyArray<VerbEntry> = [
     makeVerb({ name: 'first', category: 'observe' }),
-    makeVerb({ name: 'second', category: 'interact' }),
+    makeVerb({ name: 'second', category: 'mutation' }),
     makeVerb({ name: 'third', category: 'governance' }),
   ];
   const tools = projectManifestVerbsToMcpTools(verbs);

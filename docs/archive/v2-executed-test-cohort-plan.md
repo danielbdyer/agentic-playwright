@@ -1,11 +1,19 @@
-# Executed-Test Cohort Plan (Step 11 Z11b)
+# Executed-Test Cohort Plan (Step 11 Z11b) — ARCHIVED
 
-> Status: planning — Step 11 Z11b. Architectural design doc;
-> no code has landed. Companion to
-> `docs/v2-compounding-engine-plan.md`,
-> `docs/v2-substrate-study-plan.md`, and
-> `docs/v2-live-adapter-plan.md`. Orthogonal to Z11d and Z11f;
-> can be implemented in parallel with either.
+> ⚠️ **Retired 2026-04-24; see `docs/v2-substrate-ladder-plan.md`
+> §13 for the retirement rationale.** Z11b's "stability-rate
+> over N-repeat Playwright runs" framing was v1-shaped: the
+> sharper byte-identical-receipt metric (probe-IR §7:316)
+> supersedes stability-rate; the four-rung substrate ladder
+> (Z11g) supersedes the single executed-test cohort; Z11g.b's
+> laws implement the substrate-invariance theorem directly.
+> One idea survives: the per-spec retry diagnostic (pass / flake
+> / fail) retains operator-tool value. A future plan may
+> re-introduce it as diagnostics (not as a graduation cohort).
+>
+> Status: archived — companion to the active
+> `docs/v2-substrate-ladder-plan.md`. Read for historical
+> context only.
 
 ## 0. The verdict in one sentence
 

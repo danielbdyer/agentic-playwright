@@ -32,7 +32,7 @@
  */
 
 import { Effect, Layer } from 'effect';
-import { runSpike, type SpikeVerdict } from './spike-harness';
+import { runSpike, type SpikeReport } from './spike-harness';
 import { ProbeHarness, type ProbeHarnessService } from './probe-harness';
 import {
   lookupClassifier,
@@ -211,7 +211,7 @@ export function runPlaywrightLiveSpike(input: {
   readonly rung2Registry?: VerbClassifierRegistry;
   readonly rung3Registry?: Rung3ClassifierRegistry;
   readonly now?: () => Date;
-}): Effect.Effect<SpikeVerdict, Error> {
+}): Effect.Effect<SpikeReport, Error> {
   return Effect.scoped(
     Effect.gen(function* () {
       const server = yield* acquireServer(input.rootDir);

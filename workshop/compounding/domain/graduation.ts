@@ -69,3 +69,55 @@ export function foldGraduationGateState<R>(
     case 'regressed': return cases.regressed();
   }
 }
+
+/** A graduation gate is a Boolean meet-monoid over individual
+ *  condition `held` flags:
+ *
+ *    empty   = { held: true,  missingConditions: [] }    (T)
+ *    combine = AND on `held`; UNION on `missingConditions` (∧)
+ *
+ *  The `holds` predicate of a GraduationGateReport is the meet
+ *  of every condition's `held`:
+ *
+ *    holds = condition_1.held ∧ condition_2.held ∧ ... ∧ condition_n.held
+ *
+ *  Identity: meet with T returns the other operand.
+ *  Associativity: AND is associative; array union is associative.
+ *  Idempotence: meet(x, x) = x — same condition listed twice
+ *    contributes once to the missing set.
+ *
+ *  Use `concatAll(graduationGateMonoid, conditions.map(toFlag))`
+ *  to fuse a condition list into a single (held, missing) verdict. */
+export interface GraduationGateFlag {
+  readonly held: boolean;
+  readonly missingConditions: readonly string[];
+}
+
+export const graduationGateMonoid: {
+  readonly empty: GraduationGateFlag;
+  readonly combine: (
+    a: GraduationGateFlag,
+    b: GraduationGateFlag,
+  ) => GraduationGateFlag;
+} = {
+  empty: { held: true, missingConditions: [] },
+  combine: (a, b) => ({
+    held: a.held && b.held,
+    missingConditions: [
+      ...a.missingConditions,
+      ...b.missingConditions.filter((m) => !a.missingConditions.includes(m)),
+    ],
+  }),
+};
+
+/** Lift a single GraduationCondition into the meet-monoid:
+ *  held → ({ held: true, missingConditions: [] }); not-held →
+ *  ({ held: false, missingConditions: [name] }). Use with
+ *  `concatAll` (from product/domain/algebra/monoid.ts) to
+ *  produce the report's `holds` + `missingConditions` pair in
+ *  one fold. */
+export function conditionToGateFlag(c: GraduationCondition): GraduationGateFlag {
+  return c.held
+    ? { held: true, missingConditions: [] }
+    : { held: false, missingConditions: [c.name] };
+}

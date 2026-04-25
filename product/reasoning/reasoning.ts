@@ -40,6 +40,7 @@
 import { Context, type Effect } from 'effect';
 import type { TranslationReceipt, TranslationRequest } from '../domain/resolution/types';
 import type { AgentInterpretationRequest, AgentInterpretationResult } from '../domain/interpretation/agent-interpreter';
+import { closedUnion } from '../domain/algebra/closed-union';
 
 // ─── Operation discriminator ───
 
@@ -47,6 +48,36 @@ import type { AgentInterpretationRequest, AgentInterpretationResult } from '../d
  *  threads through `ReasoningReceipt<Op>` so the receipt log is
  *  queryable by operation kind without inspecting payload shape. */
 export type ReasoningOp = 'select' | 'interpret' | 'synthesize';
+
+/** Runtime witness for the ReasoningOp closed union. */
+const REASONING_OP_UNION = closedUnion<ReasoningOp>([
+  'select',
+  'interpret',
+  'synthesize',
+]);
+
+export const REASONING_OP_VALUES = REASONING_OP_UNION.values;
+
+/** Exhaustive fold over ReasoningOp. TypeScript enforces
+ *  coverage of every case at compile time; widening the union
+ *  without updating the fold's case object is a type error. */
+export function foldReasoningOp<R>(
+  op: ReasoningOp,
+  cases: {
+    readonly select: () => R;
+    readonly interpret: () => R;
+    readonly synthesize: () => R;
+  },
+): R {
+  switch (op) {
+    case 'select':
+      return cases.select();
+    case 'interpret':
+      return cases.interpret();
+    case 'synthesize':
+      return cases.synthesize();
+  }
+}
 
 // ─── Per-operation request and response types ───
 

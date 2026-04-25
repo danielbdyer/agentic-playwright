@@ -1,5 +1,5 @@
 /**
- * WorldShape — the first-principles replacement for WorldConfig.
+ * WorldShape — the substrate's canonical input language.
  *
  * A WorldShape declares the world's content (ordered SurfaceSpecs)
  * and its environmental entropy (an optional EntropyProfile). The
@@ -7,24 +7,18 @@
  *
  *     Substrate :: (WorldShape) → DOM
  *
- * Where WorldConfig's vocabulary was keyed by business-domain
- * identifiers ("policy-search:searchButton"), WorldShape speaks the
- * classifier's own language: role, name, visibility, enabled,
- * input-backing, detach-timing.
+ * Where earlier iterations keyed their vocabulary by business-
+ * domain identifiers ("policy-search:searchButton"), WorldShape
+ * speaks the classifier's own language: role, name, visibility,
+ * enabled, input-backing, detach-timing.
  *
- * ## Relationship to WorldConfig
+ * ## Wire format
  *
- * WorldConfig (workshop/substrate/world-config.ts) is retained as
- * a narrow legacy shape at the URL wire-format layer. During this
- * first-principles refactor, the substrate canonicalizes on
- * WorldShape internally; WorldConfig continues to serialize/parse
- * on the URL for back-compat with existing CLI/harness code, but
- * new callers should use WorldShape.
- *
- * The URL serializer (serializeWorldShapeToUrl) writes WorldShape
- * as the `world` query parameter directly. parseWorldShapeFromUrl
- * reads it back. Old clients that emit `{ facets: [...] }` continue
- * to parse via the legacy path — see conversion helpers below.
+ * The URL serializer (`serializeWorldShapeToUrl`) writes a
+ * WorldShape as the `shape` query parameter. `parseWorldShapeFromUrl`
+ * reads it back. The parameter name was deliberately renamed from
+ * `world` during the substrate refactor so legacy URL clients don't
+ * silently parse under the new grammar.
  *
  * Pure domain.
  */
@@ -47,13 +41,52 @@ export interface WorldShape {
   readonly preset?: string;
 }
 
-/** The query parameter the substrate URL carries. Renamed from
- *  'world' (which WorldConfig used) to 'shape' so legacy clients
- *  writing 'world' don't parse as the new format. */
+/** The query parameter the substrate URL carries. */
 export const WORLD_SHAPE_QUERY_PARAM = 'shape';
 
 /** The empty shape — renders nothing. */
 export const EMPTY_WORLD_SHAPE: WorldShape = { surfaces: [] };
+
+/** Right-biased override Monoid<WorldShape>. Combines two
+ *  WorldShapes where the right (`b`) takes precedence on every
+ *  axis when defined:
+ *
+ *    empty                = EMPTY_WORLD_SHAPE
+ *    combine(a, b).surfaces  = b.surfaces.length > 0 ? b.surfaces : a.surfaces
+ *    combine(a, b).entropy   = b.entropy ?? a.entropy
+ *    combine(a, b).preset    = b.preset ?? a.preset
+ *
+ *  Used by `resolveTopology` (workshop/substrate/test-topology.ts)
+ *  to apply a registered topology under an explicit shape:
+ *
+ *    resolveTopology(shape, registry)
+ *      = combine(topologyShape, shape)   // shape wins on each axis
+ *
+ *  Right-biasing models "the explicit caller-supplied shape is
+ *  authoritative; preset values fill in gaps."
+ *
+ *  Associativity: combine(a, combine(b, c)) = combine(combine(a, b), c).
+ *  Both reduce to "the rightmost-defined value on each axis."
+ *  Identity laws: combine(empty, x) = x = combine(x, empty).
+ *
+ *  See `tests/substrate/world-shape-monoid.laws.spec.ts` for
+ *  the law-runner. */
+export const worldShapeOverrideMonoid: {
+  readonly empty: WorldShape;
+  readonly combine: (a: WorldShape, b: WorldShape) => WorldShape;
+} = {
+  empty: EMPTY_WORLD_SHAPE,
+  combine: (a, b) => {
+    const surfaces = b.surfaces.length > 0 ? b.surfaces : a.surfaces;
+    const entropy = b.entropy ?? a.entropy;
+    const preset = b.preset ?? a.preset;
+    return {
+      surfaces,
+      ...(entropy !== undefined ? { entropy } : {}),
+      ...(preset !== undefined ? { preset } : {}),
+    };
+  },
+};
 
 /** Serialize a WorldShape onto a URL. */
 export function serializeWorldShapeToUrl(
@@ -82,6 +115,27 @@ export function parseWorldShapeFromUrl(url: string): WorldShape | null {
   }
   if (!isValidWorldShape(parsed)) return null;
   return parsed;
+}
+
+/** WorldShape ⇄ URL string PartialIso, bound to a `baseUrl`.
+ *  Bundles serializeWorldShapeToUrl + parseWorldShapeFromUrl
+ *  under the product/domain/algebra/partial-iso.ts abstraction.
+ *
+ *  Per-baseUrl factory rather than a free constant because the
+ *  forward direction needs a baseUrl to attach the query string
+ *  to. The round-trip law:
+ *
+ *    parseWorldShapeFromUrl(serializeWorldShapeToUrl(b, s)) ≡ s
+ *
+ *  holds for every WorldShape s + every baseUrl b. */
+export function worldShapeUrlIso(baseUrl: string): {
+  readonly forward: (shape: WorldShape) => string;
+  readonly inverse: (url: string) => WorldShape | null;
+} {
+  return {
+    forward: (shape) => serializeWorldShapeToUrl(baseUrl, shape),
+    inverse: parseWorldShapeFromUrl,
+  };
 }
 
 function stripExistingShapeParam(url: string): string {

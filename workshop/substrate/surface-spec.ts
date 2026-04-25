@@ -29,6 +29,8 @@
  * Pure domain; no React imports.
  */
 
+import { closedUnion } from '../../product/domain/algebra/closed-union';
+
 /** The closed set of ARIA roles the substrate renders. Matches
  *  Playwright's getByRole first argument (`@playwright/test`). The
  *  v1 seed set below covers every role the current probe suite
@@ -66,6 +68,47 @@ export type SurfaceRole =
   | 'tabpanel'
   | 'textbox';
 
+/** Runtime witness for the SurfaceRole closed union.
+ *
+ *  Used by `workshop/synthetic-app/catalog-projection.ts`
+ *  (projection-total law, plan §9.3 / Z11g.c) and by any caller
+ *  that needs to iterate every role — fuzz-tests, manifest
+ *  emission, dashboard projection.
+ *
+ *  Order mirrors the union declaration for human legibility. */
+const SURFACE_ROLE_UNION = closedUnion<SurfaceRole>([
+  'alert',
+  'banner',
+  'button',
+  'checkbox',
+  'combobox',
+  'complementary',
+  'contentinfo',
+  'form',
+  'grid',
+  'gridcell',
+  'heading',
+  'link',
+  'list',
+  'listitem',
+  'main',
+  'navigation',
+  'radio',
+  'radiogroup',
+  'region',
+  'row',
+  'rowheader',
+  'search',
+  'searchbox',
+  'status',
+  'tab',
+  'tablist',
+  'tabpanel',
+  'textbox',
+]);
+
+export const SURFACE_ROLE_VALUES = SURFACE_ROLE_UNION.values;
+
 /** How the surface is (not) visible. */
 export type SurfaceVisibility =
   | 'visible'
@@ -73,6 +116,44 @@ export type SurfaceVisibility =
   | 'visibility-hidden'
   | 'off-screen'
   | 'zero-size';
+
+/** Runtime witness for the SurfaceVisibility closed union. */
+const SURFACE_VISIBILITY_UNION = closedUnion<SurfaceVisibility>([
+  'visible',
+  'display-none',
+  'visibility-hidden',
+  'off-screen',
+  'zero-size',
+]);
+
+export const SURFACE_VISIBILITY_VALUES = SURFACE_VISIBILITY_UNION.values;
+
+/** Exhaustive fold over SurfaceVisibility. TypeScript enforces
+ *  coverage of every case at compile time; widening the union
+ *  without updating the fold's case object is a type error. */
+export function foldSurfaceVisibility<R>(
+  visibility: SurfaceVisibility,
+  cases: {
+    readonly visible: () => R;
+    readonly displayNone: () => R;
+    readonly visibilityHidden: () => R;
+    readonly offScreen: () => R;
+    readonly zeroSize: () => R;
+  },
+): R {
+  switch (visibility) {
+    case 'visible':
+      return cases.visible();
+    case 'display-none':
+      return cases.displayNone();
+    case 'visibility-hidden':
+      return cases.visibilityHidden();
+    case 'off-screen':
+      return cases.offScreen();
+    case 'zero-size':
+      return cases.zeroSize();
+  }
+}
 
 /** Backing realization for textbox-role surfaces. The choice drives
  *  whether Playwright's `fill()` succeeds or throws — exactly the

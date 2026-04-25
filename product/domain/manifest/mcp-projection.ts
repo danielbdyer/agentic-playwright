@@ -56,7 +56,7 @@ export function mcpCategoryForVerbCategory(category: VerbCategory): McpToolCateg
     case 'memory':
     case 'diagnostic':
       return 'observe';
-    case 'interact':
+    case 'mutation':
     case 'reason':
     case 'compose':
     case 'execute':

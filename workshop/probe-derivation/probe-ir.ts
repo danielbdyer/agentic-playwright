@@ -28,10 +28,23 @@ export interface ProbeExpectation {
 
 /** Lightweight coverage tag used by the workshop's
  *  probe-coverage metric. Attached to a fixture via the
- *  `exercises[]` list and collected by the coverage report. */
+ *  `exercises[]` list and collected by the coverage report.
+ *
+ *  ## Rung disambiguation
+ *
+ *  `locatorRung` (formerly `rung`) refers to the **11-rung
+ *  resolution-precedence ladder** at
+ *  `product/domain/resolution/patterns/rung-kernel.ts` (rungs
+ *  1-11: explicit, operator-override, agentic-override,
+ *  shared-patterns, ...). It is NOT the substrate-ladder rung
+ *  (4 rungs: dry / fixture-replay / playwright-live /
+ *  commoncrawl-derived). Two distinct preorder ladders coexist
+ *  in the codebase; the `locator-` prefix on this field
+ *  prevents confusion. */
 export interface ProbeExercise {
-  /** Optional rung identifier (for verbs that walk a ladder). */
-  readonly rung?: string;
+  /** Optional locator-rung identifier — the 11-rung resolution
+   *  precedence ladder (NOT the substrate ladder). */
+  readonly locatorRung?: string;
   /** Optional error-family the probe exercises. */
   readonly errorFamily?: string | null;
 }

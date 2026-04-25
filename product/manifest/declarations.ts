@@ -59,7 +59,7 @@ export const observeVerb = declareVerb({
 
 export const interactVerb = declareVerb({
   name: 'interact',
-  category: 'interact',
+  category: 'mutation',
   summary: 'Dispatch a single action (click, input, select, wait) at a facet-referenced locator and return the outcome envelope.',
   inputs: {
     typeName: 'InteractRequest',
@@ -188,7 +188,7 @@ export const locatorHealthTrackVerb = declareVerb({
 
 export const navigateVerb = declareVerb({
   name: 'navigate',
-  category: 'interact',
+  category: 'mutation',
   summary: 'Navigate the active page to a new URL. The substrate reads the destination URL and renders the new world at that address.',
   inputs: {
     typeName: 'NavigateRequest',

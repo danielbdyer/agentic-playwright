@@ -204,7 +204,7 @@ This is not about replacing runtime checks. It's about making governance constra
 
 ### Explicit prohibition list
 
-The domain audit identified recurring violations. These patterns are explicitly prohibited in `lib/domain/` and strongly discouraged in `lib/application/`:
+The domain audit identified recurring violations. These patterns are explicitly prohibited in `product/domain/` and strongly discouraged in `product/application/`:
 
 - **`let` declarations** — use `const` with ternary, `reduce`, or recursive fold
 - **`Array.push()`** — use `[...existing, newItem]` or `flatMap`
@@ -301,7 +301,7 @@ function refreshScenario(options: { adoId: AdoId; paths: ProjectPaths }) {
 }
 ```
 
-Never use `Effect.runPromise` or `Effect.runSync` inside application code. These are composition-root operations only (`lib/composition/`).
+Never use `Effect.runPromise` or `Effect.runSync` inside application code. These are composition-root operations only (`product/composition/`).
 
 ### Use `Effect.all` for structurally independent operations
 
@@ -565,7 +565,7 @@ function applyDriftToElements(doc: Record<string, unknown>, event: DriftEvent): 
 }
 ```
 
-Use `foldGovernance` for governance case analysis. Use the typed fold functions from `lib/domain/visitors.ts` for all major discriminated unions: `foldValueRef`, `foldStepInstruction`, `foldLocatorStrategy`, `foldResolutionReceipt`, `foldResolutionOutcome`, `foldImprovementTarget`, `foldResolutionEvent`, `foldPipelineFailureClass`. Prefer these over raw `switch` statements — the fold guarantees compile-time exhaustiveness when a new variant is added.
+Use `foldGovernance` for governance case analysis. Use the typed fold functions from `product/domain/governance/folds.ts` for all major discriminated unions: `foldValueRef`, `foldStepInstruction`, `foldLocatorStrategy`, `foldResolutionReceipt`, `foldResolutionOutcome`, `foldImprovementTarget`, `foldResolutionEvent`, `foldPipelineFailureClass`. Prefer these over raw `switch` statements — the fold guarantees compile-time exhaustiveness when a new variant is added.
 
 ### Composite (Scoring Rules, Pipeline Phases)
 
@@ -664,9 +664,9 @@ interface AtomPromotionGate<C extends AtomClass> {
 }
 ```
 
-The `PromotionCandidateSource` (`'cold-derivation' | 'live-derivation'`) and `CanonicalSource` (`'operator-override' | 'agentic-override' | 'deterministic-observation'`) type aliases live in `lib/domain/pipeline/promotion-gate.ts`.
+The `PromotionCandidateSource` (`'cold-derivation' | 'live-derivation'`) and `CanonicalSource` (`'operator-override' | 'agentic-override' | 'deterministic-observation'`) type aliases live in `product/domain/pipeline/promotion-gate.ts`.
 
-**Declaring fingerprint-typed fields.** Every fingerprint field uses `Fingerprint<Tag>` from `lib/domain/kernel/hash.ts`. The tag registry (`FingerprintTag`) is closed — adding a new fingerprint kind requires editing the union. Fingerprint producers use `fingerprintFor<Tag>(tag, value)` (raw hex) or `taggedFingerprintFor<Tag>(tag, value)` (sha256:-prefixed). At persistence boundaries, use `asFingerprint(tag, rawString)` to adopt a string as a tagged fingerprint.
+**Declaring fingerprint-typed fields.** Every fingerprint field uses `Fingerprint<Tag>` from `product/domain/kernel/hash.ts`. The tag registry (`FingerprintTag`) is closed — adding a new fingerprint kind requires editing the union. Fingerprint producers use `fingerprintFor<Tag>(tag, value)` (raw hex) or `taggedFingerprintFor<Tag>(tag, value)` (sha256:-prefixed). At persistence boundaries, use `asFingerprint(tag, rawString)` to adopt a string as a tagged fingerprint.
 
 ```typescript
 // Canon artifact fingerprints are tag-specific:
@@ -686,7 +686,7 @@ interface WorkflowEnvelopeFingerprints {
 
 Cross-tag assignment is a compile error — `Fingerprint<'knowledge'>` cannot be passed where `Fingerprint<'surface'>` is expected. Verified by `tests/architecture/fingerprint-tags.laws.spec.ts`.
 
-**Governance consumption.** Every governance read goes through the typed API (`isApproved`, `isBlocked`, `isReviewRequired`, `foldGovernance`). Ad-hoc `=== 'approved'` string comparisons are an architecture violation enforced by `tests/architecture/governance-verdict.laws.spec.ts` Law 8. Gate composition uses `GovernanceVerdict<T, I>` with `runGateChain` — see `lib/application/governance/auto-approval.ts` for the worked example.
+**Governance consumption.** Every governance read goes through the typed API (`isApproved`, `isBlocked`, `isReviewRequired`, `foldGovernance`). Ad-hoc `=== 'approved'` string comparisons are an architecture violation enforced by `tests/architecture/governance-verdict.laws.spec.ts` Law 8. Gate composition uses `GovernanceVerdict<T, I>` with `runGateChain` — see `product/application/policy/auto-approval.ts` for the worked example.
 
 **Caveat:** `ProposalBundle` has an identical `proposals` field at both `payload.proposals` and top-level `proposals`. This duplication means `mapPayload` alone cannot fully update the bundle — you must also update the top-level field. This is a known structural debt, not a pattern to replicate.
 
@@ -734,7 +734,7 @@ Use `contramapValidationRule` to adapt a rule to a different input type.
 
 ### StateMachine Abstraction
 
-For recursive Effect loops with convergence detection, use `StateMachine<S, E, R>` from `lib/application/state-machine.ts`:
+For recursive Effect loops with convergence detection, use `StateMachine<S, E, R>` from `product/application/state-machine.ts`:
 
 ```typescript
 import { runStateMachine } from './state-machine';
@@ -782,7 +782,101 @@ export interface MyType {
 }
 ```
 
-Reference files for the canonical pattern: `lib/domain/types/workflow.ts`, `lib/domain/types/execution.ts`, `lib/domain/types/resolution.ts`, `lib/domain/types/intent.ts`.
+Reference files for the canonical pattern: `product/domain/governance/workflow-types.ts`, `product/domain/evidence/types.ts`, `product/domain/resolution/types.ts`, `product/domain/intent/types.ts`.
+
+---
+
+### Verdict-carrying values (errors as data, not exceptions)
+
+When a function classifies an outcome that has multiple meaningful failure modes, return a closed-union **verdict** value rather than throwing. The verdict is the value the caller folds; failure modes are first-class data, not exceptional control flow.
+
+**Pattern**:
+
+```ts
+export type FooVerdict =
+  | { readonly kind: 'success'; readonly result: ... }
+  | { readonly kind: 'failure-A'; readonly evidence: readonly string[] }
+  | { readonly kind: 'failure-B'; readonly diagnostic: string };
+
+export function foldFooVerdict<R>(
+  v: FooVerdict,
+  cases: { readonly success: ...; readonly failureA: ...; readonly failureB: ... },
+): R { ... }
+```
+
+The discipline:
+
+1. **Closed-union discriminator**: `kind: 'specific-tag' | ...`. Adding a new failure mode is a deliberate widening that fails the fold's case object at type-check.
+2. **Per-variant evidence**: each kind carries the data the caller (or a future audit) needs to reason about WHY this verdict landed. Never an opaque error message; always structured.
+3. **Exhaustive fold**: a sibling `fold*` function with case-object-keyed dispatch. Used in place of switch statements anywhere downstream.
+4. **No throwing**: the function never throws; every code path returns a verdict. Programmer-error preconditions (cohort-key mismatch, etc.) MAY throw, since those represent caller bugs not failure modes.
+
+**Reference files**:
+- `product/domain/governance/workflow-types.ts:Governance` + `foldGovernance`
+- `product/domain/kernel/errors.ts:ReasoningError` + `foldReasoningError`
+- `workshop/probe-derivation/probe-receipt.ts:ProbeOutcome` + `confirmsExpectation`
+- `workshop/probe-derivation/parity-failure.ts:ParityDivergenceAxis` + `foldParityDivergenceAxis`
+- `workshop/substrate-study/domain/hydration-verdict.ts:HydrationVerdict` + `foldHydrationVerdict`
+- `workshop/substrate-study/domain/snapshot-record.ts:VariantClassifierVerdict` + `foldVariantClassifier`
+
+The closed union + fold pair forms the compile-time exhaustiveness gate: when a new variant lands, every fold callsite fails type-check until updated. This is the verdict-carrying pattern's load-bearing safety property.
+
+---
+
+### Fold case-handler signatures: zero-arg vs value-arg
+
+A `fold*` function's case-object handlers come in two shapes; both are correct, and which one to use is a **function of the union, not stylistic preference**.
+
+**Zero-arg form** — when the union is a pure string-literal discriminator with no per-variant payload:
+
+```ts
+export type WorkflowStage = 'preparation' | 'resolution' | ...;
+export function foldWorkflowStage<R>(
+  stage: WorkflowStage,
+  cases: { readonly preparation: () => R; readonly resolution: () => R; ... },
+): R { ... }
+```
+
+The case handler doesn't need the value because re-passing the literal string is redundant — the case's *position* in the cases-object identifies which variant ran.
+
+**Value-arg form** — when variants carry a payload the handler needs:
+
+```ts
+export type HydrationVerdict =
+  | { kind: 'stable'; phaseTimings: ... }
+  | { kind: 'mutation-storm'; mutationCount: number; ... };
+export function foldHydrationVerdict<R>(
+  verdict: HydrationVerdict,
+  cases: { readonly stable: (v: HydrationVerdict) => R; readonly mutationStorm: (v: ...) => R },
+): R { ... }
+```
+
+The case handler receives the variant-narrowed value (often via `Extract<U, { kind: 'specific' }>`) so it can read the payload.
+
+**The rule**: pure string-literal unions get zero-arg; tagged-union-with-payload gets value-arg. **Never mix forms within a single fold's cases object.**
+
+Discriminated-payload unions where the payload is identical across variants (e.g., `{ kind: 'a' | 'b' | 'c'; common: T }`) can use either form depending on whether downstream code needs `common` accessible to the handler. Default to value-arg in that case so the future-extension path (one variant gaining unique payload) doesn't require a rewrite.
+
+**Reference exemplars**:
+- Zero-arg: `foldPhaseOutputSource`, `foldWorkflowStage`, `foldWorkflowScope`, `foldWorkflowLane`, `foldResolutionMode`, `foldReasoningOp`, `foldSurfaceVisibility`, `foldParityDivergenceAxis`, `foldInterventionTargetKind`.
+- Value-arg: `foldGovernance` (with `Approved<T>` / `Blocked<T>` / `ReviewRequired<T>` brands), `foldHydrationVerdict`, `foldVariantClassifier`, `foldReasoningError`, `foldResolutionEvent`, `foldPatternRungResult`.
+
+---
+
+### In-page evaluators (browser-context modules)
+
+Code that runs inside a Playwright `page.evaluate(fn)` block executes in the browser, NOT in Node. Playwright serializes the function via `Function.prototype.toString()` and ships the source to the browser; **closure references are not preserved**. The function body must be self-contained.
+
+**Discipline**:
+
+1. **No outer-scope references in the function body.** Every helper the in-page logic needs must be defined inside the `page.evaluate(...)` callback. Importing from another module and using it inside the body fails silently at runtime — the referenced symbol is `undefined` in the browser context.
+2. **Return value must be JSON-serializable.** Playwright marshals it back through CDP. No DOM nodes, no Functions, no class instances with prototypes — only POJOs, primitives, arrays.
+3. **No async-await across the boundary.** `page.evaluate(async () => ...)` is allowed but the awaited values inside must come from browser APIs (fetch, requestAnimationFrame), not Node-side handles.
+4. **Helper duplication is the closure constraint, not a violation.** Pure helpers may legitimately exist in two places: outer scope (for unit tests + reuse) AND inside the `page.evaluate` block (for the browser context). Both copies should compute the same logic; a parity-law test asserts they don't drift.
+
+**Naming convention**: when a file has substantial in-page logic, name the helpers with an `*InPage` suffix or co-locate them in a `*.in-page.ts` companion module. Sample: `workshop/substrate-study/application/dom-walk-capture.ts:walkDom` runs a single `page.evaluate(...)` block of ~400 lines; the inline helpers (`classifyClassPrefixIn`, `bucketTextLengthIn`, etc.) are duplicates of the outer-scope exports (`classifyClassPrefix`, `bucketTextLength`) for the closure-constraint reason.
+
+**Future-state**: when the harness has ≥2 in-page evaluators, extract the shared in-page helpers into a `*.in-page.ts` companion that loads via `page.addInitScript(content)` so the helpers are available in the browser's global scope. Each `page.evaluate` then references them by name. Until then, the inline-duplication discipline + parity-law test is the right point on the cost/value curve.
 
 ---
 
@@ -963,7 +1057,7 @@ Each target gets a selector ladder in the `SelectorCanon` with 1-4 probes ranked
 
 This only works because selector duplication is forbidden by architecture, not by convention. The implementation enforces it:
 
-- `CanonicalTargetRef` is a branded type in `lib/domain/identity.ts` — you cannot accidentally use a raw string where a target ref is expected.
+- `CanonicalTargetRef` is a branded type in `product/domain/kernel/identity.ts` — you cannot accidentally use a raw string where a target ref is expected.
 - `SelectorCanon` is the single home for locator strategies, written to `.tesseract/interface/selectors.json`.
 - Scenarios, emitted specs, and receipts reference target refs. They never carry raw selector strings as primary identity.
 - Drift evidence accumulates on the existing probe. It does not spawn a parallel selector.
@@ -999,7 +1093,7 @@ The `ApplicationInterfaceGraph` is the unified projection that ties routes, scre
 
 The graph has typed nodes (`InterfaceGraphNode`) for each entity kind and typed edges (`InterfaceGraphEdge`) for relationships: route-target, variant-of-route, contains, references-target, references-snapshot, discovered-by. Every node and edge carries a fingerprint, provenance lineage, and source attribution (approved-knowledge, discovery, derived-working).
 
-The graph is derived — it is rebuilt from canonical knowledge and discovery evidence by `lib/application/interface-intelligence.ts`. But it is the primary query surface for everything downstream: scenario decomposition, emission, runtime resolution, impact analysis, change detection, and learning.
+The graph is derived — it is rebuilt from canonical knowledge and discovery evidence by `product/application/interface-intelligence.ts`. But it is the primary query surface for everything downstream: scenario decomposition, emission, runtime resolution, impact analysis, change detection, and learning.
 
 The `SelectorCanon` is a companion projection at `.tesseract/interface/selectors.json`. Together, the graph and the canon form the *interpretation surface* that all consumers share.
 
@@ -1027,7 +1121,7 @@ The design intent is to push resolution *upward* over time. The first time a sce
 
 The key implementation insight: **the runtime agent at rungs 5-6 is not a general-purpose LLM doing freeform exploration.** It is a surgical instrument that operates against the interpretation surface. It knows what targets exist (from the graph), what selectors are available (from the canon), what states are active (from the topology), and what has been tried (from the exhaustion chain). It engages the DOM only for the specific gap that the upper rungs couldn't fill.
 
-This is implemented in `lib/runtime/agent/index.ts` through the `runResolutionPipeline()`:
+This is implemented in `product/runtime/agent/index.ts` through the `runResolutionPipeline()`:
 
 ```
 1. Normalize working memory (staleness TTL, confidence thresholds)
@@ -1086,13 +1180,13 @@ The typed event vocabulary is authoritative. Every agent host — Copilot, Claud
 | `benchmark-action` | Agent invoked benchmark evaluation |
 | `replay-action` | Agent replayed a learning example |
 
-The session adapter abstraction (`lib/application/agent-session-adapter.ts`) provides two implementations today — `deterministicAdapter()` for CI/batch and `copilotAdapter()` for VSCode Copilot Chat — but the interface is designed for more. Any provider that can emit these events is a first-class workbench citizen.
+The session adapter abstraction (`product/application/agent-session-adapter.ts`) provides two implementations today — `deterministicAdapter()` for CI/batch and `copilotAdapter()` for VSCode Copilot Chat — but the interface is designed for more. Any provider that can emit these events is a first-class workbench citizen.
 
 The deep implication: **an operator talking to an agent is not outside the system.** That conversation is a typed workbench workflow against shared truth. The intervention/session ledger records it. The improvement corpora can train from it. The benchmark scorecard can measure it. The agent's contribution is not ephemeral — it is part of the system's durable memory.
 
 ### Execution Receipts and Provenance
 
-The `StepExecutionReceipt` in `lib/domain/types/execution.ts` is one of the most information-rich types in the system. It carries:
+The `StepExecutionReceipt` in `product/domain/evidence/types.ts` is one of the most information-rich types in the system. It carries:
 
 - **Envelope**: kind, version, stage, scope, ids, fingerprints, lineage, governance
 - **Timing breakdown**: setupMs, resolutionMs, actionMs, assertionMs, retriesMs, teardownMs
@@ -1134,7 +1228,7 @@ This is the governance mechanism that makes aggressive learning safe. The system
 
 ### Hotspot Detection
 
-`lib/application/hotspots.ts` implements pattern detection across runs:
+`product/application/hotspots.ts` implements pattern detection across runs:
 
 | Hotspot Kind | Signal |
 |---|---|
@@ -1156,7 +1250,7 @@ This closes the loop from execution evidence back to knowledge authoring. The ho
 
 ### Benchmarking and the Statistical Surface
 
-The `BenchmarkScorecard` in `lib/application/benchmark.ts` is the statistical surface that makes self-tuning possible. It aggregates:
+The `BenchmarkScorecard` in `product/application/benchmark.ts` is the statistical surface that makes self-tuning possible. It aggregates:
 
 **Knowledge coverage metrics:**
 - `uniqueFieldAwarenessCount` — how many distinct targets the knowledge layer covers
@@ -1230,7 +1324,7 @@ The `ScenarioProjectionInput` is the downstream boundary for emitted specs, trac
 
 The system starts by harvesting the application into a shared model.
 
-Discovery (`lib/infrastructure/tooling/discover-screen.ts` and `lib/domain/discovery.ts`) visits known URL entry points and emits:
+Discovery (`product/instruments/tooling/discover-screen.ts` and `product/domain/discovery/types.ts`) visits known URL entry points and emits:
 
 - **Crawl receipts**: what was visited, when, what was observed
 - **Route and surface coverage**: which routes map to which screens, which surfaces exist
@@ -1242,7 +1336,7 @@ Discovery (`lib/infrastructure/tooling/discover-screen.ts` and `lib/domain/disco
 
 Discovery doesn't spider the whole app. The operator provides known URL entry points. The system discovers variants within those entry points and builds route knowledge.
 
-After discovery, the `projectInterfaceIntelligence()` function in `lib/application/interface-intelligence.ts` builds the graph and canon:
+After discovery, the `projectInterfaceIntelligence()` function in `product/application/interface-intelligence.ts` builds the graph and canon:
 
 1. Collect route bindings from manifest routes and surfaces
 2. Create target descriptors from surfaces, elements, screen knowledge, and discovery runs
@@ -1272,7 +1366,7 @@ The grounded flow is the last representation before code generation. It must be 
 
 ### Phase 3: Execution and Evidence (The Workbench in Action)
 
-The `runScenario()` pipeline in `lib/application/run.ts` chains the full execution:
+The `runScenario()` pipeline in `product/application/run.ts` chains the full execution:
 
 1. **Select run context** — mode, runbook, dataset
 2. **Interpret** — pass each step through the resolution ladder
@@ -1290,7 +1384,7 @@ This is the verb engine doing its work. And everything it produces flows back in
 
 ### Phase 4: Learning and Ratchet (The Loop Closes)
 
-The learning projection (`lib/application/learning.ts`) generates three kinds of fragments:
+The learning projection (`product/application/learning.ts`) generates three kinds of fragments:
 
 **Decomposition fragments** — one per step, keyed to graph nodes and selector refs. These train the decomposition runtime to lower novel ADO prose into grounded flows. Confidence is `compiler-derived` if resolution was explicit, `agent-proposed` if it required translation or DOM exploration.
 
@@ -1309,7 +1403,7 @@ This is where the flywheel becomes self-reinforcing. Each run produces learning 
 
 ### Phase 5: Benchmarking and Statistical Surface (The Foundation for Self-Tuning)
 
-The benchmark infrastructure (`lib/application/benchmark.ts`) generates `BenchmarkVariant` records — per-field test variants parameterized by screen, element, posture, and source rule. These variants are rendered into executable specs and review documentation.
+The benchmark infrastructure (`product/application/benchmark.ts`) generates `BenchmarkVariant` records — per-field test variants parameterized by screen, element, posture, and source rule. These variants are rendered into executable specs and review documentation.
 
 The `BenchmarkScorecard` aggregates results across runs and provides the metrics that make statistical reasoning possible:
 
@@ -1391,10 +1485,10 @@ This is the end state: a system that can *measure* where it's weak, *propose* sp
 ### Before writing code, know which layer you're in
 
 ```
-lib/domain/          pure values, validation, inference, codegen — NO side effects, NO I/O
-lib/application/     orchestration via Effect — depends only on domain
-lib/runtime/         Playwright execution, locator resolution — no application imports
-lib/infrastructure/  ports and adapters — implements application ports
+product/domain/          pure values, validation, inference, codegen — NO side effects, NO I/O
+product/application/     orchestration via Effect — depends only on domain
+product/runtime/         Playwright execution, locator resolution — no application imports
+product/instruments/  ports and adapters — implements application ports
 ```
 
 The most common violation is domain code that needs "just a little I/O." It doesn't. Model the data in domain, orchestrate the I/O in application, execute the effect in infrastructure.
@@ -1403,7 +1497,7 @@ The most common violation is domain code that needs "just a little I/O." It does
 
 Hand-edit canonical inputs: `knowledge/`, `scenarios/`, `controls/`, `.tesseract/policy/`, `.tesseract/evidence/`.
 
-Never hand-edit derived outputs: `.tesseract/interface/`, `.tesseract/tasks/`, `.tesseract/graph/`, `.tesseract/sessions/`, `.tesseract/learning/`, `generated/`, `lib/generated/`. Fix the generator instead.
+Never hand-edit derived outputs: `.tesseract/interface/`, `.tesseract/tasks/`, `.tesseract/graph/`, `.tesseract/sessions/`, `.tesseract/learning/`, `generated/`, `product/generated/`. Fix the generator instead.
 
 ### The resolution precedence is compiler semantics
 
@@ -1421,7 +1515,7 @@ If you reorder this, add a tier, or skip a tier, you are changing what the compi
 
 ### Use AST-backed generation, always
 
-`lib/domain/ts-ast.ts` and `lib/domain/spec-codegen.ts` exist so we never splice source strings. Template literals and manual indentation in codegen are bugs. The AST composes; strings don't.
+`product/instruments/codegen/ts-ast.ts` and `product/instruments/codegen/spec-codegen.ts` exist so we never splice source strings. Template literals and manual indentation in codegen are bugs. The AST composes; strings don't.
 
 ### Provenance is not optional metadata
 
@@ -1466,7 +1560,7 @@ Land local first. Promote only after repetition or deliberate generalization. Pr
 - You confused confidence (how produced) with governance (whether executable).
 - You hand-edited a derived file instead of fixing the generator.
 - A new workflow produces results that can't be explained through the review artifacts.
-- You put I/O in `lib/domain/`.
+- You put I/O in `product/domain/`.
 - You promoted a pattern before it proved itself screen-locally.
 - You spliced source strings instead of using AST codegen.
 - The agent does freeform DOM exploration without consulting the interpretation surface first.

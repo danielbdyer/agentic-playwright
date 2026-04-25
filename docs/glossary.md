@@ -77,4 +77,26 @@ See `CLAUDE.md` § Deterministic precedence for the full precedence laws.
 | **Posture** | Knowledge loading mode: `cold-start` (tier 1 only), `warm-start` (tier 1+2), `production`. |
 | **Suite** | A scoped collection of scenarios, knowledge, and controls. `dogfood/` for training, repo root for production. |
 | **Flywheel** | The recursive improvement cycle: run → observe failures → propose fixes → activate → rerun. |
+
+## "Probe" disambiguation
+
+The word *probe* names three distinct concepts in the codebase. They are
+unrelated except by shared metaphor (each pokes at something to learn
+something). When reading docs or naming new code, attend to which is meant:
+
+| Universe | Type | Where | What it measures |
+|---|---|---|---|
+| **Workshop probe** | `Probe` (probe IR), `ProbeReceipt`, `ProbeDerivation` | `workshop/probe-derivation/` | Manifest-derived testbed probe that exercises `product/`'s normal authoring flow so the workshop can score whether the product is improving. The unit of probe-coverage that drives graduation. |
+| **Selector probe** | `SelectorProbe` | `product/domain/target/interface-graph.ts` | A locator-strategy attempt against the live DOM during resolution rung-3. Outputs a candidate locator + its evidence. |
+| **Probed element** | `list_probed_elements` MCP tool | `dashboard/server/mcp-tools.ts`, `dashboard/mcp/dashboard-mcp-server.ts` | Read-only inventory of elements the agent has previously observed (state-observation history). Dashboard projection only; no derivation. |
+
+Style guidance:
+- A bare "probe" defaults to the **workshop** sense (the most central / most
+  load-bearing). New types named `Probe…` without qualifier should belong to
+  `workshop/probe-derivation/` or be renamed.
+- Selector-resolution code prefers `Locator…` or the explicit `Selector`
+  prefix; reach for "probe" only when the rung-3 evidence-collection
+  framing is the point.
+- Dashboard projection types stick with `Probed…` (past-participle: "elements
+  we have probed") to signal the *result* universe rather than the act.
 | **Convergence FSM** | Finite state machine tracking whether the improvement loop is converging, diverging, or stalled. |

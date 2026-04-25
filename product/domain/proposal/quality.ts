@@ -7,6 +7,8 @@
  * degrade resolution quality.
  */
 
+import { type Fold, productFold6, runFold } from '../algebra/product-fold';
+
 // ─── Domain types ───
 
 export interface AliasOutcome {
@@ -100,7 +102,11 @@ export function classifyAlias(
 /**
  * Fold a collection of alias outcomes into aggregate quality metrics.
  *
- * Pure function: outcomes in, metrics out.
+ * Pure function: outcomes in, metrics out. Uses `productFold6`
+ * to fuse six independent reducers (three classification counters
+ * + three sum reducers) into a single pass over the input — the
+ * canonical use-case for the product-fold catamorphism: same
+ * structure, multiple folds, one traversal.
  */
 export function aggregateQualityMetrics(
   outcomes: readonly AliasOutcome[],
@@ -116,15 +122,35 @@ export function aggregateQualityMetrics(
     };
   }
 
-  const classifications = outcomes.map((o) => classifyAlias(o));
-
-  const healthyCount = classifications.filter((c) => c === 'healthy').length;
-  const suspectCount = classifications.filter((c) => c === 'suspect').length;
-  const toxicCount = classifications.filter((c) => c === 'toxic').length;
-
-  const totalRuns = outcomes.reduce((sum, o) => sum + o.usedInRuns, 0);
-  const totalMisdirections = outcomes.reduce((sum, o) => sum + o.misdirectionCount, 0);
-  const totalSuccesses = outcomes.reduce((sum, o) => sum + o.successCount, 0);
+  // Six independent reducers fused via productFold6:
+  //   1. healthy classifications
+  //   2. suspect classifications
+  //   3. toxic classifications
+  //   4. total runs (sum)
+  //   5. total misdirections (sum)
+  //   6. total successes (sum)
+  const classifyKindFold = (
+    kind: AliasClassification,
+  ): Fold<AliasOutcome, number> => ({
+    initial: 0,
+    step: (acc, item) => acc + (classifyAlias(item) === kind ? 1 : 0),
+  });
+  const sumFold = (
+    extract: (o: AliasOutcome) => number,
+  ): Fold<AliasOutcome, number> => ({
+    initial: 0,
+    step: (acc, item) => acc + extract(item),
+  });
+  const fused = productFold6(
+    classifyKindFold('healthy'),
+    classifyKindFold('suspect'),
+    classifyKindFold('toxic'),
+    sumFold((o) => o.usedInRuns),
+    sumFold((o) => o.misdirectionCount),
+    sumFold((o) => o.successCount),
+  );
+  const [healthyCount, suspectCount, toxicCount, totalRuns, totalMisdirections, totalSuccesses] =
+    runFold(fused, outcomes);
 
   return {
     totalAliases: outcomes.length,

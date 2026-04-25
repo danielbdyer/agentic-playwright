@@ -101,7 +101,7 @@ describe('TestableSurface laws', () => {
     const categories: readonly VerbCategory[] = [
       'intent',
       'observe',
-      'interact',
+      'mutation',
       'memory',
       'reason',
       'compose',
