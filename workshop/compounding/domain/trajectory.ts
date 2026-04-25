@@ -41,8 +41,60 @@ export interface Trajectory {
   readonly entries: readonly TrajectoryEntry[];
 }
 
+/** Construct an empty trajectory for a given cohort. The
+ *  identity element of `trajectoryMonoid(cohortId)`. */
+export function emptyTrajectory(cohortId: string): Trajectory {
+  return { cohortId, entries: [] };
+}
+
+/** A trajectory is a free monoid over TrajectoryEntry, scoped to
+ *  a single cohort.
+ *
+ *  empty   = { cohortId, entries: [] }
+ *  combine = entries concatenation (a then b, in declaration order)
+ *
+ *  Combining two trajectories with different cohortIds throws —
+ *  cross-cohort union isn't a meaningful trajectory operation;
+ *  callers wanting that should fold over a Map<CohortId,
+ *  Trajectory> instead.
+ *
+ *  Identity laws: combine(empty, t) = t = combine(t, empty).
+ *  Associativity: list concatenation is associative.
+ *
+ *  See `tests/compounding/trajectory-monoid.laws.spec.ts` for
+ *  the law-runner. */
+export function trajectoryMonoid(cohortId: string): {
+  readonly empty: Trajectory;
+  readonly combine: (a: Trajectory, b: Trajectory) => Trajectory;
+} {
+  return {
+    empty: emptyTrajectory(cohortId),
+    combine: (a, b) => {
+      if (a.cohortId !== cohortId) {
+        throw new Error(
+          `trajectoryMonoid(${cohortId}): combine called with mismatched left cohort ${a.cohortId}`,
+        );
+      }
+      if (b.cohortId !== cohortId) {
+        throw new Error(
+          `trajectoryMonoid(${cohortId}): combine called with mismatched right cohort ${b.cohortId}`,
+        );
+      }
+      return {
+        cohortId,
+        entries: [...a.entries, ...b.entries],
+      };
+    },
+  };
+}
+
 /** Append an entry to a trajectory, returning a new Trajectory.
- *  The original is unchanged. Law ZC8 (Z1b) pins immutability. */
+ *  The original is unchanged. Law ZC8 (Z1b) pins immutability.
+ *
+ *  Equivalent to: `trajectoryMonoid(cohortId).combine(trajectory,
+ *  { cohortId, entries: [entry] })`. The append helper is
+ *  retained for ergonomic call sites; the monoid is the
+ *  algebraic interpretation. */
 export function appendTrajectoryEntry(
   trajectory: Trajectory,
   entry: TrajectoryEntry,
