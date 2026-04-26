@@ -10,6 +10,17 @@
  */
 
 @theme {
+  /* ─── Box Model Rhythm (spanda) ─── */
+  --space-unit: clamp(10px, 0.35vw + 8px, 14px);
+  --space-1: calc(var(--space-unit) * 0.5);
+  --space-2: calc(var(--space-unit) * 1);
+  --space-3: calc(var(--space-unit) * 1.5);
+  --space-4: calc(var(--space-unit) * 2);
+  --space-5: calc(var(--space-unit) * 2.5);
+  --space-6: calc(var(--space-unit) * 3);
+  --dashboard-frame-padding: clamp(12px, 1.1vw, 24px);
+  --dashboard-frame-max-width: 1720px;
+
   /* ─── Surface System (GitHub dark palette) ─── */
   --color-surface: #0d1117;
   --color-surface-raised: #161b22;
@@ -57,6 +68,7 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     @apply bg-surface text-fg overflow-hidden;
+    padding: var(--dashboard-frame-padding);
   }
   h1 { @apply text-actor-system mb-5 text-2xl flex items-center justify-between; }
   h2 { @apply text-fg-muted mb-3 text-sm uppercase tracking-wider; }
@@ -78,12 +90,17 @@
       "presence  presence"
       "stage     inspector"
       "storyline storyline";
-    @apply h-screen;
+    gap: var(--space-3);
+    margin: 0 auto;
+    max-width: var(--dashboard-frame-max-width);
+    height: calc(100vh - (var(--dashboard-frame-padding) * 2));
   }
 
   .presence-bar {
     grid-area: presence;
-    @apply flex items-center gap-4 py-2 px-4 bg-surface border-b border-surface-border z-10;
+    @apply flex items-center bg-surface border border-surface-border z-10 rounded-lg;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
   }
   .presence-bar h1 {
     @apply text-base text-actor-system m-0 whitespace-nowrap;
@@ -91,23 +108,29 @@
 
   .surface-stage {
     grid-area: stage;
-    @apply relative bg-[#080b10] overflow-hidden;
+    @apply relative bg-[#080b10] overflow-hidden rounded-xl border border-surface-border;
   }
 
   .inspector-drawer {
     grid-area: inspector;
-    @apply overflow-y-auto p-4 bg-surface border-l border-surface-border;
+    @apply overflow-y-auto bg-surface border border-surface-border rounded-xl;
+    padding: var(--space-4);
   }
   .inspector-drawer h2:first-child { @apply mt-0; }
 
   .storyline-rail {
     grid-area: storyline;
-    @apply flex items-center gap-3 py-2 px-4 bg-surface-raised border-t border-surface-border;
+    @apply flex items-center bg-surface-raised border border-surface-border rounded-lg;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
   }
 
   /* Legacy compat: keep old class names working during migration */
   .spatial-viewport { @apply relative bg-[#080b10] overflow-hidden; }
-  .control-panel    { @apply overflow-y-auto p-4 bg-surface border-l border-surface-border; }
+  .control-panel    {
+    @apply overflow-y-auto bg-surface border border-surface-border rounded-xl;
+    padding: var(--space-4);
+  }
 
   @media (max-width: 900px) {
     .dashboard-layout {
@@ -119,7 +142,7 @@
         "storyline"
         "inspector";
     }
-    .inspector-drawer { @apply border-l-0 border-t border-surface-border; }
+    .inspector-drawer { @apply border border-surface-border; }
   }
 }
 
