@@ -8,20 +8,17 @@
  * | decisionItems (candidateId check) | O(decisions*cands)| O(decisions)| Replaced array.includes with Set.has per decision       |
  */
 import { deriveCapabilities } from '../commitment/grammar';
-import type { ScreenId, SnapshotTemplateId } from '../kernel/identity';
+import type { ScreenId } from '../kernel/identity';
 import { createElementId, createPostureId, createSurfaceId } from '../kernel/identity';
 import { explainBoundScenario } from '../scenario/explanation';
 import { capabilityForInstruction, compileStepProgram, traceStepProgram } from '../commitment/program';
 import { graphIds } from '../kernel/ids';
 import type { InterpretationDriftRecord, RunRecord } from '../execution/types';
 import type { ImprovementRun } from '../improvement/types';
-import type { AdoSnapshot, BoundScenario, Scenario } from '../intent/types';
+import type { BoundScenario, Scenario } from '../intent/types';
 import type {
   ConfidenceOverlayCatalog,
-  PatternDocument,
   ScreenElements,
-  ScreenHints,
-  ScreenPostures,
   SurfaceGraph,
 } from '../knowledge/types';
 import type {
@@ -30,14 +27,10 @@ import type {
   GraphNode,
 } from '../projection/types';
 import type {
-  DatasetControl,
-  ResolutionControl,
-  RunbookControl,
   ScenarioInterpretationSurface,
 } from '../resolution/types';
 import {
   type ConditionalEdge,
-  type GraphAccumulator,
   type PhaseResult,
   EMPTY_GRAPH,
   conditionalEdge,
@@ -98,17 +91,12 @@ import type {
   ArtifactEnvelope,
   ScenarioGraphArtifact,
   BoundScenarioGraphArtifact,
-  InterpretationSurfaceGraphArtifact,
-  ImprovementRunGraphArtifact,
-  KnowledgeSnapshotArtifact,
   ScreenHintsArtifact,
   SharedPatternsArtifact,
   DatasetControlArtifact,
   ResolutionControlArtifact,
   RunbookControlArtifact,
   ConfidenceOverlayArtifact,
-  EvidenceArtifact,
-  PolicyDecisionArtifact,
   GraphBuildInput,
 } from './derived/artifact-envelopes';
 

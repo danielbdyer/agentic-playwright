@@ -15,7 +15,6 @@ import {
   ScreenIdSchema,
   SectionIdSchema,
   SelectorRefSchema,
-  SnapshotTemplateIdSchema,
   StateNodeRefSchema,
   StringArray,
   SurfaceIdSchema,

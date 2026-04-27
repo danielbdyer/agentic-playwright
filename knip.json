@@ -1,4 +1,4 @@
-﻿{
+{
   "entry": [
     "bin/tesseract.ts",
     "dogfood/knowledge/components/index.ts",
@@ -7,7 +7,9 @@
   "project": [
     "bin/**/*.ts",
     "dogfood/knowledge/**/*.ts",
-    "lib/**/*.ts",
+    "product/**/*.ts",
+    "workshop/**/*.ts",
+    "dashboard/**/*.ts",
     "playwright*.ts",
     "scripts/**/*.cjs",
     "tests/**/*.ts"
@@ -18,7 +20,7 @@
     "dist/**",
     "dogfood/generated/**",
     "generated/**",
-    "lib/generated/**",
+    "product/generated/**",
     "test-results/**",
     "tests-capture/**"
   ]

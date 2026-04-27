@@ -39,7 +39,7 @@ import {
   serializeWorldShapeToUrl,
   type WorldShape,
 } from '../../substrate/world-shape';
-import type { SurfaceRole, SurfaceSpec } from '../../substrate/surface-spec';
+import type { SurfaceRole } from '../../substrate/surface-spec';
 import type { HeadedHarness } from '../../../product/instruments/tooling/headed-harness';
 import {
   ASSERTION_HELD,
@@ -58,7 +58,7 @@ import {
   stepExecutionFailed,
   type ScenarioError,
 } from '../domain/scenario-error';
-import type { Scenario, ScenarioStep } from '../domain/scenario';
+import type { Scenario } from '../domain/scenario';
 import type { StepOutcome, AssertionRun } from '../domain/scenario-trace';
 import type {
   ScenarioHarnessService,

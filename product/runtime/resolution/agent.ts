@@ -1,7 +1,6 @@
 import type {
   GroundedStep,
   ResolutionPipelineResult,
-  ResolutionReceipt,
   ResolutionStepOutcome,
 } from '../../domain/resolution/types';
 import { runResolutionPipeline, type RuntimeStepAgentContext } from './index';

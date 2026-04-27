@@ -20,7 +20,7 @@ import { runWithLocalServices } from '../../product/composition/local-services';
 import { createAdoId } from '../../product/domain/kernel/identity';
 import { graphIds } from '../../product/domain/kernel/ids';
 import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
-import { PipelineFitnessReport } from '../../product/domain/fitness/types';
+import type { PipelineFitnessReport } from '../../product/domain/fitness/types';
 import { createTestWorkspace } from '../support/workspace';
 import {
   policySearchScreenId,

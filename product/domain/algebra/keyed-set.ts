@@ -34,7 +34,7 @@ import type { Monoid } from './monoid';
 
 /** Construct a Monoid<ReadonlyMap<K, T>> that dedups by a
  *  caller-supplied key derivation. */
-export function keyedSetMonoid<T, K>(input: {
+export function keyedSetMonoid<T, K>(_input: {
   readonly keyOf: (t: T) => K;
 }): Monoid<ReadonlyMap<K, T>> {
   return {

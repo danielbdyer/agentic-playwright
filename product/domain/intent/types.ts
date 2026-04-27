@@ -13,9 +13,6 @@ import type {
   ScenarioStatus,
   StepAction,
   StepBindingKind,
-  WorkflowEnvelopeFingerprints,
-  WorkflowEnvelopeIds,
-  WorkflowEnvelopeLineage,
   WorkflowMetadata,
 } from '../governance/workflow-types';
 

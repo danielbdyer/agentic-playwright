@@ -34,7 +34,6 @@ import {
 import { evaluateInvariantPure } from '../application/evaluate-invariants';
 import type {
   Scenario,
-  ScenarioStep,
 } from '../domain/scenario';
 import type { StepOutcome } from '../domain/scenario-trace';
 

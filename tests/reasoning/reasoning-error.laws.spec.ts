@@ -9,9 +9,10 @@
  */
 
 import { expect, test } from '@playwright/test';
+import type {
+  ReasoningError} from '../../product/domain/kernel/errors';
 import {
   ReasoningContextExceededError,
-  ReasoningError,
   ReasoningMalformedResponseError,
   ReasoningRateLimitedError,
   ReasoningUnavailableError,

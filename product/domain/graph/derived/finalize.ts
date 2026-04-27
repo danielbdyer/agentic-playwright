@@ -1,7 +1,7 @@
 import { sortByStringKey } from '../../kernel/collections';
 import { fingerprintFor } from '../../kernel/hash';
 import { graphIds, mcpUris } from '../../kernel/ids';
-import { createElementId, createSurfaceId } from '../../kernel/identity';
+import type { createElementId, createSurfaceId } from '../../kernel/identity';
 import type { ScreenId } from '../../kernel/identity';
 import type { DerivedCapability } from '../../governance/workflow-types';
 import type { DerivedGraph, MappedMcpResource, MappedMcpTemplate } from '../../projection/types';

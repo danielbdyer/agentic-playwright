@@ -3,7 +3,7 @@ import type { ScenarioRunPlan } from '../../domain/resolution/types';
 import type { RuntimeScenarioStepResult } from '../ports';
 import type { PersistedEvidenceArtifact } from './persist-evidence';
 import { uniqueSorted } from '../../domain/kernel/collections';
-import { productFold, productFold3, runFold, type Fold } from '../../domain/algebra/product-fold';
+import { productFold, runFold, type Fold } from '../../domain/algebra/product-fold';
 
 // ─── Monoid Combinators ───
 // Each has an `empty` (identity) and `combine` (associative binary op).

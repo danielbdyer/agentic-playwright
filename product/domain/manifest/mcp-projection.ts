@@ -12,14 +12,14 @@
  *
  * ## Category mapping
  *
- * The manifest's `VerbCategory` taxonomy (intent / observe / interact /
+ * The manifest's `VerbCategory` taxonomy (intent / observe / mutation /
  * memory / reason / compose / execute / governance / diagnostic) is
  * richer than the MCP's three-part `McpToolCategory` (observe /
  * decide / control). This projection flattens to MCP's shape via:
  *
  *   observe, intent, memory, diagnostic → 'observe'
  *     (reading state or consuming upstream inputs)
- *   interact, reason, compose, execute   → 'decide'
+ *   mutation, reason, compose, execute  → 'decide'
  *     (agent makes a call that changes state downstream)
  *   governance                          → 'control'
  *     (proposal emission / activation lifecycle)
@@ -63,6 +63,10 @@ export function mcpCategoryForVerbCategory(category: VerbCategory): McpToolCateg
       return 'decide';
     case 'governance':
       return 'control';
+    default: {
+      const exhaust: never = category;
+      return exhaust;
+    }
   }
 }
 

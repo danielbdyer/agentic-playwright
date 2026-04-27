@@ -17,8 +17,8 @@
 
 import type { ScenarioInterpretationSurface } from '../../resolution/types';
 import { graphIds } from '../../kernel/ids';
-import { compileStepProgram, traceStepProgram } from '../../commitment/program';
-import { explainBoundScenario } from '../../scenario/explanation';
+import type { compileStepProgram, traceStepProgram } from '../../commitment/program';
+import type { explainBoundScenario } from '../../scenario/explanation';
 import {
   type ConditionalEdge,
   conditionalEdge,

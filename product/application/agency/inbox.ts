@@ -8,7 +8,6 @@ import { FileSystem, Dashboard } from '../ports';
 import { dashboardEvent } from '../../domain/observation/dashboard';
 import { mintReviewRequired } from '../../domain/governance/workflow-types';
 import { decodeUnknownEither } from '../../domain/schemas/decode';
-import { TesseractError } from '../../domain/kernel/errors';
 
 const OperatorInboxDashboardEventDataSchema = Schema.Struct({
   element: Schema.optionalWith(Schema.NullOr(Schema.String), { default: () => null }),

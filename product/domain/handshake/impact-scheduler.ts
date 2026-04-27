@@ -21,8 +21,8 @@
  */
 
 import type { InterventionReceipt, InterventionAttachmentRegion } from './intervention';
-import type { InterventionImpactReceipt, RegionMetricSnapshot } from './intervention-impact';
-import { computeInterventionImpact, buildInterventionImpactReceipt } from './intervention-impact';
+import type { InterventionImpactReceipt } from './intervention-impact';
+import { buildInterventionImpactReceipt } from './intervention-impact';
 import { captureRegionSnapshot, type ResolutionStepShape } from './region-snapshot';
 
 // ─── Identification ─────────────────────────────────────────────

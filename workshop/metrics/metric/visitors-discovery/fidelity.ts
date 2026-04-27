@@ -18,7 +18,7 @@
 import type { AtomClass } from '../../../../product/domain/pipeline/atom-address';
 import { atomAddressToPath } from '../../../../product/domain/pipeline/atom-address';
 import { metric, type MetricProvenance } from '../value';
-import { metricNode, type MetricNode } from '../tree';
+import { metricNode } from '../tree';
 import type { MetricVisitor } from '../visitor';
 import type { DiscoveryVisitorInput, DiscoveryAtomShape } from './index';
 import type { DiscoveryFitnessMetricKind } from '../catalogue-discovery';

@@ -18,7 +18,7 @@
  */
 
 import type { MemoryMaturity, MemoryMaturityCounts } from './memory-maturity';
-import { computeMemoryMaturity, ZERO_MATURITY } from './memory-maturity';
+import { ZERO_MATURITY } from './memory-maturity';
 
 // ─── Point ──────────────────────────────────────────────────────
 

@@ -1,6 +1,7 @@
 import { Effect } from 'effect';
 import { loadExperimentRegistry } from '../../orchestration/experiment-registry';
-import { ExperimentRecord, filterExperiments } from '../../../product/domain/improvement/experiment';
+import type { ExperimentRecord} from '../../../product/domain/improvement/experiment';
+import { filterExperiments } from '../../../product/domain/improvement/experiment';
 import { createCommandSpec } from '../../../product/cli/shared';
 
 export const experimentsCommand = createCommandSpec({

@@ -11,7 +11,7 @@
  * does not implement the expected surface.
  */
 
-import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
+import type { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
 
 /** Maximum characters for the DOM snapshot passed to the agent
  *  interpreter. Kept at module scope so all three helpers agree on

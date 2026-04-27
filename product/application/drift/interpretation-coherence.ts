@@ -18,7 +18,7 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type { RungHistoryEntry, RungHistoryIndex } from './rung-drift';
+import type { RungHistoryIndex } from './rung-drift';
 import type { InterpretationDriftRecord } from '../../domain/execution/types';
 
 // ─── Types ───

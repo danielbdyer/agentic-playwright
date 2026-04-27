@@ -33,8 +33,8 @@ import {
   tryLiveDomOrFallback,
 } from './resolution-stages';
 import type { SemanticDictionaryAccrualInput, SemanticDictionaryMatch } from '../../domain/knowledge/semantic-dictionary-types';
-import { createAriaSnapshotCache, type AriaSnapshotCache } from './aria-snapshot-cache';
-import { createSemanticDictCache, type SemanticDictCache } from './semantic-dict-cache';
+import { createAriaSnapshotCache } from './aria-snapshot-cache';
+import { createSemanticDictCache } from './semantic-dict-cache';
 
 export const RESOLUTION_PRECEDENCE = resolutionPrecedenceLaw;
 

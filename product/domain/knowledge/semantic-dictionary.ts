@@ -55,9 +55,6 @@ const MAX_ENTRIES = 4096;
 /** Top-N candidates from shingle pre-filter before full scoring. */
 const TOP_N_CANDIDATES = 50;
 
-/** Confidence below which stale entries become prunable. */
-const PRUNE_CONFIDENCE_FLOOR = 0.2;
-
 /** Maximum consecutive failures before an entry is suppressed from lookup. */
 const MAX_CONSECUTIVE_FAILURES = 2;
 

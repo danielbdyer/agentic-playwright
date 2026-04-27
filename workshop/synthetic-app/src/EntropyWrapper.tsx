@@ -27,7 +27,6 @@ import {
   type EntropyProfile,
   rngInt,
   rngPick,
-  rngShuffle,
   rngSubset,
 } from '../../substrate/entropy-profile';
 

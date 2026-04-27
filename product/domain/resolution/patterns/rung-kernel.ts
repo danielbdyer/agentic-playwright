@@ -42,7 +42,7 @@
  * matcherIndex encodes specificity position within its pattern.
  */
 
-import { Option } from 'effect';
+import type { Option } from 'effect';
 import { brandString, type Brand } from '../../kernel/brand';
 
 // ─── Brands ─────────────────────────────────────────────────────

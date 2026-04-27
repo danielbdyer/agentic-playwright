@@ -6,9 +6,6 @@
 import type { AdoId } from '../kernel/identity';
 import type {
   Governance,
-  WorkflowEnvelopeFingerprints,
-  WorkflowEnvelopeIds,
-  WorkflowEnvelopeLineage,
   WorkflowMetadata,
 } from '../governance/workflow-types';
 import type { StepResolutionGraph } from '../resolution/types';

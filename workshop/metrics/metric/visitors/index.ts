@@ -13,7 +13,6 @@
 
 import type { PipelineFitnessMetrics } from '../../../../product/domain/fitness/types';
 import type { MemoryMaturityTrajectory } from '../../memory-maturity-trajectory';
-import { EMPTY_TRAJECTORY } from '../../memory-maturity-trajectory';
 import { metric, type MetricProvenance } from '../value';
 import { metricNode, type MetricNode } from '../tree';
 import { PIPELINE_METRIC_KINDS, type PipelineMetricKind } from '../catalogue';
@@ -99,6 +98,8 @@ export { handshakeDensityVisitor } from './handshake-density';
 export { rungDistributionVisitor } from './rung-distribution';
 export { interventionCostVisitor } from './intervention-cost';
 export { compoundingEconomicsVisitor } from './compounding-economics';
+export { memoryWorthinessRatioVisitor } from './memory-worthiness-ratio';
+export { interventionMarginalValueVisitor } from './intervention-marginal-value';
 export type { ExtractionRatioInput } from './extraction-ratio';
 export type { HandshakeDensityInput } from './handshake-density';
 export type { RungDistributionInput } from './rung-distribution';

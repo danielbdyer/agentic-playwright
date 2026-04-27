@@ -8,7 +8,7 @@ import { mintApproved } from '../../governance/workflow-types';
 import type { AdoSnapshot, BoundScenario, Scenario } from '../../intent/types';
 import type { ScenarioInterpretationSurface } from '../../resolution/types';
 import { computeAdoContentHash } from '../../kernel/hash';
-import { createAdoId, createCanonicalTargetRef, createEventSignatureRef, createScreenId, createSelectorRef, createStateNodeRef, createTransitionRef, ensureSafeRelativePathLike } from '../../kernel/identity';
+import { createAdoId, createCanonicalTargetRef, createEventSignatureRef, createScreenId, createStateNodeRef, createTransitionRef, ensureSafeRelativePathLike } from '../../kernel/identity';
 import {
   expectArray,
   expectEnum,

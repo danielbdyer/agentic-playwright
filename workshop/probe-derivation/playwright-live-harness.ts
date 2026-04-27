@@ -66,10 +66,6 @@ const UNCLASSIFIED_OBSERVATION: ProbeOutcome['observed'] = {
   errorFamily: null,
 };
 
-function isInputRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 /** Project a probe into the substrate's WorldShape.
  *
  *  Resolves any `preset` against the default topology registry via

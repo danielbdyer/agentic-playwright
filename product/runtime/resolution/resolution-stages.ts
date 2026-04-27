@@ -1,9 +1,7 @@
-import type { ElementId, PostureId, SnapshotTemplateId } from '../../domain/kernel/identity';
+import type { ElementId } from '../../domain/kernel/identity';
 import type { ProposalConfidenceValues } from '../../domain/attention/pipeline-config';
-import type { StepAction } from '../../domain/governance/workflow-types';
 import type { SemanticDictionaryMatch } from '../../domain/knowledge/semantic-dictionary-types';
-import type { StepTaskElementCandidate, StepTaskScreenCandidate } from '../../domain/knowledge/types';
-import type { ResolutionCandidateSummary, ResolutionReceipt } from '../../domain/resolution/types';
+import type { ResolutionReceipt } from '../../domain/resolution/types';
 import { DEFAULT_PIPELINE_CONFIG } from '../../domain/attention/pipeline-config';
 import { mintApproved, mintReviewRequired } from '../../domain/governance/workflow-types';
 import { requiresElement, allowedActionFallback } from './resolve-action';
@@ -18,15 +16,6 @@ import { resolveWithConfidenceOverlay, resolveWithTranslation } from './translat
 import { lookupSemanticDictionary } from '../../domain/knowledge/semantic-dictionary';
 import type { RuntimeAgentStageContext, StageEffects } from './types';
 import { EMPTY_EFFECTS } from './types';
-import {
-  rankActionCandidates,
-  rankElementCandidates,
-  rankPostureCandidates,
-  rankScreenCandidates,
-  rankSnapshotCandidates,
-  type LatticeCandidate,
-  type RankedLattice,
-} from './candidate-lattice';
 import { createPlaywrightDomResolver } from '../adapters/playwright-dom-resolver';
 import { isRung8Applicable, attemptRung8Resolution } from './rung8-llm-dom';
 
@@ -57,7 +46,6 @@ export type {
 import type {
   ResolutionAccumulator,
   StageResult,
-  LatticeResult,
   AccumulatorStageResult,
 } from './accumulator';
 
@@ -65,10 +53,6 @@ import type {
 // ─── Carved-out sub-module — Step 4a (round 2) ────────────────
 //
 // Lattice construction lives at ./lattice-accumulator.ts.
-import {
-  summaryForValue,
-  buildLatticeAccumulator,
-} from './lattice-accumulator';
 export { buildLatticeAccumulator } from './lattice-accumulator';
 
 export function tryExplicitResolution(stage: RuntimeAgentStageContext): StageResult {

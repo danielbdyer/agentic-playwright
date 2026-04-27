@@ -1,5 +1,5 @@
 ﻿---
-applyTo: "lib/domain/**/*.ts"
+applyTo: "product/domain/**/*.ts"
 ---
 
 # Domain instructions

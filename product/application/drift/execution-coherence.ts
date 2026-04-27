@@ -128,7 +128,7 @@ function aggregateScreenSignals(state: LearningState): Map<string, ScreenSignals
   }
 
   // Console noise: patterns with high failure correlation
-  for (const pattern of state.signals.noisyConsolePatterns) {
+  for (const _pattern of state.signals.noisyConsolePatterns) {
     // Console patterns are global, not screen-scoped — attribute to a synthetic "global" screen
     const screen = 'global';
     const signals = getOrCreate(screens, screen);

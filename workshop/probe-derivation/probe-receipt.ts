@@ -64,7 +64,7 @@
  */
 
 import type { WorkflowMetadata } from '../../product/domain/governance/workflow-types';
-import { fingerprintFor, type Fingerprint } from '../../product/domain/kernel/hash';
+import type { Fingerprint } from '../../product/domain/kernel/hash';
 import { makeQuotient } from '../../product/domain/algebra/quotient';
 import type { ProbeClassification } from './probe-ir';
 import type { ProbeSurfaceCohort } from '../metrics/probe-surface-cohort';

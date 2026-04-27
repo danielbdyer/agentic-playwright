@@ -13,8 +13,6 @@
  * All functions are pure: immutable inputs, immutable outputs, no side effects.
  */
 
-import type { AdoId } from '../../domain/kernel/identity';
-
 // ─── Types ───
 
 export interface ScenarioRef {

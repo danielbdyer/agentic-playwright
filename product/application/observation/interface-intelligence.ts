@@ -18,12 +18,10 @@ import path from 'path';
 import { Effect } from 'effect';
 import { SchemaError, TesseractError } from '../../domain/kernel/errors';
 import {
-  createCanonicalTargetRef,
   createElementId,
   createRouteId,
   createRouteVariantId,
   createScreenId,
-  createSelectorRef,
   createSnapshotTemplateId,
   createSurfaceId,
   type CanonicalTargetRef,
@@ -158,7 +156,6 @@ function manifestPath(paths: ProjectPaths): string {
 // extraction can share them without a circular import.
 import {
   sortStrings,
-  selectorValue,
   stateNodeGraphId,
   eventSignatureGraphId,
   transitionGraphId,
@@ -181,8 +178,6 @@ import {
   createEdge,
   upsertNode,
   upsertEdge,
-  nodeFingerprint,
-  edgeFingerprint,
 } from './interface-graph-builders';
 
 function latestDeterministicTimestamp(input: {

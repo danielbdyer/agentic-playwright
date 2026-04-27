@@ -7,7 +7,7 @@ import { benchmarkDogfoodRunPath, benchmarkImprovementProjectionPath } from '../
 import { runWithLocalServices } from '../../product/composition/local-services';
 import { createAdoId } from '../../product/domain/kernel/identity';
 import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
-import { PipelineFitnessReport } from '../../product/domain/fitness/types';
+import type { PipelineFitnessReport } from '../../product/domain/fitness/types';
 import { validateBenchmarkImprovementProjection, validateDogfoodRun } from '../../product/domain/validation/execution';
 import { createTestWorkspace } from '../support/workspace';
 

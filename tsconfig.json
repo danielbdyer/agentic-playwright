@@ -25,6 +25,7 @@
     "dogfood/knowledge/**/*.ts",
     "product/**/*.ts",
     "workshop/**/*.ts",
+    "workshop/**/*.tsx",
     "dashboard/mcp/**/*.ts",
     "dashboard/bridges/**/*.ts",
     "dashboard/projections/**/*.ts",

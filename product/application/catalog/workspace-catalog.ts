@@ -89,7 +89,6 @@ import {
   loadOptionalSingleton,
   readJsonArtifact,
   readYamlArtifact,
-  type ArtifactLoaderSpec,
 } from './loaders';
 import { assembleScreenBundles } from './screen-bundles';
 import type { ArtifactEnvelope, WorkspaceCatalog } from './types';

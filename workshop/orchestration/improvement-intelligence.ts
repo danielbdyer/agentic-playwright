@@ -27,7 +27,6 @@ import {
   type PipelineFailureMode,
   type PipelineFitnessReport,
 } from '../../product/domain/fitness/types';
-import type { ImprovementSignal } from '../../product/domain/improvement/types';
 import { buildWorkflowHotspots, type WorkflowHotspot } from '../../product/application/projections/hotspots';
 
 // ─── Types ───
@@ -166,7 +165,7 @@ function extractScreensFromFailureMode(fm: PipelineFailureMode): readonly string
 function computePriorities(
   fitnessReport: PipelineFitnessReport,
   hotspots: readonly WorkflowHotspot[],
-  correlations: readonly FailureHotspotCorrelation[],
+  _correlations: readonly FailureHotspotCorrelation[],
 ): readonly ImprovementPriority[] {
   // Collect all unique screens from both sources
   const screenData = new Map<string, {

@@ -22,10 +22,10 @@ import { FileSystem, VersionControl } from '../../product/application/ports';
 import type { PipelineConfig } from '../../product/domain/attention/pipeline-config';
 import type { KnowledgePosture } from '../../product/domain/governance/workflow-types';
 import type { SpeedrunProgressEvent } from '../../product/domain/improvement/types';
-import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
-import {
+import type {
   ConvergenceProofResult,
-  ConvergenceTrialResult,
+  ConvergenceTrialResult} from '../convergence/types';
+import {
   buildTrialResult,
   buildVerdict,
 } from '../convergence/types';

@@ -74,7 +74,7 @@ export function verifyAlphaMonotone<A, B>(
 export function verifyClosureLaw<A, B>(
   gc: GaloisConnection<A, B>,
   values: ReadonlyArray<B>,
-  allA: ReadonlyArray<A>,
+  _allA: ReadonlyArray<A>,
 ): boolean {
   return values.every((b) => {
     const concrete = gc.gamma(b);

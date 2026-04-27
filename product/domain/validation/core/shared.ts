@@ -5,7 +5,6 @@
 import * as schemaDecode from '../../schemas/decode';
 import * as schemas from '../../schemas';
 import { mintApproved } from '../../governance/workflow-types';
-import type { ScenarioInterpretationSurface } from '../../resolution/types';
 import type { StepExecutionReceipt } from '../../execution/types';
 import type {
   CompilerDiagnostic,
@@ -35,8 +34,6 @@ import type {
   ElementSig,
   PostureEffect,
   SharedPatterns,
-  SurfaceDefinition,
-  SurfaceSection,
 } from '../../knowledge/types';
 import type { ResolutionReceipt } from '../../resolution/types';
 import type { RecoveryPolicy } from '../../commitment/recovery-policy';
@@ -290,7 +287,7 @@ export function validateProposalEnrichment(value: unknown, path: string) {
 
 // ── Step-level validators ─────────────────────────────────────────────
 
-export function validateStepResolution(value: unknown, path: string): StepResolution {
+export function validateStepResolution(value: unknown, _path: string): StepResolution {
   const decoded = schemaDecode.decoderFor<StepResolution>(schemas.StepResolutionSchema)(value);
   return {
     ...decoded,

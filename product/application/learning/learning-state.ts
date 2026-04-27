@@ -194,7 +194,7 @@ function deriveSignals(
   const rungStab = computeRungStability(rungDrift);
 
   // Rung drift
-  const rungDriftReport = detectRungDrift(rungDrift);
+  const _rungDriftReport = detectRungDrift(rungDrift);
 
   // Component maturity
   const totalComponents = new Set(steps.map((s) => s.widgetContract ?? 'unknown')).size;

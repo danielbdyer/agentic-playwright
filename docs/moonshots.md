@@ -4,7 +4,7 @@
 
 Tesseract's biggest opportunity is not better Playwright generation. That is the current proving ground, not the end state. The bigger prize is a trusted memory and control plane for agents operating real enterprise UIs: a system that remembers what an application is, how it changes state, how it can be safely driven, what evidence supports that belief, and which changes still require human governance.
 
-The reason this is a credible moonshot from this repo, rather than generic AI optimism, is that the substrate already exists in partial form. The doctrine is explicit in [master-architecture](./master-architecture.md), the runtime interpretation pivot is explicit in the [ADR collapsing deterministic parsing](./adr-collapse-deterministic-parsing.md), and the operating model is explicit in the [dogfooding flywheel](./dogfooding-flywheel.md). On disk today there is already an application interface graph, a selector canon, route variants, confidence overlays, intervention/session ledgers, an improvement manifest, and an operator inbox. The repo is not imagining those nouns. It is already emitting them.
+The reason this is a credible moonshot from this repo, rather than generic AI optimism, is that the substrate already exists in partial form. The doctrine is explicit in [master-architecture](./v1-reference/master-architecture.md), the runtime interpretation pivot is explicit in the [ADR collapsing deterministic parsing](./adr-collapse-deterministic-parsing.md), and the operating model is explicit in the [dogfooding flywheel](./v1-reference/dogfooding-flywheel.md). On disk today there is already an application interface graph, a selector canon, route variants, confidence overlays, intervention/session ledgers, an improvement manifest, and an operator inbox. The repo is not imagining those nouns. It is already emitting them.
 
 This memo argues for one flagship moonshot and four adjacent bets. All five would require expert implementation across runtime, provenance, governance, graph modeling, and operator surfaces. None are easy. But each one is close enough to the current architecture that success would feel like a dramatic extension of what Tesseract is already becoming, not a reinvention.
 
@@ -12,7 +12,7 @@ This memo argues for one flagship moonshot and four adjacent bets. All five woul
 
 Three things make this a live moment rather than a vague someday aspiration.
 
-First, the architecture has already moved beyond compiler-only thinking. The shared interpretation surface in [master-architecture](./master-architecture.md) positions planning, runtime resolution, emitted tests, review artifacts, and learning systems as projections over the same model. That is the right abstraction if the system is ever going to become more than a test generator.
+First, the architecture has already moved beyond compiler-only thinking. The shared interpretation surface in [master-architecture](./v1-reference/master-architecture.md) positions planning, runtime resolution, emitted tests, review artifacts, and learning systems as projections over the same model. That is the right abstraction if the system is ever going to become more than a test generator.
 
 Second, the repo now has enough real artifacts to support compounding loops. `.tesseract/interface/index.json` already carries route refs, route variants, target refs, state refs, event signatures, and transitions. `.tesseract/interface/selectors.json` already behaves like an embryonic `SelectorCanon`, with ranked probes, health, rung order, state validity, and lineage. `.tesseract/learning/manifest.json` already tracks decomposition, repair-recovery, and workflow corpora, plus replay examples across runs. `.tesseract/sessions/` already holds intervention/session records. `generated/demo/policy-search/10001.review.md` already reads like a scenario report that knows about governance, runtime failure families, state preconditions, overlays, and next commands.
 
@@ -101,7 +101,7 @@ This is the dogfooding north star made real.
 
 ### Why Tesseract is unusually positioned
 
-The [dogfooding flywheel](./dogfooding-flywheel.md) already names the relevant vocabulary: `Context Pack`, `Suite Slice`, `Dogfood Run`, hardening proposals, benchmark scorecards, and drift events. The interface graph already understands route variants. The inbox and rerun-plan model already support an operator loop rather than one-shot runs. The backlog already describes a `dogfood` execution profile and a confidence-gated approval model.
+The [dogfooding flywheel](./v1-reference/dogfooding-flywheel.md) already names the relevant vocabulary: `Context Pack`, `Suite Slice`, `Dogfood Run`, hardening proposals, benchmark scorecards, and drift events. The interface graph already understands route variants. The inbox and rerun-plan model already support an operator loop rather than one-shot runs. The backlog already describes a `dogfood` execution profile and a confidence-gated approval model.
 
 That means the repo already has the right nouns for "first-day autopilot." It mainly lacks the orchestration thickness.
 

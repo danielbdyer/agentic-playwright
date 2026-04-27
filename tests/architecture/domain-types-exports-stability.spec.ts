@@ -379,5 +379,6 @@ type _AssertExported =
   | ScenarioExplanation;
 
 test('keeps legacy product/domain/types exports available', () => {
+  // Compile-time law: the type aliases above fail compilation on mismatch.
   expect(true).toBe(true);
 });

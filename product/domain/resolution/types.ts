@@ -13,7 +13,6 @@ import type {
 import type { StepTaskElementCandidate, StepTaskScreenCandidate } from '../knowledge/types';
 import type { ResolutionPrecedenceRung } from '../resolution/precedence';
 import type {
-  Governance,
   ExecutionPosture,
   ResolutionMode,
   ResolutionTarget,
@@ -22,9 +21,6 @@ import type {
   StepProvenanceKind,
   StepWinningSource,
   TrustPolicyArtifactType,
-  WorkflowEnvelopeFingerprints,
-  WorkflowEnvelopeIds,
-  WorkflowEnvelopeLineage,
   WorkflowLane,
   WorkflowMetadata,
   WorkflowStage,

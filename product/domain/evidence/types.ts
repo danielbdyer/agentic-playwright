@@ -6,14 +6,10 @@
 import type { AdoId, EventSignatureRef, StateNodeRef, TransitionRef } from '../kernel/identity';
 import type { RecoveryStrategyId } from '../commitment/recovery-policy';
 import type {
-  Governance,
   ResolutionMode,
   StepWinningSource,
   WorkflowMetadata,
   WorkflowStage,
-  WorkflowEnvelopeFingerprints,
-  WorkflowEnvelopeIds,
-  WorkflowEnvelopeLineage,
 } from '../governance/workflow-types';
 import type { ResolutionReceipt, TranslationReceipt } from '../resolution/types';
 import type { TransitionObservation } from '../target/interface-graph';

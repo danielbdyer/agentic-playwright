@@ -6,7 +6,7 @@ import type { ProjectionCacheMissIncremental, ProjectionIncremental } from '../.
 import { createElementId, createScreenId, createSurfaceId } from '../../product/domain/kernel/identity';
 import type { createAdoId } from '../../product/domain/kernel/identity';
 import { DEFAULT_PIPELINE_CONFIG } from '../../product/domain/attention/pipeline-config';
-import { PipelineFitnessReport } from '../../product/domain/fitness/types';
+import type { PipelineFitnessReport } from '../../product/domain/fitness/types';
 import type { createTestWorkspace } from './workspace';
 
 export const policySearchScreenId = createScreenId('policy-search');

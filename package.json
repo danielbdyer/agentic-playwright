@@ -56,6 +56,7 @@
     "test:generated": "node scripts/run-playwright.cjs --config playwright.generated.config.ts --interpreter-mode playwright",
     "test:generated:dry-run": "node scripts/run-playwright.cjs --config playwright.generated.config.ts",
     "test:generated:headed": "node scripts/run-playwright.cjs --config playwright.generated.config.ts --interpreter-mode playwright --headed",
+    "speedrun": "npm run build && npx tsx scripts/speedrun.ts",
     "experiments": "npx tsx scripts/experiments.ts",
     "graduate": "npx tsx scripts/graduate.ts",
     "sensitivity": "npx tsx scripts/sensitivity.ts",

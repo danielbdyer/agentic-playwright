@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { InterventionLedgerRepository, PersistedInterventionLedger } from '../../domain/agency/intervention-ledger-repository';
+import type { InterventionLedgerRepository } from '../../domain/agency/intervention-ledger-repository';
 import { createInterventionLedger, interventionLedgerInvariants, type InterventionLedgerAggregate } from '../../domain/aggregates/intervention-ledger';
 import { validateAgentSession, validateAgentEvent } from '../../domain/validation';
 

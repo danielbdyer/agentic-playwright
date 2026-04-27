@@ -3,7 +3,8 @@ import path from 'path';
 import crypto from 'crypto';
 import { Duration, Effect, Schedule } from 'effect';
 import type { FileSystemPort } from '../../application/ports';
-import { FileSystemError, toFileSystemOperationError } from '../../domain/kernel/errors';
+import type { FileSystemError} from '../../domain/kernel/errors';
+import { toFileSystemOperationError } from '../../domain/kernel/errors';
 
 const stripBom = (value: string): string => value.replace(/^\uFEFF/, '');
 

@@ -58,7 +58,6 @@ import { atomAddressToPath } from '../../domain/pipeline/atom-address';
 import type {
   CompositionSubType,
   CompositionAddressOf,
-  CompositionAddress,
 } from '../../domain/pipeline/composition-address';
 import { compositionAddressToPath } from '../../domain/pipeline/composition-address';
 import type {

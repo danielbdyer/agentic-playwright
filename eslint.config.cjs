@@ -13,6 +13,27 @@ const nodeScriptGlobals = {
   clearTimeout: 'readonly',
 };
 
+const arrayMethodRestrictions = [
+  { selector: "CallExpression[callee.property.name='push']", message: 'Prefer spread, concat, or reduce over Array.push.' },
+  { selector: "CallExpression[callee.property.name='splice']", message: 'Prefer [...arr.slice(0,i), ...arr.slice(i+1)] over Array.splice.' },
+  { selector: "CallExpression[callee.property.name='unshift']", message: 'Prefer [newItem, ...arr] over Array.unshift.' },
+  { selector: "CallExpression[callee.property.name='fill']", message: 'Prefer Array.from({ length: n }, () => value) over Array.fill.' },
+  { selector: "CallExpression[callee.property.name='pop']", message: 'Prefer arr.slice(0, -1) and arr.at(-1) over Array.pop.' },
+  { selector: "CallExpression[callee.property.name='map'][callee.object.callee.property.name='filter']", message: 'Prefer .flatMap() over .filter().map() to avoid double traversal.' },
+  { selector: "CallExpression[callee.property.name='flat'][callee.object.callee.property.name='map']", message: 'Prefer .flatMap() over .map().flat() to avoid double traversal.' },
+  { selector: "CallExpression[callee.property.name='filter'][callee.object.callee.property.name='map']", message: 'Prefer .flatMap() over .map().filter() to avoid double traversal.' },
+];
+
+const forLoopRestrictions = [
+  { selector: 'ForStatement', message: 'Prefer map/filter/reduce/flatMap over imperative for loops.' },
+  { selector: 'ForInStatement', message: 'Prefer Object.entries().map() over for...in.' },
+];
+
+const throwErrorRestriction = {
+  selector: "ThrowStatement > NewExpression[callee.name='Error']",
+  message: 'Use structured domain/runtime errors instead of throwing Error in application/runtime code.',
+};
+
 const typedRules = {
   'no-unused-vars': 'off',
   '@typescript-eslint/no-unused-vars': ['error', {
@@ -123,16 +144,8 @@ module.exports = [
       }],
       'no-restricted-syntax': ['error',
         { selector: "VariableDeclaration[kind='let']", message: 'Prefer const with pure expressions. Use reduce/map/filter instead of let + mutation.' },
-        { selector: "CallExpression[callee.property.name='push']", message: 'Prefer spread, concat, or reduce over Array.push.' },
-        { selector: "CallExpression[callee.property.name='splice']", message: 'Prefer [...arr.slice(0,i), ...arr.slice(i+1)] over Array.splice.' },
-        { selector: "CallExpression[callee.property.name='unshift']", message: 'Prefer [newItem, ...arr] over Array.unshift.' },
-        { selector: "CallExpression[callee.property.name='fill']", message: 'Prefer Array.from({ length: n }, () => value) over Array.fill.' },
-        { selector: "CallExpression[callee.property.name='pop']", message: 'Prefer arr.slice(0, -1) and arr.at(-1) over Array.pop.' },
-        { selector: "CallExpression[callee.property.name='map'][callee.object.callee.property.name='filter']", message: 'Prefer .flatMap() over .filter().map() to avoid double traversal.' },
-        { selector: "CallExpression[callee.property.name='flat'][callee.object.callee.property.name='map']", message: 'Prefer .flatMap() over .map().flat() to avoid double traversal.' },
-        { selector: "CallExpression[callee.property.name='filter'][callee.object.callee.property.name='map']", message: 'Prefer .flatMap() over .map().filter() to avoid double traversal.' },
-        { selector: 'ForStatement', message: 'Prefer map/filter/reduce/flatMap over imperative for loops.' },
-        { selector: 'ForInStatement', message: 'Prefer Object.entries().map() over for...in.' },
+        ...arrayMethodRestrictions,
+        ...forLoopRestrictions,
       ],
     },
   },
@@ -162,17 +175,9 @@ module.exports = [
         ],
       }],
       'no-restricted-syntax': ['error',
-        { selector: "ThrowStatement > NewExpression[callee.name='Error']", message: 'Use structured domain/runtime errors instead of throwing Error in application/runtime code.' },
-        { selector: "CallExpression[callee.property.name='push']", message: 'Prefer spread, concat, or reduce over Array.push.' },
-        { selector: "CallExpression[callee.property.name='splice']", message: 'Prefer [...arr.slice(0,i), ...arr.slice(i+1)] over Array.splice.' },
-        { selector: "CallExpression[callee.property.name='unshift']", message: 'Prefer [newItem, ...arr] over Array.unshift.' },
-        { selector: "CallExpression[callee.property.name='fill']", message: 'Prefer Array.from({ length: n }, () => value) over Array.fill.' },
-        { selector: "CallExpression[callee.property.name='pop']", message: 'Prefer arr.slice(0, -1) and arr.at(-1) over Array.pop.' },
-        { selector: "CallExpression[callee.property.name='map'][callee.object.callee.property.name='filter']", message: 'Prefer .flatMap() over .filter().map() to avoid double traversal.' },
-        { selector: "CallExpression[callee.property.name='flat'][callee.object.callee.property.name='map']", message: 'Prefer .flatMap() over .map().flat() to avoid double traversal.' },
-        { selector: "CallExpression[callee.property.name='filter'][callee.object.callee.property.name='map']", message: 'Prefer .flatMap() over .map().filter() to avoid double traversal.' },
-        { selector: 'ForStatement', message: 'Prefer map/filter/reduce/flatMap over imperative for loops.' },
-        { selector: 'ForInStatement', message: 'Prefer Object.entries().map() over for...in.' },
+        throwErrorRestriction,
+        ...arrayMethodRestrictions,
+        ...forLoopRestrictions,
       ],
     },
   },
@@ -186,15 +191,8 @@ module.exports = [
         ],
       }],
       'no-restricted-syntax': ['error',
-        { selector: "ThrowStatement > NewExpression[callee.name='Error']", message: 'Use structured domain/runtime errors instead of throwing Error in application/runtime code.' },
-        { selector: "CallExpression[callee.property.name='push']", message: 'Prefer spread, concat, or reduce over Array.push.' },
-        { selector: "CallExpression[callee.property.name='splice']", message: 'Prefer [...arr.slice(0,i), ...arr.slice(i+1)] over Array.splice.' },
-        { selector: "CallExpression[callee.property.name='unshift']", message: 'Prefer [newItem, ...arr] over Array.unshift.' },
-        { selector: "CallExpression[callee.property.name='fill']", message: 'Prefer Array.from({ length: n }, () => value) over Array.fill.' },
-        { selector: "CallExpression[callee.property.name='pop']", message: 'Prefer arr.slice(0, -1) and arr.at(-1) over Array.pop.' },
-        { selector: "CallExpression[callee.property.name='map'][callee.object.callee.property.name='filter']", message: 'Prefer .flatMap() over .filter().map() to avoid double traversal.' },
-        { selector: "CallExpression[callee.property.name='flat'][callee.object.callee.property.name='map']", message: 'Prefer .flatMap() over .map().flat() to avoid double traversal.' },
-        { selector: "CallExpression[callee.property.name='filter'][callee.object.callee.property.name='map']", message: 'Prefer .flatMap() over .map().filter() to avoid double traversal.' },
+        throwErrorRestriction,
+        ...arrayMethodRestrictions,
       ],
     },
   },

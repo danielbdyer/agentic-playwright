@@ -18,13 +18,11 @@ import type {
   ParticipantRef,
 } from '../../product/domain/handshake/intervention';
 import { createSemanticCore } from '../../product/domain/handshake/semantic-core';
-import type { ExperimentRecord } from '../../product/domain/improvement/experiment';
 import type {
   AcceptanceDecision,
   CandidateIntervention,
   ExperimentScorecardComparison,
   ImprovementIteration,
-  ImprovementLedger,
   ImprovementLineageEntry,
   ImprovementLoopIteration,
   ImprovementLoopLedger,

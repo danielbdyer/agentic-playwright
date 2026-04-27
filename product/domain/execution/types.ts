@@ -45,14 +45,10 @@ import type { AdoId } from '../kernel/identity';
 import type {
   CanonicalLineage,
   CertificationStatus,
-  Governance,
   LocatorStrategy,
   ProposalActivation,
   TrustPolicyArtifactType,
   TrustPolicyEvaluation,
-  WorkflowEnvelopeFingerprints,
-  WorkflowEnvelopeIds,
-  WorkflowEnvelopeLineage,
   WorkflowMetadata,
 } from '../governance/workflow-types';
 
