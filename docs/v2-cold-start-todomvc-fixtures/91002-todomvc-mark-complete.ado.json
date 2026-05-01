@@ -1,0 +1,47 @@
+{
+  "id": "91002",
+  "revision": 1,
+  "title": "Verify user can mark a todo as complete",
+  "suitePath": "public-aut/todomvc",
+  "areaPath": "public-aut",
+  "iterationPath": "public-aut/spike-1",
+  "tags": [
+    "smoke",
+    "todomvc",
+    "P1",
+    "public-aut"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the TodoMVC application with at least one todo in the list</p>",
+      "expected": "<p>The todo list displays the existing todo with an unchecked toggle</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click the toggle checkbox next to the todo</p>",
+      "expected": "<p>The todo is marked as complete and visually styled as completed</p>"
+    },
+    {
+      "index": 3,
+      "action": "<p>Verify the items-left count decreases by one</p>",
+      "expected": "<p>The footer shows one fewer item left</p>"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "todoText",
+      "values": [
+        "Buy milk"
+      ]
+    }
+  ],
+  "dataRows": [
+    {
+      "todoText": "Buy milk"
+    }
+  ],
+  "contentHash": "sha256:91002-todomvc-mark-complete-spike1",
+  "syncedAt": "2026-05-01T00:00:00.000Z"
+}
