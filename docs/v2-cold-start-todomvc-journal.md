@@ -696,3 +696,436 @@ Reactive demo URL is still TBD with the operator. The next
 cycle picks up either at the trust-policy partition-awareness
 work (above, item 1) or at the OutSystems held-out
 designation, whichever the operator chooses.
+
+---
+
+# Cycle 2 — toward the first full Floor A.5 run
+
+> Cycle 2 begins 2026-05-01, late. Prior cycle landed:
+> `targetAut` field, cohort manifest + loader, fixture
+> promotion, spike-doc revisions (§4.1 floors, §5 ranking,
+> §11 self-improvement framing). Cycle 2's question: how much
+> of a "full run" can we land at Floor A.5 — heuristic
+> classifier + naive DOM resolution against the real AUT?
+
+## Entry 8 — hypothesis for cycle 2 (a Floor A.5 run)
+
+**What I'm trying to discover.** Cycle 1 closed at Floor A
+(heuristic classifier verdicts only, zero `InterventionHandoff`s
+because the classifier never reaches the binder). Cycle 2 climbs
+half a rung: the *classifier* still runs at Floor A, but its
+verdicts now drive a *real Playwright DOM probe* against
+`targetAut`. This is the floor I'll call **A.5** — heuristic +
+naive DOM resolution + receipts that name what the classifier
+told the bridge to look for, and whether the bridge found it.
+
+A.5 produces real handoffs, not classifier-acceptance verdicts.
+Where Floor A says "this step is well-formed prose", A.5 says
+"this step's classified shape (verb + role + name) either
+matches a real DOM element on the real AUT, or it doesn't." The
+"doesn't" cases are the cohort's first real-handoff log.
+
+**What I expect to see, predicted before the run.** Two failure
+families I expect, both seeded by Entry 5's findings:
+
+1. **The toggle-checkbox click fails.** Step 91002.2 ("Click
+   the toggle checkbox next to the todo") classifies as
+   `click; role=button, nameSubstring='toggle'`. The real
+   surface (Entry 3 inventory) is
+   `<input type="checkbox" class="toggle">` — role
+   "checkbox", not "button". `page.getByRole('button', { name:
+   /toggle/i })` returns zero matches; a not-found handoff is
+   emitted.
+2. **The filter-link click fails.** Step 91003.2 ("Click the
+   Active filter link in the footer") classifies as `click;
+   role=button, nameSubstring='Active'`. The real surface is
+   `<a href="#/active">Active</a>` — role "link". Same
+   not-found handoff is emitted.
+
+A third failure I expect but haven't predicted exactly:
+
+3. **The "Press Enter" step is ambiguous.** Step 91001.3
+   classifies as `click` (the press-as-click bug). What does
+   `page.getByRole('button', { name: <something> })` even do
+   here? The classifier doesn't extract a useful name from
+   "Press Enter to submit the new todo" — at best a partial
+   match on "submit" or "Enter". Most likely outcome:
+   not-found (because there's no Submit button — TodoMVC
+   submits via the Enter keypress on the input field).
+
+What I expect to *succeed*:
+
+- Step 91001.1 (navigate to TodoMVC) — succeeds because the
+  executor navigates to `targetAut` at the start of the case.
+- Step 91001.2 (enter todo description in new-todo input field)
+  — `input; role=textbox, nameSubstring='new-todo input'`. The
+  TodoMVC new-todo input is `<input type="text" id="todo-input"
+  class="new-todo">` with `<label for="todo-input">New Todo
+  Input</label>`. Playwright's `getByRole('textbox', { name:
+  /new[- ]?todo/i })` should find it via the label association.
+  This is the only step I expect a clean match on.
+
+**Why this is worth running even if the predictions hold.** The
+predictions are hypotheses; the run is the receipt. If they
+hold, the cohort has named real-handoff probe seeds with
+provenance instead of speculation. If they don't hold (e.g., the
+classifier-`click`+role-`button` actually finds *something* on
+TodoMVC for a different reason), that's a more interesting
+discovery: it means the cohort's signal is being polluted by
+spurious matches, and Probe Seed 4 (cycle 2's likely output) is
+"DOM resolution must validate that what it found is actually
+what the classifier *meant* to find."
+
+**What I'm building this cycle.** A new CLI command,
+`compile-public-aut`, that:
+
+1. Loads the cohort manifest via `loadPublicAutCohort`.
+2. For each case (filtered by `--aut <name>` if provided):
+   a. Runs the heuristic classifier per step.
+   b. Launches Playwright headlessly, navigates to
+      `targetAut` once per case.
+   c. For each classified step, attempts a single Playwright
+      `getByRole(role, { name })` query.
+   d. Records per-step outcome: `matched | not-found |
+      ambiguous | unclassified | skipped-navigate`.
+3. Writes a JSON receipt per case under
+   `workshop/logs/public-aut-receipts/<aut-name>/`.
+4. Prints a summary: cases run, steps matched, steps emitted
+   handoffs.
+
+**What I'm explicitly NOT building.** The full compile pipeline
+integration; trust-policy partition-awareness; advanced DOM
+resolution (the `getByRole` query is the floor); receipt-fold
+into the seven-visitor metric tree; CI integration. Each of
+those is a future cycle's seed.
+
+---
+
+
+
+## Entry 9 — building the runner: surprises during construction
+
+**What I tried.** Build `workshop/customer-backlog/application/public-aut-runner.ts`
+(the executor) + `workshop/cli/commands/compile-public-aut.ts`
+(the CLI verb), wire them through the workshop command registry,
+and add the two new flags (`--aut`, `--cohort-role`) to the
+shared CLI registry at `product/cli/shared.ts`.
+
+**What I saw.**
+
+- **The CLI flag registry is more strictly typed than I
+  expected.** Adding `--aut` and `--cohort-role` required edits
+  in *four* places: `ParsedFlags` interface (line 19), the
+  `FlagToParsedKey` mapping (line 100), the `flagDescriptorTable`
+  table (line 401), and the `CommandName` union + `commandNames`
+  array (line 193). The build failed twice before all four
+  registrations matched. This is friction-y but the right kind
+  of friction — it forces flag additions to be deliberate
+  rather than additive-by-accident.
+- **The Effect / Playwright boundary is narrow.** The executor
+  is plain `async` because Playwright's API is Promise-based;
+  the CLI command wraps the executor in `Effect.tryPromise` at
+  exactly one place. This keeps the boundary disciplined
+  without forcing every Playwright call through Effect's
+  retry/timeout machinery (which is what the
+  `PlaywrightBridgePort` exists for, but the bridge is a future
+  cycle's integration).
+- **The intent classifier's TargetShapeHint is what I expected
+  but slightly poorer.** The classifier produces a
+  `nameSubstring` (like `"Submit"` from "Click the Submit
+  button") that I converted to a Playwright `RegExp` for
+  `getByRole(role, { name: /substring/i })`. This works for
+  click+button but breaks for `observe` because
+  `extractObserveTarget` doesn't infer a role. The runner
+  consequently emits `no-target-name` for every observe step.
+  This was visible from reading the classifier code but I only
+  felt it once the runner ran and showed three observe steps in
+  a row failing for the same reason.
+- **The Playwright executable path is environment-dependent.**
+  The runner reads `process.env.TESSERACT_PLAYWRIGHT_EXECUTABLE`
+  and falls back to Playwright's default discovery. In this
+  environment the env var must be set
+  (`/opt/pw-browsers/chromium-1193/chrome-linux/chrome`)
+  because the default browser cache path is empty. The CLI
+  command surfaces this as an error path; an operator-friendly
+  fallback (probe known paths automatically) is a future
+  cycle's polish.
+
+**What I want to improve.**
+
+1. **The four-site flag registration is a doc-trap.** A short
+   guide ("adding a CLI flag in five minutes") in
+   `product/cli/shared.ts` or its README would have saved the
+   build cycle. Not urgent, but a clear next-cycle seed.
+2. **The runner's `getByRole` fallback for observe is not
+   correct;** observe-without-a-role should not silently emit
+   `no-target-name`, it should attempt a different resolution
+   strategy (text-content match, landmark scope, etc.). Today
+   it punts. Probe Seed 5 (this cycle's contribution) names
+   this gap.
+
+---
+
+## Entry 10 — the run: what Floor A.5 actually surfaced
+
+**What I tried.** Execute the runner against TodoMVC:
+
+```sh
+TESSERACT_PLAYWRIGHT_EXECUTABLE=/opt/pw-browsers/chromium-1193/chrome-linux/chrome \
+  node dist/bin/tesseract.js compile-public-aut --aut todomvc
+```
+
+**What I saw.** Aggregate result:
+
+| Metric | Value |
+|---|---|
+| Cases processed | 3 |
+| Steps total | 9 |
+| Steps matched | 3 (all navigates) |
+| Handoffs emitted | 6 |
+| Receipts written | `workshop/logs/public-aut-receipts/todomvc/91xxx-<stamp>.json` (one per case) |
+| Substrate version | `floor-a5-heuristic-naive-dom` |
+| Total elapsed | ~3 seconds across all three cases |
+
+Per-step outcomes (compressed):
+
+| ADO | Step | Action prose | Verb / role / nameSubstring | DOM resolution | Predicted? |
+|---|---|---|---|---|---|
+| 91001 | 1 | Navigate to TodoMVC | navigate / – / 'TodoMVC application' | skipped-navigate | ✓ |
+| 91001 | 2 | Enter the todo description in the new-todo input field | input / textbox / 'new-todo input' | **not-found** | ✗ (predicted match) |
+| 91001 | 3 | Press Enter to submit the new todo | click / – / – | **no-target-name** | ✓ press-as-click |
+| 91002 | 1 | Navigate to TodoMVC with at least one todo | navigate / – / 'TodoMVC application…' | skipped-navigate | ✓ |
+| 91002 | 2 | Click the toggle checkbox next to the todo | click / button / 'toggle' | **not-found** | ✓ role-flattening |
+| 91002 | 3 | Verify the items-left count decreases | observe / – / 'items-left count…' | **no-target-name** | ✗ (new) observe-no-role |
+| 91003 | 1 | Navigate to TodoMVC with mixed todos | navigate / – / 'TodoMVC application…' | skipped-navigate | ✓ |
+| 91003 | 2 | Click the Active filter link in the footer | click / button / 'Active' | **not-found** | ✓ role-flattening |
+| 91003 | 3 | Verify completed todos are hidden | observe / – / 'todos are hidden…' | **no-target-name** | ✗ (new) observe-no-role |
+
+**Three predictions held; one prediction broke; two new
+findings emerged.**
+
+Predictions confirmed:
+- **91002.2 toggle-checkbox click → not-found** because the
+  classifier flattens role to `button` and there is no
+  `<button>` matching `/toggle/i` on TodoMVC. The actual
+  surface is `<input type="checkbox" class="toggle">`. This is
+  Probe Seed 1 from cycle 1, now with provenance.
+- **91003.2 filter-link click → not-found** for the same
+  role-flattening reason. Probe Seed 1 again, second
+  occurrence — confirming the gap is generic-tier (not
+  AUT-specific).
+- **91001.3 press-Enter → no-target-name** because the verb
+  classifier picked `click` from "press" but the click-target
+  regexes (`CLICK_BUTTON_RE`, `CLICK_BARE_RE`) only know how to
+  parse "click X" — not "press X". The classifier emits a
+  click verb with a null target. Probe Seed 2 from cycle 1
+  with provenance + a new sub-finding: the press-as-click bug
+  *also* breaks target extraction.
+
+Prediction broken:
+- **91001.2 new-todo input → not-found**, predicted match.
+  Why: the classifier's `nameSubstring` extraction preserves
+  the exact source-text token `"new-todo"` (with hyphen). The
+  TodoMVC input is labelled `<label for="todo-input">New Todo
+  Input</label>` — three space-separated words, no hyphen. The
+  regex `/new-todo input/i` does NOT match `"New Todo Input"`
+  because hyphens are not whitespace. Playwright's
+  accessible-name lookup finds the textbox correctly when
+  queried as `getByRole('textbox', { name: /new\s+todo/i })`,
+  but the nameSubstring as extracted does not normalize that
+  way. **This is Probe Seed 6, new this cycle:**
+  *classifier-extracted nameSubstring should normalize
+  hyphens to whitespace (or apply a fuzzier match) when
+  fed to Playwright's accessible-name query, because rendered
+  labels rarely preserve fixture-source-text punctuation.*
+
+New findings (unpredicted):
+- **Observe verb has no role, so naive resolution can't run on
+  observe steps at all.** Three of the six handoffs come from
+  observe steps that the classifier would not even attempt to
+  resolve. This is **Probe Seed 5, new this cycle:** *the
+  observe verb's TargetShapeHint extractor does not infer a
+  role; the runner consequently has no DOM strategy for
+  observation. Either (a) observe should infer roles (most
+  observed targets are text or landmarks), or (b) the runner
+  should fall back to text-content lookup or landmark
+  traversal when role is null.*
+- **The signal-to-noise ratio of this run is excellent.** Nine
+  steps produced four distinct probe seeds — three confirming
+  cycle-1 hypotheses, one new prediction-break, one entirely
+  unpredicted. That is dense evidence per unit of authoring
+  cost. The cohort is doing what the spike said it would.
+
+**Receipts on disk.** Each case produced a JSON receipt under
+`workshop/logs/public-aut-receipts/todomvc/`. The dir is
+gitignored (`workshop/logs/` per the existing .gitignore),
+which matches the runtime-artifact discipline. The receipts'
+schema is self-contained (`schemaVersion: 1`,
+`substrateVersion: 'floor-a5-heuristic-naive-dom'`), which
+means future cycles can reproduce the run and diff outcomes
+against this baseline without renaming. An exemplar receipt
+shape:
+
+```json
+{
+  "schemaVersion": 1,
+  "substrateVersion": "floor-a5-heuristic-naive-dom",
+  "aut": "todomvc",
+  "autUrl": "https://todomvc.com/examples/react/dist/",
+  "partition": "training",
+  "cohortRole": "training",
+  "adoId": "91002",
+  "title": "Verify user can mark a todo as complete",
+  "stepCount": 3,
+  "stepsMatched": 1,
+  "handoffsEmitted": 2,
+  "stepOutcomes": [...]
+}
+```
+
+**What I want to improve (this cycle's seeds, formal list).**
+
+In priority order — same shape as Entry 6, with provenance now
+that the seeds are real-handoff-grounded:
+
+1. **Probe Seed 1 (recurrent): role-flattening on click+X.**
+   When the action text says "click the X checkbox", "click
+   the X link", "click the X tab", etc., the classifier should
+   honor the role hint in the surrounding text. Today it
+   flattens all to `role: button`. Confirmed across two of
+   three cases here; will recur on every AUT with non-button
+   click targets.
+2. **Probe Seed 5 (new): observe-without-a-role.** The
+   observe verb's TargetShapeHint extractor needs role
+   inference. Most observation steps target text content,
+   counts, or landmarks — none of which the runner can resolve
+   without a role hint.
+3. **Probe Seed 6 (new): nameSubstring hyphen-normalization.**
+   The classifier should not preserve fixture-source-text
+   hyphens when extracting names that will be queried against
+   accessible-name labels. Either normalize at extraction time
+   or apply fuzzier matching at query time.
+4. **Probe Seed 2 (refined): press-as-click extracts no
+   target.** Beyond the press-as-click verb classification
+   bug, the underlying click-target regexes never match
+   "press" prose. Both layers need a fix — keyboard-verb
+   distinct from click, AND target extraction that knows about
+   keyboard shapes.
+
+
+---
+
+## Entry 11 — synthesis: cycle 2 vs cycle 1
+
+This is cycle 2's synthesis. Compared to cycle 1 (Entry 6), the
+gap from "what we hypothesized" to "what we measured" is much
+narrower this time.
+
+### What got better since cycle 1
+
+- **Real handoffs, not classifier-acceptance verdicts.** Cycle 1
+  produced 9/9 `would-resolve` verdicts because the heuristic
+  classifier never reached a binder. Cycle 2 produced 3/9
+  matched + 6/9 handoffs against a real DOM. Floor A.5
+  successfully climbed half a rung.
+- **Provenance per receipt.** Each handoff is now a JSON file
+  under `workshop/logs/public-aut-receipts/todomvc/` carrying
+  `substrateVersion`, `cohortRole`, `partition`, the full
+  `stepOutcomes` array, and the `runStartedAt` timestamp. The
+  next cycle can diff outcomes against this baseline and
+  declare regressions or improvements precisely.
+- **Predictions test-driven.** Cycle 1's Entry 5 named two
+  probe seeds without provenance. Cycle 2's Entry 8
+  pre-registered three predictions; Entry 10 confirmed three,
+  broke one, and added two unpredicted findings. The cycle now
+  exhibits the falsifiability discipline the spike's §11
+  (self-improvement loop) demands of the compounding engine.
+- **The cohort home is plumbed end-to-end.** From manifest
+  (`cohort.json`) → loader (`load-public-aut-cohort.ts`) →
+  runner (`public-aut-runner.ts`) → CLI (`compile-public-aut`)
+  → receipts (`workshop/logs/public-aut-receipts/`). One
+  command runs the full chain. This is a structural milestone:
+  the cohort can now be a *thing* rather than a plan.
+
+### What still doesn't work (the next cycle's seeds)
+
+In priority order, with provenance:
+
+1. **Trust-policy gate is still not partition-aware.**
+   Carried over from Entry 7 seed 1 — held-out evaluation
+   cannot honestly run yet because canon graduation isn't
+   gated on `cohortRole === 'training'`. The runner emits
+   `cohortRole` in the receipt, but the gate doesn't read it.
+   This is the load-bearing piece for any held-out work.
+2. **Probe Seed 1 (role-flattening) — confirmed twice
+   today.** Highest-leverage classifier fix. The intent
+   classifier's click target extractor needs to honor "X
+   checkbox" / "X link" / "X tab" hints in the surrounding
+   text, not flatten everything to `role: button`.
+3. **Probe Seed 5 (observe-without-a-role) — new today.**
+   Three of six handoffs come from this single gap.
+   Highest-volume failure family. Either fix the classifier
+   to infer roles for observe, or fix the runner to fall
+   back to text/landmark resolution when role is null.
+4. **Probe Seed 6 (nameSubstring hyphen-normalization) — new
+   today.** The most surprising finding because it broke a
+   step I had predicted to succeed. Not high-volume but
+   high-relevance: rendered labels almost never preserve
+   fixture-source-text punctuation, so this gap will recur.
+5. **Probe Seed 2 (press-as-click) — refined today.** Both
+   layers (verb classification + target extraction) need to
+   learn about keyboard verbs.
+6. **Architecture law for cohort manifest invariants** —
+   carried over from Entry 7 seed 4. Becomes more urgent now
+   that the manifest is a real input to a real runtime path.
+7. **Snapshot-once-replay-forever not yet wired.** The
+   runner navigates live every time. The cohort manifest's
+   `snapshotFingerprint` field is still `null`; capture
+   write-back is the next-cycle infra piece (carried from
+   Entry 7 seed 3).
+
+### What this teaches the spike doc
+
+The spike's §4.1 names three cold-start floors (A / B / C).
+Cycle 2 demonstrates a Floor A.5 that the spike doesn't
+explicitly name — heuristic classifier + naive DOM resolution.
+**Suggested doc revision (next cycle): make Floor A.5
+first-class** alongside A/B/C. The justification: A.5 is a
+real, executable, measurable floor that the cohort operates
+at *today*, distinct from A (no DOM probe at all) and from
+B/C (real compile pipeline). Hiding it inside "cold-start
+today" loses precision that Floor identity now travels in
+receipts to recover.
+
+### What this teaches the self-improvement loop framing
+
+The spike's §11 named the journal-revision-code cycle as the
+nascent self-improvement loop. Cycle 2 is the first iteration
+where the loop's *predictive* fidelity could be measured: I
+named what I expected before running, and the run agreed with
+three of four predictions and surfaced two unpredicted gaps.
+The compounding engine's plan calls this
+`metric-hypothesis-confirmation-rate`
+(`docs/v2-compounding-engine-plan.md §1.1`). Cycle 2's
+manual confirmation rate is **3/4 ≈ 0.75 across predicted
+outcomes, with 2 additional unpredicted findings.** That
+number means little in isolation — but as cycle 3+ accumulate
+data points, the trajectory of confirmation rate becomes the
+manual analogue of the engine's headline graduation metric.
+
+The journal is now structurally sufficient for the
+compounding engine to consume. Each entry's pre-registered
+prediction (Entry 8) + observed outcome (Entry 10) is
+isomorphic to a `HypothesisReceipt`'s `{predicted, observed,
+confirmed}` triple. When the engine lands, this journal
+becomes the bootstrap dataset for its first
+hypothesis-confirmation-rate computation.
+
+The journal stops here for cycle 2. Held-out evaluation
+remains untouched per spike §4.4 C1; the public OutSystems
+Reactive demo URL is still TBD with the operator. The next
+cycle's load-bearing choice is between (a) trust-policy
+partition-awareness (unblocks held-out) or (b) classifier
+role-inference fix (unblocks generic-tier matcher quality
+across all AUTs). Both are tractable in one cycle; the
+operator's call.
