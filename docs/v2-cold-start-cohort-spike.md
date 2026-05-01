@@ -1,300 +1,427 @@
-# Cold-Start Cohort Spike — Public AUTs as a Forcing Function
+# Cold-Start Cohort Spike — Public AUTs as a Clean-Room Forcing Function
 
 > Status: research-spike proposal (2026-05-01). No code has landed
 > against this proposal; the document exists so that subsequent
 > sessions can reference its essence rather than rediscover it.
 > Orthogonal to Z11g (substrate ladder) and Z11d (live reasoning
 > adapter); composes with both. Reads on top of
-> `docs/v2-substrate-ladder-plan.md` and `docs/v2-probe-ir-spike.md`.
+> `docs/v2-substrate-ladder-plan.md`, `docs/v2-probe-ir-spike.md`,
+> and the Generalization Gauge framing in `docs/dashboard-vision.md`
+> (Part II, View 5, line 120) and `docs/moonshots.md §5`.
 
 ## 0. The verdict in one sentence
 
-**Stand up a small, ordered ladder of publicly accessible web
-applications, author hand-written ADO-shaped test cases against
-each, run the product end-to-end under `--posture cold-start`, and
-treat every `InterventionHandoff` the run emits as a probe seed —
-so that real-world entropy compounds into the canon through the
-machinery that already exists, and "progressively ready to
-cold-start a variety of AUTs" becomes a measurable curve rather
-than an aspiration.**
+**Stand up a small set of publicly accessible web applications,
+partition them once and irrevocably into a training side and a
+held-out side, author hand-written ADO-shaped test cases against
+each, run the product end-to-end under `--posture cold-start`, let
+the training side feed the existing handoff → probe → activation
+pipeline, and reserve the held-out side as a clean-room
+generalization test that the canon-graduation pipeline never sees
+until measurement time — so that "progressively ready to cold-start
+a variety of AUTs" becomes the gap between training-side hit rate
+and held-out hit rate, not a single number that conflates
+memorization with learning.**
 
-## 1. The question this spike asks
+## 1. The framing — this is an ML-training ecosystem
 
-The product is, by inspection and architectural intent, almost
-entirely substrate-agnostic. OutSystems-specific knowledge is
-epidermal — confined to a variant classifier in
-`workshop/substrate-study/` and the rung-4 distillation effort.
-The probe IR, the manifest verbs, the Playwright bridge, and the
-customer-backlog ADO-snapshot shape all accept any DOM. The
-existing test infrastructure already exercises the agnostic
-surface against synthetic React (rung 3) with controlled chrome.
+The repo already names the analogy. `docs/dashboard-vision.md`
+View 5 calls out a Generalization Gauge: "A system that scores 95%
+on training and 60% on held-out is memorizing, not learning."
+`docs/moonshots.md §5` warns that cross-app transfer must avoid
+"overfitting to prompt lore or collapsing distinct business
+semantics into generic UI cliches." The seven-visitor metric tree
+already separates measurement from authorship. The trust-policy
+gate already separates canon-graduation from canon-application.
+The vocabulary is in place; this spike just operationalizes it.
 
-The question is not "does the agnostic surface work?" — fixture
-replay and the synthetic-app rung already answer that. The
-question is:
+The mapping is precise:
+
+| ML training ecosystem | Tesseract analogue |
+|---|---|
+| Training set | AUTs the canon-graduation pipeline is allowed to see |
+| Held-out / validation set | AUTs the canon-graduation pipeline must never see until measurement |
+| Model weights | Activated canon (facets, matchers, intent phrases, patterns) |
+| Training step | Cold-start run on a training AUT → handoff → probe → graduation |
+| Memorization | Canon that only fires on the AUT that produced it |
+| Generalization | Canon that fires on AUTs the system has never seen |
+| Data leakage | Held-out AUT seen by the canon-graduation pipeline at any time before evaluation |
+| Overfitting | Canon hit rate diverges: high on training, low on held-out |
+
+The point of writing the analogy out is to inherit ML's hard-won
+discipline about *what counts as honest measurement*. The
+discipline that follows from "this is a training ecosystem":
+
+- Training and held-out partitions are decided **once, in advance**,
+  and crossing them is a methodological failure, not a tradeoff.
+- Held-out evaluation is a **single-use measurement** per AUT: once
+  the agent has cold-started against a held-out AUT, that AUT's
+  evaluation result is consumed. Re-running it on the same canon
+  state tells you the same thing; running it after canon has
+  graduated against any of *its* surfaces tells you something
+  contaminated.
+- A held-out AUT that gets "promoted" to training is allowed, but
+  it is **gone from held-out forever** once it crosses. Symmetric
+  promotion (training → held-out) is forbidden.
+- The cohort always has held-out room, even at small N. Spending
+  all your AUTs on training leaves you with no honest evaluation.
+
+## 2. The two questions this spike asks
+
+The training-side question:
 
 **When the agent confronts a real, foreign DOM with real chrome
 entropy, real semantic ambiguity, and real ARIA imperfection,
-under cold-start posture (no prior canon), where does it actually
-fail, and what does the structure of those failures teach the
-canon?**
+under cold-start posture, where does it actually fail, and what
+does the structure of those failures teach the canon?**
 
-The synthetic app cannot answer this. By construction it generates
-its surfaces from `product/catalog/` — the answer key is in the
-training data. A public AUT has no such alignment. Its DOM exists
-for its own reasons.
+The held-out question:
 
-This is not a benchmark in the dashboard-metric sense. It is a
-forcing function. The site supplies entropy; the system's existing
-handoff → probe → activation pipeline metabolizes that entropy
-into canon.
+**Once the canon has graduated from training-side AUTs, how much of
+that canon transfers to AUTs the canon-graduation pipeline has
+never seen?**
 
-## 2. The leverage mechanism — why this compounds
+The first question is what the synthetic app cannot answer because
+its surfaces source from the catalog (the answer key is in the
+training data). The second question is what the training side
+alone cannot answer because the AUT is in the training set. Both
+are necessary; neither is sufficient.
 
-The compounding loop is already wired. This spike contributes one
-new input (real-world AUTs) and one new output (cross-AUT
-generalization). It adds no new pipeline.
+## 3. The leverage mechanism — why this compounds
+
+The compounding loop is already wired and unchanged. This spike
+contributes one new training input source and one new held-out
+measurement; it adds no new pipeline.
+
+Training side:
 
 1. The agent attempts a hand-authored ADO test case against a
-   public AUT under `--posture cold-start`.
-2. Every gap — missing facet, ambiguous intent phrase, unmatched
-   widget, unresolved locator — emits an `InterventionHandoff`.
-   This contract is non-negotiable per the CLAUDE.md doctrine
-   ("every agentic decision produces an `InterventionHandoff`").
-3. Each handoff is a probe seed: workshop derives a probe that
-   measures whether the gap closes on the next run.
-4. Probes that stay green across N runs graduate canon through
-   the trust-policy gate at
-   `product/application/policy/trust-policy.ts`.
-5. Canon graduations carry forward to the *next* AUT the cohort
-   acquires — and that's where the leverage lives.
+   **training** AUT under `--posture cold-start`.
+2. Every gap emits an `InterventionHandoff` per the CLAUDE.md
+   doctrine.
+3. Each handoff is a probe seed.
+4. Probes that stay green graduate canon through the trust-policy
+   gate at `product/application/policy/trust-policy.ts`.
 
-The leverage is in step 5. With one AUT, you learn the AUT. With
-three AUTs in different shapes, you learn what generalizes.
+Held-out side:
 
-**Recurring gaps across AUTs are generic-tier deficiencies.**
-They tell you which W3C/ARIA matchers, intent classifiers, or
-facet kinds are under-specified independently of any platform.
-These are the highest-leverage probes to author.
+5. After canon graduates from training, the agent attempts the
+   pre-authored ADO test cases for the **held-out** AUT under
+   `--posture cold-start`.
+6. The fraction resolved without intervention is the held-out hit
+   rate.
+7. The gap between training hit rate and held-out hit rate is the
+   memorization-vs-learning signal that
+   `docs/dashboard-vision.md` View 5 already prescribes.
 
-**Gaps unique to a single AUT are specific-tier patterns.** They
-are exactly the kind of artifact the catalog's pattern tier is
-built to hold, but in proportion to the AUT's idiosyncrasy, not
-the system's deficiency.
+Recurring gaps across training AUTs are generic-tier deficiencies
+(highest-leverage probe seeds). Gaps unique to one training AUT
+are specific-tier patterns. Held-out failures decompose the same
+way and are the most honest source of "what the system has not yet
+learned."
 
-The metric tree already separates these — see
-`docs/v2-substrate.md §8a` on the per-visitor metric audit. This
-spike just feeds the separation real signal.
+## 4. Design discipline
 
-## 3. Design discipline
+Four commitments make the spike honest. Three are operational; the
+fourth is the clean-room rule.
 
-Three commitments make the spike honest.
-
-### 3.1 Cold-start posture is the primary mode
+### 4.1 Cold-start posture is the primary mode
 
 `--posture cold-start` is non-negotiable for headline measurement.
 Warm-start runs are diagnostics — useful for understanding what
 canon would have helped, not for claiming progress. The whole
 point is to test the discovery instruments without their training
-wheels. If cold-start works, the system genuinely cold-starts; if
-warm-start is the only mode that works, the system retrieves
-canon, which is a different and weaker claim.
+wheels.
 
-### 3.2 Snapshot-once, replay-forever
+### 4.2 Snapshot-once, replay-forever
 
-The first pass against any AUT runs live: real network, real DOM,
-real entropy. The handoffs from that run are authoritative.
-
-Every subsequent benchmark run against the same AUT replays from a
-captured snapshot — DOM, network responses, frozen clock. Live
-re-fetches are a deliberate refresh event with their own ledger
-entry, not the default cadence.
+The first pass against any AUT runs live. Every subsequent
+benchmark run replays from a captured snapshot. Live re-fetches
+are a deliberate refresh event with their own ledger entry, not
+the default cadence.
 
 This kills site drift as a noise source while preserving the
 realism gain. It also means an AUT, once captured, becomes a
 permanent rung-2 fixture — the cohort backfills the
 fixture-replay corpus for free.
 
-### 3.3 A diversity ladder, not a single site
+### 4.3 A diversity ladder, not a single site
 
-One AUT teaches you that AUT. Three AUTs in different shapes teach
-you what generalizes. The cohort's value is monotonic in
-diversity, not size.
+Diversity is the leverage; size is not. Three AUTs in different
+shapes teach you what generalizes. The cohort is therefore
+defined by its variety axes (chrome density, ARIA quality,
+state-machine complexity, framework substrate), not its count.
 
-The ordering proposed — small enough to start, broad enough to
-matter:
+### 4.4 The clean-room rule
 
-1. **TodoMVC** (or equivalent canonical demo). Trivial DOM,
-   clean ARIA, single-screen state. The sanity rung: if
-   cold-start fails here, the generic tier is broken and that
-   discovery itself is the spike's first product.
-2. **Swagger Petstore** or **Postman Echo** or another
-   forms-and-lists demo app. Multi-screen, real validation, real
-   asynchrony, but still author-friendly chrome.
-3. **A public OutSystems Reactive demo.** OutSystems publishes
-   several. This rung bridges the cohort to Z11g rung-4 work
-   without requiring a customer engagement: `osui-*` classes
-   appear, the variant classifier fires, the Reactive matcher
-   tier gets exercised, and the cohort starts producing evidence
-   the substrate-study can consume.
-4. **Optional fourth, deliberately messy.** A site with
-   imperfect ARIA, inconsistent landmarks, real-world chrome.
-   This rung probes the failure-mode envelope — what does the
-   system do when the substrate is *wrong* in interesting ways?
+This is the spine of the whole memo. It has six corollaries.
 
-The first three are the minimum viable cohort. The fourth waits
-until the first three's recurring-gap log is stable.
+**C1. Partition is declared before contact.** Each AUT enters the
+cohort with a label (`training` or `held-out`) declared in a
+manifest entry committed *before* the agent or the
+canon-graduation pipeline observes the AUT in any way. The
+operator may inspect the AUT to author ADO test cases; the
+canon-graduation pipeline may not.
 
-## 4. The headline metric — cross-AUT generalization rate
+**C2. The held-out partition is firewalled from canon graduation.**
+Probes derived from a held-out AUT's handoffs MUST NOT graduate
+canon. The simplest enforcement: held-out runs execute under a
+sub-mode (`--cohort-role held-out`) that the trust-policy gate
+recognizes as a no-write context. A held-out run produces only a
+scorecard receipt; no canon entries, no probe activations.
+
+**C3. Held-out AUTs are single-use per canon state.** Each
+held-out evaluation produces one scorecard receipt tagged with
+the canon's fingerprint at evaluation time. Re-running the same
+held-out AUT against the same canon fingerprint is a no-op
+(produces a duplicate receipt). Running it against a *new* canon
+fingerprint is fine — that's the point.
+
+**C4. Promotion is one-way.** Held-out AUTs may be reclassified
+as training (and their snapshots fed into the canon-graduation
+pipeline), but a training AUT may never become a held-out AUT.
+Once the canon has been allowed to graduate against an AUT's
+surfaces, that AUT's signal is forever contaminated for
+generalization measurement.
+
+**C5. Operator authoring of held-out tests is allowed but
+disciplined.** A human inevitably inspects the held-out AUT to
+author its ADO test cases. This is acceptable because the agent
+is what we are measuring. The discipline:
+- Held-out tests should be authored as a senior QA analyst would
+  author them, blind to current canon contents.
+- A held-out test should be authored to exercise a *capability*
+  ("the system should be able to fill a labelled form"), not a
+  *known-canon shortcut* ("the system already has a `text-input`
+  facet for this exact role-name combination").
+- The aspiration (not required for this spike): a different
+  operator authors held-out tests than the one curating canon.
+
+**C6. The clean-room is recoverable, not preserved.** Operators
+will make mistakes. If a held-out AUT leaks into canon
+graduation by accident, the response is: log the contamination
+event, demote the AUT to training, refuse to report a held-out
+hit rate that includes it, and acquire a new held-out AUT to
+replace it. Pretending the leak didn't happen is the only
+unrecoverable failure.
+
+## 5. The diversity ladder, partitioned
+
+The minimum viable cohort is **two training AUTs + one held-out
+AUT**. Smaller than that, the generalization gauge has no
+denominator. The proposed first cohort:
+
+Training side (canon may graduate from these):
+
+- **TodoMVC** (or equivalent canonical demo). Trivial DOM, clean
+  ARIA, single-screen state. The sanity rung: if cold-start fails
+  here, the generic tier is broken and the discovery itself is
+  the spike's first product.
+- **Swagger Petstore** or **Postman Echo**. Multi-screen, real
+  validation, real asynchrony, but still author-friendly chrome.
+
+Held-out side (canon must NOT graduate from this until promoted):
+
+- **A public OutSystems Reactive demo.** OutSystems publishes
+  several. Reserving this rung as held-out has two effects: it
+  bridges the cohort to Z11g rung-4 work without contaminating
+  the rung-4 evaluation, *and* it puts the highest-signal AUT
+  (real Reactive substrate) on the side of the firewall that
+  produces the most informative generalization measurement.
+
+Optional fourth (decision deferred):
+
+- **A deliberately messy real-world site.** Initial classification:
+  held-out. The decision to keep it held-out vs. promote to
+  training is downstream of the first cohort's evidence.
+
+The partition above is a proposal, not a decree. The operator's
+final partition decision lands in the cohort manifest before any
+agent contact with any AUT.
+
+## 6. The metrics — two numbers, one gauge
 
 The cohort's headline is not "% test cases passed" or "% probes
-green." Those are diagnostic. The headline is:
+green." Those are diagnostic. The headline is the pair, and the
+gap between them.
 
-**When AUT-N+1 lands, what fraction of canon accumulated from
-AUTs 1..N transfers without modification?**
+**Training hit rate.** For the AUTs the canon-graduation pipeline
+has been allowed to see, what fraction of cold-start ADO test
+cases resolve without an `InterventionHandoff`?
 
-Operationalized: run AUT-N+1 cold-start, count facets / matchers
-/ intent phrases that resolve without an `InterventionHandoff`.
-Divide by the count of distinct surfaces AUT-N+1 exposes. The
-ratio is the system's *generalization rate* at cohort size N.
+**Held-out hit rate.** For the AUTs the canon-graduation pipeline
+has not been allowed to see, what fraction of cold-start ADO
+test cases resolve without an `InterventionHandoff`?
 
-This is the precise meaning of "progressively ready to cold-start
-a variety of AUTs." It composes with the metric tree's existing
-M5 (memory-worthiness ratio) — generalization is M5 measured
-across the AUT axis instead of the within-AUT cohort axis.
+**Generalization gap.** `training_hit_rate − held_out_hit_rate`,
+reported alongside both numbers. This is the operationalization
+of `docs/dashboard-vision.md` View 5's Generalization Gauge.
 
 A floor and a target:
-- Floor: at cohort size 1, generalization is undefined; at
-  cohort size 2, it is the baseline. We want it to stay above
-  zero.
-- Target: at cohort size 3+, sustained generalization above some
-  policy-set threshold (precise number is downstream of the
-  spike's first results — picking a threshold before measuring
-  is theatre).
+- Floor: held-out hit rate above zero (the system can resolve
+  *something* on an AUT it's never seen).
+- Direction: held-out hit rate trends up as training cohort
+  grows, while the gap stays bounded. A growing gap is a
+  memorization signal.
+- Threshold-setting: deferred to the trust policy after the first
+  three-AUT cohort produces real numbers. Picking a threshold
+  before measuring is theatre.
 
-## 5. Where this fits the active plan
+These two numbers compose with the existing seven-visitor metric
+tree. M5 (memory-worthiness ratio) measured across the AUT axis
+*is* the held-out hit rate. The cohort doesn't add a new metric
+visitor; it adds a new cohort key the existing visitors can
+group by.
+
+## 7. Where this fits the active plan
 
 This is a horizontal axis (AUT diversity) crossing the substrate
 ladder's vertical axis (substrate fidelity).
 
-- **Z11g (substrate ladder)** is rung-1 / rung-2 / rung-3 /
-  rung-4 — fidelity ascending from dry through Reactive
-  distillation. The cohort's rungs sit at the rung-2 / rung-3
-  junction: every AUT, once captured, becomes a rung-2 fixture;
-  the live first-pass run is a rung-3 (real Playwright on real
-  DOM) execution that happens to be against a foreign substrate.
-- **Z11d (live reasoning adapter)** swaps in real reasoning where
-  the deterministic adapter sits today. The cohort is orthogonal:
-  it doesn't care whether reasoning is deterministic or live, but
-  it benefits from live — real reasoning on real DOM is the
-  highest-signal configuration the cohort can produce.
-- **Z11f (substrate study)** harvests public OutSystems DOMs to
-  distill matcher patterns. The cohort's rung-3 (public Reactive
-  demo) feeds Z11f: it produces real-OutSystems handoffs and
-  receipts that the substrate study can consume *without* a
-  customer engagement.
+- **Z11g (substrate ladder).** The cohort's rungs sit at the
+  rung-2 / rung-3 junction: every captured AUT becomes a rung-2
+  fixture; the live first-pass run is a rung-3 execution against
+  a foreign substrate. Reserving the public OutSystems demo as
+  held-out means it can later inform Z11g rung-4 *evaluation*
+  without contaminating Z11g rung-4 *training*.
+- **Z11d (live reasoning adapter).** Orthogonal. The cohort
+  benefits from live reasoning but does not require it.
+- **Z11f (substrate study).** The cohort's training side feeds
+  Z11f with real-OutSystems handoffs cheaply, *only if the
+  OutSystems AUT is on the training side*. If it remains
+  held-out (the proposal above), Z11f sources its evidence
+  elsewhere and the held-out AUT continues to serve evaluation.
 - **Customer-backlog** (`workshop/customer-backlog/`) already
   accepts arbitrary `AdoSnapshot`/`AdoStep` shapes. The cohort
   extends this with a third cohort directory:
-  `workshop/customer-backlog/public-aut/<aut-name>/` holding
-  fixtures, captured DOM, scorecard, and the recurring-gap log.
+  `workshop/customer-backlog/public-aut/<aut-name>/` holding the
+  cohort manifest entry (with the partition label),  the
+  ADO-shaped fixtures, captured DOM, scorecard, and the
+  recurring-gap log.
+- **Dashboard.** The Generalization Gauge in
+  `docs/dashboard-vision.md` View 5 has its inputs once this
+  spike lands. The dashboard widget is downstream of the
+  scorecard producing the two numbers.
 
-The cohort is therefore not a new pipeline; it is a new input
-source feeding existing pipelines, and one new metric
-(generalization rate) projected from the existing metric tree.
-
-## 6. The smallest concrete first move
+## 8. The smallest concrete first move
 
 Before the cohort exists as a structure, one experiment runs
-against one AUT and reports back. Its only job is to discover
-what the recurring-gap log actually looks like — so the cohort's
-real shape is informed by real evidence, not by guessing.
+against one training AUT and reports back. The held-out side is
+**designated but untouched**. The experiment's only job is to
+discover what the recurring-gap log actually looks like.
 
 The experiment:
 
-1. **Pick TodoMVC** (or the simplest equivalent the operator
-   prefers). The criteria are: stable URL, clean ARIA, no auth,
-   small enough to enumerate completely.
-2. **Author 3 ADO-shaped test cases by hand**, of escalating
-   ambition: add a todo; mark a todo complete; filter to active
-   todos. Shape them as the customer-backlog already accepts.
-3. **Run cold-start** against the live site. Capture every
-   `InterventionHandoff`, every `ReasoningReceipt`, the full
-   resolution-receipt log, and the generated test artifacts (or
-   the reasons no artifact was generated).
-4. **Report**, in a single memo:
+1. **Designate the partition** in a one-line cohort manifest
+   stub (committed before any agent contact):
+   - Training: TodoMVC.
+   - Held-out: a public OutSystems Reactive demo (specific URL
+     to be agreed with the operator).
+2. **Author 3 ADO-shaped test cases by hand** for TodoMVC, of
+   escalating ambition (add a todo, mark complete, filter
+   active). Author 3 ADO-shaped test cases by hand for the
+   held-out OutSystems demo, *but do not run them*. Authoring
+   them now under operator inspection seeds the held-out
+   measurement with no leak — because operator inspection is C5,
+   and the agent / canon-graduation pipeline still has not seen
+   the AUT.
+3. **Run cold-start against TodoMVC** (training side). Capture
+   every `InterventionHandoff`, every `ReasoningReceipt`, the
+   full resolution-receipt log, and the generated test artifacts
+   (or the reasons no artifact was generated). Allow the existing
+   pipeline to graduate canon as it normally would.
+4. **Do not run held-out yet.** Held-out evaluation is reserved
+   for *after* the cohort has at least two training AUTs that
+   have produced graduated canon. With one training AUT, the
+   held-out measurement has nothing to generalize from.
+5. **Report**, in a single memo:
    - what the agent succeeded at without canon
    - what it failed at, classified by handoff family
-   - which failures look generic-tier (likely to recur on other
-     AUTs) vs. specific-tier (TodoMVC-shaped)
-   - what shape the recurring-gap log will need to take when the
-     cohort has more than one AUT
-   - whether the snapshot-once-replay-forever discipline is
-     mechanically possible with the current Playwright bridge,
-     or whether new instrumentation is needed first
+   - which failures look generic-tier vs. specific-tier
+   - what shape the recurring-gap log will need to take
+   - whether snapshot-once-replay-forever is mechanically possible
+     with the current Playwright bridge, or whether new
+     instrumentation is needed
+   - whether the cohort manifest needs additional fields beyond
+     `{name, url, partition, snapshot-fingerprint}`
 
-The experiment does **not** activate canon, modify the trust
-policy, or commit anything to the cohort. Its product is
-evidence, not infrastructure. Infrastructure follows once we
-know what the evidence actually contains.
+The experiment does **not** activate any held-out evaluation,
+modify the trust policy, or commit anything beyond the cohort
+manifest stub and the experiment's report. Its product is
+evidence, not infrastructure. Infrastructure follows once we know
+what the evidence actually contains.
 
-## 7. What success looks like for the spike itself
+## 9. What success looks like for the spike itself
 
 The spike succeeds if it produces, in order of importance:
 
-1. A handoff log from a real AUT, classified well enough that
-   the gap structure is legible.
+1. A handoff log from a real training AUT, classified well enough
+   that the gap structure is legible.
 2. A clear statement of which existing pipeline pieces held up
    under real entropy and which broke or required workarounds.
-3. A revised cohort design — the present §3 is a hypothesis; the
-   spike's evidence either confirms it or names what's wrong
-   with it.
-4. A first cut at a recurring-gap taxonomy: the families of gap
-   we expect to see across AUTs, named precisely enough to be
-   probe seeds.
+3. A revised cohort design — the present §4 / §5 are hypotheses;
+   the spike's evidence either confirms them or names what's
+   wrong with them.
+4. A first cut at a recurring-gap taxonomy, named precisely
+   enough to be probe seeds.
+5. A confirmation that the clean-room rule (§4.4) is mechanically
+   implementable: can `--cohort-role held-out` actually be
+   plumbed as a no-write context, or do new architecture-law
+   tests need to land first?
 
-The spike fails if any of: the cold-start posture cannot run
-end-to-end against a foreign DOM at all; handoffs aren't emitted
-where they should be; the resolution-receipt log is unreadable;
-or the ADO-shaped fixture format proves too rigid for
-hand-authoring against a real site. Each of these failures is
-itself a high-value finding — the spike's worst case is still
-informative.
+The spike fails if any of: cold-start cannot run end-to-end
+against a foreign DOM at all; handoffs aren't emitted where they
+should be; the resolution-receipt log is unreadable; the
+ADO-shaped fixture format is too rigid for hand-authoring against
+a real site; or the held-out firewall cannot be implemented
+without disturbing the canon-graduation pipeline. Each of these
+failures is itself a high-value finding.
 
-## 8. What this spike explicitly does not solve
+## 10. What this spike explicitly does not solve
 
 - **Replacing rung-4.** The cohort does not displace
-  Reactive-OutSystems distillation. A public OutSystems demo is
-  not a substitute for a real customer DOM with real customer
-  widgets and real customer telemetry. The cohort *feeds* rung-4
-  by producing real-OutSystems handoffs cheaply; it does not
-  *replace* the rung.
-- **The generalization-rate threshold.** The spike does not pick
-  the policy threshold at which generalization is "enough."
-  That number lives downstream of the first three AUTs landing.
-- **Cohort governance.** The spike does not specify how AUTs
-  enter the cohort, get refreshed, or retire. Those questions
-  have answers, but they are downstream of evidence the spike
-  produces.
-- **TOS / robots.txt / scraping ethics.** Site selection must
-  prefer apps explicitly intended for testing or demonstration
+  Reactive-OutSystems distillation. A public OutSystems demo as
+  held-out is a *generalization probe*, not a substitute for a
+  customer DOM with customer widgets and customer telemetry.
+- **The generalization-gap threshold.** The spike does not pick
+  the policy threshold at which the gap is "small enough." That
+  number lives downstream of the first three AUTs landing.
+- **Held-out replenishment.** The spike does not specify how new
+  held-out AUTs enter the cohort once existing ones get promoted
+  or burn down. That governance question has answers, but they
+  are downstream of evidence.
+- **TOS / robots.txt / scraping ethics.** Site selection prefers
+  apps explicitly intended for testing or demonstration
   (TodoMVC, Petstore, Postman Echo, OutSystems-published demos).
-  This is a constraint on cohort membership, not an artifact of
-  the spike itself.
+  This is a constraint on cohort membership.
+- **Operator-authorship leakage.** §4.4 C5 names the discipline
+  but does not formally enforce blind authorship. The
+  enforcement aspiration is downstream; the spike accepts
+  honest-effort blindness.
+- **Cross-canon contamination.** The spike measures one canon
+  state at one point in time. Comparing held-out scores across
+  canon evolutions is downstream once the metric tree's cohort
+  axis is wired.
 
-## 9. Hand-off to the next session
+## 11. Hand-off to the next session
 
 If you are picking up this spike from cold:
 
 1. Read CLAUDE.md and `docs/v2-substrate-ladder-plan.md §§0–4`
-   for context on the substrate ladder and where this spike
-   sits relative to it.
-2. Read this memo §§0–6.
-3. Confirm with the operator that the AUT and three ADO-shaped
-   test cases are agreed.
-4. Run the experiment per §6. Report per §6.4. Do not commit
-   cohort infrastructure yet.
+   for context on the substrate ladder.
+2. Read `docs/dashboard-vision.md` Part II View 5 (the
+   Generalization Gauge) and `docs/moonshots.md §5` (cross-app
+   transfer) for the ML-training framing this spike inherits.
+3. Read this memo §§0–6, with §4.4 (the clean-room rule) as the
+   spine.
+4. Confirm with the operator: the training AUT, the held-out
+   AUT, and the three ADO-shaped test cases for each. Commit
+   the cohort manifest stub *before* any agent contact.
+5. Run the experiment per §8. Report per §8.5. Do not run
+   held-out evaluation yet. Do not commit cohort infrastructure
+   beyond the manifest stub.
 
 The cohort's permanent home (`workshop/customer-backlog/public-aut/`
-or equivalent) is named in §5 but not built. Building it is a
+or equivalent) is named in §7 but not built. Building it — and
+plumbing the `--cohort-role held-out` no-write context — is a
 follow-up commit, scoped after the experiment's report lands.
