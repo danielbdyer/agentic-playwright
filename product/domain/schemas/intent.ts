@@ -49,6 +49,7 @@ export const AdoSnapshotSchema = Schema.Struct({
   dataRows: Schema.Array(Schema.Record({ key: Schema.String, value: Schema.String })),
   contentHash: Schema.String,
   syncedAt: Schema.String,
+  targetAut: Schema.optional(Schema.String),
 });
 
 // ─── Scenario ───

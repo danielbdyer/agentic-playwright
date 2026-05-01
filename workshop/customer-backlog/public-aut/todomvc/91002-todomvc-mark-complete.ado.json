@@ -43,5 +43,6 @@
     }
   ],
   "contentHash": "sha256:91002-todomvc-mark-complete-spike1",
-  "syncedAt": "2026-05-01T00:00:00.000Z"
+  "syncedAt": "2026-05-01T00:00:00.000Z",
+  "targetAut": "https://todomvc.com/examples/react/dist/"
 }

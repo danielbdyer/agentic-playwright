@@ -570,6 +570,129 @@ In priority order:
 5. **Probe seed: keyboard-verb extraction (`press X`).** Same
    shape as #4, narrower scope.
 
+## Entry 7 — closing the first loop: realizations → code
+
+**What I tried.** Translate the journal's findings (Entries 4–6)
+into actual code + doc revisions so the cycle of
+*observation → hypothesis → revision → activation* completes
+once. Three categories of change landed in the same session:
+
+1. **Spike-doc revisions to
+   `docs/v2-cold-start-cohort-spike.md`.**
+   - §4.1 expanded with the three cold-start floors (heuristic
+     classifier / deterministic empty catalog / live empty
+     catalog). Floor identity now travels with receipts so
+     cross-floor comparisons are not silently performed.
+   - §5 re-ranks TodoMVC: removed the "trivial DOM, clean ARIA"
+     framing; named the four ARIA imperfections explicitly.
+   - §8.3 + §8.4 acknowledge that today's first-move execution
+     happens at Floor A and produces classifier-acceptance
+     verdicts, not handoff logs.
+   - **New §11** ("The journal-revision-code cycle as the
+     nascent self-improvement loop") makes the cycle's
+     isomorphism to the compounding engine
+     (`docs/v2-compounding-engine-plan.md §1.1`) explicit. The
+     compounding engine eventually subsumes this manual
+     discipline; until it lands, journal entries are the
+     manual analogue of `HypothesisReceipt`s.
+
+2. **Code: `targetAut` on `AdoSnapshot`.**
+   - Added optional field to
+     `product/domain/intent/types.ts:38` and the corresponding
+     `effect.Schema.optional(Schema.String)` to
+     `product/domain/schemas/intent.ts:38`. Additive, all
+     existing fixtures continue to validate.
+
+3. **Code: public-AUT cohort home + manifest + loader.**
+   - `workshop/customer-backlog/public-aut/cohort.json` —
+     manifest declaring the partition (`training` /
+     `held-out`), AUT URL, fixtures directory, and provenance
+     fields (`authoringOperator`, `addedAt`,
+     `snapshotFingerprint`). Schema enforces the spike's §4.4
+     C1 *partition declared before contact* discipline
+     mechanically: an AUT cannot exist in the cohort without
+     declaring its side of the firewall.
+   - `workshop/customer-backlog/application/load-public-aut-cohort.ts`
+     — pure loader, parallel to the existing `load-corpus.ts`
+     (deliberately *not* folded into the existing
+     `CustomerCompilationCorpus` union — public-AUT cohorts
+     have different measurement semantics; keeping the loader
+     separate makes the partition concern visible at the
+     import seam).
+   - `workshop/customer-backlog/public-aut/README.md` —
+     cohort-home guide, names the clean-room rule corollaries
+     and authoring guidance.
+   - The three TodoMVC fixtures graduated from
+     `docs/v2-cold-start-todomvc-fixtures/` (journal-adjacent)
+     to `workshop/customer-backlog/public-aut/todomvc/` (cohort
+     home), each carrying `"targetAut":
+     "https://todomvc.com/examples/react/dist/"`.
+
+**What I saw.**
+
+- Build clean (`manifest drift-check: no drift; build ok`).
+- Full test suite: 4071 passed, 10 skipped, 0 failed.
+- Seam-enforcement law (3 tests) green — no architecture
+  violations introduced by the new loader file.
+- Loader smoke-test confirms end-to-end:
+  `loadPublicAutCohort` reads the manifest, walks the
+  `todomvc/` directory, returns 3 cases with their `targetAut`
+  fields populated. `partitionedAuts` reports 1 training
+  AUT, 0 held-out — as expected at this nascent stage.
+
+**What I want to improve (the next cycle's seeds).**
+
+This entry closes one cycle by realizing items 1–3 of Entry 6's
+priority list. Items 4 and 5 (the two probe seeds) remain
+forward work; they need the probe IR machinery for public-AUT
+cohorts to exist before they can be authored as receipts. New
+seeds this cycle surfaced:
+
+1. **The trust-policy gate is not yet partition-aware.**
+   `workshop/customer-backlog/public-aut/README.md` describes
+   the clean-room enforcement; the gate at
+   `product/application/policy/trust-policy.ts` does not yet
+   consult `loadPublicAutManifest` to refuse canon writes when
+   the active context's AUT is `held-out`. This is the
+   critical next code change before any held-out evaluation can
+   honestly run. Without it, C2 ("the held-out partition is
+   firewalled from canon graduation") is documented but
+   unenforced.
+2. **No CLI verb yet routes the public-AUT cohort to the
+   compile pipeline.** The loader exists; nothing calls it. A
+   future `tesseract compile-public-aut --aut <name>
+   --cohort-role <training|held-out>` command would close the
+   gap, with the role flag consulted by the trust-policy gate
+   per (1).
+3. **The cohort manifest's `snapshotFingerprint` field is
+   currently `null` for TodoMVC.** It gets populated when the
+   first DOM capture lands and turns the entry into a
+   permanent rung-2 fixture per spike §4.2. The capture
+   pipeline doesn't yet write back to the manifest.
+4. **Architecture law for cohort manifest invariants.** A
+   compile-time test should enforce: `partition` is
+   `'training' | 'held-out'` exactly; `name` is unique across
+   entries; promotion training → held-out is impossible (the
+   manifest is append-only with respect to that direction).
+   Without this law, C4 (one-way promotion) is
+   honor-system-enforced.
+
+**Why this entry matters more than its content.** Per the
+spike's new §11, this cycle (observe in Entry 5 → revise the
+spike's §4.1 / §5 / §8 → land code that realizes the
+realization) is an isomorphic, manual rehearsal of the
+compounding engine's eight steps from
+`docs/v2-compounding-engine-plan.md §1.1`. Entry 7's
+existence — and its enumeration of the next cycle's seeds — is
+itself a graduation event in miniature. The point of writing
+the cycle out explicitly is to recognize that the engine
+already exists in low-throughput form; the engine's
+forthcoming automation multiplies throughput, it doesn't
+introduce the shape.
+
 The journal stops here for this session. Held-out evaluation
 remains untouched per spike §4.4 C1; the public OutSystems
-Reactive demo URL is still TBD with the operator.
+Reactive demo URL is still TBD with the operator. The next
+cycle picks up either at the trust-policy partition-awareness
+work (above, item 1) or at the OutSystems held-out
+designation, whichever the operator chooses.

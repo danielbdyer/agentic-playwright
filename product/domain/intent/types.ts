@@ -49,6 +49,13 @@ export interface AdoSnapshot {
   readonly dataRows: readonly Readonly<Record<string, string>>[];
   readonly contentHash: string;
   readonly syncedAt: string;
+  // Optional URL of the application under test. Absent for cases
+  // synced from ADO (the AUT is implicit in the workspace
+  // configuration). Required for public-AUT cohort fixtures where
+  // a single corpus may target multiple distinct AUTs. See
+  // docs/v2-cold-start-cohort-spike.md §7 + the TodoMVC journal
+  // Entry 4.
+  readonly targetAut?: string | undefined;
 }
 
 export interface ScenarioSource {
