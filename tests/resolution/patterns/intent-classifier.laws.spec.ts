@@ -156,4 +156,36 @@ describe('Z11a.4b — intent classifier', () => {
     expect(intent!.targetShape.role).toBe('button');
     expect(intent!.targetShape.nameSubstring).toBe('toggle');
   });
+
+  // ── Press verb (cycle 4 of cold-start cohort spike; Probe Seed
+  //    2). Keyboard actions are first-class, distinct from clicks.
+
+  test('ZC37.p: "Press Enter" emits press + nameSubstring=Enter', () => {
+    const intent = classifyIntent('Press Enter to submit the form', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('press');
+    expect(intent!.targetShape.nameSubstring).toBe('Enter');
+  });
+
+  test('ZC37.q: "Press the Tab key" emits press + nameSubstring=Tab', () => {
+    const intent = classifyIntent('Press the Tab key', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('press');
+    expect(intent!.targetShape.nameSubstring).toBe('Tab');
+  });
+
+  test('ZC37.r: "Press Escape" emits press, NOT click (the prior baseline misclassified press as click)', () => {
+    const intent = classifyIntent('Press Escape to cancel', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('press');
+    expect(intent!.verb).not.toBe('click');
+  });
+
+  test('ZC37.s: "Click submit" still classifies as click (press detection does not poison click recognition)', () => {
+    // The press regex requires literal "press"; click recognition
+    // is unaffected by the new branch.
+    const intent = classifyIntent('Click submit', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('click');
+  });
 });

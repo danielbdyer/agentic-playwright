@@ -1,31 +1,38 @@
 /**
- * Public-AUT cohort runner — Floor A.5.
+ * Public-AUT cohort runner — Floor A.5 (with cycle-4
+ * narrative-execute).
  *
  * For each case in the cohort:
- *   1. Run the heuristic intent classifier (Z11a.4b) on every step
- *      to extract verb + role + nameSubstring.
+ *   1. Run the heuristic intent classifier on every step to extract
+ *      verb + role + nameSubstring.
  *   2. Launch Playwright, navigate to `snapshot.targetAut`.
- *   3. For each classified step, attempt a single naive DOM
- *      resolution via `page.getByRole(role, { name })`.
- *   4. Record per-step outcome and emit a JSON receipt per case.
+ *   3. For each classified step:
+ *      a. Probe the DOM (getByRole / getByText / press-verb skips
+ *         this step).
+ *      b. If the probe matched (or the verb is press),
+ *         **narrative-execute**: perform the action so subsequent
+ *         steps see the resulting page state. (Cycle 4: Probe Seed
+ *         8 Phase A.)
+ *   4. Record per-step outcome (probe result + action result) and
+ *      emit a JSON receipt per case.
+ *
+ * The cohort role ('training' | 'held-out') is checked through
+ * cohort-trust-guard before any side-effecting probe, planting the
+ * spike's §4.4 C2 invariant in code (Cycle 4).
  *
  * This is not the full compile pipeline; it skips parse/bind and
- * the 11-rung resolution ladder. It exists to surface real
- * not-found handoffs against a real AUT using the current
- * generic-tier matchers (role + name), so the cohort's first
- * real-handoff log becomes legible.
- *
- * The runner is intentionally simple. Sophistication migrates here
- * as the substrate ladder lights more rungs.
+ * the 11-rung resolution ladder. Sophistication migrates here as
+ * the substrate ladder lights more rungs.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { chromium, type Browser, type Page } from 'playwright';
+import { chromium, type Browser, type Locator, type Page } from 'playwright';
 import { classifyIntent } from '../../../product/domain/resolution/patterns/intent-classifier';
 import type { ClassifiedIntent } from '../../../product/domain/resolution/patterns/rung-kernel';
 import type { LoadedPublicAutCase } from './load-public-aut-cohort';
 import { stripHtml, inferAllowedActions } from './intent-helpers';
+import { assertCanonWritesAllowed } from './cohort-trust-guard';
 
 export type StepDomResolution =
   | 'matched'
@@ -35,6 +42,9 @@ export type StepDomResolution =
   | 'skipped-navigate'
   | 'no-target-name'
   | 'browser-error';
+
+export type ActionAttempted = 'clicked' | 'filled' | 'pressed' | 'observed' | null;
+export type ActionOutcome = 'succeeded' | 'failed' | 'skipped';
 
 export interface PublicAutStepOutcome {
   readonly stepIndex: number;
@@ -47,6 +57,9 @@ export interface PublicAutStepOutcome {
   readonly domResolution: StepDomResolution;
   readonly matchCount: number;
   readonly rationale: string;
+  readonly actionAttempted: ActionAttempted;
+  readonly actionOutcome: ActionOutcome;
+  readonly actionDetail: string | null;
 }
 
 export interface PublicAutCaseResult {
@@ -84,15 +97,45 @@ function classifyStep(actionText: string): {
   return { verdict: intent ? 'classified' : 'unclassified', intent, plain };
 }
 
-async function probeStep(
-  page: Page,
-  intent: ClassifiedIntent,
-): Promise<{ resolution: StepDomResolution; matchCount: number; rationale: string }> {
+interface ProbeResult {
+  readonly resolution: StepDomResolution;
+  readonly matchCount: number;
+  readonly rationale: string;
+  /** When `resolution === 'matched'`, the locator the action stage
+   *  should act on. Null otherwise. The press verb returns null
+   *  because it does not target a DOM element. */
+  readonly matchedLocator: Locator | null;
+}
+
+async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeResult> {
   if (intent.verb === 'navigate') {
     return {
       resolution: 'skipped-navigate',
       matchCount: 0,
       rationale: 'navigate verb is satisfied by the case-level navigation to targetAut',
+      matchedLocator: null,
+    };
+  }
+
+  // Press verb does not need DOM resolution — the action stage
+  // calls `page.keyboard.press(nameSubstring)`. We mark the step
+  // 'matched' when the classifier extracted a key name, so the
+  // action stage runs.
+  if (intent.verb === 'press') {
+    const key = intent.targetShape.nameSubstring;
+    if (!key) {
+      return {
+        resolution: 'no-target-name',
+        matchCount: 0,
+        rationale: 'press verb classified, but no key name extracted',
+        matchedLocator: null,
+      };
+    }
+    return {
+      resolution: 'matched',
+      matchCount: 1,
+      rationale: `press verb resolved to key='${key}' (no DOM probe required)`,
+      matchedLocator: null,
     };
   }
 
@@ -116,6 +159,7 @@ async function probeStep(
       resolution: 'no-target-name',
       matchCount: 0,
       rationale: `verb=${intent.verb}; classifier did not infer a target role`,
+      matchedLocator: null,
     };
   }
 
@@ -124,38 +168,40 @@ async function probeStep(
       ? page.getByRole(role as Parameters<Page['getByRole']>[0], { name: queryName })
       : page.getByRole(role as Parameters<Page['getByRole']>[0]);
     const count = await locator.count();
+    const queryRationale = `getByRole('${role}'${queryName ? `, { name: ${queryName} }` : ''})`;
     if (count === 0) {
       return {
         resolution: 'not-found',
         matchCount: 0,
-        rationale: `getByRole('${role}'${queryName ? `, { name: ${queryName} }` : ''}) returned 0 matches`,
+        rationale: `${queryRationale} returned 0 matches`,
+        matchedLocator: null,
       };
     }
     if (count === 1) {
       return {
         resolution: 'matched',
         matchCount: 1,
-        rationale: `getByRole('${role}'${queryName ? `, { name: ${queryName} }` : ''}) matched exactly 1 element`,
+        rationale: `${queryRationale} matched exactly 1 element`,
+        matchedLocator: locator,
       };
     }
     return {
       resolution: 'ambiguous',
       matchCount: count,
-      rationale: `getByRole('${role}'${queryName ? `, { name: ${queryName} }` : ''}) matched ${count} elements`,
+      rationale: `${queryRationale} matched ${count} elements`,
+      matchedLocator: null,
     };
   } catch (err) {
     return {
       resolution: 'browser-error',
       matchCount: 0,
       rationale: `Playwright threw: ${(err as Error).message.slice(0, 200)}`,
+      matchedLocator: null,
     };
   }
 }
 
-async function probeByText(
-  page: Page,
-  nameSubstring: string,
-): Promise<{ resolution: StepDomResolution; matchCount: number; rationale: string }> {
+async function probeByText(page: Page, nameSubstring: string): Promise<ProbeResult> {
   const query = buildNameQuery(nameSubstring);
   try {
     const locator = page.getByText(query);
@@ -165,6 +211,7 @@ async function probeByText(
         resolution: 'not-found',
         matchCount: 0,
         rationale: `getByText(${query}) returned 0 matches (observe-fallback)`,
+        matchedLocator: null,
       };
     }
     if (count === 1) {
@@ -172,20 +219,113 @@ async function probeByText(
         resolution: 'matched',
         matchCount: 1,
         rationale: `getByText(${query}) matched exactly 1 element (observe-fallback)`,
+        matchedLocator: locator,
       };
     }
     return {
       resolution: 'ambiguous',
       matchCount: count,
       rationale: `getByText(${query}) matched ${count} elements (observe-fallback)`,
+      matchedLocator: null,
     };
   } catch (err) {
     return {
       resolution: 'browser-error',
       matchCount: 0,
       rationale: `Playwright threw during observe-fallback: ${(err as Error).message.slice(0, 200)}`,
+      matchedLocator: null,
     };
   }
+}
+
+interface ActionResult {
+  readonly attempted: ActionAttempted;
+  readonly outcome: ActionOutcome;
+  readonly detail: string | null;
+}
+
+const ACTION_SKIPPED: ActionResult = { attempted: null, outcome: 'skipped', detail: null };
+
+/**
+ * Narrative-execute (cycle 4, Probe Seed 8 Phase A): when a step
+ * matched the DOM, perform the verb's action so subsequent steps
+ * within the same case see the resulting page state.
+ *
+ * Verb mapping:
+ *   click   → locator.click()
+ *   input   → locator.fill(firstDataRowValue)
+ *   press   → page.keyboard.press(nameSubstring)
+ *   observe → no-op (observation is read-only)
+ *   navigate, select → no-op (no action wired today)
+ */
+async function executeAction(
+  page: Page,
+  intent: ClassifiedIntent,
+  matchedLocator: Locator | null,
+  firstDataRowValue: string | null,
+): Promise<ActionResult> {
+  try {
+    switch (intent.verb) {
+      case 'click': {
+        if (!matchedLocator) return ACTION_SKIPPED;
+        await matchedLocator.click({ timeout: 5000 });
+        return { attempted: 'clicked', outcome: 'succeeded', detail: 'locator.click() resolved' };
+      }
+      case 'input': {
+        if (!matchedLocator) return ACTION_SKIPPED;
+        if (firstDataRowValue === null) {
+          return {
+            attempted: 'filled',
+            outcome: 'failed',
+            detail: 'no dataRow value available to fill',
+          };
+        }
+        await matchedLocator.fill(firstDataRowValue, { timeout: 5000 });
+        return {
+          attempted: 'filled',
+          outcome: 'succeeded',
+          detail: `locator.fill(${JSON.stringify(firstDataRowValue)}) resolved`,
+        };
+      }
+      case 'press': {
+        const key = intent.targetShape.nameSubstring;
+        if (!key) return ACTION_SKIPPED;
+        await page.keyboard.press(key);
+        return { attempted: 'pressed', outcome: 'succeeded', detail: `keyboard.press('${key}')` };
+      }
+      case 'observe':
+        return { attempted: 'observed', outcome: 'succeeded', detail: 'observation is read-only' };
+      case 'navigate':
+      case 'select':
+        return ACTION_SKIPPED;
+    }
+  } catch (err) {
+    return {
+      attempted: actionAttemptedForVerb(intent.verb),
+      outcome: 'failed',
+      detail: `${(err as Error).message.slice(0, 200)}`,
+    };
+  }
+}
+
+function actionAttemptedForVerb(verb: ClassifiedIntent['verb']): ActionAttempted {
+  switch (verb) {
+    case 'click':    return 'clicked';
+    case 'input':    return 'filled';
+    case 'press':    return 'pressed';
+    case 'observe':  return 'observed';
+    case 'navigate':
+    case 'select':   return null;
+  }
+}
+
+function firstDataRowValueOf(snapshot: LoadedPublicAutCase['snapshot']): string | null {
+  if (snapshot.dataRows.length === 0) return null;
+  const row = snapshot.dataRows[0]!;
+  for (const value of Object.values(row)) {
+    if (typeof value === 'string' && value.length > 0) return value;
+  }
+  return null;
 }
 
 function escapeRegExp(s: string): string {
@@ -214,6 +354,15 @@ export async function runPublicAutCase(
   const { snapshot, aut } = caseEntry;
   const autUrl = snapshot.targetAut ?? aut.url;
 
+  // Cycle 4: trust-policy guard. Today the runner never graduates
+  // canon, so this call is preventive — but it documents the §4.4 C2
+  // invariant in code and centralizes future enforcement.
+  const cohortRole = options.cohortRole ?? aut.partition;
+  assertCanonWritesAllowed(
+    cohortRole,
+    `runPublicAutCase(${aut.name}/${snapshot.id}) preflight`,
+  );
+
   const ctx = await browser.newContext({
     ignoreHTTPSErrors: options.ignoreHTTPSErrors ?? true,
   });
@@ -222,6 +371,7 @@ export async function runPublicAutCase(
   const stepOutcomes: PublicAutStepOutcome[] = [];
   let stepsMatched = 0;
   let handoffsEmitted = 0;
+  const firstDataRowValue = firstDataRowValueOf(snapshot);
 
   try {
     await page.goto(autUrl, { waitUntil: 'networkidle', timeout: 30_000 });
@@ -229,7 +379,7 @@ export async function runPublicAutCase(
     for (const step of snapshot.steps) {
       const { verdict, intent, plain } = classifyStep(step.action);
       if (!intent) {
-        const outcome: PublicAutStepOutcome = {
+        stepOutcomes.push({
           stepIndex: step.index,
           actionTextPlain: plain,
           classifierVerdict: verdict,
@@ -240,14 +390,27 @@ export async function runPublicAutCase(
           domResolution: 'unclassified',
           matchCount: 0,
           rationale: 'intent classifier returned null',
-        };
-        stepOutcomes.push(outcome);
+          actionAttempted: null,
+          actionOutcome: 'skipped',
+          actionDetail: null,
+        });
         handoffsEmitted += 1;
         continue;
       }
 
       const probe = await probeStep(page, intent);
-      const outcome: PublicAutStepOutcome = {
+
+      // Cycle 4 narrative-execute (Probe Seed 8 Phase A): when the
+      // step matched (or it's a navigate that the case-level
+      // navigation already satisfied), perform the verb's action so
+      // subsequent steps within this case see the resulting page
+      // state. navigate is action-skipped because navigation already
+      // happened above.
+      const action: ActionResult = (probe.resolution === 'matched' && intent.verb !== 'navigate')
+        ? await executeAction(page, intent, probe.matchedLocator, firstDataRowValue)
+        : ACTION_SKIPPED;
+
+      stepOutcomes.push({
         stepIndex: step.index,
         actionTextPlain: plain,
         classifierVerdict: 'classified',
@@ -258,9 +421,11 @@ export async function runPublicAutCase(
         domResolution: probe.resolution,
         matchCount: probe.matchCount,
         rationale: probe.rationale,
-      };
-      stepOutcomes.push(outcome);
-      if (outcome.domResolution === 'matched' || outcome.domResolution === 'skipped-navigate') {
+        actionAttempted: action.attempted,
+        actionOutcome: action.outcome,
+        actionDetail: action.detail,
+      });
+      if (probe.resolution === 'matched' || probe.resolution === 'skipped-navigate') {
         stepsMatched += 1;
       } else {
         handoffsEmitted += 1;
@@ -324,7 +489,7 @@ function writeCaseReceipt(args: WriteReceiptArgs): string {
   const file = `${args.snapshot.id}-${stamp}.json`;
   const fullPath = path.join(dir, file);
   const receipt = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     substrateVersion: 'floor-a5-heuristic-naive-dom',
     aut: args.aut,
     autUrl: args.autUrl,

@@ -38,6 +38,15 @@ const NAVIGATE_RE = /\b(?:navigate\s+to|go\s+to|open)\s+(?:(?:the|a|an)\s+)?([a-
 /** "Observe X", "Verify X appears", "Check X" */
 const OBSERVE_RE = /\b(?:observe|verify|check|confirm\s+that|ensure)\s+(?:.+?\s+)?(?:the\s+)?([a-zA-Z][\w-]*(?:\s+[a-zA-Z][\w-]*){0,3})\b/i;
 
+/**
+ * Keyboard press: "Press Enter", "Press the Tab key", "Press Escape
+ * to cancel". Captures the key name. Cycle 4 of the cold-start
+ * cohort spike — surfaced as Probe Seed 2 in Entry 5 when the
+ * baseline verb-extractor flattened "press" to "click" and lost
+ * target extraction entirely.
+ */
+const PRESS_KEY_RE = /\bpress(?:es)?\s+(?:(?:the|a|an)\s+)?([A-Za-z][\w-]*)\b/i;
+
 const SUBMIT_SYNONYMS_RE = /\b(submit|save|confirm|apply|continue)\b/i;
 
 /**
@@ -86,6 +95,10 @@ function preferredVerbFromText(actionText: string, allowedActions: readonly Step
   // Text-shape detection has priority; it encodes the operator's
   // actual intent even if the parser narrowed allowedActions too
   // conservatively.
+  // Press is checked BEFORE click because "Press Enter" should not
+  // be misclassified as a click on a non-existent button (Probe
+  // Seed 2; see docs/v2-cold-start-todomvc-journal.md Entry 5).
+  if (PRESS_KEY_RE.test(actionText)) return 'press';
   if (CLICK_BUTTON_RE.test(actionText) || CLICK_BARE_RE.test(actionText)) return 'click';
   if (INPUT_FIELD_RE.test(actionText)) return 'input';
   if (NAVIGATE_RE.test(actionText)) return 'navigate';
@@ -179,6 +192,19 @@ function extractObserveTarget(actionText: string): TargetShapeHint {
   };
 }
 
+/**
+ * Press-verb target: the captured token is the key name (e.g.,
+ * "Enter", "Tab", "Escape"). The runner consumes nameSubstring
+ * directly as the argument to `page.keyboard.press`. Cycle 4.
+ */
+function extractPressTarget(actionText: string): TargetShapeHint {
+  const match = PRESS_KEY_RE.exec(actionText);
+  if (!match) return {};
+  return {
+    nameSubstring: normalizeName(match[1]!),
+  };
+}
+
 function capitalize(s: string): string {
   if (s.length === 0) return s;
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
@@ -199,6 +225,7 @@ export function classifyIntent(
       case 'input':    return extractInputTarget(actionText);
       case 'navigate': return extractNavigateTarget(actionText);
       case 'observe':  return extractObserveTarget(actionText);
+      case 'press':    return extractPressTarget(actionText);
       case 'select':   return {};  // no selector patterns in Z11a.4b
     }
   })();
