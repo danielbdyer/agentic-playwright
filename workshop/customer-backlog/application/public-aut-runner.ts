@@ -32,7 +32,6 @@ import { classifyIntent } from '../../../product/domain/resolution/patterns/inte
 import type { ClassifiedIntent } from '../../../product/domain/resolution/patterns/rung-kernel';
 import type { LoadedPublicAutCase } from './load-public-aut-cohort';
 import { stripHtml, inferAllowedActions } from './intent-helpers';
-import { assertCanonWritesAllowed } from './cohort-trust-guard';
 
 export type StepDomResolution =
   | 'matched'
@@ -354,14 +353,20 @@ export async function runPublicAutCase(
   const { snapshot, aut } = caseEntry;
   const autUrl = snapshot.targetAut ?? aut.url;
 
-  // Cycle 4: trust-policy guard. Today the runner never graduates
-  // canon, so this call is preventive — but it documents the §4.4 C2
-  // invariant in code and centralizes future enforcement.
+  // Cycle 5 correction (Entry 21): the runner is observation-only.
+  // It probes the DOM and writes append-only receipts — neither of
+  // those is a canon graduation. The trust guard must therefore NOT
+  // fire here on held-out cases (cycle 4's preflight call was over-
+  // conservative; it blocked legitimate held-out evaluation).
+  //
+  // The guard's correct integration point is at the future code path
+  // that actually graduates canon (catalog writes, proposal
+  // activation, trust-policy threshold updates). Until that path
+  // lands, the runner records the cohort role in every receipt
+  // (`cohortRole` field) so post-hoc audits can detect any leakage,
+  // and the guard helper waits at its module boundary for the right
+  // caller. See cohort-trust-guard.ts.
   const cohortRole = options.cohortRole ?? aut.partition;
-  assertCanonWritesAllowed(
-    cohortRole,
-    `runPublicAutCase(${aut.name}/${snapshot.id}) preflight`,
-  );
 
   const ctx = await browser.newContext({
     ignoreHTTPSErrors: options.ignoreHTTPSErrors ?? true,

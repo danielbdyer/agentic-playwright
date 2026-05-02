@@ -11,6 +11,16 @@
       "authoringOperator": "claude",
       "addedAt": "2026-05-01",
       "notes": "React variant. Has notable real-world ARIA imperfections (anonymous destroy buttons with no accessible name, per-todo <label> with no for attribute, no aria-current on selected filter, no explicit landmark roles). Surface inventory captured in docs/v2-cold-start-todomvc-journal.md Entry 3."
+    },
+    {
+      "name": "httpbin-form",
+      "url": "https://httpbin.org/forms/post",
+      "partition": "held-out",
+      "fixturesDir": "httpbin-form",
+      "snapshotFingerprint": null,
+      "authoringOperator": "claude",
+      "addedAt": "2026-05-01",
+      "notes": "Pizza-order form demo at httpbin.org. Different shape from TodoMVC training (server-rendered HTML, wrapping <label> elements with no for attribute, inputs with name but no id/aria-label). Cycle 5 of the cold-start cohort spike: first held-out AUT exercised. The OutSystems Reactive demo URL the spike originally named remains designated-but-unassigned; held-out partition is the operator's prerogative."
     }
   ]
 }
