@@ -24,24 +24,8 @@ import * as path from 'path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { classifyIntent } from '../../../product/domain/resolution/patterns/intent-classifier';
 import type { ClassifiedIntent } from '../../../product/domain/resolution/patterns/rung-kernel';
-import type { StepAction } from '../../../product/domain/governance/workflow-types';
 import type { LoadedPublicAutCase } from './load-public-aut-cohort';
-
-const STRIP_HTML_RE = /<[^>]+>/g;
-
-function stripHtml(s: string): string {
-  return s.replace(STRIP_HTML_RE, ' ').replace(/\s+/g, ' ').trim();
-}
-
-function inferAllowedActions(plain: string): readonly StepAction[] {
-  const lower = plain.toLowerCase();
-  const actions: StepAction[] = [];
-  if (/\bnavigate|\bgo\s+to|\bopen\s+/.test(lower)) actions.push('navigate');
-  if (/\bclick|\btap|\bpress|\bselect\s+the/.test(lower)) actions.push('click');
-  if (/\benter|\btype|\bfill|\binput|\bpopulate|\bselect\s+\w+\s+from/.test(lower)) actions.push('input');
-  if (/\bverify|\bobserve|\bcheck|\bconfirm\s+that|\bensure\b/.test(lower)) actions.push('assert-snapshot');
-  return actions.length > 0 ? actions : ['custom'];
-}
+import { stripHtml, inferAllowedActions } from './intent-helpers';
 
 export type StepDomResolution =
   | 'matched'
@@ -116,8 +100,16 @@ async function probeStep(
   const queryName: string | RegExp | undefined = name
     ? name
     : nameSubstring
-      ? new RegExp(escapeRegExp(nameSubstring), 'i')
+      ? buildNameQuery(nameSubstring)
       : undefined;
+
+  // Probe Seed 5 fallback (cycle 3): the observe verb's classifier
+  // does not infer a role. Rather than emit a no-target-name handoff,
+  // attempt a text-content lookup on the inferred nameSubstring. The
+  // resolution is honest about which strategy ran via the rationale.
+  if (!role && intent.verb === 'observe' && nameSubstring) {
+    return probeByText(page, nameSubstring);
+  }
 
   if (!role) {
     return {
@@ -160,8 +152,56 @@ async function probeStep(
   }
 }
 
+async function probeByText(
+  page: Page,
+  nameSubstring: string,
+): Promise<{ resolution: StepDomResolution; matchCount: number; rationale: string }> {
+  const query = buildNameQuery(nameSubstring);
+  try {
+    const locator = page.getByText(query);
+    const count = await locator.count();
+    if (count === 0) {
+      return {
+        resolution: 'not-found',
+        matchCount: 0,
+        rationale: `getByText(${query}) returned 0 matches (observe-fallback)`,
+      };
+    }
+    if (count === 1) {
+      return {
+        resolution: 'matched',
+        matchCount: 1,
+        rationale: `getByText(${query}) matched exactly 1 element (observe-fallback)`,
+      };
+    }
+    return {
+      resolution: 'ambiguous',
+      matchCount: count,
+      rationale: `getByText(${query}) matched ${count} elements (observe-fallback)`,
+    };
+  } catch (err) {
+    return {
+      resolution: 'browser-error',
+      matchCount: 0,
+      rationale: `Playwright threw during observe-fallback: ${(err as Error).message.slice(0, 200)}`,
+    };
+  }
+}
+
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Build a tolerant case-insensitive RegExp from a classifier
+ * `nameSubstring`. Source-text hyphens are matched as `[-\s]?` so
+ * "new-todo" matches a rendered label "New Todo" — Probe Seed 6
+ * (cycle 3): rendered accessible names rarely preserve the
+ * fixture-source-text punctuation the classifier extracted.
+ */
+function buildNameQuery(nameSubstring: string): RegExp {
+  const escaped = escapeRegExp(nameSubstring).replace(/-/g, '[-\\s]?');
+  return new RegExp(escaped, 'i');
 }
 
 export async function runPublicAutCase(

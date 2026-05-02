@@ -40,6 +40,36 @@ const OBSERVE_RE = /\b(?:observe|verify|check|confirm\s+that|ensure)\s+(?:.+?\s+
 
 const SUBMIT_SYNONYMS_RE = /\b(submit|save|confirm|apply|continue)\b/i;
 
+/**
+ * Click-target role suffixes: when an action says "click the X
+ * <suffix>", the classifier should infer role=<role>. Order matters
+ * only marginally (the suffix word is unambiguous in well-formed
+ * action prose); the table is checked before falling through to the
+ * button extractors so non-button click targets are not silently
+ * flattened.
+ *
+ * Surfaced as a probe seed by the public-AUT cohort spike: TodoMVC's
+ * "Click the toggle checkbox" and "Click the Active filter link"
+ * both classified as `role: button` under the prior baseline,
+ * producing not-found handoffs at runtime. See
+ * docs/v2-cold-start-todomvc-journal.md Entry 10 for provenance.
+ */
+const CLICK_ROLE_SUFFIXES: ReadonlyArray<{ readonly suffix: string; readonly role: string }> = [
+  { suffix: 'checkbox', role: 'checkbox' },
+  { suffix: 'link',     role: 'link' },
+  { suffix: 'tab',      role: 'tab' },
+  { suffix: 'switch',   role: 'switch' },
+  { suffix: 'radio',    role: 'radio' },
+  { suffix: 'menuitem', role: 'menuitem' },
+];
+
+function clickRoleSuffixRe(suffix: string): RegExp {
+  return new RegExp(
+    `\\bclick(?:s)?\\s+(?:(?:the|a|an)\\s+)?([a-zA-Z][\\w-]*(?:\\s+[a-zA-Z][\\w-]*){0,3})\\s+${suffix}\\b`,
+    'i',
+  );
+}
+
 // ─── Verb resolution ─────────────────────────────────────────
 
 function actionToVerb(action: StepAction): PatternVerb | null {
@@ -73,6 +103,21 @@ function normalizeName(raw: string): string {
 }
 
 function extractClickTarget(actionText: string): TargetShapeHint {
+  // Cycle 3 (cold-start cohort spike): role-suffix patterns are
+  // checked first so non-button click targets ("X checkbox", "Y
+  // link", "Z tab") are not flattened to role=button. The fallthrough
+  // preserves the prior baseline for "Click the X button" and the
+  // bare "Click X" form.
+  for (const { suffix, role } of CLICK_ROLE_SUFFIXES) {
+    const match = clickRoleSuffixRe(suffix).exec(actionText);
+    if (match) {
+      return {
+        role,
+        nameSubstring: normalizeName(match[1]!),
+      };
+    }
+  }
+
   const buttonMatch = CLICK_BUTTON_RE.exec(actionText);
   if (buttonMatch) {
     const rawName = normalizeName(buttonMatch[1]!);
