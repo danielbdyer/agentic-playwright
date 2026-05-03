@@ -40,6 +40,13 @@ import { classifyIntent } from '../../../product/domain/resolution/patterns/inte
 import type { ClassifiedIntent } from '../../../product/domain/resolution/patterns/rung-kernel';
 import type { LoadedPublicAutCase } from './load-public-aut-cohort';
 import { stripHtml, inferAllowedActions } from './intent-helpers';
+import {
+  buildHandoffId,
+  readCanonForStep,
+  writeHandoff,
+  type CanonRecord,
+  type HandoffRecord,
+} from './intervention-store';
 
 export type StepDomResolution =
   | 'matched'
@@ -75,6 +82,21 @@ export type TargetCorrectness =
   | 'unverified'
   | 'not-found';
 
+/**
+ * Cycle 10 (intervention loop): when a step is resolved by the
+ * runner, did the resolution come from the operator-validated
+ * catalog (canon), or from the heuristic classifier?
+ *
+ *   canon:        runner consulted canon BEFORE classifying;
+ *                 found a graduated entry; used it to locate.
+ *                 The earned-knowledge path.
+ *   classifier:   no canon entry existed for this step; runner
+ *                 fell back to the heuristic classifier (the
+ *                 cycle-2-onward behavior).
+ *   not-applicable: navigate or press; no DOM target either way.
+ */
+export type ResolutionSource = 'canon' | 'classifier' | 'not-applicable';
+
 export interface PublicAutStepOutcome {
   readonly stepIndex: number;
   readonly actionTextPlain: string;
@@ -91,6 +113,14 @@ export interface PublicAutStepOutcome {
   readonly actionDetail: string | null;
   readonly targetCorrectness: TargetCorrectness;
   readonly targetCorrectnessDetail: string | null;
+  /** Cycle 10: provenance for how the step's target was located.
+   *  'canon' means an operator-validated catalog entry took
+   *  precedence over the classifier. */
+  readonly resolutionSource: ResolutionSource;
+  /** Cycle 10: filesystem path of the handoff record written when
+   *  this step got stuck. null when the step did not get stuck or
+   *  when handoff emission was suppressed. */
+  readonly handoffPath: string | null;
 }
 
 export interface PublicAutCaseResult {
@@ -119,6 +149,13 @@ export interface PublicAutCaseResult {
    *  expectedTarget (and therefore can't be checked). Tracks the
    *  authoring debt. */
   readonly unverifiedSteps: number;
+  /** Cycle 10: number of main steps whose target was located via
+   *  a canon (operator-validated catalog) entry rather than the
+   *  classifier. The earned-knowledge metric. */
+  readonly canonResolvedSteps: number;
+  /** Cycle 10: number of handoffs the runner wrote to the
+   *  intervention queue this case (one per stuck main step). */
+  readonly handoffsQueued: number;
   readonly elapsedMs: number;
   readonly receiptPath: string;
   readonly cohortRole: 'training' | 'held-out';
@@ -434,9 +471,10 @@ async function runPipelineStep(
   page: Page,
   step: { readonly index: number; readonly action: string; readonly expectedTarget?: { readonly role?: string | undefined; readonly name?: string | undefined } | undefined },
   firstDataRowValue: string | null,
+  canonOverride: { readonly role: string; readonly name: string } | null = null,
 ): Promise<PublicAutStepOutcome> {
-  const { verdict, intent, plain } = classifyStep(step.action);
-  if (!intent) {
+  const { verdict, intent: classifierIntent, plain } = classifyStep(step.action);
+  if (!classifierIntent) {
     return {
       stepIndex: step.index,
       actionTextPlain: plain,
@@ -453,8 +491,31 @@ async function runPipelineStep(
       actionDetail: null,
       targetCorrectness: 'not-found',
       targetCorrectnessDetail: null,
+      resolutionSource: 'classifier',
+      handoffPath: null,
     };
   }
+
+  // Cycle 10: when canon has a graduated resolution for this
+  // case+step, override the classifier-extracted targetShape with
+  // the canon-supplied role+name. The verb still comes from the
+  // classifier (canon doesn't carry verb today). This is the
+  // earned-knowledge takeover.
+  const intent: ClassifiedIntent = canonOverride
+    ? {
+        ...classifierIntent,
+        targetShape: {
+          role: canonOverride.role,
+          name: canonOverride.name,
+        },
+      }
+    : classifierIntent;
+
+  const resolutionSource: ResolutionSource = canonOverride
+    ? 'canon'
+    : (intent.verb === 'navigate' || intent.verb === 'press')
+      ? 'not-applicable'
+      : 'classifier';
 
   const probe = await probeStep(page, intent);
 
@@ -491,13 +552,44 @@ async function runPipelineStep(
     inferredNameSubstring: intent.targetShape.nameSubstring ?? null,
     domResolution: probe.resolution,
     matchCount: probe.matchCount,
-    rationale: probe.rationale,
+    rationale: canonOverride
+      ? `canon-resolved: ${probe.rationale}`
+      : probe.rationale,
     actionAttempted: action.attempted,
     actionOutcome: action.outcome,
     actionDetail: action.detail,
     targetCorrectness: correctness.kind,
     targetCorrectnessDetail: correctness.detail,
+    resolutionSource,
+    handoffPath: null,
   };
+}
+
+/**
+ * Cycle 10: a step is "stuck" when the runner could not resolve it
+ * to the operator's intent. This includes strict not-found cases
+ * (no DOM target, classifier returned null, browser threw) AND
+ * wrong-target false positives (the runner matched something but
+ * not what the test author meant). All stuck steps emit a handoff
+ * to the intervention queue.
+ */
+function isStuckOutcome(outcome: PublicAutStepOutcome): boolean {
+  if (outcome.domResolution === 'not-found') return true;
+  if (outcome.domResolution === 'no-target-name') return true;
+  if (outcome.domResolution === 'unclassified') return true;
+  if (outcome.domResolution === 'browser-error') return true;
+  if (outcome.domResolution === 'ambiguous') return true;
+  if (outcome.targetCorrectness === 'wrong-target') return true;
+  return false;
+}
+
+function preconditionStuck(outcome: PublicAutStepOutcome): boolean {
+  // Preconditions are setup; their outcomes don't merit a handoff
+  // entry (cycle 10 keeps the queue focused on assertion-side
+  // failures). This predicate is exposed for future cycles that
+  // want to treat precondition failures as their own handoff
+  // family.
+  return false;
 }
 
 /**
@@ -636,6 +728,8 @@ export async function runPublicAutCase(
   let falsePositives = 0;
   let verifiedMatches = 0;
   let unverifiedSteps = 0;
+  let canonResolvedSteps = 0;
+  let handoffsQueued = 0;
   const firstDataRowValue = firstDataRowValueOf(snapshot);
   const preconditionOutcomes: PublicAutStepOutcome[] = [];
   let preconditionsSucceeded = 0;
@@ -677,12 +771,64 @@ export async function runPublicAutCase(
     }
 
     for (const step of snapshot.steps) {
-      const outcome = await runPipelineStep(page, step, firstDataRowValue);
+      // Cycle 10 (intervention loop): consult canon BEFORE
+      // classifying. If a graduated entry exists for this
+      // case+step, the runner uses its role+name as the locator
+      // override, bypassing the heuristic classifier's
+      // targetShape extraction.
+      const canonRecord: CanonRecord | null = readCanonForStep(
+        options.logRoot,
+        aut.name,
+        snapshot.id,
+        step.index,
+      );
+      const canonOverride = canonRecord ? canonRecord.resolution : null;
+
+      const outcomeRaw = await runPipelineStep(
+        page,
+        step,
+        firstDataRowValue,
+        canonOverride && canonOverride.kind === 'role-name'
+          ? { role: canonOverride.role, name: canonOverride.name }
+          : null,
+      );
+
+      // Cycle 10: emit a handoff record on stuck outcomes so
+      // operator/agent intervention can resolve the gap and
+      // graduate canon.
+      let handoffPath: string | null = null;
+      if (isStuckOutcome(outcomeRaw)) {
+        const createdAt = new Date().toISOString();
+        const handoff: HandoffRecord = {
+          handoffId: buildHandoffId(aut.name, snapshot.id, step.index, createdAt),
+          aut: aut.name,
+          adoId: snapshot.id,
+          stepIndex: step.index,
+          actionText: outcomeRaw.actionTextPlain,
+          domResolution: outcomeRaw.domResolution,
+          classifierVerb: outcomeRaw.verb,
+          classifierRole: outcomeRaw.inferredRole,
+          classifierNameSubstring: outcomeRaw.inferredNameSubstring,
+          rationale: outcomeRaw.targetCorrectness === 'wrong-target' && outcomeRaw.targetCorrectnessDetail
+            ? outcomeRaw.targetCorrectnessDetail
+            : outcomeRaw.rationale,
+          autUrl,
+          createdAt,
+        };
+        handoffPath = writeHandoff(options.logRoot, handoff);
+        handoffsQueued += 1;
+      }
+
+      const outcome: PublicAutStepOutcome = { ...outcomeRaw, handoffPath };
       stepOutcomes.push(outcome);
+
       if (outcome.domResolution === 'matched' || outcome.domResolution === 'skipped-navigate') {
         stepsMatched += 1;
       } else {
         handoffsEmitted += 1;
+      }
+      if (outcome.resolutionSource === 'canon' && outcome.domResolution === 'matched') {
+        canonResolvedSteps += 1;
       }
       // Cycle 8: tally semantic-correctness counters.
       if (outcome.targetCorrectness === 'wrong-target') {
@@ -714,6 +860,8 @@ export async function runPublicAutCase(
     falsePositives,
     verifiedMatches,
     unverifiedSteps,
+    canonResolvedSteps,
+    handoffsQueued,
     elapsedMs,
     runStartedAt,
     logRoot: options.logRoot,
@@ -735,6 +883,8 @@ export async function runPublicAutCase(
     falsePositives,
     verifiedMatches,
     unverifiedSteps,
+    canonResolvedSteps,
+    handoffsQueued,
     elapsedMs,
     receiptPath,
     cohortRole: options.cohortRole ?? aut.partition,
@@ -758,6 +908,8 @@ interface WriteReceiptArgs {
   readonly falsePositives: number;
   readonly verifiedMatches: number;
   readonly unverifiedSteps: number;
+  readonly canonResolvedSteps: number;
+  readonly handoffsQueued: number;
   readonly elapsedMs: number;
   readonly runStartedAt: string;
   readonly logRoot: string;
@@ -770,7 +922,7 @@ function writeCaseReceipt(args: WriteReceiptArgs): string {
   const file = `${args.snapshot.id}-${stamp}.json`;
   const fullPath = path.join(dir, file);
   const receipt = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     substrateVersion: 'floor-a5-heuristic-naive-dom',
     aut: args.aut,
     autUrl: args.autUrl,
@@ -790,6 +942,8 @@ function writeCaseReceipt(args: WriteReceiptArgs): string {
     falsePositives: args.falsePositives,
     verifiedMatches: args.verifiedMatches,
     unverifiedSteps: args.unverifiedSteps,
+    canonResolvedSteps: args.canonResolvedSteps,
+    handoffsQueued: args.handoffsQueued,
     stepOutcomes: args.stepOutcomes,
   };
   fs.writeFileSync(fullPath, JSON.stringify(receipt, null, 2));

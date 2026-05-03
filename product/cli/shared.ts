@@ -105,6 +105,15 @@ export interface ParsedFlags {
    *  §4.4 C2); enforcement plumbing in the trust-policy gate is the
    *  next-cycle seed. */
   cohortRole?: string;
+  /** Cycle 10: id of a queued handoff record (output of
+   *  compile-public-aut), input to cohort-resolve. */
+  handoffId?: string;
+  /** Cycle 10: ARIA role string for the operator-supplied
+   *  resolution passed to cohort-resolve. */
+  role?: string;
+  /** Cycle 10: ARIA accessible-name string for the
+   *  operator-supplied resolution passed to cohort-resolve. */
+  name?: string;
 }
 
 export type FlagName = keyof typeof flagDescriptorTable;
@@ -168,6 +177,9 @@ type FlagToParsedKey = {
   '--corpus': 'corpus';
   '--aut': 'aut';
   '--cohort-role': 'cohortRole';
+  '--handoff-id': 'handoffId';
+  '--role': 'role';
+  '--name': 'name';
 };
 type ParsedFlagKeys<TFlags extends readonly FlagName[]> = FlagToParsedKey[TFlags[number]];
 export type ParsedFlagsFor<TFlags extends readonly FlagName[]> = Partial<Pick<ParsedFlags, ParsedFlagKeys<TFlags>>>;
@@ -240,7 +252,9 @@ export type CommandName =
   | 'compounding-hypothesize'
   | 'compounding-ratchet'
   | 'compile-corpus'
-  | 'compile-public-aut';
+  | 'compile-public-aut'
+  | 'cohort-resolve'
+  | 'cohort-approve';
 
 export const commandNames: readonly CommandName[] = [
   'sync',
@@ -280,6 +294,8 @@ export const commandNames: readonly CommandName[] = [
   'compounding-ratchet',
   'compile-corpus',
   'compile-public-aut',
+  'cohort-resolve',
+  'cohort-approve',
 ] as const;
 
 export function withDefinedValues<TValue extends Record<string, unknown>>(value: TValue): Partial<TValue> {
@@ -453,6 +469,9 @@ export const flagDescriptorTable = {
   '--corpus': valueDescriptor('--corpus', 'corpus', (value) => readFlagValue('--corpus', value)),
   '--aut': valueDescriptor('--aut', 'aut', (value) => readFlagValue('--aut', value)),
   '--cohort-role': valueDescriptor('--cohort-role', 'cohortRole', (value) => readFlagValue('--cohort-role', value)),
+  '--handoff-id': valueDescriptor('--handoff-id', 'handoffId', (value) => readFlagValue('--handoff-id', value)),
+  '--role': valueDescriptor('--role', 'role', (value) => readFlagValue('--role', value)),
+  '--name': valueDescriptor('--name', 'name', (value) => readFlagValue('--name', value)),
 } as const;
 
 export type FlagDecodeResult = {

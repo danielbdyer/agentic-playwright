@@ -1,0 +1,16 @@
+{
+  "proposalId": "p-todomvc-91002-step2-2026-05-03T21-19-12-124Z",
+  "fromHandoffId": "h-todomvc-91002-step2-2026-05-03T21-18-58-664Z",
+  "aut": "todomvc",
+  "adoId": "91002",
+  "stepIndex": 2,
+  "resolution": {
+    "kind": "role-name",
+    "role": "checkbox",
+    "name": "Buy milk"
+  },
+  "proposedAt": "2026-05-03T21:19:12.124Z",
+  "proposedBy": "cli-operator",
+  "rationale": "Action says 'next to the todo' meaning per-todo toggle. After preconditions add 'Buy milk', the per-todo checkbox's accessible name is the todo text 'Buy milk'.",
+  "status": "pending"
+}

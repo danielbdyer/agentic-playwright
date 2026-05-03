@@ -22,6 +22,13 @@ test-results/
 # hypotheses + ratchets, when landed by operators, will be
 # explicitly allowlisted here.
 workshop/logs/
+# ── Public-AUT cohort intervention queue ─────────────────────────
+# Handoff records written by compile-public-aut on stuck steps.
+# Ephemeral — consumed by cohort-resolve; never committed.
+# Proposals (operator decisions) and canon (graduated knowledge)
+# under the same parent ARE committed — they are the durable
+# audit trail and the durable knowledge surface respectively.
+workshop/customer-backlog/public-aut/handoffs/
 # ── Dogfood clean room ───────────────────────────────────────────
 # All training data lives under dogfood/.  The flywheel regenerates
 # from scratch on each cold-start run.  Never merge evolvable

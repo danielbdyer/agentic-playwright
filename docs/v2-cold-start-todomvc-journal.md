@@ -3643,3 +3643,375 @@ This is the first stakeholder-readable summary that's
 defensible end-to-end. We know what it does, we know what it
 doesn't, and we know the next thing to fix.
 
+
+---
+
+# Cycle 10 — wiring the intervention loop
+
+> Cycle 10 begins 2026-05-03. The previous turn's reflection
+> named the crux of what's missing: the cohort runs but does
+> not participate in the existing self-improvement loop. Every
+> stuck step is a dead-end — the only way to close a gap today
+> is for the developer agent to write code. This cycle wires
+> the cohort into the doctrine's intervention machinery so the
+> system can earn knowledge from a single resolution and persist
+> it forward.
+
+## Entry 38 — cycle 10 hypothesis
+
+**The change in plain English.** Today, when the cohort runner
+gets stuck on a step (can't find the target, finds the wrong
+target), the receipt records that fact and the run continues.
+Nothing comes of the stuck step except the developer reading
+the receipt and writing more code. That doesn't scale across
+customers and it doesn't honor the doctrine's append-only
+"earned knowledge" pattern.
+
+After cycle 10, when the runner gets stuck, it writes a real
+**handoff** to a queue file. An operator (or a different
+agent) can inspect the handoff, propose a resolution
+("actually, the right target is `{role: 'checkbox', name:
+'Buy milk'}`"), and write that proposal to a proposal log.
+A separate command graduates the proposal into the catalog
+(canon). The next time the runner sees the same step in the
+same case, it consults the catalog FIRST, finds the
+operator-validated resolution, and uses it to locate the
+element directly — bypassing the heuristic classifier for
+that step entirely.
+
+**The single-cycle demonstration.** The toggle-all bug from
+cycle 8 (TodoMVC step 91002.2 silently clicked the wrong
+checkbox) becomes the demo. We run the cohort: it produces
+the wrong-target handoff. We resolve the handoff with the
+intended target (`{role: 'checkbox', name: 'Buy milk'}`).
+We approve the resulting proposal. We re-run the cohort.
+The same step now matches the right element via canon — same
+fixture, same code, same AUT — but the system has *learned*
+from one human-mediated resolution.
+
+**This is the doctrine working as designed.** Every cycle
+prior produced code changes motivated by failure. Cycle 10
+produces a *non-code* improvement that persists across runs
+and could be authored by anyone with access to the cohort
+queue, not just the developer agent.
+
+**The four files this cycle introduces:**
+
+1. `workshop/customer-backlog/public-aut/handoffs/<aut>/`
+   (gitignored — runtime queue of stuck-step records)
+2. `workshop/customer-backlog/public-aut/proposals/<aut>/`
+   (committed — pending operator decisions, audit trail)
+3. `workshop/customer-backlog/public-aut/canon/<aut>/`
+   (committed — durable graduated knowledge the runner
+   consults)
+4. `workshop/customer-backlog/application/intervention-store.ts`
+   (the small filesystem layer that reads/writes the three
+   above)
+
+**Two new CLI commands:**
+
+- `tesseract cohort-resolve --handoff-id <id> --role <r> --name <n> [--rationale "..."]`
+  — read a handoff, write a proposal with the operator-supplied
+  resolution.
+- `tesseract cohort-approve --proposal-id <id> [--rationale "..."]`
+  — move a proposal into canon. Future runs consult it.
+
+**Runner change in one paragraph.** Before classifying each
+step, the runner looks for a canon entry keyed by
+`{aut, adoId, stepIndex}`. If present, it uses the canon's
+`{role, name}` to query the DOM directly — the receipt
+records `resolutionSource: 'canon'` instead of `'classifier'`.
+On any stuck-step outcome (not-found, wrong-target,
+no-target-name, unclassified), the runner ALSO writes a
+handoff to the queue.
+
+**Pre-registered prediction.**
+
+After running the demo end-to-end:
+
+| Metric | Cycle 9 (training) | Cycle 10 (after canon entry for 91002.2) |
+|---|---|---|
+| Steps matched | 15 / 18 | 15 / 18 (unchanged — canon doesn't help find more elements; it changes which element is found) |
+| **False positives** | **1** | **0** (the toggle-all bug is now resolved via canon → matches per-todo, not toggle-all) |
+| Verified-correct | 7 | **8** |
+| Steps resolved via canon | 0 | **1** (newly: 91002.2) |
+
+**One predicted side-effect to watch:** the cycle-7
+preconditions add a "Buy milk" todo before step 91002.2 runs;
+the canon entry says match `{name: 'Buy milk'}`. If this
+works, the runner clicks the per-todo "Buy milk" checkbox
+correctly. If it doesn't (because Playwright's
+accessible-name lookup against the per-todo `<label>` shape
+doesn't return "Buy milk"), the canon entry won't help and
+we'll learn something new about TodoMVC's accessibility tree.
+
+**What this does NOT do this cycle:**
+
+- Trust-policy gate's automatic graduation (proposals
+  graduate to canon only via explicit approve command for
+  now; future cycle wires N-consecutive-match
+  auto-approval).
+- Held-out re-evaluation. The held-out (outsystems-com)
+  stays untouched; cycle 10 demonstrates the loop on
+  training only.
+- Reasoning-port integration (Z11d). The intervening agent
+  is the operator manually issuing CLI commands; no live
+  LLM in the loop yet.
+
+
+---
+
+## Entry 39 — cycle 10 build + the end-to-end loop demonstration
+
+**What I tried.** Wire the cohort runner into the intervention
+machinery the doctrine already had waiting (handoffs,
+proposals, canon, trust-policy gate). Build it minimally,
+then demonstrate the full loop on the toggle-all bug.
+
+**What I built.**
+
+1. `workshop/customer-backlog/application/intervention-store.ts` —
+   pure filesystem layer. Reads/writes three artifact kinds:
+   handoff records (gitignored, runtime queue), proposal
+   records (committed, audit trail), canon records
+   (committed, durable knowledge).
+2. Runner extension: `runPipelineStep` accepts an optional
+   `canonOverride`. Before classifying each main step, the
+   runner consults canon for that case+step. If a canon
+   entry exists, it overrides the classifier's targetShape
+   with the canon's role+name. Receipt records
+   `resolutionSource: 'canon' | 'classifier' | 'not-applicable'`.
+3. Runner extension: on every "stuck" outcome (not-found,
+   wrong-target, no-target-name, unclassified, ambiguous,
+   browser-error), the runner writes a handoff to the queue
+   with the case context, the classifier's verdict, the
+   page URL, and a rationale.
+4. New CLI command `tesseract cohort-resolve` — operator
+   (or agent) reads a handoff, supplies a proposed
+   resolution (`--role X --name Y`), writes a proposal.
+5. New CLI command `tesseract cohort-approve` — graduates a
+   proposal into canon. Future runs consult it.
+6. Receipt schema bumped 4 → 5. Two new fields:
+   `canonResolvedSteps` (count), `handoffsQueued` (count).
+7. `.gitignore` updated to exclude
+   `workshop/customer-backlog/public-aut/handoffs/`.
+
+**The end-to-end demonstration on the toggle-all bug.**
+
+```
+$ tesseract compile-public-aut --aut todomvc
+# Run 1: matched=7, fp=1, queued 3 handoffs (incl. toggle-all wrong-target)
+
+$ tesseract cohort-resolve --aut todomvc \
+    --handoff-id h-todomvc-91002-step2-... \
+    --role checkbox --name "Buy milk" \
+    --reason "per-todo toggle, not toggle-all"
+# Proposal written
+
+$ tesseract cohort-approve --aut todomvc \
+    --proposal-id p-todomvc-91002-step2-... \
+    --reason "operator-validated"
+# Canon entry committed at workshop/customer-backlog/public-aut/canon/todomvc/91002-step2.canon.json
+
+$ tesseract compile-public-aut --aut todomvc
+# Run 2: same fixture, same code, same AUT — but step 91002.2
+# now reports resolutionSource: 'canon'.
+# Result: matched=6 (-1), fp=0 (-1), queued 3 handoffs
+```
+
+**What this proved (the loop machinery is wired):**
+
+- The runner consulted canon before classifying. Step
+  91002.2's receipt records `resolutionSource: 'canon'`.
+- The canon's resolution was tried against the live DOM
+  via the same `getByRole` machinery the classifier uses.
+- The canon's resolution did NOT silently override; it
+  was reported transparently in the rationale:
+  `"canon-resolved: getByRole('checkbox', { name: Buy
+  milk }) returned 0 matches"`.
+- The false-positive count dropped from 1 to 0. The
+  toggle-all bug — which had been silently passing as a
+  match for cycles — is no longer being matched.
+
+**What this also exposed (a deeper finding):**
+
+The canon entry I authored said `{role: checkbox, name: 'Buy
+milk'}`. That assumes the per-todo checkbox has accessible
+name "Buy milk" — and it doesn't, because TodoMVC's per-todo
+`<label>` has no `for` attribute. The label is positionally
+near the checkbox but not programmatically associated. The
+checkbox's accessible name is empty; the label's text is
+adjacent in the DOM, not bound to the form control.
+
+So the canon was *wrong by design* for this AUT's labeling
+pattern. The runner tried the canon's resolution, found
+nothing, emitted a new handoff. The loop continues — this
+time with better information ("the canon entry's shape
+itself doesn't fit this case").
+
+**Probe Seed 14 (cycle 10 contribution): canon shape is too
+narrow.** The `{kind: 'role-name'}` resolution can't express
+relational locators like "the checkbox within the listitem
+that contains the text 'Buy milk'." Cycle 11 should extend
+the canon's union to include relational kinds:
+- `{kind: 'within-listitem', listItemName: 'Buy milk',
+  innerRole: 'checkbox'}`
+- `{kind: 'css-selector', selector: 'li.todo:contains("Buy
+  milk") .toggle'}`
+- Other shapes as the cohort surfaces them.
+
+**Net for the demonstration:** the loop is real. The
+operator (or another agent) can now teach the system from
+a single resolution and have that lesson persist. The
+toggle-all false-positive is gone — replaced by an honest
+"can't find that resolution either" handoff. That's the
+discipline working.
+
+---
+
+## Entry 40 — cycle 10 synthesis: what's now in the substrate
+
+This is cycle 10's synthesis. Plain English. The cycle
+delivered the architectural change the operator named as
+the crux.
+
+**The shift in one paragraph.** Before cycle 10, every
+improvement to the system required a developer agent
+writing code. After cycle 10, an operator (or any agent
+with CLI access) can resolve a stuck step by writing a
+proposal and approving it; the resolution graduates into a
+canon file the runner consults BEFORE its heuristic
+classifier fires. The earned knowledge persists across
+runs. Subsequent improvements no longer require developer
+intervention for cases the operator can resolve directly.
+
+**The numbers, before and after the demo.**
+
+| Metric | Cycle 9 | Cycle 10 (canon active) |
+|---|---|---|
+| TodoMVC matched | 7 / 9 | 6 / 9 |
+| TodoMVC handoffs | 2 | 3 |
+| TodoMVC false positives | 1 | **0** |
+| TodoMVC verified-correct | 2 | 2 |
+| TodoMVC steps via canon | 0 | **0 (canon consulted but didn't match)** |
+
+The false positive going to zero is a real improvement: the
+system no longer silently misidentifies the wrong target on
+TodoMVC 91002.2. The match count dropped because the
+runner is being more honest, not because something
+regressed. Honest not-found is strictly better than silent
+wrong-target.
+
+**What's now in the substrate that wasn't before.**
+
+- A real handoff queue. Every stuck step writes a
+  structured record. The queue is gitignored (runtime
+  artifact) but the records are inspectable and
+  resolvable.
+- A real proposal log. Operator decisions about how to
+  resolve a stuck step. Committed for audit; multiple
+  proposals per step are allowed.
+- A real canon surface. Approved resolutions live as
+  durable JSON files. The runner consults canon on every
+  step. Committed — this is the system's earned-knowledge
+  artifact.
+- Two new CLI verbs that compose into the loop:
+  `cohort-resolve` (handoff → proposal) and
+  `cohort-approve` (proposal → canon).
+- Receipt schemaVersion bumped to 5; receipts now record
+  `resolutionSource` for every step (canon | classifier |
+  not-applicable).
+
+**What this means for stakeholders, in plain language.**
+
+A QA team using this system can now:
+
+1. Run their backlog of ADO test cases against their AUT.
+2. For steps the system can't resolve, get a queued
+   handoff describing exactly what wasn't understood.
+3. Have a senior QA tester (or another agent) inspect the
+   handoff and propose a resolution: "the right element
+   has role X and name Y."
+4. Approve the proposal — the system records this as
+   durable knowledge tied to that specific step in that
+   specific case.
+5. Re-run the test suite. The system consults its canon
+   before the heuristic classifier; the previously-stuck
+   step now uses the operator-validated resolution.
+
+**This means the system's per-customer maintenance lives
+where it should: in the customer's catalog of resolutions,
+not in the developer's codebase.** A new customer's
+backlog might have many handoffs initially. After a week
+of operator triage, the canon accumulates; the handoff
+queue shrinks; the customer's coverage grows without
+anyone touching the underlying classifier code.
+
+**What still doesn't work — and is now visible.**
+
+- **The canon's `{role, name}` shape is too narrow.**
+  Demonstrated by the toggle-all bug: the resolution we
+  approved (`{role: checkbox, name: 'Buy milk'}`) doesn't
+  match TodoMVC's actual DOM, because the per-todo label
+  isn't programmatically associated with the checkbox.
+  Future canon kinds need relational/positional locators
+  (e.g., "within the listitem named X, the checkbox").
+  Probe Seed 14.
+- **No automatic graduation.** Today proposals require a
+  manual `cohort-approve`. The trust-policy gate's
+  doctrine includes automatic graduation when N
+  consecutive runs confirm the same resolution; we
+  haven't wired that yet. Future cycle.
+- **No Reasoning-port integration.** The intervening
+  agent today is the operator typing CLI commands. A
+  live LLM in the loop (Z11d) would propose resolutions
+  automatically, with the operator approving from a
+  workbench. Future cycle.
+- **Held-out evaluation should re-run.** With the
+  intervention loop available, the spike's
+  generalization claim shifts: "how well does the system
+  do on a held-out site, given the operator can supply a
+  bounded number of canon entries during evaluation?"
+  That's a richer measurement than cycle 9's pure
+  fresh-out-of-the-box test. Future cycle.
+
+**What the operator can hand a stakeholder now (the brief
+update).** The product-owner brief at
+`docs/v2-cold-start-cohort-brief.md` should gain a
+paragraph describing the intervention loop. Something
+like:
+
+> Beyond the bare execution capability, the system has a
+> human-in-the-loop intervention surface: stuck steps queue
+> as handoffs, an operator (or agent) supplies the
+> resolution, and the system records the resolution as
+> durable knowledge it consults on every future run. The
+> per-customer maintenance burden is bounded by the customer's
+> own catalog of resolutions, not by changes to our codebase.
+
+I will not update the brief in this commit (scope hygiene —
+the brief was authored at cycle 9; cycle 10 is the
+substrate change; cycle 11 should refresh the brief). But
+the language above is what to add when the time comes.
+
+**What cycle 11 should do, in priority order.**
+
+1. **Extend canon kinds with relational locators.** Closes
+   the toggle-all bug for real. Single classifier-side +
+   intervention-store-side change.
+2. **Author a smarter canon entry for 91002.2** using the
+   new relational kind, and re-demonstrate that the loop
+   converges. Same shape as cycle 10's demo but with a
+   working resolution.
+3. **Add automatic graduation under N-consecutive-match.**
+   Wires the trust-policy gate's auto-approval branch.
+4. **Re-evaluate against held-out** with the intervention
+   loop available. Operator gets to supply 1–3 canon
+   entries during evaluation; we measure how much that
+   bounds the generalization gap.
+
+The journal stops here for cycle 10. The substrate change
+the operator named as the crux is wired and demonstrated.
+The remaining cycles iterate within it instead of around
+it.
+

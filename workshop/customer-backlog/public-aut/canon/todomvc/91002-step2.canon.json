@@ -1,0 +1,15 @@
+{
+  "canonId": "c-todomvc-91002-step2",
+  "aut": "todomvc",
+  "adoId": "91002",
+  "stepIndex": 2,
+  "resolution": {
+    "kind": "role-name",
+    "role": "checkbox",
+    "name": "Buy milk"
+  },
+  "approvedAt": "2026-05-03T21:19:18.384Z",
+  "approvedBy": "cli-operator",
+  "approvedFromProposalId": "p-todomvc-91002-step2-2026-05-03T21-19-12-124Z",
+  "rationale": "Operator-validated: clicking the per-todo checkbox is the test author's intent."
+}
