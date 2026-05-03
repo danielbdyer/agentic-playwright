@@ -1,0 +1,37 @@
+{
+  "id": "91203",
+  "revision": 1,
+  "title": "Verify clicking the German language link navigates",
+  "suitePath": "public-aut/outsystems-com",
+  "areaPath": "public-aut",
+  "iterationPath": "public-aut/spike-1",
+  "tags": [
+    "regression",
+    "outsystems",
+    "P2",
+    "public-aut",
+    "held-out"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Open the OutSystems homepage</p>",
+      "expected": "<p>The homepage loads</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click the Deutsch language link</p>",
+      "expected": "<p>The page navigates to the German-language version of the homepage</p>",
+      "expectedTarget": {
+        "role": "link",
+        "name": "Deutsch"
+      }
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:91203-outsystems-german-click-spike1",
+  "syncedAt": "2026-05-02T00:00:00.000Z",
+  "targetAut": "https://www.outsystems.com/"
+}

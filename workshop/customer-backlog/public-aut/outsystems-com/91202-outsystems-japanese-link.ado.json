@@ -1,0 +1,38 @@
+{
+  "id": "91202",
+  "revision": 1,
+  "title": "Verify Japanese language link is visible on the OutSystems homepage",
+  "suitePath": "public-aut/outsystems-com",
+  "areaPath": "public-aut",
+  "iterationPath": "public-aut/spike-1",
+  "tags": [
+    "smoke",
+    "outsystems",
+    "P1",
+    "public-aut",
+    "held-out",
+    "i18n"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Open the OutSystems homepage</p>",
+      "expected": "<p>The homepage loads with a language switcher available</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Verify the Japanese language link is visible</p>",
+      "expected": "<p>A Japanese language link is present on the page</p>",
+      "expectedTarget": {
+        "role": "link",
+        "name": "日本語"
+      }
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:91202-outsystems-japanese-link-spike1",
+  "syncedAt": "2026-05-02T00:00:00.000Z",
+  "targetAut": "https://www.outsystems.com/"
+}
