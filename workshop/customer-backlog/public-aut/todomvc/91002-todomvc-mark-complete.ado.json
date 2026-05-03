@@ -44,5 +44,17 @@
   ],
   "contentHash": "sha256:91002-todomvc-mark-complete-spike1",
   "syncedAt": "2026-05-01T00:00:00.000Z",
-  "targetAut": "https://todomvc.com/examples/react/dist/"
+  "targetAut": "https://todomvc.com/examples/react/dist/",
+  "preconditions": [
+    {
+      "index": 1,
+      "action": "<p>Enter a sample todo in the new-todo input field</p>",
+      "expected": "<p>The input field accepts the value</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Press Enter to add the todo</p>",
+      "expected": "<p>The todo appears in the list, rendering the toggle controls</p>"
+    }
+  ]
 }

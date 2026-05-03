@@ -50,6 +50,7 @@ export const AdoSnapshotSchema = Schema.Struct({
   contentHash: Schema.String,
   syncedAt: Schema.String,
   targetAut: Schema.optional(Schema.String),
+  preconditions: Schema.optional(Schema.Array(AdoStepSchema)),
 });
 
 // ─── Scenario ───

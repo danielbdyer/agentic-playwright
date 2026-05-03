@@ -229,4 +229,35 @@ describe('Z11a.4b — intent classifier', () => {
     expect(intent!.targetShape.role).toBeUndefined();
     expect(intent!.targetShape.nameSubstring).toBeDefined();
   });
+
+  // ── Article rejection (cycle 7 of cold-start cohort spike;
+  //    Probe Seed 11). Role-suffix matches whose name capture is a
+  //    pure article must NOT emit a role + 'the' / 'a' / 'an' as
+  //    nameSubstring. Fall through to bare-OBSERVE_RE.
+
+  test('ZC37.x: "Verify the field shows the entered name" rejects role-suffix capture of "the"', () => {
+    // The regex would otherwise match suffix='field' with
+    // capture='the' (the article preceding 'field'). Article
+    // rejection should fall through to bare OBSERVE_RE which
+    // captures a longer phrase as nameSubstring.
+    const intent = classifyIntent('Verify the field shows the entered name', someObserve());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('observe');
+    // Role-suffix path rejected; bare-OBSERVE_RE fires; role is
+    // therefore undefined.
+    expect(intent!.targetShape.role).toBeUndefined();
+    expect(intent!.targetShape.nameSubstring).toBeDefined();
+    expect(intent!.targetShape.nameSubstring).not.toBe('the');
+  });
+
+  test('ZC37.y: legitimate role-suffix captures with single-word names ("X button") still pass', () => {
+    // Article rejection must not over-fire on real single-word
+    // names ('Save button', 'Cancel link'). Only literal articles
+    // are rejected.
+    const intent = classifyIntent('Verify the Save button is visible', someObserve());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('observe');
+    expect(intent!.targetShape.role).toBe('button');
+    expect(intent!.targetShape.nameSubstring).toBe('Save');
+  });
 });

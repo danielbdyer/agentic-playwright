@@ -29,9 +29,32 @@
       "expected": "<p>No completed todos appear in the visible list</p>"
     }
   ],
-  "parameters": [],
-  "dataRows": [],
+  "parameters": [
+    {
+      "name": "preconditionTodoText",
+      "values": [
+        "Sample todo for filter test"
+      ]
+    }
+  ],
+  "dataRows": [
+    {
+      "preconditionTodoText": "Sample todo for filter test"
+    }
+  ],
   "contentHash": "sha256:91003-todomvc-filter-active-spike1",
   "syncedAt": "2026-05-01T00:00:00.000Z",
-  "targetAut": "https://todomvc.com/examples/react/dist/"
+  "targetAut": "https://todomvc.com/examples/react/dist/",
+  "preconditions": [
+    {
+      "index": 1,
+      "action": "<p>Enter a sample todo in the new-todo input field</p>",
+      "expected": "<p>The input field accepts the value</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Press Enter to add the todo</p>",
+      "expected": "<p>The todo appears in the list, rendering the footer with filter links</p>"
+    }
+  ]
 }

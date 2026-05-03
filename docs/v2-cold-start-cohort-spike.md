@@ -254,16 +254,26 @@ Training side (canon may graduate from these):
 
 - **TodoMVC**. Originally framed in this doc as the trivial sanity
   rung; the journal at
-  `docs/v2-cold-start-todomvc-journal.md` Entry 3 corrected the
-  framing. TodoMVC has at least four real ARIA imperfections
-  (anonymous destroy buttons with no accessible name,
-  per-todo `<label>` elements with no `for` attribute, no
-  `aria-current` on the selected filter, no explicit landmark
-  roles). It is small but not clean — and that is a feature for
-  a forcing function. It exposes generic-tier classifier
-  deficiencies (role flattening, `press`-as-`click`) that any
-  AUT with checkboxes, links, or keyboard interactions will
-  surface.
+  `docs/v2-cold-start-todomvc-journal.md` Entries 3 + 27 corrected
+  that framing on two passes. TodoMVC is small but **not** clean
+  and **not** trivial:
+  - Four real ARIA imperfections (anonymous destroy buttons with
+    no accessible name, per-todo `<label>` elements with no `for`
+    attribute, no `aria-current` on the selected filter, no
+    explicit landmark roles).
+  - **Multi-state semantics** — most test cases presuppose ≥1
+    todo exists, but TodoMVC hides the toggle-all checkbox and
+    the footer (filter links + clear-completed) via CSS when no
+    todos exist. The cohort spike's runner discovered this only
+    after six cycles of trying to probe initial-state surfaces;
+    Probe Seed 8 (Phase B) exists because of TodoMVC.
+  - **Empirically harder than the held-out httpbin form** for
+    this cohort's stack. Cycle 5+6 measurements showed TodoMVC
+    plateaus at ~56% match rate while httpbin reaches ~89%; the
+    diversity-ladder ordering should not be assumed by app-shape.
+  TodoMVC is a forcing function, not a sanity check; the cohort's
+  hardest training-side blockers (Probe Seeds 1, 2, 7, 8) all
+  surfaced from it.
 - **Swagger Petstore** or **Postman Echo**. Multi-screen, real
   validation, real asynchrony, but still author-friendly chrome.
 

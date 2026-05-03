@@ -222,12 +222,22 @@ function extractObserveTarget(actionText: string): TargetShapeHint {
   // role + name the runner can probe. Falls through to the bare
   // OBSERVE_RE nameSubstring when no role-suffix word appears, so
   // existing observe behavior is preserved.
+  //
+  // Cycle 7 (Probe Seed 11): role-suffix matches whose captured
+  // name normalizes to a pure article ("the", "a", "an") are
+  // rejected and treated as no-match. The regex's greedy capture
+  // can match an article when the suffix word appears immediately
+  // after "the" with no real preceding name ("Verify the field
+  // shows ..."); the resulting `nameSubstring='the'` produces a
+  // useless query.
   for (const { suffix, role } of OBSERVE_ROLE_SUFFIXES) {
     const match = observeRoleSuffixRe(suffix).exec(actionText);
     if (match) {
+      const captured = normalizeName(match[1]!);
+      if (isPureArticle(captured)) continue;
       return {
         role,
-        nameSubstring: normalizeName(match[1]!),
+        nameSubstring: captured,
       };
     }
   }
@@ -237,6 +247,11 @@ function extractObserveTarget(actionText: string): TargetShapeHint {
   return {
     nameSubstring: normalizeName(match[1]!),
   };
+}
+
+function isPureArticle(s: string): boolean {
+  const lower = s.trim().toLowerCase();
+  return lower === 'the' || lower === 'a' || lower === 'an';
 }
 
 /**

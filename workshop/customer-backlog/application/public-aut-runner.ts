@@ -77,6 +77,9 @@ export interface PublicAutCaseResult {
   readonly title: string;
   readonly stepCount: number;
   readonly stepOutcomes: readonly PublicAutStepOutcome[];
+  readonly preconditionOutcomes: readonly PublicAutStepOutcome[];
+  readonly preconditionsRan: number;
+  readonly preconditionsSucceeded: number;
   readonly stepsMatched: number;
   readonly handoffsEmitted: number;
   readonly elapsedMs: number;
@@ -378,6 +381,63 @@ function firstDataRowValueOf(snapshot: LoadedPublicAutCase['snapshot']): string 
   return null;
 }
 
+/**
+ * Per-step pipeline: classify the action text, probe the DOM, then
+ * narrative-execute when the probe matched. Used for both main
+ * steps and preconditions (cycle 7) — preconditions follow the
+ * same cycle-4 narrative-execute discipline so the runner does not
+ * have a bifurcated execution path.
+ */
+async function runPipelineStep(
+  page: Page,
+  step: { readonly index: number; readonly action: string },
+  firstDataRowValue: string | null,
+): Promise<PublicAutStepOutcome> {
+  const { verdict, intent, plain } = classifyStep(step.action);
+  if (!intent) {
+    return {
+      stepIndex: step.index,
+      actionTextPlain: plain,
+      classifierVerdict: verdict,
+      verb: null,
+      inferredRole: null,
+      inferredName: null,
+      inferredNameSubstring: null,
+      domResolution: 'unclassified',
+      matchCount: 0,
+      rationale: 'intent classifier returned null',
+      actionAttempted: null,
+      actionOutcome: 'skipped',
+      actionDetail: null,
+    };
+  }
+
+  const probe = await probeStep(page, intent);
+  // Cycle 4 narrative-execute: when the step matched (and isn't
+  // navigate, which the case-level navigation already satisfied),
+  // perform the verb's action so subsequent steps see the
+  // resulting page state.
+  const action: ActionResult = (probe.resolution === 'matched' && intent.verb !== 'navigate')
+    ? await executeAction(page, intent, probe.matchedLocator, firstDataRowValue)
+    : ACTION_SKIPPED;
+
+  return {
+    stepIndex: step.index,
+    actionTextPlain: plain,
+    classifierVerdict: 'classified',
+    verb: intent.verb,
+    inferredRole: intent.targetShape.role ?? null,
+    inferredName: intent.targetShape.name ?? null,
+    inferredNameSubstring: intent.targetShape.nameSubstring ?? null,
+    domResolution: probe.resolution,
+    matchCount: probe.matchCount,
+    rationale: probe.rationale,
+    actionAttempted: action.attempted,
+    actionOutcome: action.outcome,
+    actionDetail: action.detail,
+  };
+}
+
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -428,60 +488,49 @@ export async function runPublicAutCase(
   let stepsMatched = 0;
   let handoffsEmitted = 0;
   const firstDataRowValue = firstDataRowValueOf(snapshot);
+  const preconditionOutcomes: PublicAutStepOutcome[] = [];
+  let preconditionsSucceeded = 0;
 
   try {
     await page.goto(autUrl, { waitUntil: 'networkidle', timeout: 30_000 });
 
-    for (const step of snapshot.steps) {
-      const { verdict, intent, plain } = classifyStep(step.action);
-      if (!intent) {
-        stepOutcomes.push({
-          stepIndex: step.index,
-          actionTextPlain: plain,
-          classifierVerdict: verdict,
-          verb: null,
-          inferredRole: null,
-          inferredName: null,
-          inferredNameSubstring: null,
-          domResolution: 'unclassified',
-          matchCount: 0,
-          rationale: 'intent classifier returned null',
-          actionAttempted: null,
-          actionOutcome: 'skipped',
-          actionDetail: null,
-        });
-        handoffsEmitted += 1;
-        continue;
+    // Cycle 7 (Probe Seed 8 Phase B): execute preconditions before
+    // the main step loop. Preconditions reuse the same classify +
+    // probe + execute pipeline but their outcomes do NOT count
+    // toward stepsMatched / handoffsEmitted — they're setup, not
+    // assertions. Failures surface in downstream handoffs honestly.
+    if (snapshot.preconditions && snapshot.preconditions.length > 0) {
+      for (const pre of snapshot.preconditions) {
+        const outcome = await runPipelineStep(page, pre, firstDataRowValue);
+        preconditionOutcomes.push(outcome);
+        // A precondition counts as succeeded iff the probe matched
+        // AND, when the matched verb requires an action, that
+        // action succeeded. Skipped-navigate also counts. This
+        // catches cases where the probe matches a target but the
+        // action silently fails (e.g., an input fill with no
+        // dataRow value to use). Cycle 7 follow-up to the
+        // diagnostic in Entry 29.
+        const probeOk = outcome.domResolution === 'matched' || outcome.domResolution === 'skipped-navigate';
+        const actionOk = outcome.actionOutcome !== 'failed';
+        if (probeOk && actionOk) {
+          preconditionsSucceeded += 1;
+        }
       }
+      // After preconditions complete, wait briefly for the AUT to
+      // settle. React (and similar reactive frameworks) commit
+      // state updates asynchronously; without a settling pause, a
+      // step that probes immediately can race the framework's
+      // re-render. The diagnostic in cycle 7 (Entry 29) showed
+      // TodoMVC's filter-link DOM appearing on the next microtask
+      // after Enter is pressed, which the runner's tight loop
+      // could miss.
+      await page.waitForLoadState('networkidle', { timeout: 2000 }).catch(() => {});
+    }
 
-      const probe = await probeStep(page, intent);
-
-      // Cycle 4 narrative-execute (Probe Seed 8 Phase A): when the
-      // step matched (or it's a navigate that the case-level
-      // navigation already satisfied), perform the verb's action so
-      // subsequent steps within this case see the resulting page
-      // state. navigate is action-skipped because navigation already
-      // happened above.
-      const action: ActionResult = (probe.resolution === 'matched' && intent.verb !== 'navigate')
-        ? await executeAction(page, intent, probe.matchedLocator, firstDataRowValue)
-        : ACTION_SKIPPED;
-
-      stepOutcomes.push({
-        stepIndex: step.index,
-        actionTextPlain: plain,
-        classifierVerdict: 'classified',
-        verb: intent.verb,
-        inferredRole: intent.targetShape.role ?? null,
-        inferredName: intent.targetShape.name ?? null,
-        inferredNameSubstring: intent.targetShape.nameSubstring ?? null,
-        domResolution: probe.resolution,
-        matchCount: probe.matchCount,
-        rationale: probe.rationale,
-        actionAttempted: action.attempted,
-        actionOutcome: action.outcome,
-        actionDetail: action.detail,
-      });
-      if (probe.resolution === 'matched' || probe.resolution === 'skipped-navigate') {
+    for (const step of snapshot.steps) {
+      const outcome = await runPipelineStep(page, step, firstDataRowValue);
+      stepOutcomes.push(outcome);
+      if (outcome.domResolution === 'matched' || outcome.domResolution === 'skipped-navigate') {
         stepsMatched += 1;
       } else {
         handoffsEmitted += 1;
@@ -492,6 +541,7 @@ export async function runPublicAutCase(
   }
 
   const elapsedMs = Date.now() - runStart;
+  const preconditionsRan = preconditionOutcomes.length;
   const receiptPath = writeCaseReceipt({
     aut: aut.name,
     autUrl,
@@ -499,6 +549,9 @@ export async function runPublicAutCase(
     cohortRole: options.cohortRole ?? aut.partition,
     snapshot,
     stepOutcomes,
+    preconditionOutcomes,
+    preconditionsRan,
+    preconditionsSucceeded,
     stepsMatched,
     handoffsEmitted,
     elapsedMs,
@@ -514,6 +567,9 @@ export async function runPublicAutCase(
     title: snapshot.title,
     stepCount: snapshot.steps.length,
     stepOutcomes,
+    preconditionOutcomes,
+    preconditionsRan,
+    preconditionsSucceeded,
     stepsMatched,
     handoffsEmitted,
     elapsedMs,
@@ -531,6 +587,9 @@ interface WriteReceiptArgs {
   readonly cohortRole: 'training' | 'held-out';
   readonly snapshot: LoadedPublicAutCase['snapshot'];
   readonly stepOutcomes: readonly PublicAutStepOutcome[];
+  readonly preconditionOutcomes: readonly PublicAutStepOutcome[];
+  readonly preconditionsRan: number;
+  readonly preconditionsSucceeded: number;
   readonly stepsMatched: number;
   readonly handoffsEmitted: number;
   readonly elapsedMs: number;
@@ -545,7 +604,7 @@ function writeCaseReceipt(args: WriteReceiptArgs): string {
   const file = `${args.snapshot.id}-${stamp}.json`;
   const fullPath = path.join(dir, file);
   const receipt = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     substrateVersion: 'floor-a5-heuristic-naive-dom',
     aut: args.aut,
     autUrl: args.autUrl,
@@ -557,6 +616,9 @@ function writeCaseReceipt(args: WriteReceiptArgs): string {
     runStartedAt: args.runStartedAt,
     elapsedMs: args.elapsedMs,
     stepCount: args.snapshot.steps.length,
+    preconditionsRan: args.preconditionsRan,
+    preconditionsSucceeded: args.preconditionsSucceeded,
+    preconditionOutcomes: args.preconditionOutcomes,
     stepsMatched: args.stepsMatched,
     handoffsEmitted: args.handoffsEmitted,
     stepOutcomes: args.stepOutcomes,
