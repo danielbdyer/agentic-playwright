@@ -1,0 +1,53 @@
+{
+  "id": "91101",
+  "revision": 1,
+  "title": "Verify customer name entry",
+  "suitePath": "public-aut/httpbin-form",
+  "areaPath": "public-aut",
+  "iterationPath": "public-aut/spike-1",
+  "tags": [
+    "smoke",
+    "httpbin",
+    "P1",
+    "public-aut",
+    "held-out"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Open the customer order form</p>",
+      "expected": "<p>The order form displays with input fields for customer details</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Enter Alice in the Customer Name field</p>",
+      "expected": "<p>The Customer Name field accepts the value</p>",
+      "expectedTarget": {
+        "role": "textbox",
+        "name": "Customer name"
+      }
+    },
+    {
+      "index": 3,
+      "action": "<p>Verify the field shows the entered name</p>",
+      "expected": "<p>The customer name is visible in the field</p>"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "customerName",
+      "values": [
+        "Alice"
+      ]
+    }
+  ],
+  "dataRows": [
+    {
+      "customerName": "Alice"
+    }
+  ],
+  "contentHash": "sha256:91101-httpbin-customer-name-spike1",
+  "syncedAt": "2026-05-01T00:00:00.000Z",
+  "targetAut": "https://httpbin.org/forms/post"
+}

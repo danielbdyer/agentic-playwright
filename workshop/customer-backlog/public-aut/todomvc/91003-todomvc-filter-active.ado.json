@@ -1,0 +1,64 @@
+{
+  "id": "91003",
+  "revision": 1,
+  "title": "Verify user can filter to only active todos",
+  "suitePath": "public-aut/todomvc",
+  "areaPath": "public-aut",
+  "iterationPath": "public-aut/spike-1",
+  "tags": [
+    "regression",
+    "todomvc",
+    "P2",
+    "public-aut"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the TodoMVC application with a mix of completed and active todos</p>",
+      "expected": "<p>The todo list shows both active and completed todos</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click the Active filter link in the footer</p>",
+      "expected": "<p>The Active filter is selected and only active todos remain visible</p>",
+      "expectedTarget": {
+        "role": "link",
+        "name": "Active"
+      }
+    },
+    {
+      "index": 3,
+      "action": "<p>Verify completed todos are hidden from the list</p>",
+      "expected": "<p>No completed todos appear in the visible list</p>"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "preconditionTodoText",
+      "values": [
+        "Sample todo for filter test"
+      ]
+    }
+  ],
+  "dataRows": [
+    {
+      "preconditionTodoText": "Sample todo for filter test"
+    }
+  ],
+  "contentHash": "sha256:91003-todomvc-filter-active-spike1",
+  "syncedAt": "2026-05-01T00:00:00.000Z",
+  "targetAut": "https://todomvc.com/examples/react/dist/",
+  "preconditions": [
+    {
+      "index": 1,
+      "action": "<p>Enter a sample todo in the new-todo input field</p>",
+      "expected": "<p>The input field accepts the value</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Press Enter to add the todo</p>",
+      "expected": "<p>The todo appears in the list, rendering the footer with filter links</p>"
+    }
+  ]
+}

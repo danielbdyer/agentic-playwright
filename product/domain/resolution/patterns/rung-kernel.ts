@@ -64,7 +64,7 @@ export function matcherId(value: string): MatcherId {
  *  union narrowed to the verbs resolution patterns care about —
  *  `'custom'` is excluded (the parser routes it away from patterns;
  *  it can only resolve via explicit scenario fields or needs-human). */
-export type PatternVerb = 'navigate' | 'click' | 'input' | 'observe' | 'select';
+export type PatternVerb = 'navigate' | 'click' | 'input' | 'observe' | 'select' | 'press';
 
 /** Hints about the surface the intent refers to. Any subset may be
  *  populated depending on the parser's classification strength; a

@@ -94,6 +94,17 @@ export interface ParsedFlags {
    *  `tesseract compile-corpus` command. When set, restricts the
    *  corpus walk to a single sub-corpus. Unset = both corpuses. */
   corpus?: string;
+  /** Public-AUT cohort filter for the `tesseract compile-public-aut`
+   *  command. Matches the `name` field of an entry in
+   *  workshop/customer-backlog/public-aut/cohort.json. Unset = run
+   *  all entries in the cohort manifest. */
+  aut?: string;
+  /** Public-AUT cohort role override. 'training' | 'held-out'. Unset
+   *  defers to the AUT manifest entry's declared partition. When set
+   *  and equal to 'held-out', no canon graduation is permitted (spike
+   *  §4.4 C2); enforcement plumbing in the trust-policy gate is the
+   *  next-cycle seed. */
+  cohortRole?: string;
 }
 
 export type FlagName = keyof typeof flagDescriptorTable;
@@ -155,6 +166,8 @@ type FlagToParsedKey = {
   '--input': 'input';
   '--scenario-id': 'scenarioId';
   '--corpus': 'corpus';
+  '--aut': 'aut';
+  '--cohort-role': 'cohortRole';
 };
 type ParsedFlagKeys<TFlags extends readonly FlagName[]> = FlagToParsedKey[TFlags[number]];
 export type ParsedFlagsFor<TFlags extends readonly FlagName[]> = Partial<Pick<ParsedFlags, ParsedFlagKeys<TFlags>>>;
@@ -226,7 +239,8 @@ export type CommandName =
   | 'compounding-improve'
   | 'compounding-hypothesize'
   | 'compounding-ratchet'
-  | 'compile-corpus';
+  | 'compile-corpus'
+  | 'compile-public-aut';
 
 export const commandNames: readonly CommandName[] = [
   'sync',
@@ -265,6 +279,7 @@ export const commandNames: readonly CommandName[] = [
   'compounding-hypothesize',
   'compounding-ratchet',
   'compile-corpus',
+  'compile-public-aut',
 ] as const;
 
 export function withDefinedValues<TValue extends Record<string, unknown>>(value: TValue): Partial<TValue> {
@@ -436,6 +451,8 @@ export const flagDescriptorTable = {
   '--input': valueDescriptor('--input', 'input', (value) => readFlagValue('--input', value)),
   '--scenario-id': valueDescriptor('--scenario-id', 'scenarioId', (value) => readFlagValue('--scenario-id', value)),
   '--corpus': valueDescriptor('--corpus', 'corpus', (value) => readFlagValue('--corpus', value)),
+  '--aut': valueDescriptor('--aut', 'aut', (value) => readFlagValue('--aut', value)),
+  '--cohort-role': valueDescriptor('--cohort-role', 'cohortRole', (value) => readFlagValue('--cohort-role', value)),
 } as const;
 
 export type FlagDecodeResult = {

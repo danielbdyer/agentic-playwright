@@ -1,0 +1,52 @@
+{
+  "id": "91001",
+  "revision": 1,
+  "title": "Verify user can add a new todo",
+  "suitePath": "public-aut/todomvc",
+  "areaPath": "public-aut",
+  "iterationPath": "public-aut/spike-1",
+  "tags": [
+    "smoke",
+    "todomvc",
+    "P1",
+    "public-aut"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Navigate to the TodoMVC application</p>",
+      "expected": "<p>The todo list page loads with an input field for entering new todos</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Enter the todo description in the new-todo input field</p>",
+      "expected": "<p>The input field accepts the value</p>",
+      "expectedTarget": {
+        "role": "textbox",
+        "name": "New Todo Input"
+      }
+    },
+    {
+      "index": 3,
+      "action": "<p>Press Enter to submit the new todo</p>",
+      "expected": "<p>The new todo appears as an item in the todo list</p>"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "todoText",
+      "values": [
+        "Buy milk"
+      ]
+    }
+  ],
+  "dataRows": [
+    {
+      "todoText": "Buy milk"
+    }
+  ],
+  "contentHash": "sha256:91001-todomvc-add-todo-spike1",
+  "syncedAt": "2026-05-01T00:00:00.000Z",
+  "targetAut": "https://todomvc.com/examples/react/dist/"
+}

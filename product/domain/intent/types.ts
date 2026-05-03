@@ -23,11 +23,23 @@ export interface RefPath {
   readonly segments: readonly string[];
 }
 
+export interface AdoExpectedTarget {
+  // Operator-authored intent: what UI element does the test step
+  // mean to interact with? Used by the public-AUT runner to
+  // distinguish "found a thing matching the words" from "found the
+  // *right* thing." Optional — when absent, the runner reports
+  // targetCorrectness: 'unverified'. See journal Entry 34 (cycle 8
+  // of cold-start cohort spike).
+  readonly role?: string | undefined;
+  readonly name?: string | undefined;
+}
+
 export interface AdoStep {
   readonly index: number;
   readonly action: string;
   readonly expected: string;
   readonly sharedStepId?: string | undefined;
+  readonly expectedTarget?: AdoExpectedTarget | undefined;
 }
 
 export interface AdoParameter {
@@ -49,6 +61,22 @@ export interface AdoSnapshot {
   readonly dataRows: readonly Readonly<Record<string, string>>[];
   readonly contentHash: string;
   readonly syncedAt: string;
+  // Optional URL of the application under test. Absent for cases
+  // synced from ADO (the AUT is implicit in the workspace
+  // configuration). Required for public-AUT cohort fixtures where
+  // a single corpus may target multiple distinct AUTs. See
+  // docs/v2-cold-start-cohort-spike.md §7 + the TodoMVC journal
+  // Entry 4.
+  readonly targetAut?: string | undefined;
+  // Optional setup steps the runner executes before the main step
+  // sequence to arrange the AUT into a state the test presupposes
+  // ("Navigate to TodoMVC with at least one todo in the list" —
+  // the prerequisite is "≥1 todo exists"). Preconditions reuse the
+  // AdoStep shape but are NOT counted in the test's
+  // matched/handoffs aggregate; their outcomes appear in the
+  // receipt's `preconditionOutcomes` section. See journal Entry
+  // 28 (cycle 7 of cold-start cohort spike; Probe Seed 8 Phase B).
+  readonly preconditions?: readonly AdoStep[] | undefined;
 }
 
 export interface ScenarioSource {

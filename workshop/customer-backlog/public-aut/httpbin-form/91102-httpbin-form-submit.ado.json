@@ -1,0 +1,57 @@
+{
+  "id": "91102",
+  "revision": 1,
+  "title": "Verify form submission with valid input",
+  "suitePath": "public-aut/httpbin-form",
+  "areaPath": "public-aut",
+  "iterationPath": "public-aut/spike-1",
+  "tags": [
+    "smoke",
+    "httpbin",
+    "P1",
+    "public-aut",
+    "held-out"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Open the customer order form</p>",
+      "expected": "<p>The order form displays with input fields and a submit button</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Enter Alice in the Customer Name field</p>",
+      "expected": "<p>The Customer Name field accepts the value</p>",
+      "expectedTarget": {
+        "role": "textbox",
+        "name": "Customer name"
+      }
+    },
+    {
+      "index": 3,
+      "action": "<p>Click the Submit Order button</p>",
+      "expected": "<p>The form submits and a confirmation page is shown</p>",
+      "expectedTarget": {
+        "role": "button",
+        "name": "Submit order"
+      }
+    }
+  ],
+  "parameters": [
+    {
+      "name": "customerName",
+      "values": [
+        "Alice"
+      ]
+    }
+  ],
+  "dataRows": [
+    {
+      "customerName": "Alice"
+    }
+  ],
+  "contentHash": "sha256:91102-httpbin-form-submit-spike1",
+  "syncedAt": "2026-05-01T00:00:00.000Z",
+  "targetAut": "https://httpbin.org/forms/post"
+}

@@ -23,11 +23,17 @@ import {
 
 // ─── ADO Snapshot ───
 
+export const AdoExpectedTargetSchema = Schema.Struct({
+  role: Schema.optional(Schema.String),
+  name: Schema.optional(Schema.String),
+});
+
 export const AdoStepSchema = Schema.Struct({
   index: Schema.Number,
   action: Schema.String,
   expected: Schema.String,
   sharedStepId: Schema.optional(Schema.String),
+  expectedTarget: Schema.optional(AdoExpectedTargetSchema),
 });
 
 export const AdoParameterSchema = Schema.Struct({
@@ -49,6 +55,8 @@ export const AdoSnapshotSchema = Schema.Struct({
   dataRows: Schema.Array(Schema.Record({ key: Schema.String, value: Schema.String })),
   contentHash: Schema.String,
   syncedAt: Schema.String,
+  targetAut: Schema.optional(Schema.String),
+  preconditions: Schema.optional(Schema.Array(AdoStepSchema)),
 });
 
 // ─── Scenario ───

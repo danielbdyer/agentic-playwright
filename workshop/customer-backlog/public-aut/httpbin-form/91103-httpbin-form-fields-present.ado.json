@@ -1,0 +1,46 @@
+{
+  "id": "91103",
+  "revision": 1,
+  "title": "Verify form contains required fields",
+  "suitePath": "public-aut/httpbin-form",
+  "areaPath": "public-aut",
+  "iterationPath": "public-aut/spike-1",
+  "tags": [
+    "regression",
+    "httpbin",
+    "P2",
+    "public-aut",
+    "held-out"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Open the customer order form</p>",
+      "expected": "<p>The order form is displayed</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Verify the Customer Name field is visible</p>",
+      "expected": "<p>A Customer Name input field is present on the form</p>",
+      "expectedTarget": {
+        "role": "textbox",
+        "name": "Customer name"
+      }
+    },
+    {
+      "index": 3,
+      "action": "<p>Verify the Submit Order button is visible</p>",
+      "expected": "<p>A Submit Order button is present on the form</p>",
+      "expectedTarget": {
+        "role": "button",
+        "name": "Submit order"
+      }
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:91103-httpbin-form-fields-present-spike1",
+  "syncedAt": "2026-05-01T00:00:00.000Z",
+  "targetAut": "https://httpbin.org/forms/post"
+}

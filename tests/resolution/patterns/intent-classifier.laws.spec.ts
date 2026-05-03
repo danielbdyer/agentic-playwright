@@ -101,4 +101,163 @@ describe('Z11a.4b — intent classifier', () => {
     expect(intent).not.toBeNull();
     expect(intent!.originalActionText).toBe(text);
   });
+
+  // ── Click role-suffix recognition (added cycle 3 of cold-start
+  //    cohort spike; see docs/v2-cold-start-todomvc-journal.md
+  //    Entries 10-12 for the probe-seed provenance). The classifier
+  //    must NOT flatten non-button click targets to role=button.
+
+  test('ZC37.j: "Click the toggle checkbox" emits click + checkbox + substring', () => {
+    const intent = classifyIntent('Click the toggle checkbox', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('click');
+    expect(intent!.targetShape.role).toBe('checkbox');
+    expect(intent!.targetShape.nameSubstring).toBe('toggle');
+  });
+
+  test('ZC37.k: "Click the Active filter link" emits click + link + substring', () => {
+    const intent = classifyIntent('Click the Active filter link', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('click');
+    expect(intent!.targetShape.role).toBe('link');
+    expect(intent!.targetShape.nameSubstring).toBe('Active filter');
+  });
+
+  test('ZC37.l: "Click the Settings tab" emits click + tab + substring', () => {
+    const intent = classifyIntent('Click the Settings tab', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('click');
+    expect(intent!.targetShape.role).toBe('tab');
+    expect(intent!.targetShape.nameSubstring).toBe('Settings');
+  });
+
+  test('ZC37.m: "Click the Notifications switch" emits click + switch + substring', () => {
+    const intent = classifyIntent('Click the Notifications switch', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('click');
+    expect(intent!.targetShape.role).toBe('switch');
+    expect(intent!.targetShape.nameSubstring).toBe('Notifications');
+  });
+
+  test('ZC37.n: role-suffix recognition is non-regressive — "Click the Submit button" still emits role=button + name=Submit', () => {
+    // Guards against accidentally promoting a generic role-suffix
+    // match over the button extractor's submit-synonym handling.
+    const intent = classifyIntent('Click the Submit button', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.targetShape.role).toBe('button');
+    expect(intent!.targetShape.name).toBe('Submit');
+  });
+
+  test('ZC37.o: bare "Click toggle" without a role suffix still emits role=button (fallback)', () => {
+    // Only when the suffix word is present does the classifier
+    // infer the non-button role; bare clicks still flatten.
+    const intent = classifyIntent('Click toggle', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.targetShape.role).toBe('button');
+    expect(intent!.targetShape.nameSubstring).toBe('toggle');
+  });
+
+  // ── Press verb (cycle 4 of cold-start cohort spike; Probe Seed
+  //    2). Keyboard actions are first-class, distinct from clicks.
+
+  test('ZC37.p: "Press Enter" emits press + nameSubstring=Enter', () => {
+    const intent = classifyIntent('Press Enter to submit the form', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('press');
+    expect(intent!.targetShape.nameSubstring).toBe('Enter');
+  });
+
+  test('ZC37.q: "Press the Tab key" emits press + nameSubstring=Tab', () => {
+    const intent = classifyIntent('Press the Tab key', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('press');
+    expect(intent!.targetShape.nameSubstring).toBe('Tab');
+  });
+
+  test('ZC37.r: "Press Escape" emits press, NOT click (the prior baseline misclassified press as click)', () => {
+    const intent = classifyIntent('Press Escape to cancel', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('press');
+    expect(intent!.verb).not.toBe('click');
+  });
+
+  test('ZC37.s: "Click submit" still classifies as click (press detection does not poison click recognition)', () => {
+    // The press regex requires literal "press"; click recognition
+    // is unaffected by the new branch.
+    const intent = classifyIntent('Click submit', someClick());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('click');
+  });
+
+  // ── Observe role-suffix recognition (cycle 6 of cold-start cohort
+  //    spike; Probe Seed 10). The classifier's observe extractor
+  //    must honor role-suffix words ("the X button is visible") just
+  //    like the click extractor does, so the runner can probe the
+  //    correct DOM target instead of falling back to text-search on
+  //    the assertion phrasing.
+
+  test('ZC37.t: "Verify the Submit Order button is visible" emits observe + button + Submit Order', () => {
+    const intent = classifyIntent('Verify the Submit Order button is visible', someObserve());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('observe');
+    expect(intent!.targetShape.role).toBe('button');
+    expect(intent!.targetShape.nameSubstring).toBe('Submit Order');
+  });
+
+  test('ZC37.u: "Verify the Customer Name field is visible" emits observe + textbox + Customer Name', () => {
+    const intent = classifyIntent('Verify the Customer Name field is visible', someObserve());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('observe');
+    expect(intent!.targetShape.role).toBe('textbox');
+    expect(intent!.targetShape.nameSubstring).toBe('Customer Name');
+  });
+
+  test('ZC37.v: "Check the Settings link appears" emits observe + link + Settings', () => {
+    const intent = classifyIntent('Check the Settings link appears', someObserve());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('observe');
+    expect(intent!.targetShape.role).toBe('link');
+    expect(intent!.targetShape.nameSubstring).toBe('Settings');
+  });
+
+  test('ZC37.w: observe steps without a role-suffix word still emit nameSubstring only (fallthrough preserved)', () => {
+    // "Verify the success message" has no role-suffix word; the
+    // existing OBSERVE_RE path must still fire.
+    const intent = classifyIntent('Verify the success message appears', someObserve());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('observe');
+    expect(intent!.targetShape.role).toBeUndefined();
+    expect(intent!.targetShape.nameSubstring).toBeDefined();
+  });
+
+  // ── Article rejection (cycle 7 of cold-start cohort spike;
+  //    Probe Seed 11). Role-suffix matches whose name capture is a
+  //    pure article must NOT emit a role + 'the' / 'a' / 'an' as
+  //    nameSubstring. Fall through to bare-OBSERVE_RE.
+
+  test('ZC37.x: "Verify the field shows the entered name" rejects role-suffix capture of "the"', () => {
+    // The regex would otherwise match suffix='field' with
+    // capture='the' (the article preceding 'field'). Article
+    // rejection should fall through to bare OBSERVE_RE which
+    // captures a longer phrase as nameSubstring.
+    const intent = classifyIntent('Verify the field shows the entered name', someObserve());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('observe');
+    // Role-suffix path rejected; bare-OBSERVE_RE fires; role is
+    // therefore undefined.
+    expect(intent!.targetShape.role).toBeUndefined();
+    expect(intent!.targetShape.nameSubstring).toBeDefined();
+    expect(intent!.targetShape.nameSubstring).not.toBe('the');
+  });
+
+  test('ZC37.y: legitimate role-suffix captures with single-word names ("X button") still pass', () => {
+    // Article rejection must not over-fire on real single-word
+    // names ('Save button', 'Cancel link'). Only literal articles
+    // are rejected.
+    const intent = classifyIntent('Verify the Save button is visible', someObserve());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('observe');
+    expect(intent!.targetShape.role).toBe('button');
+    expect(intent!.targetShape.nameSubstring).toBe('Save');
+  });
 });

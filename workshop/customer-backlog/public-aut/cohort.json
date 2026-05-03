@@ -1,0 +1,41 @@
+{
+  "$schemaVersion": 1,
+  "$comment": "Cohort manifest for the public-AUT cold-start cohort. Authoritative for which AUTs sit on which side of the clean-room partition (see docs/v2-cold-start-cohort-spike.md §4.4). The trust-policy gate must consult this manifest at runtime to refuse canon graduation in held-out contexts (C2). Promotion held-out → training is allowed and irreversible (C4); training → held-out is forbidden.",
+  "auts": [
+    {
+      "name": "todomvc",
+      "url": "https://todomvc.com/examples/react/dist/",
+      "partition": "training",
+      "fixturesDir": "todomvc",
+      "snapshotFingerprint": null,
+      "authoringOperator": "claude",
+      "addedAt": "2026-05-01",
+      "notes": "React variant. Has notable real-world ARIA imperfections (anonymous destroy buttons with no accessible name, per-todo <label> with no for attribute, no aria-current on selected filter, no explicit landmark roles). Surface inventory captured in docs/v2-cold-start-todomvc-journal.md Entry 3."
+    },
+    {
+      "name": "httpbin-form",
+      "url": "https://httpbin.org/forms/post",
+      "partition": "training",
+      "fixturesDir": "httpbin-form",
+      "snapshotFingerprint": null,
+      "authoringOperator": "claude",
+      "addedAt": "2026-05-01",
+      "promotedAt": "2026-05-02",
+      "promotedFrom": "held-out",
+      "promotionReason": "Cycles 5-7 used httpbin failures (Probe Seeds 10, 11) to drive classifier code changes. The held-out partition is contaminated; promoting to training per spike §4.4 C4 (one-way promotion held-out -> training is allowed and irreversible). See journal Entry 32.",
+      "notes": "Pizza-order form demo at httpbin.org. Different shape from TodoMVC training (server-rendered HTML, wrapping <label> elements with no for attribute, inputs with name but no id/aria-label). First introduced as held-out in cycle 5; promoted to training in cycle 8 after acknowledging that operator inspection during cycles 6-7 fed observe-side classifier improvements."
+    },
+    {
+      "name": "outsystems-com",
+      "url": "https://www.outsystems.com/",
+      "partition": "held-out",
+      "fixturesDir": "outsystems-com",
+      "snapshotFingerprint": null,
+      "authoringOperator": "claude",
+      "addedAt": "2026-05-02",
+      "evaluationProtocol": "handoff",
+      "evaluationStatus": "pending",
+      "notes": "OutSystems corporate marketing homepage. Authored as the cycle-9 fresh held-out following the cycle-8 cleanup. Operator inspection confirmed the site is NOT built on OutSystems Reactive (no osui-* classes, no __OSVSTATE) — it's a marketing site, not a Reactive demo app. That's an honest finding: the spike originally named 'a public OutSystems Reactive demo' but no such public Reactive demo is reachable from this environment's egress allowlist. The site still serves as a real-world held-out (foreign DOM, real chrome, multi-section content page). Fixtures target the language-switcher links, which are the most stable elements (don't drift with marketing campaigns). EVALUATION HANDED OFF — see docs/v2-cold-start-cohort-handoff-cycle-9.md. The original agent (the one that authored cycles 1-8) MUST NOT run the evaluation; a fresh agent runs it and reports back."
+    }
+  ]
+}

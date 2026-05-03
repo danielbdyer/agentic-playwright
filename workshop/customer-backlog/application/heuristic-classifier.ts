@@ -33,6 +33,7 @@ import type { AdoSnapshot } from '../../../product/domain/intent/types';
 import type { StepAction } from '../../../product/domain/governance/workflow-types';
 import { classifyIntent } from '../../../product/domain/resolution/patterns/intent-classifier';
 import type { CustomerCompilationCorpus } from '../../compounding/domain/compilation-receipt';
+import { stripHtml, inferAllowedActions } from './intent-helpers';
 
 export type StepOutcomeKind = 'would-resolve' | 'would-need-human' | 'would-be-blocked';
 
@@ -55,24 +56,6 @@ export interface HeuristicCaseSummary {
   readonly perStepOutcomes: readonly StepOutcome[];
 }
 
-// ─── Action text → StepAction heuristics ──────────────────────
-
-const STRIP_HTML_RE = /<[^>]+>/g;
-
-function stripHtml(s: string): string {
-  return s.replace(STRIP_HTML_RE, ' ').replace(/\s+/g, ' ').trim();
-}
-
-function mostLikelyActions(plainActionText: string): readonly StepAction[] {
-  const plain = plainActionText.toLowerCase();
-  const actions: StepAction[] = [];
-  if (/\bnavigate|\bgo\s+to|\bopen\s+/.test(plain)) actions.push('navigate');
-  if (/\bclick|\btap|\bpress|\bselect\s+the/.test(plain)) actions.push('click');
-  if (/\benter|\btype|\bfill|\binput|\bpopulate|\bselect\s+\w+\s+from/.test(plain)) actions.push('input');
-  if (/\bverify|\bobserve|\bcheck|\bconfirm\s+that|\bensure\b/.test(plain)) actions.push('assert-snapshot');
-  return actions.length > 0 ? actions : ['custom'];
-}
-
 // ─── Per-step heuristic ────────────────────────────────────────
 
 function classifyStep(
@@ -81,7 +64,7 @@ function classifyStep(
   corpus: CustomerCompilationCorpus,
 ): StepOutcome {
   const plain = stripHtml(rawActionText);
-  const allowed = mostLikelyActions(plain);
+  const allowed = inferAllowedActions(plain);
   const classified = classifyIntent(plain, allowed);
 
   if (!classified) {
