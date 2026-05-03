@@ -23,11 +23,17 @@ import {
 
 // ─── ADO Snapshot ───
 
+export const AdoExpectedTargetSchema = Schema.Struct({
+  role: Schema.optional(Schema.String),
+  name: Schema.optional(Schema.String),
+});
+
 export const AdoStepSchema = Schema.Struct({
   index: Schema.Number,
   action: Schema.String,
   expected: Schema.String,
   sharedStepId: Schema.optional(Schema.String),
+  expectedTarget: Schema.optional(AdoExpectedTargetSchema),
 });
 
 export const AdoParameterSchema = Schema.Struct({

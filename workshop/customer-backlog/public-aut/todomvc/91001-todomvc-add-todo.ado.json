@@ -21,7 +21,11 @@
     {
       "index": 2,
       "action": "<p>Enter the todo description in the new-todo input field</p>",
-      "expected": "<p>The input field accepts the value</p>"
+      "expected": "<p>The input field accepts the value</p>",
+      "expectedTarget": {
+        "role": "textbox",
+        "name": "New Todo Input"
+      }
     },
     {
       "index": 3,

@@ -22,12 +22,20 @@
     {
       "index": 2,
       "action": "<p>Enter Alice in the Customer Name field</p>",
-      "expected": "<p>The Customer Name field accepts the value</p>"
+      "expected": "<p>The Customer Name field accepts the value</p>",
+      "expectedTarget": {
+        "role": "textbox",
+        "name": "Customer name"
+      }
     },
     {
       "index": 3,
       "action": "<p>Click the Submit Order button</p>",
-      "expected": "<p>The form submits and a confirmation page is shown</p>"
+      "expected": "<p>The form submits and a confirmation page is shown</p>",
+      "expectedTarget": {
+        "role": "button",
+        "name": "Submit order"
+      }
     }
   ],
   "parameters": [

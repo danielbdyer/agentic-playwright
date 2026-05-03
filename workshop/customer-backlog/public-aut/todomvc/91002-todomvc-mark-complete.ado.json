@@ -21,7 +21,11 @@
     {
       "index": 2,
       "action": "<p>Click the toggle checkbox next to the todo</p>",
-      "expected": "<p>The todo is marked as complete and visually styled as completed</p>"
+      "expected": "<p>The todo is marked as complete and visually styled as completed</p>",
+      "expectedTarget": {
+        "role": "checkbox",
+        "name": "Buy milk"
+      }
     },
     {
       "index": 3,

@@ -53,6 +53,28 @@ export type StepDomResolution =
 export type ActionAttempted = 'clicked' | 'filled' | 'pressed' | 'observed' | null;
 export type ActionOutcome = 'succeeded' | 'failed' | 'skipped';
 
+/**
+ * Cycle 8 (semantic correctness): when a step's prose says
+ * "click the X button" and the runner finds *some* button, did
+ * it find the SAME button the test author meant? `expectedTarget`
+ * on the AdoStep records the operator's intent; the runner
+ * compares the matched element against that intent.
+ *
+ *   expected-match: matched element IS the expected target
+ *   wrong-target:   matched element is NOT the expected target
+ *                   (false positive: step "passed" on something
+ *                   the test author did not mean)
+ *   not-applicable: step doesn't have a DOM target (navigate, press)
+ *   unverified:     no expectedTarget authored; runner can't compare
+ *   not-found:      step didn't match anything; correctness moot
+ */
+export type TargetCorrectness =
+  | 'expected-match'
+  | 'wrong-target'
+  | 'not-applicable'
+  | 'unverified'
+  | 'not-found';
+
 export interface PublicAutStepOutcome {
   readonly stepIndex: number;
   readonly actionTextPlain: string;
@@ -67,6 +89,8 @@ export interface PublicAutStepOutcome {
   readonly actionAttempted: ActionAttempted;
   readonly actionOutcome: ActionOutcome;
   readonly actionDetail: string | null;
+  readonly targetCorrectness: TargetCorrectness;
+  readonly targetCorrectnessDetail: string | null;
 }
 
 export interface PublicAutCaseResult {
@@ -82,6 +106,19 @@ export interface PublicAutCaseResult {
   readonly preconditionsSucceeded: number;
   readonly stepsMatched: number;
   readonly handoffsEmitted: number;
+  /** Cycle 8: number of main steps where the matched element is
+   *  not the operator-authored expected target. A "matched" step
+   *  with wrong-target is a false positive — the runner found
+   *  *something* but not what the test author meant. */
+  readonly falsePositives: number;
+  /** Cycle 8: number of main steps with an authored expectedTarget
+   *  whose match was verified (expected-match). The genuine
+   *  semantic-correctness count. */
+  readonly verifiedMatches: number;
+  /** Cycle 8: number of main steps that lack an authored
+   *  expectedTarget (and therefore can't be checked). Tracks the
+   *  authoring debt. */
+  readonly unverifiedSteps: number;
   readonly elapsedMs: number;
   readonly receiptPath: string;
   readonly cohortRole: 'training' | 'held-out';
@@ -387,10 +424,15 @@ function firstDataRowValueOf(snapshot: LoadedPublicAutCase['snapshot']): string 
  * steps and preconditions (cycle 7) — preconditions follow the
  * same cycle-4 narrative-execute discipline so the runner does not
  * have a bifurcated execution path.
+ *
+ * Cycle 8: when the step carries an `expectedTarget`, also verify
+ * the matched element IS the expected target by re-querying the
+ * page with the expected role + name and comparing the elements'
+ * outerHTML. Records `targetCorrectness` in the outcome.
  */
 async function runPipelineStep(
   page: Page,
-  step: { readonly index: number; readonly action: string },
+  step: { readonly index: number; readonly action: string; readonly expectedTarget?: { readonly role?: string | undefined; readonly name?: string | undefined } | undefined },
   firstDataRowValue: string | null,
 ): Promise<PublicAutStepOutcome> {
   const { verdict, intent, plain } = classifyStep(step.action);
@@ -409,10 +451,28 @@ async function runPipelineStep(
       actionAttempted: null,
       actionOutcome: 'skipped',
       actionDetail: null,
+      targetCorrectness: 'not-found',
+      targetCorrectnessDetail: null,
     };
   }
 
   const probe = await probeStep(page, intent);
+
+  // Cycle 8: semantic-correctness check happens BEFORE
+  // narrative-execute. Click actions can navigate away (form
+  // submission, hash route change), so the matched element may
+  // not exist by the time the action completes. Verifying first
+  // captures the correctness verdict while both matched and
+  // expected locators are still valid against the same DOM
+  // snapshot.
+  const correctness = await verifyTargetCorrectness(
+    page,
+    intent,
+    probe.resolution,
+    probe.matchedLocator,
+    step.expectedTarget,
+  );
+
   // Cycle 4 narrative-execute: when the step matched (and isn't
   // navigate, which the case-level navigation already satisfied),
   // perform the verb's action so subsequent steps see the
@@ -435,7 +495,93 @@ async function runPipelineStep(
     actionAttempted: action.attempted,
     actionOutcome: action.outcome,
     actionDetail: action.detail,
+    targetCorrectness: correctness.kind,
+    targetCorrectnessDetail: correctness.detail,
   };
+}
+
+/**
+ * Cycle 8 semantic-correctness verification.
+ *
+ * Compares the runner's matched element against the operator's
+ * authored expected target. Returns a TargetCorrectness verdict
+ * plus a human-legible detail string.
+ *
+ * The comparison uses outerHTML as a stable per-element identifier:
+ * imperfect (two distinct elements with identical outerHTML would
+ * appear equal), but adequate for the kinds of mismatch the cohort
+ * is designed to surface (e.g., toggle-all vs per-todo toggle —
+ * different elements, different outerHTML).
+ */
+async function verifyTargetCorrectness(
+  page: Page,
+  intent: ClassifiedIntent,
+  probeResolution: StepDomResolution,
+  matchedLocator: Locator | null,
+  expectedTarget: { readonly role?: string | undefined; readonly name?: string | undefined } | undefined,
+): Promise<{ readonly kind: TargetCorrectness; readonly detail: string | null }> {
+  // Verbs that don't target a DOM element (navigate, press) are
+  // not subject to semantic correctness.
+  if (intent.verb === 'navigate' || intent.verb === 'press') {
+    return { kind: 'not-applicable', detail: `verb=${intent.verb} has no DOM target` };
+  }
+
+  // Probe didn't match: correctness is moot.
+  if (probeResolution !== 'matched' || !matchedLocator) {
+    return { kind: 'not-found', detail: null };
+  }
+
+  // No expected target authored: can't verify.
+  if (!expectedTarget || (!expectedTarget.role && !expectedTarget.name)) {
+    return { kind: 'unverified', detail: 'no expectedTarget authored on this step' };
+  }
+
+  try {
+    const expectedRole = expectedTarget.role;
+    const expectedName = expectedTarget.name;
+    const expectedLocator = (expectedRole
+      ? (expectedName !== undefined
+          ? page.getByRole(expectedRole as Parameters<Page['getByRole']>[0], { name: expectedName })
+          : page.getByRole(expectedRole as Parameters<Page['getByRole']>[0]))
+      : (expectedName !== undefined ? page.getByText(expectedName) : null));
+
+    if (!expectedLocator) {
+      return { kind: 'unverified', detail: 'expectedTarget present but neither role nor name resolvable' };
+    }
+
+    const expectedCount = await expectedLocator.count();
+    if (expectedCount === 0) {
+      return {
+        kind: 'wrong-target',
+        detail: `expected ${describeTarget(expectedTarget)} but no element on the page matches that description`,
+      };
+    }
+
+    const matchedHtml = await matchedLocator.first().evaluate(el => el.outerHTML).catch(() => null);
+    const expectedHtml = await expectedLocator.first().evaluate(el => el.outerHTML).catch(() => null);
+    if (matchedHtml === null || expectedHtml === null) {
+      return { kind: 'unverified', detail: 'failed to read element identity for comparison' };
+    }
+    if (matchedHtml === expectedHtml) {
+      return {
+        kind: 'expected-match',
+        detail: `matched element IS the expected ${describeTarget(expectedTarget)}`,
+      };
+    }
+    return {
+      kind: 'wrong-target',
+      detail: `matched a different element than the expected ${describeTarget(expectedTarget)} (false positive)`,
+    };
+  } catch (err) {
+    return { kind: 'unverified', detail: `verification threw: ${(err as Error).message.slice(0, 200)}` };
+  }
+}
+
+function describeTarget(t: { readonly role?: string | undefined; readonly name?: string | undefined }): string {
+  if (t.role && t.name) return `role='${t.role}' + name='${t.name}'`;
+  if (t.role) return `role='${t.role}'`;
+  if (t.name) return `name='${t.name}'`;
+  return '(empty target)';
 }
 
 function escapeRegExp(s: string): string {
@@ -487,6 +633,9 @@ export async function runPublicAutCase(
   const stepOutcomes: PublicAutStepOutcome[] = [];
   let stepsMatched = 0;
   let handoffsEmitted = 0;
+  let falsePositives = 0;
+  let verifiedMatches = 0;
+  let unverifiedSteps = 0;
   const firstDataRowValue = firstDataRowValueOf(snapshot);
   const preconditionOutcomes: PublicAutStepOutcome[] = [];
   let preconditionsSucceeded = 0;
@@ -535,6 +684,14 @@ export async function runPublicAutCase(
       } else {
         handoffsEmitted += 1;
       }
+      // Cycle 8: tally semantic-correctness counters.
+      if (outcome.targetCorrectness === 'wrong-target') {
+        falsePositives += 1;
+      } else if (outcome.targetCorrectness === 'expected-match') {
+        verifiedMatches += 1;
+      } else if (outcome.targetCorrectness === 'unverified') {
+        unverifiedSteps += 1;
+      }
     }
   } finally {
     await ctx.close();
@@ -554,6 +711,9 @@ export async function runPublicAutCase(
     preconditionsSucceeded,
     stepsMatched,
     handoffsEmitted,
+    falsePositives,
+    verifiedMatches,
+    unverifiedSteps,
     elapsedMs,
     runStartedAt,
     logRoot: options.logRoot,
@@ -572,6 +732,9 @@ export async function runPublicAutCase(
     preconditionsSucceeded,
     stepsMatched,
     handoffsEmitted,
+    falsePositives,
+    verifiedMatches,
+    unverifiedSteps,
     elapsedMs,
     receiptPath,
     cohortRole: options.cohortRole ?? aut.partition,
@@ -592,6 +755,9 @@ interface WriteReceiptArgs {
   readonly preconditionsSucceeded: number;
   readonly stepsMatched: number;
   readonly handoffsEmitted: number;
+  readonly falsePositives: number;
+  readonly verifiedMatches: number;
+  readonly unverifiedSteps: number;
   readonly elapsedMs: number;
   readonly runStartedAt: string;
   readonly logRoot: string;
@@ -604,7 +770,7 @@ function writeCaseReceipt(args: WriteReceiptArgs): string {
   const file = `${args.snapshot.id}-${stamp}.json`;
   const fullPath = path.join(dir, file);
   const receipt = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     substrateVersion: 'floor-a5-heuristic-naive-dom',
     aut: args.aut,
     autUrl: args.autUrl,
@@ -621,6 +787,9 @@ function writeCaseReceipt(args: WriteReceiptArgs): string {
     preconditionOutcomes: args.preconditionOutcomes,
     stepsMatched: args.stepsMatched,
     handoffsEmitted: args.handoffsEmitted,
+    falsePositives: args.falsePositives,
+    verifiedMatches: args.verifiedMatches,
+    unverifiedSteps: args.unverifiedSteps,
     stepOutcomes: args.stepOutcomes,
   };
   fs.writeFileSync(fullPath, JSON.stringify(receipt, null, 2));

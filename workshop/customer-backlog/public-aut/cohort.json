@@ -15,12 +15,15 @@
     {
       "name": "httpbin-form",
       "url": "https://httpbin.org/forms/post",
-      "partition": "held-out",
+      "partition": "training",
       "fixturesDir": "httpbin-form",
       "snapshotFingerprint": null,
       "authoringOperator": "claude",
       "addedAt": "2026-05-01",
-      "notes": "Pizza-order form demo at httpbin.org. Different shape from TodoMVC training (server-rendered HTML, wrapping <label> elements with no for attribute, inputs with name but no id/aria-label). Cycle 5 of the cold-start cohort spike: first held-out AUT exercised. The OutSystems Reactive demo URL the spike originally named remains designated-but-unassigned; held-out partition is the operator's prerogative."
+      "promotedAt": "2026-05-02",
+      "promotedFrom": "held-out",
+      "promotionReason": "Cycles 5-7 used httpbin failures (Probe Seeds 10, 11) to drive classifier code changes. The held-out partition is contaminated; promoting to training per spike §4.4 C4 (one-way promotion held-out -> training is allowed and irreversible). See journal Entry 32.",
+      "notes": "Pizza-order form demo at httpbin.org. Different shape from TodoMVC training (server-rendered HTML, wrapping <label> elements with no for attribute, inputs with name but no id/aria-label). First introduced as held-out in cycle 5; promoted to training in cycle 8 after acknowledging that operator inspection during cycles 6-7 fed observe-side classifier improvements."
     }
   ]
 }

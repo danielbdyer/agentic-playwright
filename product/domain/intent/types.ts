@@ -23,11 +23,23 @@ export interface RefPath {
   readonly segments: readonly string[];
 }
 
+export interface AdoExpectedTarget {
+  // Operator-authored intent: what UI element does the test step
+  // mean to interact with? Used by the public-AUT runner to
+  // distinguish "found a thing matching the words" from "found the
+  // *right* thing." Optional — when absent, the runner reports
+  // targetCorrectness: 'unverified'. See journal Entry 34 (cycle 8
+  // of cold-start cohort spike).
+  readonly role?: string | undefined;
+  readonly name?: string | undefined;
+}
+
 export interface AdoStep {
   readonly index: number;
   readonly action: string;
   readonly expected: string;
   readonly sharedStepId?: string | undefined;
+  readonly expectedTarget?: AdoExpectedTarget | undefined;
 }
 
 export interface AdoParameter {

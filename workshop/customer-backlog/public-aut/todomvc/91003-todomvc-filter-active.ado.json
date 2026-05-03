@@ -21,7 +21,11 @@
     {
       "index": 2,
       "action": "<p>Click the Active filter link in the footer</p>",
-      "expected": "<p>The Active filter is selected and only active todos remain visible</p>"
+      "expected": "<p>The Active filter is selected and only active todos remain visible</p>",
+      "expectedTarget": {
+        "role": "link",
+        "name": "Active"
+      }
     },
     {
       "index": 3,

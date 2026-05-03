@@ -22,12 +22,20 @@
     {
       "index": 2,
       "action": "<p>Verify the Customer Name field is visible</p>",
-      "expected": "<p>A Customer Name input field is present on the form</p>"
+      "expected": "<p>A Customer Name input field is present on the form</p>",
+      "expectedTarget": {
+        "role": "textbox",
+        "name": "Customer name"
+      }
     },
     {
       "index": 3,
       "action": "<p>Verify the Submit Order button is visible</p>",
-      "expected": "<p>A Submit Order button is present on the form</p>"
+      "expected": "<p>A Submit Order button is present on the form</p>",
+      "expectedTarget": {
+        "role": "button",
+        "name": "Submit order"
+      }
     }
   ],
   "parameters": [],

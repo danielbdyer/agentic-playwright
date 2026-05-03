@@ -42,6 +42,19 @@ export interface CompilePublicAutResult {
   readonly stepsTotal: number;
   readonly stepsMatched: number;
   readonly handoffsEmitted: number;
+  /** Cycle 8: total false positives across all cases. A
+   *  false-positive is a step where the runner matched some DOM
+   *  element but the matched element is NOT the operator-authored
+   *  expected target — the step "passed" on the wrong thing. */
+  readonly falsePositives: number;
+  /** Cycle 8: total verified semantic matches (matched element IS
+   *  the operator's expected target). */
+  readonly verifiedMatches: number;
+  /** Cycle 8: matched steps that lack an authored expectedTarget
+   *  and therefore could not be checked. Tracks the authoring
+   *  debt — verifiedMatches + falsePositives is the verifiable
+   *  population. */
+  readonly unverifiedSteps: number;
   readonly receiptsEmittedTo: string;
   readonly perCase: readonly PublicAutCaseResult[];
 }
@@ -90,11 +103,17 @@ export const compilePublicAutCommand = createCommandSpec({
         let stepsTotal = 0;
         let stepsMatched = 0;
         let handoffsEmitted = 0;
+        let falsePositives = 0;
+        let verifiedMatches = 0;
+        let unverifiedSteps = 0;
         for (const r of results) {
           autsRunSet.add(r.aut);
           stepsTotal += r.stepCount;
           stepsMatched += r.stepsMatched;
           handoffsEmitted += r.handoffsEmitted;
+          falsePositives += r.falsePositives;
+          verifiedMatches += r.verifiedMatches;
+          unverifiedSteps += r.unverifiedSteps;
         }
 
         const result: CompilePublicAutResult = {
@@ -104,6 +123,9 @@ export const compilePublicAutCommand = createCommandSpec({
           stepsTotal,
           stepsMatched,
           handoffsEmitted,
+          falsePositives,
+          verifiedMatches,
+          unverifiedSteps,
           receiptsEmittedTo: `${paths.rootDir}/workshop/logs/public-aut-receipts`,
           perCase: results,
         };

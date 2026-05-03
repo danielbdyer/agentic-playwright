@@ -3099,3 +3099,325 @@ recommendations:
    tier robustness audit.
 3. **A second held-out AUT.** N≥2 makes the
    generalization trajectory diff-able cycle-over-cycle.
+
+---
+
+# Cycle 8 — cleanup, semantic correctness, plain language
+
+> Cycle 8 begins 2026-05-02. The previous cycle's reflection
+> surfaced two real problems: (a) the journal had drifted into
+> internal jargon that a stakeholder couldn't follow, and (b) we
+> had been quietly using the held-out site to improve the system,
+> contaminating the very thing we were supposed to be measuring.
+> This cycle is a deliberate reset, written in plain English.
+
+## Entry 32 — what we're cleaning up, and why
+
+**The simple version.** We have two test sites: TodoMVC (a
+to-do-list app) and httpbin's customer-order form. We told
+ourselves we'd treat httpbin as a "held-out" site — meaning,
+don't peek at how the system fails on it; just run it once at
+the end to see if the system works on a fresh site it was never
+tuned against.
+
+We did not honor that. In cycles 6 and 7, when the system
+stumbled on httpbin, we adjusted the system based on what we
+saw. The fixes we made are real and useful — they would help
+the system on any site, not just httpbin — but the *claim*
+"we measured how well the system generalizes to a new site"
+no longer holds. We grade-graded our own homework.
+
+**The specific events.**
+
+- **Cycle 6 added "observe role-suffix" recognition** (the system
+  learned to treat "Verify the X button is visible" the way it
+  treats "Click the X button"). The motivation was a mix of
+  TodoMVC and httpbin failures, so this one is borderline. Call
+  it co-observed; honest people could disagree about whether it's
+  a leak.
+- **Cycle 7 added "article rejection"** (the system stopped
+  treating words like "the" as a name). The motivation was
+  *entirely* one httpbin step that misfired. That fix is a clean
+  classifier improvement, but it was driven by held-out
+  evidence. Call it a leak.
+
+**What we're doing about it.**
+
+1. **Reclassify httpbin as a training site** in
+   `cohort.json`. Per the spike's clean-room rule §4.4 C4,
+   promoting a site from held-out to training is allowed and
+   irreversible (the reverse — promoting a training site to
+   held-out — would be cheating, since canon has been allowed
+   to graduate from it). Manifest entry now records
+   `promotionReason` and `promotedFrom` for the audit trail.
+2. **Stop reporting "generalization gap" until a fresh
+   held-out exists.** The −11.1pp gap from cycle 7 was a
+   measurement against a contaminated held-out. It is not a
+   credible generalization claim. Future cycles will not
+   report a gap until a new held-out site is designated and
+   the system has run against it for the first time.
+3. **No code is removed.** The classifier and runner
+   improvements from cycles 6 and 7 stay. They are useful
+   universally; demoting them serves no one. What we remove
+   is the *claim* about generalization, not the *code*.
+
+**Why this matters.** The whole point of having a held-out
+site is to give a stakeholder a credible answer to: *"How do
+we know this works on apps the system has never seen?"*
+Without a clean held-out, we cannot answer that question
+honestly. The cleanup admits the gap and starts rebuilding the
+answer from a known-clean baseline.
+
+**What the cohort manifest looks like after this cycle:**
+
+| AUT | Partition | Notes |
+|---|---|---|
+| TodoMVC (React) | training | original training site, cycles 1–8 |
+| httpbin form | training | promoted from held-out in this cycle; canon was influenced by it during cycles 6–7 |
+| (held-out designation) | – | open; awaiting operator pick (Entry 33) |
+
+---
+
+## Entry 33 — process for designating the next held-out site
+
+**The principle.** The operator (the human, not the agent) picks
+the next held-out site. The agent does not contact the URL until
+the operator says: "Run the held-out evaluation now." Until
+then, no inspection, no fixture authoring against it, no
+classifier tuning that might be motivated by knowledge of its
+failure modes.
+
+**Criteria for a good held-out site.**
+
+1. **Reachable.** The sandbox's egress policy must allow it.
+   Confirmed reachable from this environment as of cycle 8:
+   `todomvc.com/examples/jquery/`, `example.com`,
+   `httpbin.org/*`, `www.outsystems.com`. Many other sites
+   (Wikipedia, GitHub, etc.) are blocked.
+2. **Stable.** Demo apps and reference sites that don't drift
+   weekly. Anything that could be redesigned without notice is
+   risky.
+3. **Genuinely different from training.** A different framework,
+   different chrome density, different ARIA quality. The
+   point is to test transfer, not just to test a slightly-
+   different version of what we already tested.
+4. **Self-contained.** No login, no rate limiting, ideally
+   single-screen or simple multi-screen.
+5. **Public and intended for testing or demo.** Don't pick a
+   real customer's product or anything that scraping policy
+   would object to.
+
+**Candidates to consider** (operator picks):
+
+- **A public OutSystems Reactive demo.** This was the spike's
+  original idea (§5). It bridges to the substrate-ladder
+  rung-4 work and would expose the system to real
+  OutSystems-specific markers (`osui-*` classes, `__OSVSTATE`).
+  Specific URL still operator's call.
+- **TodoMVC vanilla-JS or Backbone variant.** Same app
+  family as TodoMVC training, but different framework. Tests
+  framework-transfer narrowly.
+- **A different reference form or app** of the operator's
+  choosing.
+
+**The protocol when a held-out is designated:**
+
+1. Operator adds an entry to `cohort.json` with
+   `partition: 'held-out'`. **Operator only.** The agent does
+   not run anything against the URL until step 4.
+2. Operator hand-authors fixtures for the held-out site,
+   inspecting the site personally. The fixtures are NOT
+   driven by knowledge of how the agent currently fails on
+   training; they are driven by what a senior QA would write.
+3. Code changes between designation and evaluation must be
+   **principled** — defensible without reference to held-out
+   evidence. If a fix is motivated by a held-out failure, it
+   contaminates the held-out and the cycle becomes a
+   training cycle for that site.
+4. When ready, operator says "evaluate the held-out now."
+   The agent runs the fixtures once. The hit rate, false-
+   positive rate, and any other measurements become the
+   real generalization measurement.
+
+**What we are not doing this cycle.** Designating a new
+held-out site is the operator's call. This entry exists so
+the operator can make that call deliberately. The agent will
+not pick one autonomously.
+
+
+---
+
+## Entry 34 — what the semantic-correctness check caught
+
+We added one new piece of information to every test step: the
+**expected target**. Test author writes: "click the Submit Order
+button" — and ALSO writes (separately) "I mean the button with
+role=button and accessible name 'Submit order'." The runner
+finds an element by following the words, then asks: "Is the
+element I found the same one the test author meant?"
+
+The check fires at three levels:
+
+- **expected-match** — found the right thing. The runner's
+  match agrees with the operator's intent.
+- **wrong-target** — found something, but it's not what the
+  test author meant. **This is a false positive — the step
+  looks like it passed but it didn't actually do what the
+  test asked.**
+- **not-applicable / unverified / not-found** — the check
+  didn't apply (navigate, press, no expectedTarget, or
+  nothing was found in the first place).
+
+**What the cohort run produced:**
+
+| Metric | Value |
+|---|---|
+| Total step-actions | 18 |
+| Steps matched (any element found) | 15 (83%) |
+| **Verified-correct matches** (right element) | 7 |
+| **False positives** (matched the wrong thing) | **1** |
+| Not applicable (navigate/press) | 7 |
+| Unverified (no expectedTarget authored) | 0 |
+| No-match handoffs | 3 |
+
+**The one false positive:** TodoMVC test 91002 step 2.
+
+The test reads: *"Click the toggle checkbox next to the todo."*
+After preconditions add a "Buy milk" todo, the runner matches
+on "any checkbox with 'toggle' in its accessible name" — which
+is the **toggle-all-todos** checkbox (its label is "Toggle All
+Input"). The runner clicks toggle-all, marking *all* todos
+complete. The test wanted the per-todo checkbox next to the
+"Buy milk" item.
+
+Before this cycle, that step reported `matched`. The receipt
+looked like success. Anyone reading the report would say "the
+system handled this test."
+
+In this cycle's receipt, the same step now reads:
+
+> `targetCorrectness: 'wrong-target'`
+> `detail: "expected role='checkbox' + name='Buy milk' but no
+> element on the page matches that description"`
+
+The bug is now visible at the metric level. A reviewer can
+look at the cohort summary and see: 1 false positive across
+the 18 steps. They can drill into the receipt and see exactly
+which step misfired and why.
+
+**What this changes for the headline:**
+
+For seven cycles I reported "X% of steps matched." That number
+counted "found something matching the words." It did not
+distinguish "found the right thing" from "found a wrong thing
+that happens to match the description."
+
+Cycle 8's headline shape is two numbers, not one:
+
+- **Hit rate:** 15 of 18 steps found *something* that satisfies
+  the prose (83%).
+- **Verified-correct rate:** 7 of 8 verifiable matches actually
+  did the right thing (88%). The other 1 was a false positive.
+
+Both numbers matter. The first says "the system attempts and
+succeeds at finding elements." The second says "the system is
+finding the *right* elements." Pre-cycle-8, only the first
+existed.
+
+**What we also learned:** Order-of-operations bug in my own
+verification logic. The first version of the check ran AFTER
+the action. For click-actions that navigate away (form
+submission, hash route change), the matched element was no
+longer on the page when the check ran, so the check
+incorrectly reported wrong-target. Fixed by moving the check
+to BEFORE the action — both matched and expected locators
+must compare against the same DOM snapshot. This was caught
+by the cohort run itself (httpbin 91102.3 misreported as
+wrong-target until I moved the check), which is the cohort's
+self-correcting discipline doing its job.
+
+---
+
+## Entry 35 — what stakeholder can be told now
+
+This is what an honest one-paragraph stakeholder summary
+looks like at the end of cycle 8. **Plain English, no
+internal jargon.**
+
+> We have a system that takes a written test case in normal
+> English and runs it in a real browser, no Playwright code
+> required. We've tested it on 6 hand-written test cases
+> spanning a React todo-list app and a customer-order form.
+> Out of 18 individual step-actions, the system handles 15
+> on its own. Of those 15, we verified 7 actually did what
+> the test author meant; 1 silently did the wrong thing
+> (clicked an unintended target); and 7 are
+> not-applicable-to-verify (navigation and keypress
+> actions). The 3 it doesn't handle are observation
+> assertions whose phrasing doesn't match what's literally
+> on the page (e.g., "verify the count decreases by one" —
+> the page shows "0 items left", which doesn't contain the
+> phrase "decreases by"). **The system is genuinely
+> functional on real public websites and now has the
+> machinery to flag false positives — the most dangerous
+> failure mode for any test runner — automatically.**
+
+**What we still cannot honestly claim:**
+
+- **Generalization to apps the system has never seen.** The
+  spike-doc concept of a "held-out" site to measure that
+  was contaminated in cycles 6–7 (we used the held-out site
+  to drive code improvements). That site is now training.
+  A new held-out site is operator's call (Entry 33). Until
+  it lands and runs, we don't have a generalization
+  measurement.
+- **Cost.** We track per-case latency in receipts but
+  haven't surfaced it in summary. When we add a real LLM
+  for harder cases (currently the system is heuristic-only),
+  token cost becomes the third number to track.
+- **Comparison to a human writing Playwright by hand.** No
+  baseline yet. A future cycle should hand-author Playwright
+  versions of the same fixtures and compare runtime + flake
+  rate.
+
+**The trajectory across eight cycles, restated honestly:**
+
+| Cycle | Steps matched | False positives surfaced | Notes |
+|---|---|---|---|
+| 1–4 | 1/9 → 5/9 (TodoMVC only) | unmeasured | building the runner |
+| 5 | 5/9 + 6/9 (held-out introduced) | unmeasured | first cohort run |
+| 6 | 5/9 + 8/9 | unmeasured | observe role-suffix |
+| 7 | 7/9 + 8/9 | unmeasured | preconditions + article rejection |
+| **8** | **7/9 + 8/9 (re-runs same)** | **1 surfaced + labeled** | **cleanup + verification** |
+
+Cycle 8 didn't move the matched-count needle. It changed what
+that number *means*. It also acknowledged that earlier "78%
+training, 89% held-out, generalization gap −11.1pp" claims
+were partially based on a contaminated held-out site, and
+those claims are retracted.
+
+**What's next, in priority order:**
+
+1. **Designate a fresh held-out site** (operator's call). The
+   process is documented in Entry 33; the agent waits for the
+   operator to pick.
+2. **Author the one-page product-owner brief** at
+   `docs/v2-cold-start-cohort-brief.md`. Three paragraphs.
+   What the system does, what's proven, what's not yet
+   proven. No journal references; just the facts.
+3. **Surface cost in the summary.** Latency per case, total
+   runtime, count of preconditions executed. Already in
+   receipts; just needs aggregation.
+4. **Address the 3 remaining handoffs** (observe-text-mismatch
+   on count assertions). The runner needs a way to know that
+   "decreases by one" is a verb phrase about a value, not
+   text to literally search for. This is a real classifier
+   gap; small but specific.
+
+**A note on tone, since the previous cycle's reflection.** I
+will keep this journal in plain English from here on. No
+"probe seeds" as the headline; no "confirmation rate" as a
+number to chase. The numbers that matter: hit rate, verified
+rate, false-positive rate, cost, and — eventually —
+generalization rate against a clean held-out. Everything
+else is internal to the developer.
