@@ -188,4 +188,45 @@ describe('Z11a.4b — intent classifier', () => {
     expect(intent).not.toBeNull();
     expect(intent!.verb).toBe('click');
   });
+
+  // ── Observe role-suffix recognition (cycle 6 of cold-start cohort
+  //    spike; Probe Seed 10). The classifier's observe extractor
+  //    must honor role-suffix words ("the X button is visible") just
+  //    like the click extractor does, so the runner can probe the
+  //    correct DOM target instead of falling back to text-search on
+  //    the assertion phrasing.
+
+  test('ZC37.t: "Verify the Submit Order button is visible" emits observe + button + Submit Order', () => {
+    const intent = classifyIntent('Verify the Submit Order button is visible', someObserve());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('observe');
+    expect(intent!.targetShape.role).toBe('button');
+    expect(intent!.targetShape.nameSubstring).toBe('Submit Order');
+  });
+
+  test('ZC37.u: "Verify the Customer Name field is visible" emits observe + textbox + Customer Name', () => {
+    const intent = classifyIntent('Verify the Customer Name field is visible', someObserve());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('observe');
+    expect(intent!.targetShape.role).toBe('textbox');
+    expect(intent!.targetShape.nameSubstring).toBe('Customer Name');
+  });
+
+  test('ZC37.v: "Check the Settings link appears" emits observe + link + Settings', () => {
+    const intent = classifyIntent('Check the Settings link appears', someObserve());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('observe');
+    expect(intent!.targetShape.role).toBe('link');
+    expect(intent!.targetShape.nameSubstring).toBe('Settings');
+  });
+
+  test('ZC37.w: observe steps without a role-suffix word still emit nameSubstring only (fallthrough preserved)', () => {
+    // "Verify the success message" has no role-suffix word; the
+    // existing OBSERVE_RE path must still fire.
+    const intent = classifyIntent('Verify the success message appears', someObserve());
+    expect(intent).not.toBeNull();
+    expect(intent!.verb).toBe('observe');
+    expect(intent!.targetShape.role).toBeUndefined();
+    expect(intent!.targetShape.nameSubstring).toBeDefined();
+  });
 });

@@ -1,6 +1,6 @@
 /**
  * Public-AUT cohort runner — Floor A.5 (with cycle-4
- * narrative-execute).
+ * narrative-execute, cycle-6 first-word fallback).
  *
  * For each case in the cohort:
  *   1. Run the heuristic intent classifier on every step to extract
@@ -8,7 +8,9 @@
  *   2. Launch Playwright, navigate to `snapshot.targetAut`.
  *   3. For each classified step:
  *      a. Probe the DOM (getByRole / getByText / press-verb skips
- *         this step).
+ *         this step). When a multi-word nameSubstring query returns
+ *         0 matches, try the first word alone (cycle-6 Probe Seed 7
+ *         fallback).
  *      b. If the probe matched (or the verb is press),
  *         **narrative-execute**: perform the action so subsequent
  *         steps see the resulting page state. (Cycle 4: Probe Seed
@@ -16,9 +18,15 @@
  *   4. Record per-step outcome (probe result + action result) and
  *      emit a JSON receipt per case.
  *
- * The cohort role ('training' | 'held-out') is checked through
- * cohort-trust-guard before any side-effecting probe, planting the
- * spike's §4.4 C2 invariant in code (Cycle 4).
+ * Observation-only contract (cycle 5 Probe Seed 9, Entry 21): this
+ * runner probes the DOM and writes append-only receipts. Receipts
+ * are evidence, not canon. **No code path in this file may graduate
+ * canon (catalog writes / proposal activations / trust-policy
+ * threshold updates).** The cohort-trust-guard helper at
+ * `cohort-trust-guard.ts` enforces §4.4 C2 at canon-write seams
+ * when those seams land in future cycles; today there are no such
+ * seams in the runner. Receipts carry `cohortRole` so post-hoc
+ * audits can detect any future leakage.
  *
  * This is not the full compile pipeline; it skips parse/bind and
  * the 11-rung resolution ladder. Sophistication migrates here as
@@ -168,14 +176,6 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
       : page.getByRole(role as Parameters<Page['getByRole']>[0]);
     const count = await locator.count();
     const queryRationale = `getByRole('${role}'${queryName ? `, { name: ${queryName} }` : ''})`;
-    if (count === 0) {
-      return {
-        resolution: 'not-found',
-        matchCount: 0,
-        rationale: `${queryRationale} returned 0 matches`,
-        matchedLocator: null,
-      };
-    }
     if (count === 1) {
       return {
         resolution: 'matched',
@@ -184,10 +184,51 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
         matchedLocator: locator,
       };
     }
+    if (count > 1) {
+      return {
+        resolution: 'ambiguous',
+        matchCount: count,
+        rationale: `${queryRationale} matched ${count} elements`,
+        matchedLocator: null,
+      };
+    }
+    // count === 0 — try the cycle-6 first-word fallback (Probe Seed 7):
+    // when the classifier extracts a multi-word nameSubstring that
+    // includes descriptive context ("Active filter", "Submit Order"
+    // followed by a context-only word), the multi-word query may miss
+    // even when the actual element is named with just the first
+    // word. Re-probe with first-word-only and report the rationale
+    // honestly.
+    if (nameSubstring && hasMultipleWords(nameSubstring)) {
+      const firstWord = firstWordOf(nameSubstring);
+      const firstWordQuery = buildNameQuery(firstWord);
+      const firstWordLocator = page.getByRole(
+        role as Parameters<Page['getByRole']>[0],
+        { name: firstWordQuery },
+      );
+      const firstWordCount = await firstWordLocator.count();
+      const fwQueryRationale = `getByRole('${role}', { name: ${firstWordQuery} }) [first-word fallback after ${queryRationale} returned 0]`;
+      if (firstWordCount === 1) {
+        return {
+          resolution: 'matched',
+          matchCount: 1,
+          rationale: `${fwQueryRationale} matched exactly 1 element`,
+          matchedLocator: firstWordLocator,
+        };
+      }
+      if (firstWordCount > 1) {
+        return {
+          resolution: 'ambiguous',
+          matchCount: firstWordCount,
+          rationale: `${fwQueryRationale} matched ${firstWordCount} elements`,
+          matchedLocator: null,
+        };
+      }
+    }
     return {
-      resolution: 'ambiguous',
-      matchCount: count,
-      rationale: `${queryRationale} matched ${count} elements`,
+      resolution: 'not-found',
+      matchCount: 0,
+      rationale: `${queryRationale} returned 0 matches`,
       matchedLocator: null,
     };
   } catch (err) {
@@ -198,6 +239,16 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
       matchedLocator: null,
     };
   }
+}
+
+function hasMultipleWords(s: string): boolean {
+  return /\s/.test(s.trim());
+}
+
+function firstWordOf(s: string): string {
+  const trimmed = s.trim();
+  const ws = trimmed.search(/\s/);
+  return ws < 0 ? trimmed : trimmed.slice(0, ws);
 }
 
 async function probeByText(page: Page, nameSubstring: string): Promise<ProbeResult> {

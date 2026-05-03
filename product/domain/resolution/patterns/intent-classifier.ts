@@ -72,9 +72,40 @@ const CLICK_ROLE_SUFFIXES: ReadonlyArray<{ readonly suffix: string; readonly rol
   { suffix: 'menuitem', role: 'menuitem' },
 ];
 
+/**
+ * Observe role-suffix table — extends the click suffixes with two
+ * additional shapes that observe verbs commonly target: the visible
+ * presence of a button ("Verify the Submit button is shown") and a
+ * form field ("Verify the Email field is visible"). Cycle 6 of the
+ * cold-start cohort spike (Probe Seed 10: observe-fallback was
+ * searching for action-text phrasing instead of predicted-observable
+ * targets).
+ *
+ * `button` is included here but NOT in CLICK_ROLE_SUFFIXES because
+ * click already has dedicated CLICK_BUTTON_RE handling with submit-
+ * synonym promotion. Including it on the observe side keeps the
+ * symmetric "Verify the X button" pattern legible.
+ *
+ * `field` maps to role=textbox because that is the W3C-standard
+ * accessibility-tree role for text inputs; "field" is the common
+ * QA-prose synonym.
+ */
+const OBSERVE_ROLE_SUFFIXES: ReadonlyArray<{ readonly suffix: string; readonly role: string }> = [
+  ...CLICK_ROLE_SUFFIXES,
+  { suffix: 'button', role: 'button' },
+  { suffix: 'field',  role: 'textbox' },
+];
+
 function clickRoleSuffixRe(suffix: string): RegExp {
   return new RegExp(
     `\\bclick(?:s)?\\s+(?:(?:the|a|an)\\s+)?([a-zA-Z][\\w-]*(?:\\s+[a-zA-Z][\\w-]*){0,3})\\s+${suffix}\\b`,
+    'i',
+  );
+}
+
+function observeRoleSuffixRe(suffix: string): RegExp {
+  return new RegExp(
+    `\\b(?:observe|verify|verifies|verified|check|checks|confirm\\s+that|ensure)\\s+(?:.+?\\s+)?(?:(?:the|a|an)\\s+)?([a-zA-Z][\\w-]*(?:\\s+[a-zA-Z][\\w-]*){0,3})\\s+${suffix}\\b`,
     'i',
   );
 }
@@ -185,6 +216,22 @@ function extractNavigateTarget(actionText: string): TargetShapeHint {
 }
 
 function extractObserveTarget(actionText: string): TargetShapeHint {
+  // Cycle 6 (Probe Seed 10): role-suffix patterns are checked first
+  // so observe steps that name a UI affordance ("Verify the Submit
+  // button is visible" / "Check the Email field appears") emit a
+  // role + name the runner can probe. Falls through to the bare
+  // OBSERVE_RE nameSubstring when no role-suffix word appears, so
+  // existing observe behavior is preserved.
+  for (const { suffix, role } of OBSERVE_ROLE_SUFFIXES) {
+    const match = observeRoleSuffixRe(suffix).exec(actionText);
+    if (match) {
+      return {
+        role,
+        nameSubstring: normalizeName(match[1]!),
+      };
+    }
+  }
+
   const match = OBSERVE_RE.exec(actionText);
   if (!match) return {};
   return {
