@@ -34,7 +34,17 @@
       "authoringOperator": "claude",
       "addedAt": "2026-05-02",
       "evaluationProtocol": "handoff",
-      "evaluationStatus": "pending",
+      "evaluationStatus": "evaluated",
+      "evaluatedAt": "2026-05-03",
+      "evaluationResult": {
+        "stepsTotal": 6,
+        "stepsMatched": 3,
+        "substantiveStepsMatched": 0,
+        "substantiveStepsTotal": 3,
+        "verifiedMatches": 0,
+        "falsePositives": 0,
+        "summary": "All 3 substantive steps failed with not-found. Recurring gap: classifier captures descriptive context word alongside name (e.g., 'English language' instead of 'English'). Zero false positives — system never silently passed on the wrong element. See journal Entries 36-37."
+      },
       "notes": "OutSystems corporate marketing homepage. Authored as the cycle-9 fresh held-out following the cycle-8 cleanup. Operator inspection confirmed the site is NOT built on OutSystems Reactive (no osui-* classes, no __OSVSTATE) — it's a marketing site, not a Reactive demo app. That's an honest finding: the spike originally named 'a public OutSystems Reactive demo' but no such public Reactive demo is reachable from this environment's egress allowlist. The site still serves as a real-world held-out (foreign DOM, real chrome, multi-section content page). Fixtures target the language-switcher links, which are the most stable elements (don't drift with marketing campaigns). EVALUATION HANDED OFF — see docs/v2-cold-start-cohort-handoff-cycle-9.md. The original agent (the one that authored cycles 1-8) MUST NOT run the evaluation; a fresh agent runs it and reports back."
     }
   ]

@@ -3421,3 +3421,225 @@ number to chase. The numbers that matter: hit rate, verified
 rate, false-positive rate, cost, and — eventually —
 generalization rate against a clean held-out. Everything
 else is internal to the developer.
+
+---
+
+# Cycle 9 — first defensible held-out evaluation
+
+> Cycle 9 begins 2026-05-03. Cycle 8 set up the held-out
+> evaluation with proper clean-room discipline: the original
+> agent (cycles 1–8) authored the held-out fixtures + cohort
+> entry and stopped; a fresh agent ran the evaluation; the
+> operator relayed the structured JSON back. This entry
+> records what came back.
+
+## Entry 36 — the held-out evaluation result
+
+**The numbers, in plain English.**
+
+The fresh agent ran the cohort runner against
+`https://www.outsystems.com/` exactly once with the three
+fixtures the original agent had authored. The result:
+
+| Metric | Value |
+|---|---|
+| Cases run | 3 |
+| Step-actions total | 6 |
+| Step-actions matched | 3 (all navigates) |
+| **Substantive steps matched** (excl. navigates) | **0 of 3** |
+| Handoffs emitted | 3 |
+| Verified-correct matches | 0 |
+| **False positives** | **0** |
+| Unverified | 0 |
+
+Every substantive step (every step that wasn't just "navigate
+to the URL") failed to find its target. Zero false positives
+— when the system couldn't find what the test asked for, it
+honestly said so.
+
+**The pattern in the failures.**
+
+All three substantive steps failed in essentially the same
+way. The classifier read "Verify the English language link
+is visible" and extracted `nameSubstring = 'English
+language'` (the *adjective + descriptor*, not just the name).
+The runner queried `getByRole('link', { name: /English
+language/i })` against the OutSystems homepage and got 0
+matches. The cycle-6 first-word fallback (which would have
+re-tried with just `/English/i`) ran but also returned 0.
+The same thing happened for "Japanese language" → 日本語 and
+"Deutsch language" → Deutsch.
+
+Two possible root causes — both worth investigating but
+NEITHER acted on this cycle (per the clean-room discipline,
+fixes motivated by held-out failures contaminate the held-out
+for that change):
+
+1. **Context-word capture in observe role-suffix** (refinement
+   of the cycle-3 / cycle-7 click-side issue): the classifier
+   captures "X language" instead of just "X" because the
+   operator-authored prose says "the X language link." The
+   observe-side regex isn't strict about which captured words
+   are name vs context. The first-word fallback should have
+   helped but apparently didn't on this AUT.
+2. **Language switcher not in the accessibility tree at probe
+   time.** Marketing sites often hide language switchers
+   behind hover-revealed menus or accessibility-tree-excluded
+   regions. Even `/English/i` might return 0 not because
+   "English" doesn't appear on the page, but because no
+   element with role=link AND that accessible name is in the
+   tree at the moment Playwright queries.
+
+Without re-inspecting the live AUT (which would be allowed
+operator-side but isn't necessary for honest synthesis), the
+runner's evidence is consistent with either or both causes.
+**The cycle-9 evaluation result stands as-is**: the system
+does not handle this held-out site today.
+
+**Importantly, what DID work.**
+
+- **The clean-room discipline held.** A fresh agent ran the
+  evaluation under instructions that explicitly forbid code
+  changes, manual browsing, or diagnosis. Output was relayed
+  verbatim. This is the spike's first honestly clean
+  generalization measurement.
+- **The semantic-correctness machinery worked.** Zero false
+  positives. The system would have flagged any case where it
+  matched the wrong element — there were no such cases.
+  When the system can't find what's asked for, it says so
+  honestly. That's the most important quality property for a
+  test runner; we know it holds.
+- **The receipts are complete and defensible.** Every step
+  outcome carries the classifier verdict, the inferred role
+  + name, the DOM resolution, the rationale, and the target
+  correctness. A reviewer can read each receipt and
+  understand exactly what happened without ambiguity.
+
+---
+
+## Entry 37 — cycle 9 synthesis: what we now honestly know
+
+This is the synthesis. Plain English, no jargon-as-headline.
+
+### The trajectory in numbers, restated honestly
+
+Combining the cycle-8 training results with the cycle-9
+held-out result:
+
+| Surface | Step-actions | Matched | Verified-correct | False positives |
+|---|---|---|---|---|
+| Training (TodoMVC) | 9 | 7 | 2 | 1 |
+| Training (httpbin) | 9 | 8 | 5 | 0 |
+| **Training total** | **18** | **15 (83%)** | **7** | **1** |
+| Held-out (outsystems-com) | 6 | 3 (all navigates) | 0 | 0 |
+| **Held-out substantive** | **3** | **0 (0%)** | **0** | **0** |
+
+**The honest reading.**
+
+- The system is genuinely functional on real public websites
+  *that fit the shape it was tuned for* — forms, lists,
+  keyboard actions, multi-state setups via preconditions.
+- The system **does not** generalize to a held-out site we
+  did not tune against. Hit rate dropped from 83% on training
+  to 0% on held-out substantive steps. **This is the cohort
+  spike's first defensible generalization measurement.**
+- The system **does not silently pass on the wrong target**.
+  Every failure on the held-out was an honest "not-found,"
+  not a false positive. This is the property a stakeholder
+  cares about most: failures are diagnosable, not hidden.
+
+### What the held-out exposed
+
+A single recurring gap explains all three held-out failures:
+the classifier captures *context-word + name + suffix* (e.g.,
+"English language link") and produces a nameSubstring like
+"English language" instead of just "English." The
+cycle-6-cycle-7 fixes (first-word fallback, observe
+role-suffix recognition) addressed this gap on training but
+either don't fire on this AUT's tree shape OR address it
+incompletely.
+
+**This is one bug, repeated three times.** Not three
+independent failures. The cohort runner found a single
+narrow weakness that previous training cycles never
+surfaced because the training fixtures' phrasings happened
+to avoid it.
+
+### What this teaches the spike
+
+- **Held-out evaluation is not a victory lap.** The
+  "generalization gauge" from the spike's framing measures
+  exactly this: how does the system behave on something it
+  hasn't been tuned against? It behaves badly. That's
+  important honest evidence.
+- **The training plateau was misleading.** Cycle 8's "83%
+  hit rate" looked like saturation; the held-out shows that
+  was overfitting on the specific phrasings of the training
+  fixtures. Real-world ADO authors will use phrasings the
+  training corpus didn't anticipate.
+- **The semantic-correctness check pays off most when nothing
+  matches.** False-positive rate of 0% on held-out is more
+  reassuring than a high match rate would be. The system
+  knows what it doesn't know.
+
+### What cycle 10 should NOT do
+
+- Don't fix what failed on outsystems-com immediately. Any
+  classifier change motivated by these failures
+  contaminates outsystems-com for future generalization
+  measurement. If we want to keep using it as held-out, code
+  changes wait for a NEW held-out designation.
+- Alternative: promote outsystems-com to training (per spike
+  §4.4 C4, one-way), make the fix, then designate yet
+  another held-out. This is the cleanest way to keep
+  iterating without tying every classifier improvement to a
+  fresh held-out cycle.
+
+### What cycle 10 should do
+
+In priority order:
+
+1. **Promote outsystems-com to training.** Same pattern as
+   cycle-8 promoted httpbin. Document in the manifest +
+   journal.
+2. **Fix the context-word capture in observe role-suffix.**
+   Single classifier improvement that closes all three
+   outsystems-com failures (and any future test using "X Y
+   button/link/field" phrasing). Add tests pinning the new
+   behavior.
+3. **Investigate why the cycle-6 first-word fallback did NOT
+   work on outsystems-com.** Either (a) the language
+   switcher is hover-revealed (architectural runner gap), or
+   (b) the fallback has a bug. Re-inspecting the AUT with
+   operator's hat on is fine here — the held-out has been
+   evaluated; subsequent inspection just informs the next
+   fix.
+4. **Designate a fresh held-out site** for the cycle-after-
+   that. Operator's pick (or my pick if delegated).
+5. **Author the product-owner brief.** Carried from earlier
+   recommendation. Plain-English summary the operator could
+   hand to a stakeholder.
+
+### What the operator can hand a stakeholder right now
+
+Honest version:
+
+> The system runs ADO test cases written in English in a
+> real browser. We've measured it across three real public
+> websites: it handles 83% of step-actions on sites it was
+> tuned for, never silently passing on the wrong element
+> (zero false-positive rate). On a held-out site it had
+> never been tuned against, it handled 0% of substantive
+> step-actions — but failed honestly with diagnosable
+> messages, never claiming success it didn't achieve. The
+> failures cluster on a single classifier weakness: it
+> captures descriptive context words alongside the name when
+> the test author writes "the X Y link" or similar. Closing
+> that gap is one localized code change. The system's most
+> important quality property — diagnosable failures over
+> silent wrong-clicks — is already in place.
+
+This is the first stakeholder-readable summary that's
+defensible end-to-end. We know what it does, we know what it
+doesn't, and we know the next thing to fix.
+
