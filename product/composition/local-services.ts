@@ -1,3 +1,4 @@
+import path from 'path';
 import { Effect, Layer } from 'effect';
 import {
   AdoSource,
@@ -30,8 +31,11 @@ import type { AgentInterpretationResult } from '../domain/interpretation/agent-i
 import { Reasoning, type ReasoningService } from '../reasoning/reasoning';
 import {
   DEFAULT_TRANSLATION_CONFIG,
+  createClaudeCodeSessionReasoning,
   createDeterministicReasoning,
   createReasoning,
+  createRecordReasoning,
+  createReplayReasoning,
   resolveAgentInterpreterPort,
   resolveTranslationProvider,
 } from '../reasoning/adapters';
@@ -77,6 +81,34 @@ export interface LocalServiceOptions {
    *  automatically. Either way the `Reasoning.Tag` is wired into the
    *  layer so sagas can `yield* Reasoning`. */
   readonly reasoning?: ReasoningService | undefined;
+  /** Z11d — reasoning-pool adapter selection (`--reasoning-mode`).
+   *  'record' | 'replay' | 'live' select the pool-adapter triad;
+   *  'deterministic' forces the zero-cost adapter. Unset preserves
+   *  the pre-Z11d composition. Explicit `reasoning` injection wins. */
+  readonly reasoningMode?: 'record' | 'replay' | 'live' | 'deterministic' | undefined;
+  /** Z11d — pool directory override (`--reasoning-pool`). Resolved
+   *  relative to the workspace root when not absolute. Default:
+   *  `.tesseract/reasoning-pool`. */
+  readonly reasoningPoolDir?: string | undefined;
+}
+
+/** Z11d — fold the reasoning-mode selection into an adapter factory.
+ *  Exhaustive over the four modes; `null` means "mode not set, use
+ *  the legacy composition". */
+function reasoningForMode(
+  mode: NonNullable<LocalServiceOptions['reasoningMode']>,
+  poolDir: string | undefined,
+): ReasoningService {
+  switch (mode) {
+    case 'record':
+      return createRecordReasoning({ poolDir });
+    case 'replay':
+      return createReplayReasoning({ poolDir });
+    case 'live':
+      return createClaudeCodeSessionReasoning({ poolDir });
+    case 'deterministic':
+      return createDeterministicReasoning();
+  }
 }
 
 export interface LocalServiceContext {
@@ -130,15 +162,22 @@ export function createLocalServiceContext(rootDir: string, options?: LocalServic
       ? createLocalRuntimeScenarioRunnerWithInterpreter(options.agentInterpreter)
       : LocalRuntimeScenarioRunner;
 
-  // Reasoning port (v2 §3.6). Adapter priority: explicit option → composite
-  // of v1 providers → deterministic fallback for ci-batch.
+  // Reasoning port (v2 §3.6 + Z11d plan §5.3). Adapter priority:
+  //   1. explicit injection → 2. ci-batch profile → deterministic →
+  //   3. --reasoning-mode → pool-adapter triad → 4. composite of v1
+  //   providers.
+  const poolDir = options?.reasoningPoolDir !== undefined && !path.isAbsolute(options.reasoningPoolDir)
+    ? path.join(rootDir, options.reasoningPoolDir)
+    : options?.reasoningPoolDir ?? path.join(rootDir, '.tesseract', 'reasoning-pool');
   const reasoning: ReasoningService = options?.reasoning ?? (
     posture.executionProfile === 'ci-batch'
       ? createDeterministicReasoning()
-      : createReasoning({
-          translation: resolveTranslationProvider({ config: DEFAULT_TRANSLATION_CONFIG, profile: posture.executionProfile }),
-          agent: options?.agentInterpreter ?? resolveAgentInterpreterPort(),
-        })
+      : options?.reasoningMode !== undefined
+        ? reasoningForMode(options.reasoningMode, poolDir)
+        : createReasoning({
+            translation: resolveTranslationProvider({ config: DEFAULT_TRANSLATION_CONFIG, profile: posture.executionProfile }),
+            agent: options?.agentInterpreter ?? resolveAgentInterpreterPort(),
+          })
   );
   const dashboard = options?.dashboard ?? DisabledDashboard;
   const stageTracer: StageTracerPort = options?.dashboard

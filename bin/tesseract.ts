@@ -48,6 +48,7 @@ async function main(): Promise<void> {
   const execution = await runWithLocalServicesDetailed(baseProgram, rootDir, {
     posture,
     suiteRoot: paths.suiteRoot,
+    ...(invocation.serviceOptions ?? {}),
   });
   logIncrementalStatus(invocation.command, execution.result);
   logJson({

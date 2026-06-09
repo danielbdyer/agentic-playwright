@@ -11,10 +11,17 @@ export const probeAdapters = [
   'playwright-live',
   'production',
 ] as const;
+/** Z11d — reasoning-pool adapter selection (plan §9.1):
+ *  'record' — pending-only; every call writes pending, halts step.
+ *  'replay' — read-only; cache hits proceed, misses halt step.
+ *  'live'   — composite: replay-first, record-on-miss.
+ *  'deterministic' — existing deterministic adapter (unchanged). */
+export const reasoningModes = ['record', 'replay', 'live', 'deterministic'] as const;
 
 export type InterpreterMode = (typeof interpreterModes)[number];
 export type ExecutionProfile = (typeof executionProfiles)[number];
 export type ProbeAdapter = (typeof probeAdapters)[number];
+export type ReasoningMode = (typeof reasoningModes)[number];
 
 export interface ParsedFlags {
   adoAreaPath?: string;
@@ -105,6 +112,13 @@ export interface ParsedFlags {
    *  §4.4 C2); enforcement plumbing in the trust-policy gate is the
    *  next-cycle seed. */
   cohortRole?: string;
+  /** Z11d — reasoning-pool adapter selection. Unset preserves the
+   *  pre-Z11d composition (composite of v1 providers, deterministic
+   *  under ci-batch). */
+  reasoningMode?: ReasoningMode;
+  /** Z11d — reasoning-pool directory override. Default:
+   *  `.tesseract/reasoning-pool`. */
+  reasoningPool?: string;
 }
 
 export type FlagName = keyof typeof flagDescriptorTable;
@@ -168,6 +182,8 @@ type FlagToParsedKey = {
   '--corpus': 'corpus';
   '--aut': 'aut';
   '--cohort-role': 'cohortRole';
+  '--reasoning-mode': 'reasoningMode';
+  '--reasoning-pool': 'reasoningPool';
 };
 type ParsedFlagKeys<TFlags extends readonly FlagName[]> = FlagToParsedKey[TFlags[number]];
 export type ParsedFlagsFor<TFlags extends readonly FlagName[]> = Partial<Pick<ParsedFlags, ParsedFlagKeys<TFlags>>>;
@@ -187,6 +203,14 @@ export interface CommandExecution {
     noWrite?: boolean;
     baseline?: boolean;
     isCI?: boolean;
+  };
+  /** Z11d — composition-layer options the command threads into
+   *  `LocalServiceOptions` (reasoning-pool adapter selection). Only
+   *  commands whose programs consult the Reasoning port declare
+   *  these; the CLI entry spreads them into the service context. */
+  serviceOptions?: {
+    reasoningMode?: ReasoningMode;
+    reasoningPoolDir?: string;
   };
   execute(paths: ProjectPaths, posture: ExecutionPosture): Effect.Effect<unknown, unknown, unknown>;
 }
@@ -453,6 +477,8 @@ export const flagDescriptorTable = {
   '--corpus': valueDescriptor('--corpus', 'corpus', (value) => readFlagValue('--corpus', value)),
   '--aut': valueDescriptor('--aut', 'aut', (value) => readFlagValue('--aut', value)),
   '--cohort-role': valueDescriptor('--cohort-role', 'cohortRole', (value) => readFlagValue('--cohort-role', value)),
+  '--reasoning-mode': valueDescriptor('--reasoning-mode', 'reasoningMode', (value) => parseEnum('--reasoning-mode', value, reasoningModes)),
+  '--reasoning-pool': valueDescriptor('--reasoning-pool', 'reasoningPool', (value) => readFlagValue('--reasoning-pool', value)),
 } as const;
 
 export type FlagDecodeResult = {
