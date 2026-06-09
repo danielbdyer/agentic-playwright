@@ -217,7 +217,15 @@ export type FingerprintTag =
   // Used by the hydration-detector's Phase C signature-
   // stability check (docs/v2-substrate-ladder-plan.d0a-harness-
   // design.md §4.3).
-  | 'snapshot-signature';
+  | 'snapshot-signature'
+  // Reasoning pool (Step 11 Z11d / docs/v2-live-adapter-plan.md
+  // §8.1). Keys a pending/filled reasoning-pool entry: the
+  // content-addressed hash of (op, promptText, model,
+  // temperature, closedParams). The reproducibility + cache-hit
+  // contract: identical prompts replay deterministically;
+  // wall-clock or UUIDs embedded in promptText are call-site
+  // bugs that forfeit cache hits by design (I-Fingerprint).
+  | 'reasoning-pool-key';
 
 /** Adopt an existing string as a tagged fingerprint. Use sparingly
  *  — this is the type-system "I know what I'm doing" escape hatch

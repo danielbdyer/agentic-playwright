@@ -191,6 +191,15 @@ export interface ReasoningReceipt<Op extends ReasoningOp> {
   readonly latencyMs: number;
   readonly promptFingerprint: string;
   readonly payload: ReasoningPayloadByOp[Op];
+  /** How `tokens` was obtained (Z11d, additive). 'estimated' for
+   *  claude-code-session fills (char-count ÷ 4); 'measured' when a
+   *  provider API reports usage; absent on pre-Z11d receipts, which
+   *  readers treat as 'unknown'. */
+  readonly tokensSource?: 'estimated' | 'measured' | 'unknown' | undefined;
+  /** Whether `latencyMs` reflects a real request/response interval
+   *  (Z11d, additive). `false` for claude-code-session replay —
+   *  session cadence is not API cadence. Absent on pre-Z11d receipts. */
+  readonly latencyMeasured?: boolean | undefined;
 }
 
 // ─── Reasoning interface ───
@@ -262,6 +271,8 @@ export function buildReceipt<Op extends ReasoningOp>(input: {
   readonly latencyMs: number;
   readonly promptFingerprint: string;
   readonly payload: ReasoningPayloadByOp[Op];
+  readonly tokensSource?: 'estimated' | 'measured' | 'unknown' | undefined;
+  readonly latencyMeasured?: boolean | undefined;
 }): ReasoningReceipt<Op> {
   return {
     op: input.op,
@@ -271,5 +282,7 @@ export function buildReceipt<Op extends ReasoningOp>(input: {
     latencyMs: input.latencyMs,
     promptFingerprint: input.promptFingerprint,
     payload: input.payload,
+    ...(input.tokensSource !== undefined ? { tokensSource: input.tokensSource } : {}),
+    ...(input.latencyMeasured !== undefined ? { latencyMeasured: input.latencyMeasured } : {}),
   };
 }

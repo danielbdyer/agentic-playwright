@@ -78,7 +78,8 @@ export type ReasoningErrorFamily =
   | 'context-exceeded'
   | 'malformed-response'
   | 'unavailable'
-  | 'unclassified';
+  | 'unclassified'
+  | 'needs-fill';
 
 export class ReasoningError extends TesseractError {
   override readonly _tag: string = 'ReasoningError';
@@ -133,6 +134,24 @@ export class ReasoningUnclassifiedError extends ReasoningError {
   }
 }
 
+/** A fill-pool adapter halted the call because no filled response
+ *  exists for the prompt's fingerprint (Z11d). Not a provider
+ *  failure: the pending request was recorded under `pendingPath`
+ *  and awaits a fill pass (`/reasoning-fill`). Routes identically
+ *  to other ReasoningErrors at the pipeline boundary — the step
+ *  halts and a needs-human receipt is produced upstream. */
+export class ReasoningNeedsFillError extends ReasoningError {
+  override readonly _tag = 'ReasoningNeedsFillError' as const;
+  readonly promptFingerprint: string;
+  readonly pendingPath: string;
+  constructor(message: string, promptFingerprint: string, pendingPath: string, provider?: string, cause?: unknown) {
+    super('needs-fill', message, provider, cause);
+    this.name = 'ReasoningNeedsFillError';
+    this.promptFingerprint = promptFingerprint;
+    this.pendingPath = pendingPath;
+  }
+}
+
 /** Exhaustive fold over the five families. Use for dispatch that must
  *  handle every case — the switch's return-type proves exhaustiveness
  *  at compile time. */
@@ -142,6 +161,7 @@ export interface ReasoningErrorCases<R> {
   readonly malformedResponse: (error: ReasoningMalformedResponseError) => R;
   readonly unavailable: (error: ReasoningUnavailableError) => R;
   readonly unclassified: (error: ReasoningUnclassifiedError) => R;
+  readonly needsFill: (error: ReasoningNeedsFillError) => R;
 }
 
 export function foldReasoningError<R>(error: ReasoningError, cases: ReasoningErrorCases<R>): R {
@@ -156,6 +176,8 @@ export function foldReasoningError<R>(error: ReasoningError, cases: ReasoningErr
       return cases.unavailable(error as ReasoningUnavailableError);
     case 'unclassified':
       return cases.unclassified(error as ReasoningUnclassifiedError);
+    case 'needs-fill':
+      return cases.needsFill(error as ReasoningNeedsFillError);
   }
 }
 

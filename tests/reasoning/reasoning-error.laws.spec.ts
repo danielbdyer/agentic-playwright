@@ -13,6 +13,7 @@ import {
   ReasoningContextExceededError,
   ReasoningError,
   ReasoningMalformedResponseError,
+  ReasoningNeedsFillError,
   ReasoningRateLimitedError,
   ReasoningUnavailableError,
   ReasoningUnclassifiedError,
@@ -28,6 +29,7 @@ test('each ReasoningError subclass carries a stable _tag literal', () => {
   expect(new ReasoningMalformedResponseError('').name).toBe('ReasoningMalformedResponseError');
   expect(new ReasoningUnavailableError('').name).toBe('ReasoningUnavailableError');
   expect(new ReasoningUnclassifiedError('').name).toBe('ReasoningUnclassifiedError');
+  expect(new ReasoningNeedsFillError('', 'fp', 'path').name).toBe('ReasoningNeedsFillError');
 });
 
 // ─── Law 2: each subclass's family matches its name ───
@@ -38,6 +40,7 @@ test('each subclass sets the correct family discriminator', () => {
   expect(new ReasoningMalformedResponseError('').family).toBe('malformed-response');
   expect(new ReasoningUnavailableError('').family).toBe('unavailable');
   expect(new ReasoningUnclassifiedError('').family).toBe('unclassified');
+  expect(new ReasoningNeedsFillError('', 'fp', 'path').family).toBe('needs-fill');
 });
 
 // ─── Law 3: foldReasoningError dispatches exhaustively ───
@@ -49,6 +52,7 @@ test('foldReasoningError routes each family to the matching case', () => {
     new ReasoningMalformedResponseError('m'),
     new ReasoningUnavailableError('u'),
     new ReasoningUnclassifiedError('x'),
+    new ReasoningNeedsFillError('f', 'fp', 'path'),
   ];
   const labels = errors.map((err) =>
     foldReasoningError(err, {
@@ -57,9 +61,10 @@ test('foldReasoningError routes each family to the matching case', () => {
       malformedResponse: () => 'M',
       unavailable: () => 'U',
       unclassified: () => 'X',
+      needsFill: () => 'F',
     }),
   );
-  expect(labels).toEqual(['R', 'C', 'M', 'U', 'X']);
+  expect(labels).toEqual(['R', 'C', 'M', 'U', 'X', 'F']);
 });
 
 // ─── Law 4: classifyReasoningError passes ReasoningError through ───
