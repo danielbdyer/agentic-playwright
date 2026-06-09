@@ -324,7 +324,7 @@ function visionImagesFromRequest(request: AgentInterpretationRequest): ReadonlyA
     : undefined;
 }
 
-function buildAgentSystemPrompt(request: AgentInterpretationRequest): string {
+export function buildAgentSystemPrompt(request: AgentInterpretationRequest): string {
   const screenDescriptions = request.screens.map((screen) => {
     const elements = screen.elements.map((el) =>
       `  - element: "${el.element}" (role: ${el.role}, widget: ${el.widget}, aliases: ${el.aliases.join(', ')})`,
@@ -422,7 +422,7 @@ function buildAgentSystemPrompt(request: AgentInterpretationRequest): string {
   ].filter(Boolean).join('\n');
 }
 
-function buildAgentUserMessage(request: AgentInterpretationRequest): string {
+export function buildAgentUserMessage(request: AgentInterpretationRequest): string {
   return [
     `Step action: ${request.actionText}`,
     `Expected outcome: ${request.expectedText}`,
@@ -444,7 +444,7 @@ interface AgentLlmResponse {
   readonly suggestedAliases?: readonly string[];
 }
 
-function parseAgentResponse(raw: string, request: AgentInterpretationRequest, providerId: string): AgentInterpretationResult {
+export function parseAgentResponse(raw: string, request: AgentInterpretationRequest, providerId: string): AgentInterpretationResult {
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new ReasoningMalformedResponseError('No structured JSON found in agent response.', providerId);

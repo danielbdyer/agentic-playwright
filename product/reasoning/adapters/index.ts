@@ -60,6 +60,15 @@ export {
   type AgentLlmApiDependencies,
   type VisionImage,
 } from './agent-backends';
+// Pool-adapter triad (Z11d.b) — file-mediated record / replay /
+// composite behind the unchanged Reasoning port.
+export { createRecordReasoning, type RecordReasoningOptions } from './record-reasoning';
+export { createReplayReasoning, type ReplayReasoningOptions } from './replay-reasoning';
+export {
+  createClaudeCodeSessionReasoning,
+  type ClaudeCodeSessionReasoningOptions,
+} from './claude-code-session-reasoning';
+export { CLAUDE_CODE_SESSION_PROVIDER } from './pool-bridge';
 
 type EffectfulAgentInterpreterPort = AgentInterpreterPort<Effect.Effect<AgentInterpretationResult, never, never>>;
 
