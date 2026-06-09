@@ -3421,3 +3421,121 @@ number to chase. The numbers that matter: hit rate, verified
 rate, false-positive rate, cost, and — eventually —
 generalization rate against a clean held-out. Everything
 else is internal to the developer.
+
+---
+
+## Entry 36 — cycle 9 synthesis: the first clean generalization measurement
+
+**Who is writing this.** Not the agent that ran cycles 1–8. That
+session ended after authoring the cycle-9 handoff
+(`docs/v2-cold-start-cohort-handoff-cycle-9.md`); this entry is
+written by the fresh agent that executed the handoff. One honest
+deviation from the handoff's script: the script said the fresh
+agent reports raw JSON and the *original* agent writes this
+synthesis, but the original session no longer exists. The fresh
+agent therefore synthesized *after* the measurement was captured.
+The property that matters survives intact: the evaluation was run
+by an agent with zero exposure to the training cycles, who read
+no classifier or runner code, no fixtures, and no cycle-9 journal
+entries before the run, and whose only contact with the held-out
+URL was the single evaluation run itself.
+
+**What was run.** Exactly once, per the handoff:
+
+```
+TESSERACT_PLAYWRIGHT_EXECUTABLE=... node dist/bin/tesseract.js \
+  compile-public-aut --aut outsystems-com --cohort-role held-out
+```
+
+The verbatim output is committed at
+`workshop/customer-backlog/public-aut/outsystems-com/heldout-evaluation-2026-06-09.json`.
+Receipts landed under `workshop/logs/public-aut-receipts/outsystems-com/`
+(gitignored, not committed).
+
+**The numbers.**
+
+| Metric | Value |
+|---|---|
+| Cases processed | 3 |
+| Step-actions total | 6 |
+| Steps matched | 3 — **all three are `navigate` steps, matched trivially by case-level navigation** |
+| DOM-target steps matched | **0 of 3** |
+| Handoffs emitted | 3 (one per DOM-target step, all `not-found`) |
+| False positives | **0** |
+| Verified-correct matches | 0 (nothing verifiable matched) |
+
+**The generalization gap, stated honestly.** Cycle 8's training
+baseline (Entry 34): 15 of 18 step-actions matched (83%); on
+steps that required finding an element by description, 8 of 11
+matched (73%), 7 of those 8 verified correct. The held-out site:
+0 of 3 element-description steps matched (0%). However you cut
+the denominator — 50% vs 83% counting navigates, 0% vs 73% on
+element-finding steps, 0% vs 100% excluding the known
+observe-text-mismatch class — **the system resolved nothing on a
+site it had never seen.** The spike's §6 floor ("held-out hit
+rate above zero") is met only by the trivial navigate steps; on
+the steps that test the actual capability, it is not met.
+
+**Why it failed — legible from the receipts alone, no site
+contact needed.** All three fixtures describe language-switcher
+links: "the English language link", "the Japanese language
+link", "the Deutsch language link". The classifier stripped the
+trailing role noun ("link") correctly but absorbed everything
+before it into the name substring, then queried
+`getByRole('link', { name: /English language/i })` and so on.
+The operator-authored expected targets are `English`, `日本語`,
+and `Deutsch`. Two distinct generic-tier gaps:
+
+1. **Modifier absorption.** "The English language link" means
+   *the link for the English language*, whose accessible name is
+   just "English". On every training fixture, the full noun
+   phrase was literally the accessible name ("Submit Order
+   button" → "Submit order"), so this never surfaced. The
+   heuristic has no notion that a prose noun phrase can
+   *describe* an element rather than *quote* its name. This also
+   sinks 91201 and 91203, where a shorter substring ("English",
+   "Deutsch") would have matched.
+2. **Prose-language vs accessible-name-language.** "Japanese
+   language link" can never substring-match an accessible name
+   of `日本語`, under any tokenization. No heuristic refinement
+   closes this one; it needs semantic reasoning (the Z11d live
+   adapter) or prior canon. This is exactly the class of finding
+   the held-out partition exists to surface: the boundary of
+   what the heuristic floor can ever do.
+
+**The genuinely good news: zero false positives.** The system
+found nothing, and *said* it found nothing — three clean
+`not-found` handoffs, no wrong-element clicks, no silent
+mis-verification. After Entry 34 made false positives the most
+dangerous failure mode, the held-out run confirms the failure
+posture is the designed one: gap → handoff, not gap → guess.
+
+**One caveat for the record.** We did not independently confirm
+the three links exist and are visible on the live page — the
+clean-room rule forbade browsing, and the run is the only
+contact. The expected targets come from operator inspection at
+fixture-authoring time (2026-05-02); the evaluation ran
+2026-06-09. If the site is ever promoted to training, the first
+diagnostic is to confirm the targets still exist (marketing-site
+drift was the named risk when this AUT was chosen).
+
+**Discipline going forward.** Per the spike's C3, this
+evaluation is now consumed for the current canon state. Per the
+contamination lesson of cycles 6–7 (Entry 32), **no code change
+may be motivated by these failures while outsystems-com remains
+held-out.** This cycle deliberately ships zero classifier
+changes. The two gaps above may be addressed only if (a) the
+same failure shape independently surfaces on a training site, or
+(b) the operator promotes outsystems-com to training — one-way
+and irreversible — at which point a replacement held-out must be
+designated per Entry 33. That is the operator's call, not the
+agent's.
+
+**The stakeholder sentence.** On a real website the system had
+never seen, it resolved none of the three things it was asked to
+find — but it correctly flagged all three for human help instead
+of guessing, with zero false positives. Today's honest
+generalization number is 0% resolution, 0% silent failure. The
+gap between 73–83% on trained sites and 0% here is the
+memorization-vs-learning signal the cohort was built to measure,
+and this is the first time we can report it without an asterisk.

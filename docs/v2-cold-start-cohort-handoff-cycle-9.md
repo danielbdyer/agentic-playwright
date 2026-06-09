@@ -1,8 +1,11 @@
 # Held-Out Evaluation Handoff — Cycle 9
 
-> **Status: ready for evaluation by a fresh agent (2026-05-02).**
-> Self-contained — a fresh agent should be able to execute this
-> document end-to-end without reading any other repo doc.
+> **Status: executed (2026-06-09).** A fresh agent ran the
+> evaluation once per this document; the verbatim capture is at
+> `workshop/customer-backlog/public-aut/outsystems-com/heldout-evaluation-2026-06-09.json`
+> and the synthesis is journal Entry 36. The held-out evaluation
+> is consumed for the current canon state (spike §4.4 C3).
+> Historical below this line.
 
 ## Why this document exists
 
