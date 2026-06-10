@@ -1,12 +1,23 @@
 # Live Reasoning Adapter Plan (Step 11 Z11d)
 
-> Status: planning — Step 11 Z11d. Architectural design doc;
-> no code has landed. Companion to
-> `docs/v2-compounding-engine-plan.md` and
-> `docs/v2-substrate-study-plan.md`. Can be implemented in
-> parallel with Z11f. Depends on Z11a (landed); unblocks Z11a's
-> semantic-upgrade path for intervention-fidelity and the real-
-> compile path for customer-compilation.
+> Status: implemented through Z11d.e (2026-06-10) — the five
+> sub-commits of §10 are in-tree with laws ZD1–ZD5 green (pool
+> domain + fingerprint, record/replay/composite adapters,
+> --reasoning-mode CLI + composition wiring, /reasoning-fill
+> skill + drain script, autotelic hooks + kill switch). The §14
+> graduation run (compile-corpus under live reasoning with a real
+> fill pass, cycleRate < 1.0) has NOT yet been executed; §9.2's
+> compile-corpus integration is the remaining seam — the corpus
+> runner still classifies heuristically and does not consult the
+> Reasoning port. One deliberate deviation from §5: the Reasoning
+> port's error channel is `never` (I-PortShape), so the pool
+> adapters surface needs-fill as failure-shaped receipts (like
+> every existing adapter) rather than Effect.fail; the needs-fill
+> ReasoningError family exists for raw-error boundaries. Companion
+> to `docs/v2-compounding-engine-plan.md` and
+> `docs/v2-substrate-study-plan.md`. Depends on Z11a (landed);
+> unblocks Z11a's semantic-upgrade path for intervention-fidelity
+> and the real-compile path for customer-compilation.
 
 ## 0. The verdict in one sentence
 
