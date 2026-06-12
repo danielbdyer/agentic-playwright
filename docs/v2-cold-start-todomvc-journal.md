@@ -3523,3 +3523,126 @@ not a shrug. The semantic-correctness check from cycle 8 stays
 as the guard rail: every new rung's matches remain subject to
 expectedTarget verification, so added recall cannot silently
 buy false positives.
+
+---
+
+## Entry 37 — cycle 10: the ladder, and handoffs that carry evidence
+
+Cycle 9 ended with a diagnosis: the runner had one resolution
+strategy plus one ad-hoc fallback, and when both missed it
+reported "0 matches" and nothing else. Cycle 10 replaced that
+with the degraded-resolution ladder the product's own doctrine
+had been promising (CLAUDE.md "Deterministic precedence",
+rung 6: "live DOM exploration and safe degraded resolution").
+
+**What was built:**
+
+1. **A pure kernel** at
+   `product/domain/resolution/patterns/degraded-resolution.ts`
+   (laws: ZC44 in
+   `tests/resolution/patterns/degraded-resolution.laws.spec.ts`).
+   Three deterministic decisions: phrase reduction ("English
+   language" → "English", "language" — generalizing the
+   cycle-6 first-word special case), token-overlap scoring of
+   harvested accessible names against the phrase, and a
+   dominance rule (visible + score ≥ 0.75 + margin ≥ 0.15 over
+   the best differently-named rival) for auto-acceptance.
+2. **The ladder in the runner** — strict query → phrase
+   reductions (unique match required) → inventory harvest of
+   EVERY element with the inferred role, including
+   a11y-hidden ones, scored by the kernel, with a dominant
+   candidate accepted only after a confirmation query
+   (exact-name first, tolerant substring second) against
+   Playwright's real accessible-name engine returns exactly
+   one visible element.
+3. **Evidence-carrying handoffs.** A step that exhausts the
+   ladder now hands off with: role census (total / visible /
+   hidden), the ranked candidate menu (deduped, capped), the
+   full attempt trace, and a note naming the failure shape
+   ("best candidate is hidden — likely a collapsed menu",
+   "zero token overlap — needs semantic interpretation",
+   "page has no elements of this role at all").
+4. **Receipts at schemaVersion 5**, substrate version
+   `floor-a6-degraded-ladder`; the summary now carries
+   `matchesByRung` and `totalElapsedMs` (Entry 35's priority
+   3 — cost is now a visible number).
+
+Every ladder match remains subject to the cycle-8
+expectedTarget verification. That is the deal added recall has
+to honor: **falsePositives stayed at 0 throughout.**
+
+**The numbers, before → after (same day, same environment):**
+
+| AUT | Steps matched | DOM-step matches | Verified correct | False positives |
+|---|---|---|---|---|
+| todomvc (training) | 7/9 → 7/9 | 4/6 → 4/6 | 2 → 2 | 1 → 1 (the known toggle-all case) |
+| outsystems-com (promoted) | 3/6 → **5/6** | 0/3 → **2/3** | 0 → **2** | 0 → 0 |
+
+TodoMVC is byte-for-byte the same verdict set — no regression;
+its "Active filter" match now resolves through the principled
+phrase-reduction rung instead of the first-word hack.
+
+**How the outsystems fix actually happened — this is the part
+worth reading.** The first cycle-10 run against outsystems-com
+still scored 0/3, but the handoffs were no longer empty: the
+evidence said *237 links on the page, 6 visible, 231 hidden;
+best-scoring candidate 'English' (0.8) is present but NOT in
+the visible accessibility tree — likely behind a collapsed
+menu*. That receipt alone — no manual page-spelunking —
+located the problem: the locale links live inside a collapsed
+navbar dropdown behind a button named "EN", with a cookie
+banner intercepting clicks in front of it. The fixtures were
+under-specified for any runner, deterministic or human: a QA
+engineer would also have to dismiss the banner and open the
+menu first. Following the cycle-7 precedent (preconditions for
+state-dependent steps), the three fixtures gained two
+preconditions each — "Click the Accept Cookies button", "Click
+the EN button" — and revision 2.
+
+The "EN" precondition is itself a live demonstration of the
+new rung: `/EN/i` substring-matches several buttons
+("ENglish"...), so the strict rung is ambiguous — the
+inventory rung scores 'EN' at 1.00 against a 0.00 runner-up
+and confirms it unique via exact-name query. First
+inventory-scored match in a real run.
+
+**After the preconditions:** 91201 (English link) and 91203
+(Deutsch click → lands on /de-de/) both match via
+phrase-reduction and verify as `expected-match`. 91202
+(Japanese) remains a handoff — **correctly**. The link is
+named 日本語; no amount of token matching should pretend
+"Japanese" and 日本語 are the same word. The handoff now says
+exactly that ("no harvested candidate shares any token with
+the phrase — needs semantic interpretation") and carries the
+visible locale-link menu *including 日本語* in its candidate
+list. When the Z11d reasoning rung lands, this receipt is its
+entire input: phrase, note, menu. That is what "handoffs are
+continuation objects, not dead ends" means in practice.
+
+**Costs:** todomvc 3 cases ≈ 4.3s; outsystems-com 3 cases ≈
+17–21s (cookie banner + dropdown + marketing-page weight).
+Now visible in every summary as `totalElapsedMs`.
+
+**Honest caveats:**
+
+- The 0.75/0.15 dominance numbers are first-principles seeds,
+  calibrated against exactly two sites. They are constants in
+  one file, law-tested, and cheap to revisit.
+- Phrase reduction requires a unique match, and verification
+  catches wrong-uniques — but a page with one misleadingly
+  named element of the right role can still produce a false
+  positive. That risk existed in the first-word fallback too;
+  it is now at least visible per-rung in `matchesByRung`.
+- httpbin-form remains unreachable from this environment, so
+  its 9 steps are out of the measurable cohort here.
+- The known TodoMVC false positive (toggle-all vs per-todo
+  toggle) is untouched — it needs scoping-to-a-list-item, a
+  different fix than this cycle's.
+
+**Where this leaves the trajectory:** training cohort
+(todomvc + outsystems-com) now stands at 12/15 steps matched,
+4 verified-correct, 1 known false positive, 3 honest handoffs
+— and every handoff now explains itself well enough that the
+next rung (reasoning or human) can act without re-opening the
+page. Cycle 11's job: a fresh, uncontaminated held-out to
+measure whether THIS generalizes.

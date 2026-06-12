@@ -1,22 +1,40 @@
 /**
- * Public-AUT cohort runner — Floor A.5 (with cycle-4
- * narrative-execute, cycle-6 first-word fallback).
+ * Public-AUT cohort runner — Floor A.6 (with cycle-4
+ * narrative-execute, cycle-10 degraded-resolution ladder).
  *
  * For each case in the cohort:
  *   1. Run the heuristic intent classifier on every step to extract
  *      verb + role + nameSubstring.
  *   2. Launch Playwright, navigate to `snapshot.targetAut`.
- *   3. For each classified step:
- *      a. Probe the DOM (getByRole / getByText / press-verb skips
- *         this step). When a multi-word nameSubstring query returns
- *         0 matches, try the first word alone (cycle-6 Probe Seed 7
- *         fallback).
- *      b. If the probe matched (or the verb is press),
- *         **narrative-execute**: perform the action so subsequent
- *         steps see the resulting page state. (Cycle 4: Probe Seed
- *         8 Phase A.)
- *   4. Record per-step outcome (probe result + action result) and
- *      emit a JSON receipt per case.
+ *   3. For each classified step, probe the DOM through the
+ *      degraded-resolution ladder (cycle 10, journal Entry 37 —
+ *      generalizing the cycle-6 first-word fallback after the
+ *      cycle-9 held-out run scored 0/3 with evidence-free
+ *      handoffs):
+ *      a. **strict** — getByRole(role, { name }) with the full
+ *         classifier phrase (getByText for role-less observes;
+ *         press-verb skips DOM resolution).
+ *      b. **phrase-reduction** — progressively weaker name queries
+ *         derived from the phrase (pure kernel:
+ *         product/domain/resolution/patterns/degraded-resolution).
+ *      c. **inventory-scored** — harvest every element with the
+ *         inferred role (including a11y-hidden ones), score their
+ *         accessible names against the phrase, auto-accept only a
+ *         visible, dominant, confirmation-unique candidate.
+ *      d. When no rung accepts, the handoff carries the harvested
+ *         inventory as evidence — counts, ranked candidates, and
+ *         the attempt trace — so the next rung (agent or human)
+ *         receives a menu, not a shrug.
+ *      Then, if the probe matched (or the verb is press),
+ *      **narrative-execute**: perform the action so subsequent
+ *      steps see the resulting page state. (Cycle 4: Probe Seed
+ *      8 Phase A.)
+ *   4. Record per-step outcome (probe result + resolution rung +
+ *      evidence + action result) and emit a JSON receipt per case.
+ *
+ * Every ladder match remains subject to the cycle-8 expectedTarget
+ * verification, so added recall cannot silently buy false
+ * positives.
  *
  * Observation-only contract (cycle 5 Probe Seed 9, Entry 21): this
  * runner probes the DOM and writes append-only receipts. Receipts
@@ -37,9 +55,22 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { chromium, type Browser, type Locator, type Page } from 'playwright';
 import { classifyIntent } from '../../../product/domain/resolution/patterns/intent-classifier';
+import {
+  phraseReductions,
+  rankCandidates,
+  selectDominantCandidate,
+  DOMINANCE_THRESHOLD,
+  type CandidateSurface,
+  type ScoredCandidate,
+} from '../../../product/domain/resolution/patterns/degraded-resolution';
 import type { ClassifiedIntent } from '../../../product/domain/resolution/patterns/rung-kernel';
 import type { LoadedPublicAutCase } from './load-public-aut-cohort';
 import { stripHtml, inferAllowedActions } from './intent-helpers';
+
+/** Bumped from 'floor-a5-heuristic-naive-dom' at cycle 10: the
+ *  degraded-resolution ladder can classify steps the A.5 runner
+ *  could not, so receipts across the bump are not comparable. */
+export const PUBLIC_AUT_SUBSTRATE_VERSION = 'floor-a6-degraded-ladder' as const;
 
 export type StepDomResolution =
   | 'matched'
@@ -75,6 +106,41 @@ export type TargetCorrectness =
   | 'unverified'
   | 'not-found';
 
+/**
+ * Cycle 10: which rung of the degraded-resolution ladder produced
+ * a match. Null when the step never reached DOM resolution
+ * (navigate, press, unclassified) or did not match.
+ */
+export type ResolutionRung = 'strict' | 'phrase-reduction' | 'inventory-scored';
+
+/** A harvested element, scored against the classifier phrase. */
+export interface ProbeCandidateEvidence {
+  readonly name: string;
+  readonly visible: boolean;
+  readonly score: number;
+}
+
+/**
+ * Cycle 10: what the page actually offered for the inferred role.
+ * Attached to every handoff (and to inventory-scored matches, to
+ * justify the choice) so a failed step hands the next rung real
+ * evidence instead of "0 matches".
+ */
+export interface ProbeEvidence {
+  readonly role: string;
+  readonly phrase: string | null;
+  readonly roleCountTotal: number;
+  readonly roleCountVisible: number;
+  readonly roleCountHidden: number;
+  /** Top candidates by score (capped); approximated accessible
+   *  names — the confirmation query, not this list, is what a
+   *  match is accepted on. */
+  readonly candidates: readonly ProbeCandidateEvidence[];
+  /** Human-legible trace of every query the ladder tried. */
+  readonly attempts: readonly string[];
+  readonly note: string | null;
+}
+
 export interface PublicAutStepOutcome {
   readonly stepIndex: number;
   readonly actionTextPlain: string;
@@ -86,6 +152,8 @@ export interface PublicAutStepOutcome {
   readonly domResolution: StepDomResolution;
   readonly matchCount: number;
   readonly rationale: string;
+  readonly resolutionRung: ResolutionRung | null;
+  readonly evidence: ProbeEvidence | null;
   readonly actionAttempted: ActionAttempted;
   readonly actionOutcome: ActionOutcome;
   readonly actionDetail: string | null;
@@ -122,7 +190,7 @@ export interface PublicAutCaseResult {
   readonly elapsedMs: number;
   readonly receiptPath: string;
   readonly cohortRole: 'training' | 'held-out';
-  readonly substrateVersion: 'floor-a5-heuristic-naive-dom';
+  readonly substrateVersion: typeof PUBLIC_AUT_SUBSTRATE_VERSION;
   readonly runStartedAt: string;
 }
 
@@ -152,7 +220,14 @@ interface ProbeResult {
    *  should act on. Null otherwise. The press verb returns null
    *  because it does not target a DOM element. */
   readonly matchedLocator: Locator | null;
+  readonly resolutionRung: ResolutionRung | null;
+  readonly evidence: ProbeEvidence | null;
 }
+
+/** Inventory harvest caps: enough to characterize a marketing page
+ *  without serializing its every link into the receipt. */
+const MAX_HARVEST = 40;
+const EVIDENCE_CANDIDATE_LIMIT = 12;
 
 async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeResult> {
   if (intent.verb === 'navigate') {
@@ -161,6 +236,8 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
       matchCount: 0,
       rationale: 'navigate verb is satisfied by the case-level navigation to targetAut',
       matchedLocator: null,
+      resolutionRung: null,
+      evidence: null,
     };
   }
 
@@ -176,6 +253,8 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
         matchCount: 0,
         rationale: 'press verb classified, but no key name extracted',
         matchedLocator: null,
+        resolutionRung: null,
+        evidence: null,
       };
     }
     return {
@@ -183,15 +262,12 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
       matchCount: 1,
       rationale: `press verb resolved to key='${key}' (no DOM probe required)`,
       matchedLocator: null,
+      resolutionRung: null,
+      evidence: null,
     };
   }
 
   const { role, name, nameSubstring } = intent.targetShape;
-  const queryName: string | RegExp | undefined = name
-    ? name
-    : nameSubstring
-      ? buildNameQuery(nameSubstring)
-      : undefined;
 
   // Probe Seed 5 fallback (cycle 3): the observe verb's classifier
   // does not infer a role. Rather than emit a no-target-name handoff,
@@ -207,69 +283,126 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
       matchCount: 0,
       rationale: `verb=${intent.verb}; classifier did not infer a target role`,
       matchedLocator: null,
+      resolutionRung: null,
+      evidence: null,
     };
   }
 
-  try {
-    const locator = queryName
-      ? page.getByRole(role as Parameters<Page['getByRole']>[0], { name: queryName })
+  return probeByRoleLadder(page, role, name ?? null, nameSubstring ?? null);
+}
+
+/**
+ * Cycle 10 degraded-resolution ladder (journal Entry 37). Three
+ * rungs, each weaker and more explicit than the last; every query
+ * is recorded in the attempt trace, and a step that exhausts the
+ * ladder hands off WITH the harvested inventory as evidence.
+ *
+ * Replaces the cycle-6 first-word fallback (Probe Seed 7), which
+ * was rung 2 hand-rolled for one fixture's phrasing.
+ */
+async function probeByRoleLadder(
+  page: Page,
+  role: string,
+  exactName: string | null,
+  nameSubstring: string | null,
+): Promise<ProbeResult> {
+  const phrase = exactName ?? nameSubstring;
+  const attempts: string[] = [];
+  const byRole = (q?: string | RegExp) =>
+    q !== undefined
+      ? page.getByRole(role as Parameters<Page['getByRole']>[0], { name: q })
       : page.getByRole(role as Parameters<Page['getByRole']>[0]);
-    const count = await locator.count();
-    const queryRationale = `getByRole('${role}'${queryName ? `, { name: ${queryName} }` : ''})`;
-    if (count === 1) {
+
+  try {
+    // ── Rung 1: strict — the full classifier phrase ──────────────
+    const strictQuery: string | RegExp | undefined = exactName
+      ?? (nameSubstring ? buildNameQuery(nameSubstring) : undefined);
+    const strictLocator = byRole(strictQuery);
+    const strictCount = await strictLocator.count();
+    const strictRationale = `getByRole('${role}'${strictQuery ? `, { name: ${strictQuery} }` : ''})`;
+    attempts.push(`${strictRationale} → ${strictCount}`);
+    if (strictCount === 1) {
       return {
         resolution: 'matched',
         matchCount: 1,
-        rationale: `${queryRationale} matched exactly 1 element`,
-        matchedLocator: locator,
+        rationale: `${strictRationale} matched exactly 1 element`,
+        matchedLocator: strictLocator,
+        resolutionRung: 'strict',
+        evidence: null,
       };
     }
-    if (count > 1) {
-      return {
-        resolution: 'ambiguous',
-        matchCount: count,
-        rationale: `${queryRationale} matched ${count} elements`,
-        matchedLocator: null,
-      };
+
+    // ── Rung 2: phrase reduction — weaker name queries ───────────
+    // Only sensible when the strict query found nothing; when it
+    // found several, weaker queries can only widen the ambiguity.
+    if (strictCount === 0 && phrase) {
+      for (const reduction of phraseReductions(phrase)) {
+        const reductionQuery = buildNameQuery(reduction);
+        const reductionLocator = byRole(reductionQuery);
+        const reductionCount = await reductionLocator.count();
+        attempts.push(`getByRole('${role}', { name: ${reductionQuery} }) → ${reductionCount}`);
+        if (reductionCount === 1) {
+          return {
+            resolution: 'matched',
+            matchCount: 1,
+            rationale: `getByRole('${role}', { name: ${reductionQuery} }) matched exactly 1 element [phrase-reduction '${reduction}' from '${phrase}' after strict returned 0]`,
+            matchedLocator: reductionLocator,
+            resolutionRung: 'phrase-reduction',
+            evidence: null,
+          };
+        }
+      }
     }
-    // count === 0 — try the cycle-6 first-word fallback (Probe Seed 7):
-    // when the classifier extracts a multi-word nameSubstring that
-    // includes descriptive context ("Active filter", "Submit Order"
-    // followed by a context-only word), the multi-word query may miss
-    // even when the actual element is named with just the first
-    // word. Re-probe with first-word-only and report the rationale
-    // honestly.
-    if (nameSubstring && hasMultipleWords(nameSubstring)) {
-      const firstWord = firstWordOf(nameSubstring);
-      const firstWordQuery = buildNameQuery(firstWord);
-      const firstWordLocator = page.getByRole(
-        role as Parameters<Page['getByRole']>[0],
-        { name: firstWordQuery },
-      );
-      const firstWordCount = await firstWordLocator.count();
-      const fwQueryRationale = `getByRole('${role}', { name: ${firstWordQuery} }) [first-word fallback after ${queryRationale} returned 0]`;
-      if (firstWordCount === 1) {
+
+    // ── Rung 3: inventory harvest + deterministic scoring ────────
+    const harvest = await harvestRoleInventory(page, role);
+    const ranked = rankCandidates(phrase ?? '', harvest.candidates);
+    const evidence = buildProbeEvidence(role, phrase, harvest, ranked, attempts);
+
+    const dominant = phrase ? selectDominantCandidate(ranked) : null;
+    if (dominant) {
+      // Confirm against Playwright's real accessible-name engine —
+      // the harvest names are approximations. A unique visible
+      // match on the harvested name is the acceptance condition.
+      // Exact match first (a short name like 'EN' is a substring
+      // of 'English'; substring-by-default would self-ambiguate),
+      // then the tolerant substring form for harvest names that
+      // approximate the real accessible name imperfectly.
+      const exactLocator = page.getByRole(role as Parameters<Page['getByRole']>[0], {
+        name: dominant.name,
+        exact: true,
+      });
+      const exactCount = await exactLocator.count();
+      attempts.push(`getByRole('${role}', { name: '${dominant.name}', exact: true }) [confirmation] → ${exactCount}`);
+      let confirmed: Locator | null = exactCount === 1 ? exactLocator : null;
+      if (!confirmed) {
+        const looseLocator = byRole(dominant.name);
+        const looseCount = await looseLocator.count();
+        attempts.push(`getByRole('${role}', { name: '${dominant.name}' }) [confirmation] → ${looseCount}`);
+        confirmed = looseCount === 1 ? looseLocator : null;
+      }
+      if (confirmed) {
+        const runnerUp = ranked.find((c) => c.name !== dominant.name);
         return {
           resolution: 'matched',
           matchCount: 1,
-          rationale: `${fwQueryRationale} matched exactly 1 element`,
-          matchedLocator: firstWordLocator,
-        };
-      }
-      if (firstWordCount > 1) {
-        return {
-          resolution: 'ambiguous',
-          matchCount: firstWordCount,
-          rationale: `${fwQueryRationale} matched ${firstWordCount} elements`,
-          matchedLocator: null,
+          rationale: `inventory-scored: '${dominant.name}' (score ${dominant.score.toFixed(2)}${runnerUp ? ` vs runner-up '${runnerUp.name}' ${runnerUp.score.toFixed(2)}` : ', unrivaled'}) confirmed unique for phrase '${phrase}'`,
+          matchedLocator: confirmed,
+          resolutionRung: 'inventory-scored',
+          evidence,
         };
       }
     }
+
+    // ── Ladder exhausted: hand off WITH evidence ─────────────────
+    const resolution: StepDomResolution = strictCount > 1 ? 'ambiguous' : 'not-found';
     return {
-      resolution: 'not-found',
-      matchCount: 0,
-      rationale: `${queryRationale} returned 0 matches`,
+      resolution,
+      matchCount: strictCount,
+      rationale: `${strictRationale} returned ${strictCount}; ladder exhausted (${attempts.length} attempts) over ${harvest.total} role='${role}' element(s) (${harvest.visibleCount} visible, ${harvest.hiddenCount} hidden)${evidence.note ? ` — ${evidence.note}` : ''}`,
       matchedLocator: null,
+      resolutionRung: null,
+      evidence,
     };
   } catch (err) {
     return {
@@ -277,18 +410,127 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
       matchCount: 0,
       rationale: `Playwright threw: ${(err as Error).message.slice(0, 200)}`,
       matchedLocator: null,
+      resolutionRung: null,
+      evidence: null,
     };
   }
 }
 
-function hasMultipleWords(s: string): boolean {
-  return /\s/.test(s.trim());
+interface RoleInventory {
+  readonly total: number;
+  readonly visibleCount: number;
+  readonly hiddenCount: number;
+  readonly candidates: readonly CandidateSurface[];
 }
 
-function firstWordOf(s: string): string {
-  const trimmed = s.trim();
-  const ws = trimmed.search(/\s/);
-  return ws < 0 ? trimmed : trimmed.slice(0, ws);
+/**
+ * Enumerate every element exposing the inferred role — INCLUDING
+ * a11y-hidden ones (collapsed menus, aria-hidden regions). The
+ * cycle-9 held-out failure mode was exactly this blindness: the
+ * language-switcher links existed but were invisible to the
+ * visible-only query, and the receipt could not say so.
+ *
+ * Names are in-page approximations of the accessible name
+ * (aria-label → aria-labelledby → label association → text
+ * content → title/alt). Approximation is acceptable because a
+ * candidate is only ever ACCEPTED through a confirmation query
+ * against Playwright's real accessible-name engine.
+ */
+async function harvestRoleInventory(page: Page, role: string): Promise<RoleInventory> {
+  const locator = page.getByRole(role as Parameters<Page['getByRole']>[0], {
+    includeHidden: true,
+  });
+  const total = await locator.count();
+  const sampled: ReadonlyArray<{ name: string; visible: boolean }> = await locator.evaluateAll(
+    (nodes, max) =>
+      nodes.slice(0, max).map((el) => {
+        const attr = (n: Element, a: string): string => (n.getAttribute(a) ?? '').trim();
+        let name = attr(el, 'aria-label');
+        if (!name) {
+          const labelledby = attr(el, 'aria-labelledby');
+          if (labelledby) {
+            name = labelledby
+              .split(/\s+/)
+              .map((id) => document.getElementById(id)?.textContent ?? '')
+              .join(' ')
+              .trim();
+          }
+        }
+        if (!name && el instanceof HTMLInputElement) {
+          if (el.labels && el.labels.length > 0) {
+            name = Array.from(el.labels)
+              .map((l) => l.textContent ?? '')
+              .join(' ')
+              .trim();
+          } else if (el.type === 'submit' || el.type === 'button') {
+            name = el.value.trim();
+          } else {
+            name = attr(el, 'placeholder');
+          }
+        }
+        if (!name) name = (el.textContent ?? '').trim();
+        if (!name) name = attr(el, 'title') || attr(el, 'alt');
+        name = name.replace(/\s+/g, ' ').slice(0, 80);
+        const visible =
+          typeof (el as HTMLElement & { checkVisibility?: () => boolean }).checkVisibility ===
+          'function'
+            ? (el as HTMLElement & { checkVisibility: () => boolean }).checkVisibility()
+            : el instanceof HTMLElement && el.offsetParent !== null;
+        return { name, visible };
+      }),
+    MAX_HARVEST,
+  );
+  const candidates = sampled.filter((c) => c.name.length > 0);
+  const visibleCount = sampled.filter((c) => c.visible).length;
+  return {
+    total,
+    visibleCount,
+    hiddenCount: total - visibleCount,
+    candidates,
+  };
+}
+
+function buildProbeEvidence(
+  role: string,
+  phrase: string | null,
+  harvest: RoleInventory,
+  ranked: readonly ScoredCandidate[],
+  attempts: readonly string[],
+): ProbeEvidence {
+  const top = ranked[0];
+  const note =
+    top && !top.visible && top.score >= DOMINANCE_THRESHOLD
+      ? `best-scoring candidate '${top.name}' is present but NOT in the visible accessibility tree (likely behind a collapsed menu or hidden region); auto-acting on it would be unsafe`
+      : harvest.total === 0
+        ? `page exposes no role='${role}' elements at all — the inferred role itself may be wrong`
+        : top && top.score === 0 && phrase
+          ? `no harvested candidate shares any token with the phrase '${phrase}' — bridging this gap needs semantic interpretation (reasoning-rung work, e.g. a non-English accessible name)`
+          : null;
+  // Dedupe by name before capping — header/footer twins would
+  // otherwise crowd distinct candidates out of the evidence list.
+  // The ranked order (score desc, visible first) means the kept
+  // instance is always the strongest representative of its name.
+  const seenNames = new Set<string>();
+  const distinct = ranked.filter((c) => {
+    const key = c.name.toLowerCase();
+    if (seenNames.has(key)) return false;
+    seenNames.add(key);
+    return true;
+  });
+  return {
+    role,
+    phrase,
+    roleCountTotal: harvest.total,
+    roleCountVisible: harvest.visibleCount,
+    roleCountHidden: harvest.hiddenCount,
+    candidates: distinct.slice(0, EVIDENCE_CANDIDATE_LIMIT).map((c) => ({
+      name: c.name,
+      visible: c.visible,
+      score: Number(c.score.toFixed(3)),
+    })),
+    attempts,
+    note,
+  };
 }
 
 async function probeByText(page: Page, nameSubstring: string): Promise<ProbeResult> {
@@ -302,6 +544,8 @@ async function probeByText(page: Page, nameSubstring: string): Promise<ProbeResu
         matchCount: 0,
         rationale: `getByText(${query}) returned 0 matches (observe-fallback)`,
         matchedLocator: null,
+        resolutionRung: null,
+        evidence: null,
       };
     }
     if (count === 1) {
@@ -310,6 +554,8 @@ async function probeByText(page: Page, nameSubstring: string): Promise<ProbeResu
         matchCount: 1,
         rationale: `getByText(${query}) matched exactly 1 element (observe-fallback)`,
         matchedLocator: locator,
+        resolutionRung: 'strict',
+        evidence: null,
       };
     }
     return {
@@ -317,6 +563,8 @@ async function probeByText(page: Page, nameSubstring: string): Promise<ProbeResu
       matchCount: count,
       rationale: `getByText(${query}) matched ${count} elements (observe-fallback)`,
       matchedLocator: null,
+      resolutionRung: null,
+      evidence: null,
     };
   } catch (err) {
     return {
@@ -324,6 +572,8 @@ async function probeByText(page: Page, nameSubstring: string): Promise<ProbeResu
       matchCount: 0,
       rationale: `Playwright threw during observe-fallback: ${(err as Error).message.slice(0, 200)}`,
       matchedLocator: null,
+      resolutionRung: null,
+      evidence: null,
     };
   }
 }
@@ -448,6 +698,8 @@ async function runPipelineStep(
       domResolution: 'unclassified',
       matchCount: 0,
       rationale: 'intent classifier returned null',
+      resolutionRung: null,
+      evidence: null,
       actionAttempted: null,
       actionOutcome: 'skipped',
       actionDetail: null,
@@ -492,6 +744,8 @@ async function runPipelineStep(
     domResolution: probe.resolution,
     matchCount: probe.matchCount,
     rationale: probe.rationale,
+    resolutionRung: probe.resolutionRung,
+    evidence: probe.evidence,
     actionAttempted: action.attempted,
     actionOutcome: action.outcome,
     actionDetail: action.detail,
@@ -738,7 +992,7 @@ export async function runPublicAutCase(
     elapsedMs,
     receiptPath,
     cohortRole: options.cohortRole ?? aut.partition,
-    substrateVersion: 'floor-a5-heuristic-naive-dom',
+    substrateVersion: PUBLIC_AUT_SUBSTRATE_VERSION,
     runStartedAt,
   };
 }
@@ -770,8 +1024,10 @@ function writeCaseReceipt(args: WriteReceiptArgs): string {
   const file = `${args.snapshot.id}-${stamp}.json`;
   const fullPath = path.join(dir, file);
   const receipt = {
-    schemaVersion: 4,
-    substrateVersion: 'floor-a5-heuristic-naive-dom',
+    // Cycle 10: 4 → 5. Step outcomes gained `resolutionRung` and
+    // `evidence` (the degraded-resolution ladder's harvest).
+    schemaVersion: 5,
+    substrateVersion: PUBLIC_AUT_SUBSTRATE_VERSION,
     aut: args.aut,
     autUrl: args.autUrl,
     partition: args.partition,

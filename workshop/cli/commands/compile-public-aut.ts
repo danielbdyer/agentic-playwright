@@ -55,6 +55,18 @@ export interface CompilePublicAutResult {
    *  debt — verifiedMatches + falsePositives is the verifiable
    *  population. */
   readonly unverifiedSteps: number;
+  /** Cycle 10: which rung of the degraded-resolution ladder the
+   *  DOM-targeting matches resolved on. Strict-only is the A.5
+   *  baseline; the other two rungs are the ladder earning its
+   *  keep. */
+  readonly matchesByRung: {
+    readonly strict: number;
+    readonly phraseReduction: number;
+    readonly inventoryScored: number;
+  };
+  /** Cycle 10 (journal Entry 35 priority 3): total wall-clock cost
+   *  across all cases, so the summary carries the run's price tag. */
+  readonly totalElapsedMs: number;
   readonly receiptsEmittedTo: string;
   readonly perCase: readonly PublicAutCaseResult[];
 }
@@ -106,6 +118,10 @@ export const compilePublicAutCommand = createCommandSpec({
         let falsePositives = 0;
         let verifiedMatches = 0;
         let unverifiedSteps = 0;
+        let totalElapsedMs = 0;
+        let strict = 0;
+        let phraseReduction = 0;
+        let inventoryScored = 0;
         for (const r of results) {
           autsRunSet.add(r.aut);
           stepsTotal += r.stepCount;
@@ -114,6 +130,12 @@ export const compilePublicAutCommand = createCommandSpec({
           falsePositives += r.falsePositives;
           verifiedMatches += r.verifiedMatches;
           unverifiedSteps += r.unverifiedSteps;
+          totalElapsedMs += r.elapsedMs;
+          for (const outcome of r.stepOutcomes) {
+            if (outcome.resolutionRung === 'strict') strict += 1;
+            else if (outcome.resolutionRung === 'phrase-reduction') phraseReduction += 1;
+            else if (outcome.resolutionRung === 'inventory-scored') inventoryScored += 1;
+          }
         }
 
         const result: CompilePublicAutResult = {
@@ -126,6 +148,8 @@ export const compilePublicAutCommand = createCommandSpec({
           falsePositives,
           verifiedMatches,
           unverifiedSteps,
+          matchesByRung: { strict, phraseReduction, inventoryScored },
+          totalElapsedMs,
           receiptsEmittedTo: `${paths.rootDir}/workshop/logs/public-aut-receipts`,
           perCase: results,
         };
