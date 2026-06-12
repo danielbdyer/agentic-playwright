@@ -3421,3 +3421,105 @@ number to chase. The numbers that matter: hit rate, verified
 rate, false-positive rate, cost, and — eventually —
 generalization rate against a clean held-out. Everything
 else is internal to the developer.
+
+---
+
+## Entry 36 — cycle 9: the held-out verdict, finally clean
+
+The cycle-9 evaluation ran on 2026-06-12, under the handoff
+protocol from `docs/v2-cold-start-cohort-handoff-cycle-9.md`.
+A fresh agent — a different session from the one that wrote
+cycles 1–8 — ran the cohort runner against
+`https://www.outsystems.com/` exactly once, **before reading
+any classifier or runner code**, and captured the JSON
+verbatim. This is the first held-out number since cycle 5
+that nobody graded their own homework on.
+
+**The verdict: the system found nothing.**
+
+| Metric | Held-out (outsystems-com) | Training (cycle 8) |
+|---|---|---|
+| Steps total | 6 | 18 |
+| Steps matched | 3 (50%) | 15 (83%) |
+| ...of which trivial navigates | 3 | 7 navigate/press |
+| **DOM-targeting steps matched** | **0 of 3 (0%)** | 8 of 11 (73%) |
+| Verified-correct | 0 | 7 |
+| False positives | 0 | 1 |
+
+All three matched steps were `navigate` verbs — satisfied by
+the case-level page load, not by finding anything. Every step
+that had to locate a real element failed:
+
+- 91201: `getByRole('link', { name: /English language/i })`
+  → 0 matches.
+- 91202: `getByRole('link', { name: /Japanese language/i })`
+  → 0 matches.
+- 91203: `getByRole('link', { name: /Deutsch language/i })`
+  → 0 matches.
+
+**What the receipts can and cannot tell us.** The classifier
+half did its job plausibly on all three steps: verb extraction
+correct (observe, observe, click), role inference correct
+(link), name substring extracted ("English language", etc.).
+The cycle-6 first-word fallback also ran — "English" alone
+matched zero links. So either the language-switcher links are
+not in the accessibility tree on page load (a collapsed menu
+would do that), or their accessible names contain none of the
+words the prose used (e.g. the Japanese link is named 日本語
+— "Japanese" appears nowhere in it). The receipt cannot tell
+us which, because **the runner records only "0 matches" — it
+harvests no evidence about what WAS on the page.** A handoff
+that says "not found" with empty hands is a dead end: a human
+(or a stronger rung) reading it has to re-open the page and
+start from scratch.
+
+**The honest generalization measurement, finally:**
+
+- Training (TodoMVC, re-run 2026-06-12 before any changes):
+  7/9 matched, the same 2 observe-text-mismatch handoffs, the
+  same 1 known false positive. The system is stable on what
+  it was trained on.
+- Held-out: 0/3 on DOM-targeting steps. **The generalization
+  gap is total.** Cycles 5–7 reported "89% held-out"; cycle 8
+  retracted those numbers as contaminated, and cycle 9 shows
+  what an uncontaminated held-out actually looks like for a
+  substring-heuristic resolver: it does not generalize beyond
+  surfaces that happen to name their elements with the same
+  words the test prose uses.
+
+Two environment notes for the record: (1) the evaluation ran
+from a different egress environment than cycles 1–8;
+`httpbin.org` is unreachable from it (page.goto timeout), so
+the httpbin-form training AUT is unmeasurable here — TodoMVC
+carries the training baseline. (2) Receipts for the held-out
+run are under `workshop/logs/public-aut-receipts/outsystems-com/`
+(gitignored, as designed).
+
+**Decisions:**
+
+1. Cohort manifest `evaluationStatus` → `evaluated`.
+2. Cycle 10 will use these three failures to drive code
+   changes — which, per §4.4 C4, means outsystems-com must be
+   promoted held-out → training (one-way, irreversible) the
+   moment that work starts. The promotion lands with cycle 10,
+   exactly as httpbin's did with cycle 8.
+3. A fresh held-out must be designated for cycle 11, authored
+   before any cycle-10 improvement is evaluated against it.
+
+**What cycle 10 must fix — named while the wound is fresh.**
+Not "more regex." The failure is architectural: the runner has
+exactly one resolution strategy plus one ad-hoc fallback, and
+when both miss it reports nothing. The product's own doctrine
+(deterministic precedence, rung "live DOM exploration and safe
+degraded resolution") has been sitting in CLAUDE.md unbuilt in
+the one code path that touches real applications. Cycle 10
+builds it: progressive phrase reduction instead of the
+first-word special case, a role-scoped inventory harvest of
+what IS on the page (including a11y-hidden elements),
+deterministic scoring with a dominance rule, and — most
+importantly — **handoffs that carry the harvested candidates
+as evidence**, so a failed step hands the next rung a menu,
+not a shrug. The semantic-correctness check from cycle 8 stays
+as the guard rail: every new rung's matches remain subject to
+expectedTarget verification, so added recall cannot silently
+buy false positives.
