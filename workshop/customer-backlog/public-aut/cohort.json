@@ -39,7 +39,19 @@
       "promotedAt": "2026-06-12",
       "promotedFrom": "held-out",
       "promotionReason": "Cycle 9's clean held-out evaluation (journal Entry 36) scored 0/3 on DOM-targeting steps. Cycle 10 uses those three failures to drive the degraded-resolution ladder (phrase reduction + inventory harvest + evidence-carrying handoffs), so per spike §4.4 C4 the AUT promotes held-out -> training (one-way, irreversible) before any cycle-10 code change lands. A fresh held-out is designated for cycle 11.",
-      "notes": "OutSystems corporate marketing homepage. Authored as the cycle-9 fresh held-out following the cycle-8 cleanup. Operator inspection confirmed the site is NOT built on OutSystems Reactive (no osui-* classes, no __OSVSTATE) — it's a marketing site, not a Reactive demo app. That's an honest finding: the spike originally named 'a public OutSystems Reactive demo' but no such public Reactive demo is reachable from this environment's egress allowlist. The site still serves as a real-world held-out (foreign DOM, real chrome, multi-section content page). Fixtures target the language-switcher links, which are the most stable elements (don't drift with marketing campaigns). EVALUATION HANDED OFF — see docs/v2-cold-start-cohort-handoff-cycle-9.md. The original agent (the one that authored cycles 1-8) MUST NOT run the evaluation; a fresh agent runs it and reports back."
+      "notes": "OutSystems corporate marketing homepage. Authored as the cycle-9 fresh held-out following the cycle-8 cleanup. Operator inspection confirmed the site is NOT built on OutSystems Reactive (no osui-* classes, no __OSVSTATE) — it's a marketing site, not a Reactive demo app. The cycle-9 handoff evaluation (journal Entry 36) scored 0/3 on DOM-targeting steps; cycle 10 used those failures to build the degraded-resolution ladder, so the AUT promoted to training. Fixtures are at revision 2: the cycle-10 handoff evidence revealed the locale links sit behind a collapsed 'EN' navbar dropdown with a cookie banner in front, so the fixtures gained preconditions per the cycle-7 precedent."
+    },
+    {
+      "name": "saucedemo",
+      "url": "https://www.saucedemo.com/",
+      "partition": "held-out",
+      "fixturesDir": "saucedemo",
+      "snapshotFingerprint": null,
+      "authoringOperator": "claude",
+      "addedAt": "2026-06-12",
+      "evaluationProtocol": "handoff",
+      "evaluationStatus": "pending",
+      "notes": "Swag Labs (Sauce Labs' QA demo) login page. Authored as the cycle-11 fresh held-out after cycle 10 consumed outsystems-com. Shape-differentiated from all training AUTs: a credential form (two labeled textboxes + one button) rather than a todo list or marketing page. The authoring agent made exactly ONE inspection pass (an aria snapshot of the login page) to author expectedTarget values, per spike §4.4 C5, and never ran the cohort runner against it. EVALUATION HANDED OFF — see docs/v2-cold-start-cohort-handoff-cycle-11.md. The agent that built cycle 10's ladder MUST NOT run the evaluation; a fresh agent runs it once and reports back."
     }
   ]
 }

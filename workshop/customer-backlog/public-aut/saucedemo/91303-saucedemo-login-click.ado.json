@@ -1,0 +1,37 @@
+{
+  "id": "91303",
+  "revision": 1,
+  "title": "Verify the login button can be clicked on the Swag Labs login page",
+  "suitePath": "public-aut/saucedemo",
+  "areaPath": "public-aut",
+  "iterationPath": "public-aut/spike-1",
+  "tags": [
+    "smoke",
+    "saucedemo",
+    "P1",
+    "public-aut",
+    "held-out"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Open the Swag Labs login page</p>",
+      "expected": "<p>The login page loads</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click the Login button</p>",
+      "expected": "<p>The form submits (an error about missing credentials is acceptable; the click itself is what is under test)</p>",
+      "expectedTarget": {
+        "role": "button",
+        "name": "Login"
+      }
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:91303-saucedemo-login-click-spike1",
+  "syncedAt": "2026-06-12T00:00:00.000Z",
+  "targetAut": "https://www.saucedemo.com/"
+}

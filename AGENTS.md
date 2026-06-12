@@ -14,19 +14,23 @@ The three things v2's `product/` ships (details in `docs/v2-direction.md §1`):
 The workshop's job (details in `docs/v2-direction.md §5` and `docs/v2-substrate.md §7`):
 - Derive **probes** from the manifest, run them through the product's normal authoring flow, derive metrics over run records, gate proposal activation against the trust policy, and append hypothesis receipts to the workshop's log. Graduate when probe coverage = 100% and `metric-hypothesis-confirmation-rate` sustains above floor.
 
-## If you're a fresh agent session, your next action is to read the substrate-ladder plan
+## If you're a fresh agent session, start with the cold-start cohort spike
 
-**Status as of 2026-04-24 (late).** Z11g (substrate ladder) is actively in-flight. Rungs 1–3 (dry / fixture-replay / playwright-live) have the substrate-invariance theorem executable as law (Z11g.a/b/c landed). Rung-4 (Platonic-form distillation of real Reactive OutSystems DOM) has a Reactive-only harness design (`docs/v2-substrate-ladder-plan.d0a-harness-design.md`) and Phase 1–3 domain types + store + DOM walker landed; operator URL confirmation pending for manual validation. Z11b retired (see `docs/archive/v2-executed-test-cohort-plan.md`); Z11d (live reasoning adapter) + Z11f (substrate study) remain forward paths orthogonal to Z11g.
+**Status as of 2026-06-12 (cycle 10).** The live frontier is the **cold-start cohort spike**: the system executing plain-English test cases against real public websites, measured under a clean-room training/held-out discipline. Cycle 9 produced the first untainted held-out measurement (0/3 — total generalization failure of the substring-heuristic baseline; journal Entry 36). Cycle 10 answered it with the **degraded-resolution ladder** (strict → phrase-reduction → inventory-scored; pure kernel at `product/domain/resolution/patterns/degraded-resolution.ts`, ZC44 laws) and **evidence-carrying handoffs** (role census + ranked candidate menu + attempt trace + failure-shape note in every receipt; journal Entry 37). Training cohort now 12/15 steps matched, 4 verified-correct, 1 known false positive, 0 silent failures.
 
-**Start here**: [`docs/v2-substrate-ladder-plan.md`](docs/v2-substrate-ladder-plan.md) — the active plan. ~30 minutes. Companions: [`docs/v2-substrate-source-survey.md`](docs/v2-substrate-source-survey.md) (Reactive-is-target scope correction + observation-axes catalog) and [`docs/v2-substrate-ladder-plan.d0a-harness-design.md`](docs/v2-substrate-ladder-plan.d0a-harness-design.md) (sophisticated 4-phase hydration heuristic + in-page evaluator design).
+**Start here**: [`docs/v2-cold-start-cohort-brief.md`](docs/v2-cold-start-cohort-brief.md) (one page, plain English), then [`docs/v2-cold-start-todomvc-journal.md`](docs/v2-cold-start-todomvc-journal.md) (the experiment journal; read the last three entries first). The cohort machinery lives in `workshop/customer-backlog/` (`public-aut-runner.ts` + `public-aut/` fixtures + `cohort.json` manifest).
+
+**If a pending held-out evaluation exists, that is your first action.** Check `workshop/customer-backlog/public-aut/cohort.json` for an entry with `evaluationStatus: "pending"` — as of this writing, `saucedemo` awaits a fresh evaluator per [`docs/v2-cold-start-cohort-handoff-cycle-11.md`](docs/v2-cold-start-cohort-handoff-cycle-11.md). Run it BEFORE reading any classifier/runner code, capture the JSON verbatim, then synthesize.
 
 **Forward paths**:
 
-1. **Z11g — Substrate Ladder** (active). Rungs 1–3 in `workshop/probe-derivation/`; rung-4 (Reactive distillation) scaffolded in `workshop/substrate-study/`. Plan: [`docs/v2-substrate-ladder-plan.md`](docs/v2-substrate-ladder-plan.md). Enables Verdict-12's multi-rung-grounded classification.
+1. **Cohort cycle 11+** (active). Held-out evaluation → synthesis → next improvement driven by receipt evidence. The biggest named gap: semantic bridging for steps whose wording shares no vocabulary with the page (e.g. "Japanese" vs a link named 日本語) — exactly the Z11d reasoning-rung slot; the evidence-carrying handoffs were designed to be its input.
 
-2. **Z11d — Live Reasoning Adapter** (Claude-as-adapter via file-mediated record/fill/replay triad + autotelic hooks). Plan: [`docs/v2-live-adapter-plan.md`](docs/v2-live-adapter-plan.md). ~6 days. Orthogonal to Z11g; replaces Z11a.5's heuristic classifier with real reasoning.
+2. **Z11d — Live Reasoning Adapter** (Claude-as-adapter via file-mediated record/fill/replay triad + autotelic hooks). Plan: [`docs/v2-live-adapter-plan.md`](docs/v2-live-adapter-plan.md). ~6 days. Replaces the heuristic classifier's ceiling with real reasoning; consumes the cycle-10 handoff evidence payloads.
 
-3. **Z11f — Substrate Study** (offline harvest of public OutSystems DOMs → distilled matchers). Plan: [`docs/v2-substrate-study-plan.md`](docs/v2-substrate-study-plan.md). ~8–12 days. Grounds the OutSystems-generic pattern tier in real evidence.
+3. **Z11g — Substrate Ladder** (paused at rung-4 design; rungs 1–3 landed with the substrate-invariance theorem executable as law). Plan: [`docs/v2-substrate-ladder-plan.md`](docs/v2-substrate-ladder-plan.md). Rung-4 (Reactive distillation) scaffolded in `workshop/substrate-study/`; operator URL confirmation pending. Companions: [`docs/v2-substrate-source-survey.md`](docs/v2-substrate-source-survey.md), [`docs/v2-substrate-ladder-plan.d0a-harness-design.md`](docs/v2-substrate-ladder-plan.d0a-harness-design.md).
+
+4. **Z11f — Substrate Study** (offline harvest of public OutSystems DOMs → distilled matchers). Plan: [`docs/v2-substrate-study-plan.md`](docs/v2-substrate-study-plan.md). ~8–12 days. Grounds the OutSystems-generic pattern tier in real evidence.
 
 If you're instead picking up a specific forcing-function remediation, the finished graduation ledger lives in `product/tests/architecture/seam-enforcement.laws.spec.ts`.
 

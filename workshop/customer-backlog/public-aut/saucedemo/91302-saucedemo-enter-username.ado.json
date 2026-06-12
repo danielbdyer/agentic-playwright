@@ -1,0 +1,48 @@
+{
+  "id": "91302",
+  "revision": 1,
+  "title": "Verify a username can be entered on the Swag Labs login page",
+  "suitePath": "public-aut/saucedemo",
+  "areaPath": "public-aut",
+  "iterationPath": "public-aut/spike-1",
+  "tags": [
+    "smoke",
+    "saucedemo",
+    "P1",
+    "public-aut",
+    "held-out"
+  ],
+  "priority": 1,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Open the Swag Labs login page</p>",
+      "expected": "<p>The login page loads</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Enter the standard username into the Username field</p>",
+      "expected": "<p>The username field contains the entered value</p>",
+      "expectedTarget": {
+        "role": "textbox",
+        "name": "Username"
+      }
+    }
+  ],
+  "parameters": [
+    {
+      "name": "username",
+      "values": [
+        "standard_user"
+      ]
+    }
+  ],
+  "dataRows": [
+    {
+      "username": "standard_user"
+    }
+  ],
+  "contentHash": "sha256:91302-saucedemo-enter-username-spike1",
+  "syncedAt": "2026-06-12T00:00:00.000Z",
+  "targetAut": "https://www.saucedemo.com/"
+}
