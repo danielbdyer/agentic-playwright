@@ -50,6 +50,12 @@ export interface BuildImprovementRunInput {
   readonly improvementRunId?: string | undefined;
   readonly startedAt?: string | undefined;
   readonly completedAt?: string | null | undefined;
+  /** Cycle 11 / G9: the authored hypothesis ids this run's
+   *  acceptance decision was predicated on, threaded onto the
+   *  decision so the improvement ledger and the compounding receipt
+   *  log form one auditable chain. Optional + defaults to empty for
+   *  callers that don't run under a hypothesis. */
+  readonly hypothesisIds?: readonly string[] | undefined;
 }
 
 function round4(value: number): number {
@@ -365,6 +371,7 @@ function acceptanceDecision(
       kind: optimizer.kind,
     },
     checkpointRef: input.scorecardComparison.improved ? scorecardPath(input.paths) : null,
+    hypothesisIds: input.hypothesisIds ?? [],
   };
 }
 

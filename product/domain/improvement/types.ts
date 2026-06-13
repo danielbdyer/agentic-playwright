@@ -193,6 +193,14 @@ export interface AcceptanceDecision {
   readonly objectiveVector: ObjectiveVector;
   readonly decidedBy: ParticipantRef;
   readonly checkpointRef?: string | null | undefined;
+  /** Cycle 11 / G9: the authored hypothesis ids this decision was
+   *  predicated on. Ties the improvement ledger to the
+   *  compounding-engine receipt log so "this change was accepted
+   *  because hypotheses H1, H2 confirmed" is one auditable chain
+   *  rather than two disjoint records. Empty when a decision was
+   *  not hypothesis-predicated (e.g. a pre-compounding-era run);
+   *  optional so every existing ledger entry still parses. */
+  readonly hypothesisIds?: readonly string[];
 }
 
 export interface ImprovementIteration {
