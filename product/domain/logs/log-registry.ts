@@ -181,6 +181,17 @@ export const LOG_REGISTRY: readonly LogRegistryEntry[] = [
     description:
       'Dashboard event journal; SSE clients tail; companion index is a derived projection.',
   },
+  {
+    name: 'public-aut-receipts',
+    subdirSegment: 'workshop/logs/public-aut-receipts',
+    format: 'file-per-record',
+    schemaVersion: 6,
+    idempotencyKey: 'timestamp-fp',
+    writer:
+      'workshop/customer-backlog/application/public-aut-runner.ts:writeCaseReceipt',
+    description:
+      'Cold-start cohort per-case receipts (one file per (AUT, ADO case, run)). The empirical wing of the self-improvement loop; bridged into the compounding engine as CompilationReceipts via public-aut-evidence.ts (G1). Bucketed by AUT name subdir.',
+  },
 ];
 
 /** Lookup helper: returns the entry for a given name, or

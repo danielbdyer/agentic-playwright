@@ -35,6 +35,7 @@ import {
   runPublicAutCohort,
   type PublicAutCaseResult,
 } from '../../customer-backlog/application/public-aut-runner';
+import { emitPublicAutCompilationReceipt } from '../../customer-backlog/application/public-aut-evidence';
 
 export interface CompilePublicAutResult {
   readonly autsRun: readonly string[];
@@ -81,6 +82,11 @@ export interface CompilePublicAutResult {
    *  honest-numerator variance, so a single ±1-step delta is not
    *  mistaken for signal. */
   readonly trials?: TrialsReport;
+  /** Cycle 11 (G1): number of CompilationReceipts emitted to the
+   *  compounding engine's log (only when --emit-compounding-receipt
+   *  is set). When non-zero, a registered hypothesis with a
+   *  public-aut cohort can be judged against this run. */
+  readonly compoundingReceiptsEmitted: number;
   readonly receiptsEmittedTo: string;
   readonly perCase: readonly PublicAutCaseResult[];
 }
@@ -183,7 +189,7 @@ function trialsReport(perTrial: readonly number[]): TrialsReport {
 }
 
 export const compilePublicAutCommand = createCommandSpec({
-  flags: ['--aut', '--cohort-role', '--trials'] as const,
+  flags: ['--aut', '--cohort-role', '--trials', '--emit-compounding-receipt', '--hypothesis-id'] as const,
   parse: (context) => ({
     command: 'compile-public-aut',
     strictExitOnUnbound: false,
@@ -193,6 +199,8 @@ export const compilePublicAutCommand = createCommandSpec({
         const autFilter = context.flags.aut;
         const cohortRoleOverride = parseCohortRole(context.flags.cohortRole);
         const trials = parseTrials(context.flags.trials);
+        const emitCompounding = context.flags.emitCompoundingReceipt === true;
+        const hypothesisId = context.flags.hypothesisId ?? null;
 
         const allCases = loadPublicAutCohort(paths.rootDir);
         const filtered = autFilter ? allCases.filter((c) => c.aut.name === autFilter) : allCases;
@@ -232,6 +240,24 @@ export const compilePublicAutCommand = createCommandSpec({
         const counts = aggregate(firstResults);
         const autsRunSet = new Set(firstResults.map((r) => r.aut));
 
+        // G1: lift each case into a CompilationReceipt the compounding
+        // engine can judge. Emitted only on explicit request so a
+        // diagnostic run never pollutes the evidence stream. Trial 1
+        // is the canonical evidence (further trials are variance only).
+        let compoundingReceiptsEmitted = 0;
+        if (emitCompounding) {
+          for (const caseResult of firstResults) {
+            yield* emitPublicAutCompilationReceipt({
+              result: caseResult,
+              hypothesisId,
+              manifestVersion: 1,
+              logRoot: paths.rootDir,
+              computedAt: new Date(),
+            });
+            compoundingReceiptsEmitted += 1;
+          }
+        }
+
         const result: CompilePublicAutResult = {
           autsRun: Array.from(autsRunSet),
           casesProcessed: firstResults.length,
@@ -252,6 +278,7 @@ export const compilePublicAutCommand = createCommandSpec({
           domTargetMatched: counts.domTargetMatched,
           handoffsWithEvidence: counts.handoffsWithEvidence,
           ...(trials > 1 ? { trials: trialsReport(perTrialDomTargetMatched) } : {}),
+          compoundingReceiptsEmitted,
           receiptsEmittedTo: `${paths.rootDir}/workshop/logs/public-aut-receipts`,
           perCase: firstResults,
         };

@@ -32,13 +32,23 @@ describe('PartialIso<A, B> applications', () => {
         topologyId: 'topology-A',
       },
       { kind: 'customer-compilation', corpus: 'resolvable' },
+      // Cycle 11 / G1: the public-aut cohort kind round-trips too.
+      { kind: 'public-aut', aut: 'todomvc', partition: 'training' },
+      { kind: 'public-aut', aut: 'saucedemo', partition: 'held-out' },
     ];
 
     test('L-Forward-RoundTrip + L-Invalid-Inverse via partialIsoLaws', () => {
       const report = partialIsoLaws({
         iso: cohortIso,
         forwardSamples: cohorts,
-        invalidInverseSamples: ['garbage', 'probe-surface:bad', ''],
+        invalidInverseSamples: [
+          'garbage',
+          'probe-surface:bad',
+          '',
+          // Malformed public-aut keys must invert to null.
+          'public-aut:aut:todomvc',
+          'public-aut:aut:todomvc|partition:bogus',
+        ],
       });
       expect(report.violations).toEqual([]);
     });

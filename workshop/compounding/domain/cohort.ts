@@ -65,11 +65,27 @@ export interface CustomerCompilationCohort {
   readonly corpus: 'resolvable' | 'needs-human';
 }
 
+/** Cohort variant identifying a public-AUT cold-start cohort entry
+ *  (`workshop/customer-backlog/public-aut/`). Keyed by AUT name +
+ *  clean-room partition so per-AUT trajectories stay distinct
+ *  (todomvc vs saucedemo) and training/held-out never co-mingle in
+ *  one trajectory. Cycle 11 / G1.
+ *
+ *  Evidence for a public-AUT hypothesis is the CompilationReceipts
+ *  the cohort runner emits (corpus 'public-aut'), bound by
+ *  hypothesisId — the same attribution axis the other cohorts use. */
+export interface PublicAutCohort {
+  readonly kind: 'public-aut';
+  readonly aut: string;
+  readonly partition: 'training' | 'held-out';
+}
+
 /** The closed Cohort union. */
 export type Cohort =
   | ProbeSurfaceCohortRef
   | ScenarioTrajectoryCohort
-  | CustomerCompilationCohort;
+  | CustomerCompilationCohort
+  | PublicAutCohort;
 
 /** Exhaustive Cohort fold. Adding a variant is a typecheck error
  *  until every call site adds the case. */
@@ -79,12 +95,14 @@ export function foldCohort<R>(
     readonly probeSurface: (c: ProbeSurfaceCohortRef) => R;
     readonly scenarioTrajectory: (c: ScenarioTrajectoryCohort) => R;
     readonly customerCompilation: (c: CustomerCompilationCohort) => R;
+    readonly publicAut: (c: PublicAutCohort) => R;
   },
 ): R {
   switch (cohort.kind) {
     case 'probe-surface':         return cases.probeSurface(cohort);
     case 'scenario-trajectory':   return cases.scenarioTrajectory(cohort);
     case 'customer-compilation':  return cases.customerCompilation(cohort);
+    case 'public-aut':            return cases.publicAut(cohort);
   }
 }
 
@@ -101,6 +119,7 @@ export function cohortKey(cohort: Cohort): string {
     probeSurface: (c) => `probe-surface:${probeSurfaceCohortKey(c.cohort)}`,
     scenarioTrajectory: (c) => `scenario:${c.scenarioId}|topology:${c.topologyId}`,
     customerCompilation: (c) => `customer-compilation:corpus:${c.corpus}`,
+    publicAut: (c) => `public-aut:aut:${c.aut}|partition:${c.partition}`,
   });
 }
 
@@ -140,6 +159,11 @@ export function parseCohortKey(key: string): Cohort | null {
     const corpus = key.slice('customer-compilation:corpus:'.length);
     if (corpus !== 'resolvable' && corpus !== 'needs-human') return null;
     return { kind: 'customer-compilation', corpus };
+  }
+  if (key.startsWith('public-aut:aut:')) {
+    const match = /^public-aut:aut:([^|]+)\|partition:(training|held-out)$/.exec(key);
+    if (match === null) return null;
+    return { kind: 'public-aut', aut: match[1]!, partition: match[2] as 'training' | 'held-out' };
   }
   return null;
 }

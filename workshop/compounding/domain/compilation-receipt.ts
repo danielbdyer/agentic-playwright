@@ -31,7 +31,30 @@
 import type { WorkflowMetadata } from '../../../product/domain/governance/workflow-types';
 import type { Fingerprint } from '../../../product/domain/kernel/hash';
 
-export type CustomerCompilationCorpus = 'resolvable' | 'needs-human';
+/**
+ * Which corpus an ADO compilation receipt came from.
+ *
+ *   - `'resolvable'`  synthetic customer-backlog cases whose steps
+ *                     resolve fully under the lookup chain.
+ *   - `'needs-human'` synthetic cases that force the 7th lookup slot
+ *                     (intervention-fidelity corpus).
+ *   - `'public-aut'`  real public websites in the cold-start cohort
+ *                     (`workshop/customer-backlog/public-aut/`). A
+ *                     public-AUT case IS an ADO test case compiled
+ *                     against a real app, so it produces a
+ *                     CompilationReceipt of the same shape; the
+ *                     per-AUT granularity lives on the hypothesis's
+ *                     `public-aut` Cohort (cohort.ts), and evidence
+ *                     binds by hypothesisId (the only attribution
+ *                     axis filterEvidenceForHypothesis uses). Cycle
+ *                     11 / G1.
+ *
+ * Note: the synthetic corpus loader (`load-corpus.ts` CORPUS_DIRS)
+ * scans only the two synthetic dirs; public-AUT cases have their own
+ * loader (`load-public-aut-cohort.ts`). Adding `'public-aut'` here
+ * does not change those scans.
+ */
+export type CustomerCompilationCorpus = 'resolvable' | 'needs-human' | 'public-aut';
 
 export interface CompilationReceipt extends WorkflowMetadata<'evidence'> {
   readonly kind: 'compilation-receipt';

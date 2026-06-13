@@ -166,6 +166,11 @@ export interface PublicAutCaseResult {
   readonly autUrl: string;
   readonly partition: 'training' | 'held-out';
   readonly adoId: string;
+  /** Content hash of the ADO fixture (snapshot.contentHash). Carried
+   *  on the result so the G1 compounding-evidence adapter can stamp
+   *  the receipt's ado-content fingerprint without re-reading the
+   *  fixture. */
+  readonly adoContentHash: string;
   readonly title: string;
   readonly stepCount: number;
   readonly stepOutcomes: readonly PublicAutStepOutcome[];
@@ -1040,6 +1045,7 @@ export async function runPublicAutCase(
     autUrl,
     partition: aut.partition,
     adoId: snapshot.id,
+    adoContentHash: snapshot.contentHash,
     title: snapshot.title,
     stepCount: snapshot.steps.length,
     stepOutcomes,
