@@ -123,6 +123,9 @@ export interface ParsedFlags {
    *  committed per-AUT regression baseline and fail (non-zero exit)
    *  on any regression. */
   checkBaseline?: boolean;
+  /** Cycle 11 (G3): write a per-case resolution-capture record so
+   *  the run can be replayed offline (freezes the substrate). */
+  capture?: boolean;
 }
 
 export type FlagName = keyof typeof flagDescriptorTable;
@@ -190,6 +193,7 @@ type FlagToParsedKey = {
   '--emit-compounding-receipt': 'emitCompoundingReceipt';
   '--evaluation-handoff': 'evaluationHandoff';
   '--check-baseline': 'checkBaseline';
+  '--capture': 'capture';
 };
 type ParsedFlagKeys<TFlags extends readonly FlagName[]> = FlagToParsedKey[TFlags[number]];
 export type ParsedFlagsFor<TFlags extends readonly FlagName[]> = Partial<Pick<ParsedFlags, ParsedFlagKeys<TFlags>>>;
@@ -479,6 +483,7 @@ export const flagDescriptorTable = {
   '--emit-compounding-receipt': booleanDescriptor('--emit-compounding-receipt', 'emitCompoundingReceipt'),
   '--evaluation-handoff': booleanDescriptor('--evaluation-handoff', 'evaluationHandoff'),
   '--check-baseline': booleanDescriptor('--check-baseline', 'checkBaseline'),
+  '--capture': booleanDescriptor('--capture', 'capture'),
 } as const;
 
 export type FlagDecodeResult = {

@@ -192,6 +192,17 @@ export const LOG_REGISTRY: readonly LogRegistryEntry[] = [
     description:
       'Cold-start cohort per-case receipts (one file per (AUT, ADO case, run)). The empirical wing of the self-improvement loop; bridged into the compounding engine as CompilationReceipts via public-aut-evidence.ts (G1). Bucketed by AUT name subdir.',
   },
+  {
+    name: 'public-aut-captures',
+    subdirSegment: 'workshop/logs/public-aut-captures',
+    format: 'file-per-record',
+    schemaVersion: 1,
+    idempotencyKey: 'timestamp-fp',
+    writer:
+      'workshop/customer-backlog/application/public-aut-runner.ts:writeCaptureRecord',
+    description:
+      'Cycle 11 / G3 capture-and-replay. Per-case resolution traces (the frozen page projection the ladder consumed) + a snapshotFingerprint, written under --capture. A pure replay (resolution-replay.ts) reconstructs the resolution verdict offline, so a held-out evaluation’s single permitted contact becomes a permanent, re-analyzable substrate.',
+  },
 ];
 
 /** Lookup helper: returns the entry for a given name, or

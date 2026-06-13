@@ -180,6 +180,10 @@ export interface PublicAutStepOutcome {
   readonly rationale: string;
   readonly resolutionRung: ResolutionRung | null;
   readonly evidence: ProbeEvidence | null;
+  /** Cycle 11 (G3): the captured resolution projection for this
+   *  step (null for navigate/press/text/no-role). The frozen
+   *  substrate a pure replay reconstructs the verdict from. */
+  readonly trace: ResolutionTrace | null;
   readonly actionAttempted: ActionAttempted;
   readonly actionOutcome: ActionOutcome;
   readonly actionDetail: string | null;
@@ -294,6 +298,11 @@ interface RunOptions {
   readonly logRoot: string;
   readonly browserExecutablePath?: string;
   readonly ignoreHTTPSErrors?: boolean;
+  /** Cycle 11 (G3): when set, write a per-case capture record (the
+   *  resolution traces + a stamped snapshotFingerprint) so the run
+   *  can be replayed offline. Crucial for a held-out evaluation:
+   *  the single permitted contact becomes a permanent substrate. */
+  readonly capture?: boolean;
 }
 
 function classifyStep(actionText: string): {
@@ -307,6 +316,46 @@ function classifyStep(actionText: string): {
   return { verdict: intent ? 'classified' : 'unclassified', intent, plain };
 }
 
+/**
+ * Cycle 11 (G3): the resolution-relevant projection of the live
+ * page for one DOM-target step — everything the ladder consumed to
+ * reach its verdict. Captured during a live run; a pure replay
+ * (resolution-replay.ts) reconstructs the verdict from it offline,
+ * so a held-out evaluation's single permitted contact yields a
+ * frozen substrate that can be re-analyzed forever.
+ *
+ * This captures the projection the LADDER uses (query counts +
+ * harvested inventory), not the full DOM. It cannot replay
+ * narrative-execute state transitions or re-run a different
+ * classifier — but it makes the resolution decision (the thing
+ * under measurement) reproducible without re-contacting the site.
+ */
+export interface ResolutionTrace {
+  readonly verb: ClassifiedIntent['verb'];
+  readonly role: string;
+  readonly phrase: string | null;
+  /** Live count of the strict getByRole(role, phrase) query. */
+  readonly strictCount: number;
+  /** Each phrase reduction tried (in order) with its live count.
+   *  Empty when strict matched or strictCount > 1 (reductions are
+   *  only attempted on a 0-count strict). */
+  readonly reductions: readonly { readonly reduction: string; readonly count: number }[];
+  /** The full harvested role inventory (name + visibility). Empty
+   *  when a higher rung matched before the harvest ran. */
+  readonly inventory: readonly CandidateSurface[];
+  /** Inventory-rung confirmation: the dominant candidate's name and
+   *  its exact/loose confirmation counts. Null when no dominant
+   *  candidate was selected. */
+  readonly confirmation: {
+    readonly name: string;
+    readonly exactCount: number;
+    readonly looseCount: number;
+  } | null;
+  /** The verdict the live run reached — the replay target. */
+  readonly liveResolution: StepDomResolution;
+  readonly liveRung: ResolutionRung | null;
+}
+
 interface ProbeResult {
   readonly resolution: StepDomResolution;
   readonly matchCount: number;
@@ -317,6 +366,9 @@ interface ProbeResult {
   readonly matchedLocator: Locator | null;
   readonly resolutionRung: ResolutionRung | null;
   readonly evidence: ProbeEvidence | null;
+  /** Cycle 11 (G3): the captured resolution projection, present for
+   *  role-ladder steps (null for navigate/press/text/no-role). */
+  readonly trace: ResolutionTrace | null;
 }
 
 /** Inventory harvest caps: enough to characterize a marketing page
@@ -333,6 +385,7 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
       matchedLocator: null,
       resolutionRung: null,
       evidence: null,
+      trace: null,
     };
   }
 
@@ -350,6 +403,7 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
         matchedLocator: null,
         resolutionRung: null,
         evidence: null,
+      trace: null,
       };
     }
     return {
@@ -359,6 +413,7 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
       matchedLocator: null,
       resolutionRung: null,
       evidence: null,
+      trace: null,
     };
   }
 
@@ -380,10 +435,11 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
       matchedLocator: null,
       resolutionRung: null,
       evidence: null,
+      trace: null,
     };
   }
 
-  return probeByRoleLadder(page, role, name ?? null, nameSubstring ?? null);
+  return probeByRoleLadder(page, intent.verb, role, name ?? null, nameSubstring ?? null);
 }
 
 /**
@@ -394,19 +450,39 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
  *
  * Replaces the cycle-6 first-word fallback (Probe Seed 7), which
  * was rung 2 hand-rolled for one fixture's phrasing.
+ *
+ * Cycle 11 (G3): restructured to a single return path that also
+ * emits a `ResolutionTrace` — the frozen projection a pure replay
+ * reconstructs the verdict from.
  */
 async function probeByRoleLadder(
   page: Page,
+  verb: ClassifiedIntent['verb'],
   role: string,
   exactName: string | null,
   nameSubstring: string | null,
 ): Promise<ProbeResult> {
   const phrase = exactName ?? nameSubstring;
   const attempts: string[] = [];
+  const reductionsTried: { reduction: string; count: number }[] = [];
+  let inventory: readonly CandidateSurface[] = [];
+  let confirmation: ResolutionTrace['confirmation'] = null;
   const byRole = (q?: string | RegExp) =>
     q !== undefined
       ? page.getByRole(role as Parameters<Page['getByRole']>[0], { name: q })
       : page.getByRole(role as Parameters<Page['getByRole']>[0]);
+
+  const mkTrace = (liveResolution: StepDomResolution, liveRung: ResolutionRung | null, strictCount: number): ResolutionTrace => ({
+    verb,
+    role,
+    phrase,
+    strictCount,
+    reductions: [...reductionsTried],
+    inventory: [...inventory],
+    confirmation,
+    liveResolution,
+    liveRung,
+  });
 
   try {
     // ── Rung 1: strict — the full classifier phrase ──────────────
@@ -424,6 +500,7 @@ async function probeByRoleLadder(
         matchedLocator: strictLocator,
         resolutionRung: 'strict',
         evidence: null,
+        trace: mkTrace('matched', 'strict', strictCount),
       };
     }
 
@@ -435,6 +512,7 @@ async function probeByRoleLadder(
         const reductionQuery = buildNameQuery(reduction);
         const reductionLocator = byRole(reductionQuery);
         const reductionCount = await reductionLocator.count();
+        reductionsTried.push({ reduction, count: reductionCount });
         attempts.push(`getByRole('${role}', { name: ${reductionQuery} }) → ${reductionCount}`);
         if (reductionCount === 1) {
           return {
@@ -444,6 +522,7 @@ async function probeByRoleLadder(
             matchedLocator: reductionLocator,
             resolutionRung: 'phrase-reduction',
             evidence: null,
+            trace: mkTrace('matched', 'phrase-reduction', strictCount),
           };
         }
       }
@@ -451,6 +530,7 @@ async function probeByRoleLadder(
 
     // ── Rung 3: inventory harvest + deterministic scoring ────────
     const harvest = await harvestRoleInventory(page, role);
+    inventory = harvest.candidates;
     const ranked = rankCandidates(phrase ?? '', harvest.candidates);
     const evidence = buildProbeEvidence(role, phrase, harvest, ranked, attempts);
 
@@ -470,12 +550,14 @@ async function probeByRoleLadder(
       const exactCount = await exactLocator.count();
       attempts.push(`getByRole('${role}', { name: '${dominant.name}', exact: true }) [confirmation] → ${exactCount}`);
       let confirmed: Locator | null = exactCount === 1 ? exactLocator : null;
+      let looseCount = 0;
       if (!confirmed) {
         const looseLocator = byRole(dominant.name);
-        const looseCount = await looseLocator.count();
+        looseCount = await looseLocator.count();
         attempts.push(`getByRole('${role}', { name: '${dominant.name}' }) [confirmation] → ${looseCount}`);
         confirmed = looseCount === 1 ? looseLocator : null;
       }
+      confirmation = { name: dominant.name, exactCount, looseCount };
       if (confirmed) {
         const runnerUp = ranked.find((c) => c.name !== dominant.name);
         return {
@@ -485,6 +567,7 @@ async function probeByRoleLadder(
           matchedLocator: confirmed,
           resolutionRung: 'inventory-scored',
           evidence,
+          trace: mkTrace('matched', 'inventory-scored', strictCount),
         };
       }
     }
@@ -498,6 +581,7 @@ async function probeByRoleLadder(
       matchedLocator: null,
       resolutionRung: null,
       evidence,
+      trace: mkTrace(resolution, null, strictCount),
     };
   } catch (err) {
     return {
@@ -507,6 +591,7 @@ async function probeByRoleLadder(
       matchedLocator: null,
       resolutionRung: null,
       evidence: null,
+      trace: null,
     };
   }
 }
@@ -641,6 +726,7 @@ async function probeByText(page: Page, nameSubstring: string): Promise<ProbeResu
         matchedLocator: null,
         resolutionRung: null,
         evidence: null,
+      trace: null,
       };
     }
     if (count === 1) {
@@ -651,6 +737,7 @@ async function probeByText(page: Page, nameSubstring: string): Promise<ProbeResu
         matchedLocator: locator,
         resolutionRung: 'strict',
         evidence: null,
+      trace: null,
       };
     }
     return {
@@ -660,6 +747,7 @@ async function probeByText(page: Page, nameSubstring: string): Promise<ProbeResu
       matchedLocator: null,
       resolutionRung: null,
       evidence: null,
+      trace: null,
     };
   } catch (err) {
     return {
@@ -669,6 +757,7 @@ async function probeByText(page: Page, nameSubstring: string): Promise<ProbeResu
       matchedLocator: null,
       resolutionRung: null,
       evidence: null,
+      trace: null,
     };
   }
 }
@@ -795,6 +884,7 @@ async function runPipelineStep(
       rationale: 'intent classifier returned null',
       resolutionRung: null,
       evidence: null,
+      trace: null,
       actionAttempted: null,
       actionOutcome: 'skipped',
       actionDetail: null,
@@ -841,6 +931,7 @@ async function runPipelineStep(
     rationale: probe.rationale,
     resolutionRung: probe.resolutionRung,
     evidence: probe.evidence,
+    trace: probe.trace,
     actionAttempted: action.attempted,
     actionOutcome: action.outcome,
     actionDetail: action.detail,
@@ -1049,6 +1140,17 @@ export async function runPublicAutCase(
   const elapsedMs = Date.now() - runStart;
   const preconditionsRan = preconditionOutcomes.length;
   const tallies = derivePublicAutCaseTallies(stepOutcomes);
+  if (options.capture === true) {
+    writeCaptureRecord({
+      aut: aut.name,
+      autUrl,
+      adoId: snapshot.id,
+      runStartedAt,
+      stepOutcomes,
+      preconditionOutcomes,
+      logRoot: options.logRoot,
+    });
+  }
   const receiptPath = writeCaseReceipt({
     aut: aut.name,
     autUrl,
@@ -1118,6 +1220,52 @@ interface WriteReceiptArgs {
   readonly elapsedMs: number;
   readonly runStartedAt: string;
   readonly logRoot: string;
+}
+
+interface WriteCaptureArgs {
+  readonly aut: string;
+  readonly autUrl: string;
+  readonly adoId: string;
+  readonly runStartedAt: string;
+  readonly stepOutcomes: readonly PublicAutStepOutcome[];
+  readonly preconditionOutcomes: readonly PublicAutStepOutcome[];
+  readonly logRoot: string;
+}
+
+/**
+ * Cycle 11 (G3): write the per-case capture record — the frozen
+ * resolution projection a pure replay reconstructs the verdict
+ * from. Stores every step's `ResolutionTrace`, stamped with a
+ * `snapshotFingerprint` over the traces (finally populating the
+ * field the cohort manifest has reserved-but-null since cycle 1).
+ * Append-only file-per-record under a registered log.
+ */
+function writeCaptureRecord(args: WriteCaptureArgs): string {
+  const dir = path.join(args.logRoot, 'workshop', 'logs', 'public-aut-captures', args.aut);
+  fs.mkdirSync(dir, { recursive: true });
+  const stamp = args.runStartedAt.replace(/[:.]/g, '-');
+  const collect = (outcomes: readonly PublicAutStepOutcome[]) =>
+    outcomes
+      .filter((o) => o.trace !== null)
+      .map((o) => ({ stepIndex: o.stepIndex, trace: o.trace }));
+  const traces = collect(args.stepOutcomes);
+  const preconditionTraces = collect(args.preconditionOutcomes);
+  const snapshotFingerprint = taggedFingerprintFor('snapshot', { traces, preconditionTraces });
+  const record = {
+    schemaVersion: 1,
+    captureKind: 'public-aut-resolution-capture',
+    aut: args.aut,
+    autUrl: args.autUrl,
+    adoId: args.adoId,
+    runStartedAt: args.runStartedAt,
+    resolverFingerprint: resolverFingerprint(),
+    snapshotFingerprint,
+    preconditionTraces,
+    traces,
+  };
+  const fullPath = path.join(dir, `${args.adoId}-${stamp}.capture.json`);
+  fs.writeFileSync(fullPath, JSON.stringify(record, null, 2));
+  return fullPath;
 }
 
 function writeCaseReceipt(args: WriteReceiptArgs): string {

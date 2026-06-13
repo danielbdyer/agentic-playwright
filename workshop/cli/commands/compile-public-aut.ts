@@ -206,7 +206,7 @@ function trialsReport(perTrial: readonly number[]): TrialsReport {
 }
 
 export const compilePublicAutCommand = createCommandSpec({
-  flags: ['--aut', '--cohort-role', '--trials', '--emit-compounding-receipt', '--hypothesis-id', '--check-baseline', '--evaluation-handoff'] as const,
+  flags: ['--aut', '--cohort-role', '--trials', '--emit-compounding-receipt', '--hypothesis-id', '--check-baseline', '--evaluation-handoff', '--capture'] as const,
   parse: (context) => ({
     command: 'compile-public-aut',
     strictExitOnUnbound: false,
@@ -220,6 +220,7 @@ export const compilePublicAutCommand = createCommandSpec({
         const hypothesisId = context.flags.hypothesisId ?? null;
         const checkBaseline = context.flags.checkBaseline === true;
         const evaluationHandoff = context.flags.evaluationHandoff === true;
+        const capture = context.flags.capture === true;
 
         const allCases = loadPublicAutCohort(paths.rootDir);
         const filtered = autFilter ? allCases.filter((c) => c.aut.name === autFilter) : allCases;
@@ -255,6 +256,7 @@ export const compilePublicAutCommand = createCommandSpec({
                 ...(cohortRoleOverride ? { cohortRole: cohortRoleOverride } : {}),
                 ...(browserExecutablePath ? { browserExecutablePath } : {}),
                 ignoreHTTPSErrors: true,
+                capture,
               }),
             catch: (cause) => new Error(`compile-public-aut: cohort run failed: ${(cause as Error).message}`),
           });
