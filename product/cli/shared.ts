@@ -126,6 +126,11 @@ export interface ParsedFlags {
   /** Cycle 11 (G3): write a per-case resolution-capture record so
    *  the run can be replayed offline (freezes the substrate). */
   capture?: boolean;
+  /** Cycle 11 (Z11d): cohort reasoning-rung mode —
+   *  'off' | 'record' | 'replay'. 'record' parks pending
+   *  semantic-bridge requests in the reasoning pool; 'replay'
+   *  resolves bridges from filled answers. */
+  reasoningMode?: string;
 }
 
 export type FlagName = keyof typeof flagDescriptorTable;
@@ -194,6 +199,7 @@ type FlagToParsedKey = {
   '--evaluation-handoff': 'evaluationHandoff';
   '--check-baseline': 'checkBaseline';
   '--capture': 'capture';
+  '--reasoning-mode': 'reasoningMode';
 };
 type ParsedFlagKeys<TFlags extends readonly FlagName[]> = FlagToParsedKey[TFlags[number]];
 export type ParsedFlagsFor<TFlags extends readonly FlagName[]> = Partial<Pick<ParsedFlags, ParsedFlagKeys<TFlags>>>;
@@ -484,6 +490,7 @@ export const flagDescriptorTable = {
   '--evaluation-handoff': booleanDescriptor('--evaluation-handoff', 'evaluationHandoff'),
   '--check-baseline': booleanDescriptor('--check-baseline', 'checkBaseline'),
   '--capture': booleanDescriptor('--capture', 'capture'),
+  '--reasoning-mode': valueDescriptor('--reasoning-mode', 'reasoningMode', (value) => readFlagValue('--reasoning-mode', value)),
 } as const;
 
 export type FlagDecodeResult = {

@@ -226,7 +226,14 @@ export type FingerprintTag =
   // is mechanically checkable: two receipts with the same
   // resolver fingerprint against the same held-out AUT are a
   // duplicate evaluation.
-  | 'resolver';
+  | 'resolver'
+  // Reasoning pool (Cycle 11 / Z11d). Keys a reasoning request by
+  // its semantic content (op + model + sorted prompt/purpose) so an
+  // identical ask produces an identical fingerprint — the
+  // record/fill/replay reproducibility contract. The fingerprint is
+  // the pool filename; identical prompts hit the same filled
+  // response (deterministic cache).
+  | 'reasoning-prompt';
 
 /** Adopt an existing string as a tagged fingerprint. Use sparingly
  *  — this is the type-system "I know what I'm doing" escape hatch

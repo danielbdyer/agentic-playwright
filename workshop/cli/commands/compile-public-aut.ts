@@ -127,6 +127,12 @@ function parseCohortRole(raw: string | undefined): 'training' | 'held-out' | und
   throw new Error(`compile-public-aut: --cohort-role must be 'training' | 'held-out'; got '${raw}'`);
 }
 
+function parseReasoningMode(raw: string | undefined): 'off' | 'record' | 'replay' {
+  if (raw === undefined) return 'off';
+  if (raw === 'off' || raw === 'record' || raw === 'replay') return raw;
+  throw new Error(`compile-public-aut: --reasoning-mode must be 'off' | 'record' | 'replay'; got '${raw}'`);
+}
+
 function parseTrials(raw: string | undefined): number {
   if (raw === undefined) return 1;
   const n = Number.parseInt(raw, 10);
@@ -213,7 +219,7 @@ function trialsReport(perTrial: readonly number[]): TrialsReport {
 }
 
 export const compilePublicAutCommand = createCommandSpec({
-  flags: ['--aut', '--cohort-role', '--trials', '--emit-compounding-receipt', '--hypothesis-id', '--check-baseline', '--evaluation-handoff', '--capture'] as const,
+  flags: ['--aut', '--cohort-role', '--trials', '--emit-compounding-receipt', '--hypothesis-id', '--check-baseline', '--evaluation-handoff', '--capture', '--reasoning-mode'] as const,
   parse: (context) => ({
     command: 'compile-public-aut',
     strictExitOnUnbound: false,
@@ -228,6 +234,7 @@ export const compilePublicAutCommand = createCommandSpec({
         const checkBaseline = context.flags.checkBaseline === true;
         const evaluationHandoff = context.flags.evaluationHandoff === true;
         const capture = context.flags.capture === true;
+        const reasoningMode = parseReasoningMode(context.flags.reasoningMode);
 
         const allCases = loadPublicAutCohort(paths.rootDir);
         const filtered = autFilter ? allCases.filter((c) => c.aut.name === autFilter) : allCases;
@@ -264,6 +271,7 @@ export const compilePublicAutCommand = createCommandSpec({
                 ...(browserExecutablePath ? { browserExecutablePath } : {}),
                 ignoreHTTPSErrors: true,
                 capture,
+                reasoningMode,
               }),
             catch: (cause) => new Error(`compile-public-aut: cohort run failed: ${(cause as Error).message}`),
           });

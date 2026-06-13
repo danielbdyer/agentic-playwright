@@ -234,6 +234,15 @@ const ALWAYS_ALLOWED_PRODUCT_PATHS: readonly string[] = [
   // owns them exclusively — shared-contract same as
   // product/domain/governance.
   'product/domain/resolution/patterns',
+  // Reasoning pool (Cycle 11 / Z11d). The file-mediated
+  // record/fill/replay pool's pure types + fingerprint. The on-disk
+  // JSON shape is the cross-seam contract: the product Reasoning
+  // adapters (product/reasoning/adapters/) write/read it through the
+  // port, and the workshop cohort's reasoning rung writes/reads the
+  // same format for its semantic-bridge handoffs. Both sides depend
+  // on the same pool types; neither owns them exclusively —
+  // shared-contract same as product/domain/intent.
+  'product/domain/reasoning-pool',
   // Algebra library. Monoid / Lattice / GaloisConnection /
   // Hylomorphism / Free-Forgetful / ProductFold / ContextualMerge
   // / SliceProjection / Quotient — pure domain-algebra primitives

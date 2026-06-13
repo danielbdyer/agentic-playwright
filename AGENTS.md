@@ -80,6 +80,7 @@ The shared-contract set, as enforced by `ALWAYS_ALLOWED_PRODUCT_PATHS` in the se
 - **`product/domain/projection`** — SceneState, FlywheelAct, SummaryView, etc. (read-model contract).
 - **`product/domain/proposal`** — ProposalBundle, cluster types, failure fragments.
 - **`product/domain/resolution/patterns`** — Rung / Matcher / Pattern kernel + shared intent classifier.
+- **`product/domain/reasoning-pool`** — file-mediated record/fill/replay pool types + prompt fingerprint (Z11d); the on-disk JSON shape is the cross-seam contract shared by the product Reasoning adapters and the workshop cohort's reasoning rung.
 - **`product/instruments/tooling`** — Playwright adapter utilities (launchHeadedHarness, createPlaywrightBridge).
 
 When widening this set, update both the law (`ALWAYS_ALLOWED_PRODUCT_PATHS` at `product/tests/architecture/seam-enforcement.laws.spec.ts:100-237`) and this list. Per-path rationale lives in the law's inline comments; keep the two in sync.

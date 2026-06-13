@@ -69,6 +69,15 @@ import { taggedFingerprintFor, type Fingerprint } from '../../../product/domain/
 import type { LoadedPublicAutCase } from './load-public-aut-cohort';
 import { stripHtml, inferAllowedActions } from './intent-helpers';
 import { buildLiveSurface, resolveViaPatternRegistry, type LiveSurface } from './surface-harvest';
+import { attemptReasoningRung, type ReasoningMode } from './reasoning-rung';
+
+/** Reasoning-rung config threaded through the ladder (Z11d). */
+export interface ReasoningConfig {
+  readonly mode: ReasoningMode;
+  readonly rootDir: string;
+}
+
+const REASONING_OFF: ReasoningConfig = { mode: 'off', rootDir: '' };
 
 /** Bumped from 'floor-a5-heuristic-naive-dom' at cycle 10: the
  *  degraded-resolution ladder can classify steps the A.5 runner
@@ -314,6 +323,10 @@ interface RunOptions {
    *  can be replayed offline. Crucial for a held-out evaluation:
    *  the single permitted contact becomes a permanent substrate. */
   readonly capture?: boolean;
+  /** Cycle 11 (Z11d): reasoning rung mode. 'record' parks pending
+   *  semantic-bridge requests in the pool; 'replay' resolves bridges
+   *  from filled answers; default 'off'. */
+  readonly reasoningMode?: ReasoningMode;
 }
 
 function classifyStep(actionText: string): {
@@ -399,7 +412,11 @@ interface ProbeResult {
 const MAX_HARVEST = 40;
 const EVIDENCE_CANDIDATE_LIMIT = 12;
 
-async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeResult> {
+async function probeStep(
+  page: Page,
+  intent: ClassifiedIntent,
+  reasoning: ReasoningConfig = REASONING_OFF,
+): Promise<ProbeResult> {
   if (intent.verb === 'navigate') {
     return {
       resolution: 'skipped-navigate',
@@ -462,7 +479,7 @@ async function probeStep(page: Page, intent: ClassifiedIntent): Promise<ProbeRes
     };
   }
 
-  return probeByRoleLadder(page, intent.verb, role, name ?? null, nameSubstring ?? null);
+  return probeByRoleLadder(page, intent.verb, role, name ?? null, nameSubstring ?? null, reasoning);
 }
 
 /**
@@ -484,6 +501,7 @@ async function probeByRoleLadder(
   role: string,
   exactName: string | null,
   nameSubstring: string | null,
+  reasoning: ReasoningConfig = REASONING_OFF,
 ): Promise<ProbeResult> {
   const phrase = exactName ?? nameSubstring;
   const attempts: string[] = [];
@@ -635,6 +653,45 @@ async function probeByRoleLadder(
           trace: mkTrace('matched', 'inventory-scored', strictCount),
         };
       }
+    }
+
+    // ── Rung 4 (Z11d): reasoning — the file-mediated semantic
+    // bridge. Token-overlap exhausted; offer the ranked menu to the
+    // reasoning pool. Replay resolves a bridge (e.g. "Japanese" →
+    // 日本語) from a filled answer; record defers with a pending
+    // pool request. The cycle-10 evidence menu IS this rung's input.
+    if (reasoning.mode !== 'off') {
+      const reasoningOutcome = await attemptReasoningRung({
+        rootDir: reasoning.rootDir,
+        mode: reasoning.mode,
+        verb,
+        role,
+        phrase,
+        candidates: ranked.map((c) => ({ name: c.name, visible: c.visible, score: c.score })),
+        confirm: async (chosenName) => {
+          const exact = page.getByRole(role as Parameters<Page['getByRole']>[0], {
+            name: chosenName,
+            exact: true,
+          });
+          return (await exact.count()) === 1 ? exact : null;
+        },
+      });
+      if (reasoningOutcome.matchedLocator) {
+        attempts.push(reasoningOutcome.rationale);
+        return {
+          resolution: 'matched',
+          matchCount: 1,
+          rationale: reasoningOutcome.rationale,
+          matchedLocator: reasoningOutcome.matchedLocator,
+          resolutionRung: 'reasoning',
+          evidence,
+          trace: mkTrace('matched', 'reasoning', strictCount),
+        };
+      }
+      // Not resolved by reasoning (deferred, NONE, or unconfirmed):
+      // fall through to the evidence-carrying handoff, now noting
+      // the reasoning attempt.
+      attempts.push(reasoningOutcome.rationale);
     }
 
     // ── Ladder exhausted: hand off WITH evidence ─────────────────
@@ -888,6 +945,7 @@ async function runPipelineStep(
   page: Page,
   step: { readonly index: number; readonly action: string; readonly expectedTarget?: { readonly role?: string | undefined; readonly name?: string | undefined } | undefined },
   firstDataRowValue: string | null,
+  reasoning: ReasoningConfig = REASONING_OFF,
 ): Promise<PublicAutStepOutcome> {
   const { verdict, intent, plain } = classifyStep(step.action);
   if (!intent) {
@@ -913,7 +971,7 @@ async function runPipelineStep(
     };
   }
 
-  const probe = await probeStep(page, intent);
+  const probe = await probeStep(page, intent, reasoning);
 
   // Cycle 8: semantic-correctness check happens BEFORE
   // narrative-execute. Click actions can navigate away (form
@@ -1099,6 +1157,10 @@ export async function runPublicAutCase(
   const firstDataRowValue = firstDataRowValueOf(snapshot);
   const preconditionOutcomes: PublicAutStepOutcome[] = [];
   let preconditionsSucceeded = 0;
+  const reasoning: ReasoningConfig = {
+    mode: options.reasoningMode ?? 'off',
+    rootDir: options.logRoot,
+  };
 
   try {
     await page.goto(autUrl, { waitUntil: 'networkidle', timeout: 30_000 });
@@ -1110,7 +1172,7 @@ export async function runPublicAutCase(
     // assertions. Failures surface in downstream handoffs honestly.
     if (snapshot.preconditions && snapshot.preconditions.length > 0) {
       for (const pre of snapshot.preconditions) {
-        const outcome = await runPipelineStep(page, pre, firstDataRowValue);
+        const outcome = await runPipelineStep(page, pre, firstDataRowValue, reasoning);
         preconditionOutcomes.push(outcome);
         // A precondition counts as succeeded iff the probe matched
         // AND, when the matched verb requires an action, that
@@ -1137,7 +1199,7 @@ export async function runPublicAutCase(
     }
 
     for (const step of snapshot.steps) {
-      const outcome = await runPipelineStep(page, step, firstDataRowValue);
+      const outcome = await runPipelineStep(page, step, firstDataRowValue, reasoning);
       stepOutcomes.push(outcome);
       if (outcome.domResolution === 'matched' || outcome.domResolution === 'skipped-navigate') {
         stepsMatched += 1;
