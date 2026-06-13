@@ -191,12 +191,38 @@ export function rankCandidates(
 export function selectDominantCandidate(
   ranked: readonly ScoredCandidate[],
 ): ScoredCandidate | null {
+  return selectDominantCandidateWith(ranked, {
+    threshold: DOMINANCE_THRESHOLD,
+    margin: DOMINANCE_MARGIN,
+  });
+}
+
+/** Selection thresholds, surfaced so the offline calibration
+ *  harness (workshop/optimization/) can sweep them. The runtime
+ *  resolver always uses the committed DOMINANCE_THRESHOLD /
+ *  DOMINANCE_MARGIN via `selectDominantCandidate`. */
+export interface DominanceThresholds {
+  readonly threshold: number;
+  readonly margin: number;
+}
+
+/**
+ * Parameterized form of the auto-accept rule (Cycle 11 / G6). Pure
+ * over both the candidates and the thresholds, so a calibration
+ * sweep can measure precision/recall across a threshold grid
+ * without mutating the committed constants. `selectDominantCandidate`
+ * is this with the committed thresholds.
+ */
+export function selectDominantCandidateWith(
+  ranked: readonly ScoredCandidate[],
+  thresholds: DominanceThresholds,
+): ScoredCandidate | null {
   const top = ranked[0];
-  if (!top || !top.visible || top.score < DOMINANCE_THRESHOLD) return null;
+  if (!top || !top.visible || top.score < thresholds.threshold) return null;
   const topKey = normalizeNameTokens(top.name).join(' ');
   const rival = ranked.find(
     (c) => normalizeNameTokens(c.name).join(' ') !== topKey,
   );
-  if (rival && top.score - rival.score < DOMINANCE_MARGIN) return null;
+  if (rival && top.score - rival.score < thresholds.margin) return null;
   return top;
 }
