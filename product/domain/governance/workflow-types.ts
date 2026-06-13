@@ -374,7 +374,15 @@ export interface EvidenceDescriptor {
 }
 
 export interface TrustPolicyEvaluationReason {
-  readonly code: 'minimum-confidence' | 'required-evidence' | 'forbidden-auto-heal';
+  readonly code:
+    | 'minimum-confidence'
+    | 'required-evidence'
+    | 'forbidden-auto-heal'
+    // Cycle 11 / G5: the proposed change was produced in a
+    // held-out cohort context; the clean-room rule (spike §4.4 C2)
+    // firewalls held-out evidence from canon graduation regardless
+    // of confidence or evidence thresholds.
+    | 'held-out-clean-room';
   readonly message: string;
 }
 

@@ -41,6 +41,8 @@ import {
   loadCohortBaseline,
   type BaselineComparison,
 } from '../../customer-backlog/application/cohort-baseline';
+import { assertHeldOutContactSanctioned } from '../../customer-backlog/application/cohort-trust-guard';
+import { appendHeldOutContact } from '../../customer-backlog/application/contact-ledger';
 
 export interface CompilePublicAutResult {
   readonly autsRun: readonly string[];
@@ -204,7 +206,7 @@ function trialsReport(perTrial: readonly number[]): TrialsReport {
 }
 
 export const compilePublicAutCommand = createCommandSpec({
-  flags: ['--aut', '--cohort-role', '--trials', '--emit-compounding-receipt', '--hypothesis-id', '--check-baseline'] as const,
+  flags: ['--aut', '--cohort-role', '--trials', '--emit-compounding-receipt', '--hypothesis-id', '--check-baseline', '--evaluation-handoff'] as const,
   parse: (context) => ({
     command: 'compile-public-aut',
     strictExitOnUnbound: false,
@@ -217,6 +219,7 @@ export const compilePublicAutCommand = createCommandSpec({
         const emitCompounding = context.flags.emitCompoundingReceipt === true;
         const hypothesisId = context.flags.hypothesisId ?? null;
         const checkBaseline = context.flags.checkBaseline === true;
+        const evaluationHandoff = context.flags.evaluationHandoff === true;
 
         const allCases = loadPublicAutCohort(paths.rootDir);
         const filtered = autFilter ? allCases.filter((c) => c.aut.name === autFilter) : allCases;
@@ -225,6 +228,20 @@ export const compilePublicAutCommand = createCommandSpec({
             autFilter
               ? `compile-public-aut: no cases found for --aut '${autFilter}'`
               : 'compile-public-aut: cohort manifest is empty; nothing to run',
+          );
+        }
+
+        // G5 clean-room gate: refuse to contact a held-out AUT
+        // (by its MANIFEST partition — the --cohort-role override
+        // cannot launder a held-out site into sanctioned contact)
+        // unless the operator acknowledges the evaluation handoff.
+        // This fires BEFORE any network contact.
+        const heldOutEntries = filtered.filter((c) => c.aut.partition === 'held-out');
+        for (const c of heldOutEntries) {
+          assertHeldOutContactSanctioned(
+            c.aut.partition,
+            evaluationHandoff,
+            `contacting held-out AUT '${c.aut.name}' (${c.aut.url}) — run with --evaluation-handoff only under the operator-sanctioned clean-room evaluation`,
           );
         }
 
@@ -255,6 +272,31 @@ export const compilePublicAutCommand = createCommandSpec({
 
         const counts = aggregate(firstResults);
         const autsRunSet = new Set(firstResults.map((r) => r.aut));
+
+        // G5: every held-out contact appends to the committed contact
+        // ledger — the audit trail that makes contamination data, not
+        // a story. Recorded after the (sanctioned) run, one entry per
+        // held-out AUT, with the resolver fingerprints the receipts
+        // were produced under (so a duplicate evaluation at the same
+        // resolver state is detectable — clean-room C3).
+        for (const heldOutAut of new Set(heldOutEntries.map((c) => c.aut.name))) {
+          const autResults = firstResults.filter((r) => r.aut === heldOutAut);
+          if (autResults.length === 0) continue;
+          appendHeldOutContact(paths.rootDir, {
+            aut: heldOutAut,
+            url: autResults[0]!.autUrl,
+            partition: 'held-out',
+            cohortRole: autResults[0]!.cohortRole,
+            mode: 'evaluation-handoff',
+            evaluationHandoffAck: evaluationHandoff,
+            contactedAt: new Date().toISOString(),
+            casesContacted: autResults.length * trials,
+            resolverFingerprints: Array.from(
+              new Set(autResults.map((r) => r.resolverFingerprint)),
+            ),
+            note: 'compile-public-aut --evaluation-handoff',
+          });
+        }
 
         // G2: per-AUT regression-ratchet check against committed
         // baselines. A run that drops recall/verified or raises

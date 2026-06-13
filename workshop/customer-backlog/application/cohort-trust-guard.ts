@@ -36,6 +36,43 @@ export class HeldOutCanonWriteAttempt extends TesseractError {
   }
 }
 
+export class UnsanctionedHeldOutContact extends TesseractError {
+  override readonly _tag = 'UnsanctionedHeldOutContact' as const;
+
+  constructor(detail: string, cause?: unknown) {
+    super(
+      'cohort-clean-room-violation',
+      `Held-out AUT contact requires --evaluation-handoff acknowledgement: ${detail}`,
+      cause,
+    );
+    this.name = 'UnsanctionedHeldOutContact';
+  }
+}
+
+/**
+ * Clean-room C5 gate (Cycle 11 / G5). The cohort runner must refuse
+ * to contact a held-out AUT unless the operator explicitly
+ * acknowledges the evaluation handoff. Before this gate, the
+ * held-out discipline was prose + cohort.json notes; cycles 5–7
+ * showed how quietly contamination happens under prose-only rules.
+ *
+ * `role` is the effective cohort role for the AUT being contacted
+ * (manifest partition, or --cohort-role override). `handoffAck` is
+ * whether --evaluation-handoff was supplied. Training contact is
+ * always sanctioned; held-out contact requires the acknowledgement.
+ *
+ * Throws synchronously; the CLI converts to a non-zero exit.
+ */
+export function assertHeldOutContactSanctioned(
+  role: CohortPartition,
+  handoffAck: boolean,
+  contextDetail: string,
+): void {
+  if (role === 'held-out' && !handoffAck) {
+    throw new UnsanctionedHeldOutContact(contextDetail);
+  }
+}
+
 /**
  * Throws when the active cohort role would be permitted to write
  * canon under spike §4.4 C2's interpretation. The 'training' role

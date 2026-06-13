@@ -429,3 +429,46 @@ test.describe('Law 8: Multiple failures accumulate reasons', () => {
     expect(result.reasons.length).toBeGreaterThanOrEqual(3);
   });
 });
+
+// ─── Law (Cycle 11 / G5): held-out clean-room hard-deny ───
+//
+// Spike §4.4 C2: a change produced in a held-out cohort context
+// must never graduate canon, regardless of confidence or evidence.
+// The gate is threaded now (optional cohortContext) so the cohort
+// canon-write path cannot bypass the firewall when it lands.
+
+test.describe('Law: held-out cohort context is a clean-room hard-deny (G5/C2)', () => {
+  test('held-out context denies even with perfect confidence + evidence', () => {
+    const policy = makePolicy({ minimumConfidence: 0.5, minCount: 1, kinds: ['screenshot'] });
+    const result = evaluateTrustPolicy({
+      policy,
+      proposedChange: makeChange({ confidence: 1.0 }),
+      evidence: makeEvidence(['screenshot', 'screenshot']),
+      cohortContext: { partition: 'held-out' },
+    });
+    expect(result.decision).toBe('deny');
+    expect(result.reasons.some((r) => r.code === 'held-out-clean-room')).toBe(true);
+  });
+
+  test('training context does not add the clean-room reason (allows on merit)', () => {
+    const policy = makePolicy({ minimumConfidence: 0.5, minCount: 1, kinds: ['screenshot'] });
+    const result = evaluateTrustPolicy({
+      policy,
+      proposedChange: makeChange({ confidence: 1.0 }),
+      evidence: makeEvidence(['screenshot', 'screenshot']),
+      cohortContext: { partition: 'training' },
+    });
+    expect(result.decision).toBe('allow');
+    expect(result.reasons.some((r) => r.code === 'held-out-clean-room')).toBe(false);
+  });
+
+  test('absent cohort context is unaffected (every existing caller)', () => {
+    const policy = makePolicy({ minimumConfidence: 0.5, minCount: 1, kinds: ['screenshot'] });
+    const result = evaluateTrustPolicy({
+      policy,
+      proposedChange: makeChange({ confidence: 1.0 }),
+      evidence: makeEvidence(['screenshot', 'screenshot']),
+    });
+    expect(result.decision).toBe('allow');
+  });
+});

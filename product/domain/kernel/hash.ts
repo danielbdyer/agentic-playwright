@@ -217,7 +217,16 @@ export type FingerprintTag =
   // Used by the hydration-detector's Phase C signature-
   // stability check (docs/v2-substrate-ladder-plan.d0a-harness-
   // design.md §4.3).
-  | 'snapshot-signature';
+  | 'snapshot-signature'
+  // Cold-start cohort resolver identity (Cycle 11 / G5). Keys the
+  // identity of the resolution machinery a public-AUT receipt was
+  // produced by — resolver version + substrate version + dominance
+  // thresholds. Stamped on every cohort receipt so the clean-room
+  // rule C3 ("one held-out evaluation per canon/resolver state")
+  // is mechanically checkable: two receipts with the same
+  // resolver fingerprint against the same held-out AUT are a
+  // duplicate evaluation.
+  | 'resolver';
 
 /** Adopt an existing string as a tagged fingerprint. Use sparingly
  *  — this is the type-system "I know what I'm doing" escape hatch

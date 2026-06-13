@@ -47,12 +47,31 @@ function forbiddenAutoHealReason(autoHealClass: string | null | undefined, forbi
   };
 }
 
+/**
+ * Cycle 11 / G5: clean-room C2. A proposed change produced while
+ * evaluating a held-out cohort must never graduate canon. When the
+ * cohort context names a held-out partition, this is a hard deny —
+ * the firewall is independent of confidence/evidence thresholds.
+ */
+function heldOutCleanRoomReason(
+  cohortContext: { readonly partition: 'training' | 'held-out' } | undefined,
+): TrustPolicyEvaluationReason | null {
+  if (cohortContext?.partition !== 'held-out') {
+    return null;
+  }
+  return {
+    code: 'held-out-clean-room',
+    message:
+      'Change produced in a held-out cohort context; clean-room rule (spike §4.4 C2) firewalls held-out evidence from canon graduation',
+  };
+}
+
 function decisionForReasons(reasons: ReadonlyArray<TrustPolicyEvaluationReason>): TrustPolicyEvaluation['decision'] {
   if (reasons.length === 0) {
     return 'allow';
   }
 
-  if (reasons.some((reason) => reason.code === 'forbidden-auto-heal')) {
+  if (reasons.some((reason) => reason.code === 'forbidden-auto-heal' || reason.code === 'held-out-clean-room')) {
     return 'deny';
   }
 
@@ -63,10 +82,18 @@ export function evaluateTrustPolicy(input: {
   policy: TrustPolicy;
   proposedChange: ProposedChangeMetadata;
   evidence: EvidenceDescriptor[];
+  /** Cycle 11 / G5: the cohort context the change was produced in.
+   *  When `partition === 'held-out'`, the change is hard-denied (C2)
+   *  regardless of thresholds. Optional + absent for every existing
+   *  caller, so non-cohort canon graduation is unaffected — the gate
+   *  is threaded now so the cohort canon-write path (when it lands)
+   *  cannot bypass the firewall. */
+  cohortContext?: { readonly partition: 'training' | 'held-out' };
 }): TrustPolicyEvaluation {
   const artifactRule = input.policy.artifactTypes[input.proposedChange.artifactType];
 
   const reasons: ReadonlyArray<TrustPolicyEvaluationReason> = [
+    heldOutCleanRoomReason(input.cohortContext),
     confidenceThresholdReason(input.proposedChange.confidence, artifactRule.minimumConfidence),
     evidenceRuleReason({
       evidence: input.evidence,

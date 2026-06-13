@@ -60,10 +60,12 @@ import {
   rankCandidates,
   selectDominantCandidate,
   DOMINANCE_THRESHOLD,
+  DOMINANCE_MARGIN,
   type CandidateSurface,
   type ScoredCandidate,
 } from '../../../product/domain/resolution/patterns/degraded-resolution';
 import type { ClassifiedIntent } from '../../../product/domain/resolution/patterns/rung-kernel';
+import { taggedFingerprintFor, type Fingerprint } from '../../../product/domain/kernel/hash';
 import type { LoadedPublicAutCase } from './load-public-aut-cohort';
 import { stripHtml, inferAllowedActions } from './intent-helpers';
 
@@ -71,6 +73,30 @@ import { stripHtml, inferAllowedActions } from './intent-helpers';
  *  degraded-resolution ladder can classify steps the A.5 runner
  *  could not, so receipts across the bump are not comparable. */
 export const PUBLIC_AUT_SUBSTRATE_VERSION = 'floor-a6-degraded-ladder' as const;
+
+/** Resolver-identity version (Cycle 11 / G5). Bump when the
+ *  classifier or the ladder's resolution behavior changes in a way
+ *  that could move a held-out outcome — that is precisely the
+ *  change that re-arms a clean-room evaluation. Distinct from the
+ *  substrate version (which is the receipt-shape/measurement-axes
+ *  version). */
+export const RESOLVER_VERSION = 'resolver-cycle10-degraded-ladder' as const;
+
+/**
+ * Fingerprint of the resolution machinery a receipt was produced
+ * by: resolver version + substrate version + the dominance
+ * thresholds the inventory rung auto-accepts on. Two held-out
+ * receipts sharing this fingerprint are a duplicate evaluation at
+ * the same resolver state (clean-room C3).
+ */
+export function resolverFingerprint(): Fingerprint<'resolver'> {
+  return taggedFingerprintFor('resolver', {
+    resolverVersion: RESOLVER_VERSION,
+    substrateVersion: PUBLIC_AUT_SUBSTRATE_VERSION,
+    dominanceThreshold: DOMINANCE_THRESHOLD,
+    dominanceMargin: DOMINANCE_MARGIN,
+  });
+}
 
 export type StepDomResolution =
   | 'matched'
@@ -216,6 +242,10 @@ export interface PublicAutCaseResult {
   readonly receiptPath: string;
   readonly cohortRole: 'training' | 'held-out';
   readonly substrateVersion: typeof PUBLIC_AUT_SUBSTRATE_VERSION;
+  /** Cycle 11 (G5): the resolver-identity fingerprint this receipt
+   *  was produced under, so a duplicate held-out evaluation at the
+   *  same resolver state is detectable (clean-room C3). */
+  readonly resolverFingerprint: string;
   readonly runStartedAt: string;
 }
 
@@ -1064,6 +1094,7 @@ export async function runPublicAutCase(
     receiptPath,
     cohortRole: options.cohortRole ?? aut.partition,
     substrateVersion: PUBLIC_AUT_SUBSTRATE_VERSION,
+    resolverFingerprint: resolverFingerprint(),
     runStartedAt,
   };
 }
@@ -1100,8 +1131,10 @@ function writeCaseReceipt(args: WriteReceiptArgs): string {
     // `evidence` (the degraded-resolution ladder's harvest).
     // Cycle 11 (G4): 5 → 6. Added honest DOM-target tallies
     // (domTargetSteps / domTargetMatched / handoffsWithEvidence).
+    // Cycle 11 (G5): + resolverFingerprint for clean-room C3.
     schemaVersion: 6,
     substrateVersion: PUBLIC_AUT_SUBSTRATE_VERSION,
+    resolverFingerprint: resolverFingerprint(),
     aut: args.aut,
     autUrl: args.autUrl,
     partition: args.partition,
