@@ -1,0 +1,37 @@
+{
+  "id": "91402",
+  "revision": 1,
+  "title": "Click through to the picklist control example via a synonym",
+  "suitePath": "public-aut/the-internet",
+  "areaPath": "public-aut",
+  "iterationPath": "public-aut/spike-1",
+  "tags": [
+    "regression",
+    "the-internet",
+    "P2",
+    "public-aut",
+    "held-out"
+  ],
+  "priority": 2,
+  "steps": [
+    {
+      "index": 1,
+      "action": "<p>Open the the-internet landing page</p>",
+      "expected": "<p>The index of examples loads</p>"
+    },
+    {
+      "index": 2,
+      "action": "<p>Click the picklist control link</p>",
+      "expected": "<p>Navigates to the Dropdown example page</p>",
+      "expectedTarget": {
+        "role": "link",
+        "name": "Dropdown"
+      }
+    }
+  ],
+  "parameters": [],
+  "dataRows": [],
+  "contentHash": "sha256:91402-the-internet-picklist-bridge-spike1",
+  "syncedAt": "2026-06-13T00:00:00.000Z",
+  "targetAut": "https://the-internet.herokuapp.com/"
+}

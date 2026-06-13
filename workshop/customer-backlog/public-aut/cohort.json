@@ -51,7 +51,19 @@
       "addedAt": "2026-06-12",
       "evaluationProtocol": "handoff",
       "evaluationStatus": "pending",
-      "notes": "Swag Labs (Sauce Labs' QA demo) login page. Authored as the cycle-11 fresh held-out after cycle 10 consumed outsystems-com. Shape-differentiated from all training AUTs: a credential form (two labeled textboxes + one button) rather than a todo list or marketing page. The authoring agent made exactly ONE inspection pass (an aria snapshot of the login page) to author expectedTarget values, per spike §4.4 C5, and never ran the cohort runner against it. EVALUATION HANDED OFF — see docs/v2-cold-start-cohort-handoff-cycle-11.md. The agent that built cycle 10's ladder MUST NOT run the evaluation; a fresh agent runs it once and reports back."
+      "notes": "Swag Labs (Sauce Labs' QA demo) login page. Authored as the cycle-11 fresh held-out after cycle 10 consumed outsystems-com. Shape-differentiated from all training AUTs: a credential form (two labeled textboxes + one button) rather than a todo list or marketing page. The authoring agent made exactly ONE inspection pass (an aria snapshot of the login page) to author expectedTarget values, per spike §4.4 C5, and never ran the cohort runner against it. EVALUATION HANDED OFF — see docs/v2-cold-start-cohort-handoff-cycle-11.md. The agent that built cycle 10's ladder MUST NOT run the evaluation; a fresh agent runs it once and reports back. Best suited to a pure-structural eval (the form fields resolve without reasoning); left pending for a truly fresh session."
+    },
+    {
+      "name": "the-internet",
+      "url": "https://the-internet.herokuapp.com/",
+      "partition": "held-out",
+      "fixturesDir": "the-internet",
+      "snapshotFingerprint": null,
+      "authoringOperator": "claude",
+      "addedAt": "2026-06-13",
+      "evaluationProtocol": "handoff",
+      "evaluationStatus": "pending",
+      "notes": "the-internet (Sauce Labs' QA-automation playground) — purpose-built for testing and never redesigned, so it is a stable held-out. Designated cycle 11 to test the Z11d reasoning rung's GENERALIZATION: the two fixtures (91401-91402) are zero-token-overlap SYNONYM bridges against the 45-link landing menu — 'tickbox example' → Checkboxes, 'picklist control' → Dropdown — that the structured/strict/phrase-reduction rungs all correctly miss, so only the reasoning rung can resolve them. The reasoning fill is authored by a CONTEXT-ISOLATED subagent (fresh evaluator) blind to the authored expectedTarget; the test is whether the independent reasoner's bridge matches the authored ground truth. ONE authoring inspection (the 45-link census) was made to write expectedTargets per §4.4 C5. Honest clean-room caveat: the building agent authored the fixtures and orchestrates the subagent; a context-isolated subagent is the in-session approximation of a fresh evaluator, weaker than a human-relayed separate session (journal Entry 40)."
     }
   ]
 }
