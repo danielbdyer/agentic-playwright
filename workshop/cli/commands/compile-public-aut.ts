@@ -36,6 +36,11 @@ import {
   type PublicAutCaseResult,
 } from '../../customer-backlog/application/public-aut-runner';
 import { emitPublicAutCompilationReceipt } from '../../customer-backlog/application/public-aut-evidence';
+import {
+  compareToBaseline,
+  loadCohortBaseline,
+  type BaselineComparison,
+} from '../../customer-backlog/application/cohort-baseline';
 
 export interface CompilePublicAutResult {
   readonly autsRun: readonly string[];
@@ -87,8 +92,18 @@ export interface CompilePublicAutResult {
    *  is set). When non-zero, a registered hypothesis with a
    *  public-aut cohort can be judged against this run. */
   readonly compoundingReceiptsEmitted: number;
+  /** Cycle 11 (G2): per-AUT regression-ratchet comparisons against
+   *  committed baselines (only when --check-baseline is set). */
+  readonly baselineComparisons?: readonly AutBaselineComparison[];
   readonly receiptsEmittedTo: string;
   readonly perCase: readonly PublicAutCaseResult[];
+}
+
+export interface AutBaselineComparison {
+  readonly aut: string;
+  /** Null when no baseline is committed for this AUT (cannot
+   *  regress). */
+  readonly comparison: BaselineComparison | null;
 }
 
 export interface TrialsReport {
@@ -189,7 +204,7 @@ function trialsReport(perTrial: readonly number[]): TrialsReport {
 }
 
 export const compilePublicAutCommand = createCommandSpec({
-  flags: ['--aut', '--cohort-role', '--trials', '--emit-compounding-receipt', '--hypothesis-id'] as const,
+  flags: ['--aut', '--cohort-role', '--trials', '--emit-compounding-receipt', '--hypothesis-id', '--check-baseline'] as const,
   parse: (context) => ({
     command: 'compile-public-aut',
     strictExitOnUnbound: false,
@@ -201,6 +216,7 @@ export const compilePublicAutCommand = createCommandSpec({
         const trials = parseTrials(context.flags.trials);
         const emitCompounding = context.flags.emitCompoundingReceipt === true;
         const hypothesisId = context.flags.hypothesisId ?? null;
+        const checkBaseline = context.flags.checkBaseline === true;
 
         const allCases = loadPublicAutCohort(paths.rootDir);
         const filtered = autFilter ? allCases.filter((c) => c.aut.name === autFilter) : allCases;
@@ -239,6 +255,43 @@ export const compilePublicAutCommand = createCommandSpec({
 
         const counts = aggregate(firstResults);
         const autsRunSet = new Set(firstResults.map((r) => r.aut));
+
+        // G2: per-AUT regression-ratchet check against committed
+        // baselines. A run that drops recall/verified or raises
+        // false positives below/above the committed baseline (at the
+        // same substrate version) fails the build — the empirical
+        // wing's regression gate.
+        let baselineComparisons: AutBaselineComparison[] | undefined;
+        if (checkBaseline) {
+          baselineComparisons = [];
+          const regressed: string[] = [];
+          for (const aut of autsRunSet) {
+            const autResults = firstResults.filter((r) => r.aut === aut);
+            const c = aggregate(autResults);
+            const baseline = loadCohortBaseline(paths.rootDir, aut);
+            if (baseline === null) {
+              baselineComparisons.push({ aut, comparison: null });
+              continue;
+            }
+            const comparison = compareToBaseline(baseline, {
+              aut,
+              substrateVersion: autResults[0]!.substrateVersion,
+              domTargetSteps: c.domTargetSteps,
+              domTargetMatched: c.domTargetMatched,
+              verifiedMatches: c.verifiedMatches,
+              falsePositives: c.falsePositives,
+            });
+            baselineComparisons.push({ aut, comparison });
+            if (!comparison.ok) {
+              regressed.push(`${aut}: ${comparison.regressions.join('; ')}`);
+            }
+          }
+          if (regressed.length > 0) {
+            throw new Error(
+              `compile-public-aut: regression against committed baseline — ${regressed.join(' | ')}`,
+            );
+          }
+        }
 
         // G1: lift each case into a CompilationReceipt the compounding
         // engine can judge. Emitted only on explicit request so a
@@ -279,6 +332,7 @@ export const compilePublicAutCommand = createCommandSpec({
           handoffsWithEvidence: counts.handoffsWithEvidence,
           ...(trials > 1 ? { trials: trialsReport(perTrialDomTargetMatched) } : {}),
           compoundingReceiptsEmitted,
+          ...(baselineComparisons ? { baselineComparisons } : {}),
           receiptsEmittedTo: `${paths.rootDir}/workshop/logs/public-aut-receipts`,
           perCase: firstResults,
         };

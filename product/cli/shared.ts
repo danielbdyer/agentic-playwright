@@ -119,6 +119,10 @@ export interface ParsedFlags {
    *  this is present, and every contact appends to the committed
    *  contact ledger regardless. */
   evaluationHandoff?: boolean;
+  /** Cycle 11 (G2): compare the run's honest summary against the
+   *  committed per-AUT regression baseline and fail (non-zero exit)
+   *  on any regression. */
+  checkBaseline?: boolean;
 }
 
 export type FlagName = keyof typeof flagDescriptorTable;
@@ -185,6 +189,7 @@ type FlagToParsedKey = {
   '--trials': 'trials';
   '--emit-compounding-receipt': 'emitCompoundingReceipt';
   '--evaluation-handoff': 'evaluationHandoff';
+  '--check-baseline': 'checkBaseline';
 };
 type ParsedFlagKeys<TFlags extends readonly FlagName[]> = FlagToParsedKey[TFlags[number]];
 export type ParsedFlagsFor<TFlags extends readonly FlagName[]> = Partial<Pick<ParsedFlags, ParsedFlagKeys<TFlags>>>;
@@ -473,6 +478,7 @@ export const flagDescriptorTable = {
   '--trials': valueDescriptor('--trials', 'trials', (value) => readFlagValue('--trials', value)),
   '--emit-compounding-receipt': booleanDescriptor('--emit-compounding-receipt', 'emitCompoundingReceipt'),
   '--evaluation-handoff': booleanDescriptor('--evaluation-handoff', 'evaluationHandoff'),
+  '--check-baseline': booleanDescriptor('--check-baseline', 'checkBaseline'),
 } as const;
 
 export type FlagDecodeResult = {
