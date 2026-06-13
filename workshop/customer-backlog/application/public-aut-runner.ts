@@ -187,11 +187,71 @@ export interface PublicAutCaseResult {
    *  expectedTarget (and therefore can't be checked). Tracks the
    *  authoring debt. */
   readonly unverifiedSteps: number;
+  /** Cycle 11 (G4, honest denominators): main steps that actually
+   *  require finding a DOM element — i.e. every step whose verb is
+   *  NOT navigate or press. `stepsMatched` counts navigate gimmes
+   *  (satisfied by the case-level page load) and press (no DOM
+   *  target); those flatter the headline. `domTargetSteps` is the
+   *  honest denominator the journal hand-derived every cycle. */
+  readonly domTargetSteps: number;
+  /** Of `domTargetSteps`, how many resolved to a real DOM match
+   *  (domResolution === 'matched'; excludes skipped-navigate). The
+   *  honest numerator. */
+  readonly domTargetMatched: number;
+  /** Cycle 11 (G4 / G1 bridge): handoffs (non-matched DOM-target
+   *  steps) that carried a non-empty candidate menu in their
+   *  evidence payload. This is the cycle-10 evidence-carrying-
+   *  handoff signal, and it is exactly the
+   *  `handoffsWithValidMissingContext` the compounding engine's
+   *  intervention-fidelity prediction measures (G1). A handoff that
+   *  hands the next rung a ranked menu is a *useful* handoff; one
+   *  with empty hands is a dead end. */
+  readonly handoffsWithEvidence: number;
   readonly elapsedMs: number;
   readonly receiptPath: string;
   readonly cohortRole: 'training' | 'held-out';
   readonly substrateVersion: typeof PUBLIC_AUT_SUBSTRATE_VERSION;
   readonly runStartedAt: string;
+}
+
+/**
+ * Cycle 11 (G4): pure derivation of the honest DOM-targeting
+ * tallies from a case's step outcomes. Kept pure + exported so the
+ * compounding-evidence adapter (G1) and the baseline ratchet (G2)
+ * derive the same numbers the receipt does, with no re-counting
+ * drift.
+ *
+ * A step is DOM-targeting iff its `targetCorrectness` is not
+ * `'not-applicable'` — that verdict is set exactly for the two
+ * gimme verbs (navigate, press). Unclassified steps
+ * (`targetCorrectness: 'not-found'`) ARE counted: a step the
+ * system could not classify is a step it failed on, and excluding
+ * it would flatter the denominator.
+ */
+export interface PublicAutCaseTallies {
+  readonly domTargetSteps: number;
+  readonly domTargetMatched: number;
+  readonly handoffsWithEvidence: number;
+}
+
+export function derivePublicAutCaseTallies(
+  outcomes: readonly PublicAutStepOutcome[],
+): PublicAutCaseTallies {
+  let domTargetSteps = 0;
+  let domTargetMatched = 0;
+  let handoffsWithEvidence = 0;
+  for (const o of outcomes) {
+    if (o.targetCorrectness === 'not-applicable') continue;
+    domTargetSteps += 1;
+    if (o.domResolution === 'matched') {
+      domTargetMatched += 1;
+    } else if (o.evidence !== null && o.evidence.candidates.length > 0) {
+      // A non-matched DOM-target step is a handoff; it carries
+      // evidence iff the inventory harvest produced ≥1 candidate.
+      handoffsWithEvidence += 1;
+    }
+  }
+  return { domTargetSteps, domTargetMatched, handoffsWithEvidence };
 }
 
 interface RunOptions {
@@ -953,6 +1013,7 @@ export async function runPublicAutCase(
 
   const elapsedMs = Date.now() - runStart;
   const preconditionsRan = preconditionOutcomes.length;
+  const tallies = derivePublicAutCaseTallies(stepOutcomes);
   const receiptPath = writeCaseReceipt({
     aut: aut.name,
     autUrl,
@@ -968,6 +1029,7 @@ export async function runPublicAutCase(
     falsePositives,
     verifiedMatches,
     unverifiedSteps,
+    tallies,
     elapsedMs,
     runStartedAt,
     logRoot: options.logRoot,
@@ -989,6 +1051,9 @@ export async function runPublicAutCase(
     falsePositives,
     verifiedMatches,
     unverifiedSteps,
+    domTargetSteps: tallies.domTargetSteps,
+    domTargetMatched: tallies.domTargetMatched,
+    handoffsWithEvidence: tallies.handoffsWithEvidence,
     elapsedMs,
     receiptPath,
     cohortRole: options.cohortRole ?? aut.partition,
@@ -1012,6 +1077,7 @@ interface WriteReceiptArgs {
   readonly falsePositives: number;
   readonly verifiedMatches: number;
   readonly unverifiedSteps: number;
+  readonly tallies: PublicAutCaseTallies;
   readonly elapsedMs: number;
   readonly runStartedAt: string;
   readonly logRoot: string;
@@ -1026,7 +1092,9 @@ function writeCaseReceipt(args: WriteReceiptArgs): string {
   const receipt = {
     // Cycle 10: 4 → 5. Step outcomes gained `resolutionRung` and
     // `evidence` (the degraded-resolution ladder's harvest).
-    schemaVersion: 5,
+    // Cycle 11 (G4): 5 → 6. Added honest DOM-target tallies
+    // (domTargetSteps / domTargetMatched / handoffsWithEvidence).
+    schemaVersion: 6,
     substrateVersion: PUBLIC_AUT_SUBSTRATE_VERSION,
     aut: args.aut,
     autUrl: args.autUrl,
@@ -1046,6 +1114,9 @@ function writeCaseReceipt(args: WriteReceiptArgs): string {
     falsePositives: args.falsePositives,
     verifiedMatches: args.verifiedMatches,
     unverifiedSteps: args.unverifiedSteps,
+    domTargetSteps: args.tallies.domTargetSteps,
+    domTargetMatched: args.tallies.domTargetMatched,
+    handoffsWithEvidence: args.tallies.handoffsWithEvidence,
     stepOutcomes: args.stepOutcomes,
   };
   fs.writeFileSync(fullPath, JSON.stringify(receipt, null, 2));

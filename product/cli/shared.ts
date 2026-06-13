@@ -102,9 +102,23 @@ export interface ParsedFlags {
   /** Public-AUT cohort role override. 'training' | 'held-out'. Unset
    *  defers to the AUT manifest entry's declared partition. When set
    *  and equal to 'held-out', no canon graduation is permitted (spike
-   *  §4.4 C2); enforcement plumbing in the trust-policy gate is the
-   *  next-cycle seed. */
+   *  §4.4 C2); the clean-room guard (cohort-trust-guard.ts) refuses
+   *  held-out contact without --evaluation-handoff. */
   cohortRole?: string;
+  /** Cycle 11 (G4): run the public-AUT cohort N times and report
+   *  per-trial variance on the honest DOM-target numerator. */
+  trials?: string;
+  /** Cycle 11 (G1): when set, the public-AUT runner also emits a
+   *  CompilationReceipt per case into the compounding receipt log
+   *  so the compounding engine can judge a registered hypothesis
+   *  against the cohort result. */
+  emitCompoundingReceipt?: boolean;
+  /** Cycle 11 (G5): explicit acknowledgement that a held-out AUT is
+   *  being contacted under the operator-sanctioned evaluation
+   *  handoff. The clean-room guard refuses held-out contact unless
+   *  this is present, and every contact appends to the committed
+   *  contact ledger regardless. */
+  evaluationHandoff?: boolean;
 }
 
 export type FlagName = keyof typeof flagDescriptorTable;
@@ -168,6 +182,9 @@ type FlagToParsedKey = {
   '--corpus': 'corpus';
   '--aut': 'aut';
   '--cohort-role': 'cohortRole';
+  '--trials': 'trials';
+  '--emit-compounding-receipt': 'emitCompoundingReceipt';
+  '--evaluation-handoff': 'evaluationHandoff';
 };
 type ParsedFlagKeys<TFlags extends readonly FlagName[]> = FlagToParsedKey[TFlags[number]];
 export type ParsedFlagsFor<TFlags extends readonly FlagName[]> = Partial<Pick<ParsedFlags, ParsedFlagKeys<TFlags>>>;
@@ -453,6 +470,9 @@ export const flagDescriptorTable = {
   '--corpus': valueDescriptor('--corpus', 'corpus', (value) => readFlagValue('--corpus', value)),
   '--aut': valueDescriptor('--aut', 'aut', (value) => readFlagValue('--aut', value)),
   '--cohort-role': valueDescriptor('--cohort-role', 'cohortRole', (value) => readFlagValue('--cohort-role', value)),
+  '--trials': valueDescriptor('--trials', 'trials', (value) => readFlagValue('--trials', value)),
+  '--emit-compounding-receipt': booleanDescriptor('--emit-compounding-receipt', 'emitCompoundingReceipt'),
+  '--evaluation-handoff': booleanDescriptor('--evaluation-handoff', 'evaluationHandoff'),
 } as const;
 
 export type FlagDecodeResult = {

@@ -17,10 +17,11 @@
  * Flags:
  *   --aut <name>           Filter cases to one AUT (matches manifest entry name).
  *   --cohort-role <r>      'training' | 'held-out'. Default: per AUT manifest entry.
- *                          When 'held-out', no canon graduation occurs (spike §4.4 C2);
- *                          enforcement plumbing in the trust-policy gate is the
- *                          next-cycle seed — today the flag is informational and
- *                          travels in the receipt.
+ *                          When 'held-out', no canon graduation occurs (spike §4.4 C2).
+ *   --trials <n>           Run the cohort n times (default 1) and report per-trial
+ *                          variance on the honest DOM-target numerator. N=1 measured
+ *                          once is statistically uninterpretable (G4); a held-out
+ *                          delta needs variance to be believed.
  *
  * Exit code: 0 on completion (regardless of handoff count;
  *   handoffs are evidence, not failures); non-zero only on
@@ -67,8 +68,33 @@ export interface CompilePublicAutResult {
   /** Cycle 10 (journal Entry 35 priority 3): total wall-clock cost
    *  across all cases, so the summary carries the run's price tag. */
   readonly totalElapsedMs: number;
+  /** Cycle 11 (G4 honest denominators): DOM-targeting steps only —
+   *  every step whose verb is NOT navigate/press. The honest
+   *  numerator/denominator the headline should quote, not
+   *  stepsMatched (which counts navigate gimmes). */
+  readonly domTargetSteps: number;
+  readonly domTargetMatched: number;
+  /** Cycle 11 (G4 / G1 bridge): handoffs that carried a non-empty
+   *  candidate menu — the useful-handoff count. */
+  readonly handoffsWithEvidence: number;
+  /** Cycle 11 (G4): present only when --trials > 1. Per-trial
+   *  honest-numerator variance, so a single ±1-step delta is not
+   *  mistaken for signal. */
+  readonly trials?: TrialsReport;
   readonly receiptsEmittedTo: string;
   readonly perCase: readonly PublicAutCaseResult[];
+}
+
+export interface TrialsReport {
+  readonly count: number;
+  readonly domTargetMatchedPerTrial: readonly number[];
+  readonly domTargetMatchedMin: number;
+  readonly domTargetMatchedMax: number;
+  readonly domTargetMatchedMean: number;
+  /** Population standard deviation across trials. Zero means the
+   *  runner is deterministic on this substrate (the desirable
+   *  state); non-zero quantifies live-substrate flake. */
+  readonly domTargetMatchedStdev: number;
 }
 
 function parseCohortRole(raw: string | undefined): 'training' | 'held-out' | undefined {
@@ -77,8 +103,87 @@ function parseCohortRole(raw: string | undefined): 'training' | 'held-out' | und
   throw new Error(`compile-public-aut: --cohort-role must be 'training' | 'held-out'; got '${raw}'`);
 }
 
+function parseTrials(raw: string | undefined): number {
+  if (raw === undefined) return 1;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`compile-public-aut: --trials must be a positive integer; got '${raw}'`);
+  }
+  return n;
+}
+
+interface AggregateCounts {
+  readonly stepsTotal: number;
+  readonly stepsMatched: number;
+  readonly handoffsEmitted: number;
+  readonly falsePositives: number;
+  readonly verifiedMatches: number;
+  readonly unverifiedSteps: number;
+  readonly domTargetSteps: number;
+  readonly domTargetMatched: number;
+  readonly handoffsWithEvidence: number;
+  readonly totalElapsedMs: number;
+  readonly strict: number;
+  readonly phraseReduction: number;
+  readonly inventoryScored: number;
+}
+
+function aggregate(results: readonly PublicAutCaseResult[]): AggregateCounts {
+  let stepsTotal = 0;
+  let stepsMatched = 0;
+  let handoffsEmitted = 0;
+  let falsePositives = 0;
+  let verifiedMatches = 0;
+  let unverifiedSteps = 0;
+  let domTargetSteps = 0;
+  let domTargetMatched = 0;
+  let handoffsWithEvidence = 0;
+  let totalElapsedMs = 0;
+  let strict = 0;
+  let phraseReduction = 0;
+  let inventoryScored = 0;
+  for (const r of results) {
+    stepsTotal += r.stepCount;
+    stepsMatched += r.stepsMatched;
+    handoffsEmitted += r.handoffsEmitted;
+    falsePositives += r.falsePositives;
+    verifiedMatches += r.verifiedMatches;
+    unverifiedSteps += r.unverifiedSteps;
+    domTargetSteps += r.domTargetSteps;
+    domTargetMatched += r.domTargetMatched;
+    handoffsWithEvidence += r.handoffsWithEvidence;
+    totalElapsedMs += r.elapsedMs;
+    for (const outcome of r.stepOutcomes) {
+      if (outcome.resolutionRung === 'strict') strict += 1;
+      else if (outcome.resolutionRung === 'phrase-reduction') phraseReduction += 1;
+      else if (outcome.resolutionRung === 'inventory-scored') inventoryScored += 1;
+    }
+  }
+  return {
+    stepsTotal, stepsMatched, handoffsEmitted, falsePositives, verifiedMatches,
+    unverifiedSteps, domTargetSteps, domTargetMatched, handoffsWithEvidence,
+    totalElapsedMs, strict, phraseReduction, inventoryScored,
+  };
+}
+
+function trialsReport(perTrial: readonly number[]): TrialsReport {
+  const count = perTrial.length;
+  const min = Math.min(...perTrial);
+  const max = Math.max(...perTrial);
+  const mean = perTrial.reduce((a, b) => a + b, 0) / count;
+  const variance = perTrial.reduce((a, b) => a + (b - mean) ** 2, 0) / count;
+  return {
+    count,
+    domTargetMatchedPerTrial: perTrial,
+    domTargetMatchedMin: min,
+    domTargetMatchedMax: max,
+    domTargetMatchedMean: Number(mean.toFixed(3)),
+    domTargetMatchedStdev: Number(Math.sqrt(variance).toFixed(3)),
+  };
+}
+
 export const compilePublicAutCommand = createCommandSpec({
-  flags: ['--aut', '--cohort-role'] as const,
+  flags: ['--aut', '--cohort-role', '--trials'] as const,
   parse: (context) => ({
     command: 'compile-public-aut',
     strictExitOnUnbound: false,
@@ -87,6 +192,7 @@ export const compilePublicAutCommand = createCommandSpec({
       Effect.gen(function* () {
         const autFilter = context.flags.aut;
         const cohortRoleOverride = parseCohortRole(context.flags.cohortRole);
+        const trials = parseTrials(context.flags.trials);
 
         const allCases = loadPublicAutCohort(paths.rootDir);
         const filtered = autFilter ? allCases.filter((c) => c.aut.name === autFilter) : allCases;
@@ -100,58 +206,54 @@ export const compilePublicAutCommand = createCommandSpec({
 
         const browserExecutablePath = process.env.TESSERACT_PLAYWRIGHT_EXECUTABLE;
 
-        const results = yield* Effect.tryPromise({
-          try: () =>
-            runPublicAutCohort(filtered, {
-              logRoot: paths.rootDir,
-              ...(cohortRoleOverride ? { cohortRole: cohortRoleOverride } : {}),
-              ...(browserExecutablePath ? { browserExecutablePath } : {}),
-              ignoreHTTPSErrors: true,
-            }),
-          catch: (cause) => new Error(`compile-public-aut: cohort run failed: ${(cause as Error).message}`),
-        });
+        const runOnce = () =>
+          Effect.tryPromise({
+            try: () =>
+              runPublicAutCohort(filtered, {
+                logRoot: paths.rootDir,
+                ...(cohortRoleOverride ? { cohortRole: cohortRoleOverride } : {}),
+                ...(browserExecutablePath ? { browserExecutablePath } : {}),
+                ignoreHTTPSErrors: true,
+              }),
+            catch: (cause) => new Error(`compile-public-aut: cohort run failed: ${(cause as Error).message}`),
+          });
 
-        const autsRunSet = new Set<string>();
-        let stepsTotal = 0;
-        let stepsMatched = 0;
-        let handoffsEmitted = 0;
-        let falsePositives = 0;
-        let verifiedMatches = 0;
-        let unverifiedSteps = 0;
-        let totalElapsedMs = 0;
-        let strict = 0;
-        let phraseReduction = 0;
-        let inventoryScored = 0;
-        for (const r of results) {
-          autsRunSet.add(r.aut);
-          stepsTotal += r.stepCount;
-          stepsMatched += r.stepsMatched;
-          handoffsEmitted += r.handoffsEmitted;
-          falsePositives += r.falsePositives;
-          verifiedMatches += r.verifiedMatches;
-          unverifiedSteps += r.unverifiedSteps;
-          totalElapsedMs += r.elapsedMs;
-          for (const outcome of r.stepOutcomes) {
-            if (outcome.resolutionRung === 'strict') strict += 1;
-            else if (outcome.resolutionRung === 'phrase-reduction') phraseReduction += 1;
-            else if (outcome.resolutionRung === 'inventory-scored') inventoryScored += 1;
-          }
+        // Trial 1 is canonical for the per-case summary; further
+        // trials (G4) only contribute variance on the honest
+        // numerator. Sequential, not parallel — one browser at a
+        // time keeps live-substrate contention out of the variance.
+        const firstResults = yield* runOnce();
+        const perTrialDomTargetMatched: number[] = [aggregate(firstResults).domTargetMatched];
+        for (let t = 1; t < trials; t += 1) {
+          const more = yield* runOnce();
+          perTrialDomTargetMatched.push(aggregate(more).domTargetMatched);
         }
+
+        const counts = aggregate(firstResults);
+        const autsRunSet = new Set(firstResults.map((r) => r.aut));
 
         const result: CompilePublicAutResult = {
           autsRun: Array.from(autsRunSet),
-          casesProcessed: results.length,
-          receiptsEmitted: results.length,
-          stepsTotal,
-          stepsMatched,
-          handoffsEmitted,
-          falsePositives,
-          verifiedMatches,
-          unverifiedSteps,
-          matchesByRung: { strict, phraseReduction, inventoryScored },
-          totalElapsedMs,
+          casesProcessed: firstResults.length,
+          receiptsEmitted: firstResults.length * trials,
+          stepsTotal: counts.stepsTotal,
+          stepsMatched: counts.stepsMatched,
+          handoffsEmitted: counts.handoffsEmitted,
+          falsePositives: counts.falsePositives,
+          verifiedMatches: counts.verifiedMatches,
+          unverifiedSteps: counts.unverifiedSteps,
+          matchesByRung: {
+            strict: counts.strict,
+            phraseReduction: counts.phraseReduction,
+            inventoryScored: counts.inventoryScored,
+          },
+          totalElapsedMs: counts.totalElapsedMs,
+          domTargetSteps: counts.domTargetSteps,
+          domTargetMatched: counts.domTargetMatched,
+          handoffsWithEvidence: counts.handoffsWithEvidence,
+          ...(trials > 1 ? { trials: trialsReport(perTrialDomTargetMatched) } : {}),
           receiptsEmittedTo: `${paths.rootDir}/workshop/logs/public-aut-receipts`,
-          perCase: results,
+          perCase: firstResults,
         };
         return result;
       }),
