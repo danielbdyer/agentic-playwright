@@ -3646,3 +3646,76 @@ Now visible in every summary as `totalElapsedMs`.
 next rung (reasoning or human) can act without re-opening the
 page. Cycle 11's job: a fresh, uncontaminated held-out to
 measure whether THIS generalizes.
+
+---
+
+## Entry 38 — cycle 11: hardening the praxis before the held-out
+
+Cycle 11 did not chase a hit-rate number. It built the
+instruments the praxis audit
+(`docs/v2-self-improvement-praxis-audit.md`) said had to exist
+before a held-out evaluation could mean anything — so that when
+the held-out runs, it produces a *registered, mechanically-judged
+prediction on a frozen substrate*, not a number in a journal.
+
+What landed (each with laws; the audit's gap IDs in brackets):
+
+- **The empirical cohort is now visible to the compounding
+  engine [G1].** A public-AUT case is an ADO case compiled
+  against a real app, so it maps onto the existing
+  `CompilationReceipt` shape and the existing confirmation-rate /
+  intervention-fidelity evaluators judge it *unchanged*. The
+  cycle-10 evidence-carrying handoff became the engine's
+  `handoffsWithValidMissingContext` signal — so "do our handoffs
+  hand the next rung something usable?" is now a mechanically
+  scored prediction. `--emit-compounding-receipt`.
+
+- **Honest denominators [G4].** The headline counted navigate
+  gimmes; `domTargetSteps` / `domTargetMatched` are now
+  first-class (TodoMVC: the honest 3/5, not the flattering 7/9),
+  and `--trials` reports variance so a single ±1-step delta isn't
+  mistaken for signal.
+
+- **A committed regression ratchet [G2].** `baselines/todomvc.json`
+  + `--check-baseline`: recall/verified can't drop and false
+  positives can't rise without failing, scoped per substrate
+  version. A silent regression is now detectable.
+
+- **The clean-room is mechanism, not etiquette [G5].** The runner
+  refuses to contact a held-out AUT without `--evaluation-handoff`
+  (verified: saucedemo refused, no network); every held-out
+  contact appends to a committed contact ledger; receipts carry a
+  resolver fingerprint so a duplicate evaluation is detectable;
+  the trust-policy gate hard-denies held-out canon writes.
+
+- **Capture-and-replay [G3].** `--capture` freezes the
+  resolution projection of each contact (stamping the
+  `snapshotFingerprint` that was null since cycle 1); a pure
+  replay reconstructs the verdict offline. Verified: a TodoMVC
+  capture replayed 5/5 verdicts with no browser. This is the one
+  that changes the held-out calculus — capture *during* the single
+  permitted contact and the substrate is re-analyzable forever.
+
+- **The resolver is calibrated, not guessed [G6].** A synthetic
+  ground-truth corpus over the four difficulty axes measures the
+  kernel: the committed 0.75 / 0.15 thresholds achieve precision
+  1.0 (never auto-accept a wrong element) while refusing 100% of
+  the reasoning-needed families (zero-overlap, no-shared-token
+  synonyms) and never acting on a hidden best-match.
+
+- **A browser-free classifier golden [G8]** pins every cohort
+  phrasing, and **the improvement ledger now links to the
+  hypotheses it was predicated on [G9].**
+
+What's deliberately left: unifying the cohort runner with the
+product's own pattern/matcher pipeline (G7 — a week, sequenced
+after the first clean held-out cycle so we don't refactor the
+measured surface mid-measurement), and metering reasoning cost
+(G10 — lands with the Z11d reasoning adapter, which doesn't exist
+yet).
+
+So the held-out is now smaller and sharper: synthesis (G6)
+characterizes the resolver at scale, leaving the held-out to do
+only what it uniquely can — catch what synthesis couldn't
+imagine — and whatever it catches lands as evidence the engine
+can adjudicate.

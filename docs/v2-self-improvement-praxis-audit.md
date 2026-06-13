@@ -7,6 +7,30 @@
 > `docs/v2-substrate.md §7` (what measurement is supposed to be).
 > Every claim carries a file:line reference; the prescriptions at
 > the end are ordered against the operator's held-out plan.
+>
+> **Implementation status (2026-06-13, cycle 11 — praxis
+> hardening).** The pre-held-out gap set was implemented in this
+> cycle; the body below is preserved as the original diagnosis.
+>
+> | Gap | Status | Where |
+> |---|---|---|
+> | **G1** engine wiring | ✅ LANDED | `public-aut` Cohort kind + `public-aut-evidence.ts` adapter; public-AUT cases judged by the unchanged confirmation-rate / intervention-fidelity evaluators. Laws ZC45. |
+> | **G2** baseline ratchet | ✅ LANDED | `cohort-baseline.ts` + committed `public-aut/baselines/` + `--check-baseline`. Laws ZC46. |
+> | **G3** capture-replay | ✅ LANDED | `ResolutionTrace` + `--capture` + `resolution-replay.ts`; `snapshotFingerprint` finally stamped. Laws ZC50. Verified 5/5 offline replay. |
+> | **G4** honest denominators | ✅ LANDED | `domTargetSteps` / `domTargetMatched` / `handoffsWithEvidence` + `--trials` variance. |
+> | **G5** clean-room mechanism | ✅ LANDED | contact gate (`--evaluation-handoff`) + committed contact ledger + resolver fingerprint + trust-policy `cohortContext` hard-deny. Laws ZC39.d–f, ZC47, held-out-clean-room. |
+> | **G6** synthetic corpus + calibration | ✅ LANDED | `workshop/optimization/resolution-corpus.ts` + `threshold-calibration.ts` + `scripts/calibrate-resolution.ts`. Laws ZC48. Committed thresholds measured at precision 1.0. |
+> | **G8** classifier golden corpus | ✅ LANDED | `intent-classifier-golden.laws.spec.ts` (ZC49), 16 real cohort phrasings, browser-free. |
+> | **G9** ledger↔hypothesis chain | ✅ LANDED | `AcceptanceDecision.hypothesisIds`. |
+> | **G7** unify the apparatus | ⏳ DEFERRED | Week-long; audit sequences it "after the first clean cycle". The runner is still parallel to the product's pattern/matcher kernel (`surface-index-from-stage.ts` returns empty). |
+> | **G10** reasoning metering | ⏳ DEFERRED | A Z11d landing requirement, not now (Z11d's reasoning adapter does not exist yet). |
+>
+> Net: the empirical wing is no longer invisible, unreproducible,
+> denominator-dishonest, or prose-gated. A held-out evaluation now
+> lands as a registered, mechanically-judged prediction on a frozen,
+> re-analyzable substrate, behind a contact gate, with calibrated
+> thresholds. G7 and G10 are the post-held-out / Z11d-coupled
+> remainder.
 
 ## 0. The verdict in one sentence
 
