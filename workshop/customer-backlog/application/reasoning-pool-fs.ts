@@ -57,6 +57,17 @@ export function recordPending(rootDir: string, pending: PendingRequest, poolRoot
   return file;
 }
 
+/** Write a filled response (the answer leg). Substrate-agnostic:
+ *  the caller supplies the answer + provenance regardless of which
+ *  reasoner produced it (Claude subagent, Copilot CLI, an API, a
+ *  human). Atomic temp-rename so replay never reads a partial fill. */
+export function writeFilled(rootDir: string, filled: FilledResponse, poolRootRelative?: string): string {
+  const { filledDir } = poolPaths(rootDir, poolRootRelative);
+  const file = path.join(filledDir, `${filled.fingerprint}.json`);
+  atomicWrite(file, `${JSON.stringify(filled, null, 2)}\n`);
+  return file;
+}
+
 /** Read a filled response by fingerprint. Returns the response, or a
  *  PoolError('not-filled') when no fill exists yet, or
  *  PoolError('malformed-fill') when the fill is invalid. */

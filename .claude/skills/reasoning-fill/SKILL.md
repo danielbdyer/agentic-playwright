@@ -13,53 +13,72 @@ or "Japanese language" → 日本語. This skill authors the answers
 **autonomously**, via a context-isolated subagent, so the answer is
 NOT the orchestrating session's inline judgment.
 
-## Why a subagent (clean-room + autonomy)
+## Why an isolated reasoner (clean-room + autonomy + agnosticism)
 
 The reasoning answer must come from a reasoner that is **blind to**
 the authored expectedTarget and the building context — otherwise a
-held-out evaluation is self-graded (spike §4.4 C5). Dispatching a
-fresh subagent whose entire prompt is the neutral pooled question
-gives both properties: it is a separate reasoning context
-(autonomous) and it has not seen the ground truth (fresh
-evaluator). It is the in-session approximation of a fresh agent —
-weaker than a human-relayed separate session, so state that caveat
-when reporting a held-out result.
+held-out evaluation is self-graded (spike §4.4 C5). Any of the
+paths below gives a separate reasoning context fed only the neutral
+pooled prompt. For a **held-out**, a *different vendor* (Path A
+with Copilot or another model) is the strongest fresh-evaluator —
+different model, different context, no shared session state — and
+is more defensible than a same-family subagent (which is itself
+weaker than a human-relayed separate session; state that caveat
+when reporting a held-out result). The system never trusts the
+reasoner's substrate: the replay guards verify every answer, so
+substrate choice is about isolation + cost, not correctness-trust.
 
-## Protocol
+## The fill is substrate-agnostic
 
-1. **List the unfilled requests**:
+The pool is a filesystem queue; the prompt is self-contained.
+*Any* reasoner that maps a prompt to a one-line answer can fill it.
+Pick whichever substrate you have — they are interchangeable, and
+the replay guards keep a weaker/different one from corrupting a
+result. Three equivalent paths:
 
-   ```bash
-   npx tsx scripts/reasoning-fill.ts list
-   ```
+### Path A — agnostic CLI dispatch (`fill-via`)
 
-   Each entry has a `fingerprint` and a `prompt` (a neutral
-   candidate-selection question + menu).
+The universal substrate: pipe each pending prompt to an external
+reasoner on stdin, capture its answer on stdout. Works with the
+GitHub Copilot CLI, an `llm`-style wrapper, a bespoke API client,
+or any 2-line script:
 
-2. **For each pending request, dispatch ONE context-isolated
-   subagent** (the `Agent` tool, `general-purpose`) whose prompt is
-   *exactly* the request's `prompt` field, prefixed with: "Do not
-   use any tools. Respond with exactly one line: the exact menu item
-   text, or NONE." Do NOT add the expected answer, hints, or the
-   fact that this is a graded test — that would contaminate the
-   fill.
+```bash
+npx tsx scripts/reasoning-fill.ts fill-via -- copilot -p
+npx tsx scripts/reasoning-fill.ts fill-via --model gpt-4o -- llm -m gpt-4o
+npx tsx scripts/reasoning-fill.ts fill-via -- ./my-reasoner.sh
+```
 
-3. **Write the fill** with the subagent's one-line answer and its
-   reported token usage (real metering):
+The command MUST read the prompt on stdin and print the answer
+(exact menu item, or NONE) on stdout. Vendor flags differ by CLI
+version; wrap in a short script if a CLI needs the prompt as an
+argument instead of stdin. The fill records the reasoner's model +
+token cost for provenance/metering.
 
-   ```bash
-   npx tsx scripts/reasoning-fill.ts fill <fingerprint> "<answer>"
-   ```
+### Path B — Claude Code subagent (context-isolated, in-harness)
 
-   (`fill` records `filledBy` as the session; capture the
-   subagent's `subagent_tokens` into the receipt when extending the
-   script for metered cost.)
+1. `npx tsx scripts/reasoning-fill.ts list` to read the pending
+   prompts.
+2. For each, dispatch ONE `Agent` (`general-purpose`) whose prompt
+   is *exactly* the request's `prompt`, prefixed with "Do not use
+   any tools. Respond with exactly one line: the exact menu item
+   text, or NONE." Do NOT add the expected answer or hints — that
+   contaminates the fill.
+3. `npx tsx scripts/reasoning-fill.ts fill <fingerprint> "<answer>"`.
 
-4. **Replay**: re-run the cohort with `--reasoning-mode replay`. The
-   reasoning rung confirms each filled answer against the live page
-   (exact unique match) AND the cycle-8 check verifies it is the
-   *right* element. A wrong or hallucinated answer cannot silently
-   pass — the guards reject not-in-menu and non-unique answers.
+### Path C — manual
+
+`npx tsx scripts/reasoning-fill.ts fill <fingerprint> "<answer>"`
+with a human-authored answer.
+
+## Then replay
+
+Re-run the cohort with `--reasoning-mode replay`. The reasoning
+rung confirms each filled answer against the live page (exact
+unique match) AND the cycle-8 check verifies it is the *right*
+element. A wrong or hallucinated answer cannot silently pass — the
+guards reject not-in-menu and non-unique answers, regardless of
+which substrate produced it.
 
 ## Boundaries
 

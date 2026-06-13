@@ -71,7 +71,14 @@ export interface ReasoningRungOutcome {
   readonly rationale: string;
 }
 
-const MODEL = 'claude-code-session';
+/** The request targets no particular vendor: the pool is
+ *  substrate-agnostic, so the fingerprint keys on the QUESTION
+ *  (op + prompt + purpose), not on which reasoner will answer.
+ *  Whichever substrate fills it (Claude subagent, Copilot CLI, an
+ *  API, a human) records its own model on the FilledResponse for
+ *  provenance + metering. Record and replay use the same value, so
+ *  the key is stable across the cycle. */
+const MODEL = 'unbound';
 
 /** Build the candidate-selection prompt + a stable pending request. */
 function buildRequest(input: ReasoningRungInput) {
