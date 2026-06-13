@@ -3781,3 +3781,83 @@ fill + PostToolUse/Stop hooks + subagent-dispatch skill, plan §7).
 The mechanical fill they would call exists; what's deferred is the
 hands-off cadence, which is an operator-comfort concern, not a
 correctness one.
+
+---
+
+## Entry 40 — cycle 11: autonomous reasoning + a clean held-out for the bridge
+
+The previous entry's reasoning demonstration had an honest hole: I
+(the building agent) typed 日本語 into the fill by hand, against a
+training site, in the same session that wrote the code. Two things
+were still ahead — making the reasoning autonomous (not my inline
+answer), and a clean generalization claim (a fresh evaluator on a
+held-out). This entry does both, together.
+
+**The held-out.** `the-internet.herokuapp.com` — a purpose-built
+QA-automation playground that never redesigns, so it is a stable
+held-out. Two fixtures, designated and committed BEFORE any
+evaluation contact (C1), are zero-token-overlap SYNONYM bridges
+against its 45-link landing menu: "tickbox example" → Checkboxes,
+"picklist control" → Dropdown. These require world knowledge no
+lexical rung can supply, so only the reasoning rung can resolve
+them. One authoring inspection (the link census) was made to write
+the expectedTargets (C5).
+
+**The single permitted contact.** One `--evaluation-handoff
+--capture --reasoning-mode record` run. The clean-room gate
+admitted it (the contact ledger recorded it — committed, the audit
+trail working); `--capture` froze the substrate. The record pass
+parked the pending bridge requests.
+
+**Autonomous, fresh-evaluator fill.** For the parked 91401 request,
+I dispatched a context-isolated subagent — a separate reasoning
+context whose entire prompt was the neutral pooled question (the
+phrase + the 45-name menu), blind to my authored expectedTarget and
+to the building context. It independently answered "Checkboxes"
+(24,757 tokens — real metering). I wrote that as the fill; the
+replay run confirmed Checkboxes on the live page and the cycle-8
+check verified `expected-match`. **The reasoning rung bridged a
+zero-overlap synonym on a site it was never tuned against, with an
+answer from an independent reasoner, verified against ground truth.**
+That is the clean generalization datapoint, and the reasoning was
+not mine inline — it was autonomous.
+
+**What the held-out caught (the bonus).** 91402 did NOT reach
+reasoning. The phrase-reduction rung reduced "picklist control" →
+"control", matched the only `/control/i` link ("Dynamic Controls"),
+and the cycle-8 check flagged it `wrong-target` — a false positive.
+This is a real precision bug the synthetic corpus (G6) never
+modeled: its reductions always pointed at the correct target, so it
+never imagined a reduction confidently matching an UNINTENDED
+element. The held-out did exactly the job nothing else can: it
+caught what synthesis couldn't imagine.
+
+**Honest caveats — stated plainly, as cycles 8/9 taught:**
+
+- A context-isolated subagent is the *in-session* approximation of
+  a fresh evaluator. It is genuinely blind to the ground truth and
+  is a separate reasoning context, but it is still a Claude model I
+  orchestrate. The strongest clean-room remains a human-relayed
+  separate session (the cycle-9 model). This is weaker; it is not
+  nothing.
+- The bridge ("tickbox" = checkbox) is easy for any competent
+  reasoner. It shows the *mechanism* generalizes (record → fresh
+  fill → verified replay), not that the reasoning is hard.
+- I authored the held-out fixtures knowing the bridges. The
+  mitigation is that the subagent never saw my expectedTarget and
+  its independent answer was checked against it — but a fully clean
+  protocol would have a different party author the fixtures too.
+
+**Lifecycle.** the-internet is now `evaluated`. The reasoning-rung
+generalization datapoint stands. The 91402 phrase-reduction
+precision bug is the finding that drives the next cycle; per §4.4
+C4, the-internet promotes held-out → training when that fix lands.
+
+**Net across cycle 11.** The empirical wing is wired into the
+compounding engine (G1), ratcheted (G2), replayable (G3), honestly
+denominated (G4), clean-room-gated (G5), threshold-calibrated (G6),
+classifier-pinned (G8), ledger-linked (G9); the cohort runs the
+product's own matchers live (G7); and the reasoning rung
+(Z11d) bridges semantics autonomously, metered, and now with a
+clean held-out generalization datapoint plus a held-out-caught
+precision bug to drive the next cycle.

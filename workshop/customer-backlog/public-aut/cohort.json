@@ -62,7 +62,9 @@
       "authoringOperator": "claude",
       "addedAt": "2026-06-13",
       "evaluationProtocol": "handoff",
-      "evaluationStatus": "pending",
+      "evaluationStatus": "evaluated",
+      "evaluatedAt": "2026-06-13",
+      "evaluationResult": "91401 (tickbox->Checkboxes): resolved at rung 'reasoning', expected-match verified — the fill was authored by a context-isolated subagent (fresh evaluator, 24757 tokens) blind to the expectedTarget, and its independent bridge matched the authored ground truth. A clean generalization datapoint for the reasoning rung. 91402 (picklist->Dropdown): wrong-target false positive — the phrase-reduction rung reduced 'picklist control' to 'control' and matched 'Dynamic Controls' (the only /control/i link), never reaching reasoning. A real precision bug the held-out caught (synthesis G6 never modeled a reduction matching an UNINTENDED element). Journal Entry 40. Per §4.4 C4, this AUT promotes held-out -> training when the phrase-reduction-overreach fix that 91402 drives lands; until then it is evaluated-but-not-yet-consumed.",
       "notes": "the-internet (Sauce Labs' QA-automation playground) — purpose-built for testing and never redesigned, so it is a stable held-out. Designated cycle 11 to test the Z11d reasoning rung's GENERALIZATION: the two fixtures (91401-91402) are zero-token-overlap SYNONYM bridges against the 45-link landing menu — 'tickbox example' → Checkboxes, 'picklist control' → Dropdown — that the structured/strict/phrase-reduction rungs all correctly miss, so only the reasoning rung can resolve them. The reasoning fill is authored by a CONTEXT-ISOLATED subagent (fresh evaluator) blind to the authored expectedTarget; the test is whether the independent reasoner's bridge matches the authored ground truth. ONE authoring inspection (the 45-link census) was made to write expectedTargets per §4.4 C5. Honest clean-room caveat: the building agent authored the fixtures and orchestrates the subagent; a context-isolated subagent is the in-session approximation of a fresh evaluator, weaker than a human-relayed separate session (journal Entry 40)."
     }
   ]
