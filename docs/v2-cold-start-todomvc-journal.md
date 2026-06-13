@@ -3719,3 +3719,65 @@ characterizes the resolver at scale, leaving the held-out to do
 only what it uniquely can — catch what synthesis couldn't
 imagine — and whatever it catches lands as evidence the engine
 can adjudicate.
+
+---
+
+## Entry 39 — cycle 11 follow-through: unify the apparatus, then bridge the semantic gap
+
+Two pieces the praxis audit deferred — G7 (unify the apparatus)
+and Z11d (the live reasoning adapter) — landed together, because
+they interlock: G7 builds one unified resolution ladder, and
+Z11d's reasoning rung sits at the top of it.
+
+**G7 — the product's own matchers now run against real pages.**
+The cohort runner had reimplemented specific→generic matching
+while the product's pattern/matcher kernel never executed against
+a live DOM (`surfaceIndexFromStage` returned empty). Now the
+runner harvests the page into the product's `IndexedSurface[]`,
+builds a `SurfaceIndex` with the product's own constructor, and
+walks the product's `DEFAULT_PATTERN_REGISTRY` as the primary
+`structured-pattern` rung. The degraded kernel (phrase reduction +
+inventory scoring) stays as the recall-extending rung it always
+was — genuinely cohort-specific, not duplication. Verified:
+TodoMVC holds its baseline exactly (3/5, 2 verified, 1 known false
+positive), and 91002 "Click the toggle checkbox" now resolves via
+the product's role-and-name-substring matcher running live. The
+measured pipeline is now the shipped pipeline.
+
+**Z11d — the 日本語 bridge, closed.** The biggest named gap since
+Entry 36: a step that says "Japanese language" against a link
+named 日本語. Token overlap is zero, so the kernel correctly
+refuses — and that refusal was always the right call for a
+deterministic resolver. Z11d adds the reasoning rung as the
+plan's record/fill/replay triad, with Claude as the file-mediated
+adapter (no live LLM API):
+
+1. A `record` run parks a pending request — the ranked candidate
+   menu, including 日本語 — in the reasoning pool, and the step
+   honestly defers.
+2. A fill pass (a Claude session, via `scripts/reasoning-fill.ts`)
+   reads the menu and answers: 日本語 literally *is* "Japanese
+   language". That is the bridge nothing lexical could make.
+3. A `replay` run confirms 日本語 against the live page and
+   resolves the step at rung `reasoning` — and the cycle-8
+   correctness check verifies it is the *right* element
+   (`expected-match`, no false positive).
+
+outsystems-com, which scored **0/3 DOM-targeting steps in cycle 9**,
+now scores **3/3, all verified** — two via principled phrase
+reduction, one via the reasoning bridge. The fingerprint is the
+reproducibility contract: the same menu always hits the same pool
+entry, so a fill is reused deterministically.
+
+**What this means together.** The resolution ladder is now one
+unified path — the product's structured matchers, then the
+degraded kernel, then reasoning — and every rung is law-tested,
+metered, and replayable. The held-out evaluation, when it runs,
+will be resolved by the shipped pipeline plus a reasoning rung
+whose every answer is a recorded, reproducible, metered receipt.
+
+**Deferred:** Z11d's operational autotelic layer (the `/loop`
+fill + PostToolUse/Stop hooks + subagent-dispatch skill, plan §7).
+The mechanical fill they would call exists; what's deferred is the
+hands-off cadence, which is an operator-comfort concern, not a
+correctness one.

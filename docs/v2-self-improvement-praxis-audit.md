@@ -22,15 +22,20 @@
 > | **G6** synthetic corpus + calibration | ✅ LANDED | `workshop/optimization/resolution-corpus.ts` + `threshold-calibration.ts` + `scripts/calibrate-resolution.ts`. Laws ZC48. Committed thresholds measured at precision 1.0. |
 > | **G8** classifier golden corpus | ✅ LANDED | `intent-classifier-golden.laws.spec.ts` (ZC49), 16 real cohort phrasings, browser-free. |
 > | **G9** ledger↔hypothesis chain | ✅ LANDED | `AcceptanceDecision.hypothesisIds`. |
-> | **G7** unify the apparatus | ⏳ DEFERRED | Week-long; audit sequences it "after the first clean cycle". The runner is still parallel to the product's pattern/matcher kernel (`surface-index-from-stage.ts` returns empty). |
-> | **G10** reasoning metering | ⏳ DEFERRED | A Z11d landing requirement, not now (Z11d's reasoning adapter does not exist yet). |
+> | **G7** unify the apparatus | ✅ LANDED | The cohort harvests a live `SurfaceIndex` and runs the product's `DEFAULT_PATTERN_REGISTRY` as the primary `structured-pattern` rung (`surface-harvest.ts`); `surfaceIndexFromList` relocated to the shared-contract set. The product's matchers now execute against real pages. Laws ZC51. |
+> | **G10** reasoning metering | ✅ LANDED (via Z11d) | The reasoning rung produces pool entries carrying token fields; cost is metered per bridge. Full live-LLM token capture arrives with a real provider adapter; the file-mediated `claude-code-session` path is metered today. |
+> | **Z11d** live reasoning adapter | ✅ LANDED | File-mediated record/fill/replay reasoning rung (`reasoning-rung.ts` + `product/domain/reasoning-pool/`); bridges zero-overlap semantic cases (日本語) the kernel correctly refuses. Laws ZD1/ZD2. Autotelic hooks (plan §7) deferred. |
 >
-> Net: the empirical wing is no longer invisible, unreproducible,
-> denominator-dishonest, or prose-gated. A held-out evaluation now
-> lands as a registered, mechanically-judged prediction on a frozen,
-> re-analyzable substrate, behind a contact gate, with calibrated
-> thresholds. G7 and G10 are the post-held-out / Z11d-coupled
-> remainder.
+> Net (after the cycle-11 follow-through): the empirical wing is no
+> longer invisible, unreproducible, denominator-dishonest,
+> prose-gated, OR a parallel apparatus — the product's own
+> resolution kernel runs against real pages, and a file-mediated
+> reasoning rung closes the semantic-bridge gap with metered,
+> reproducible receipts. A held-out evaluation now lands as a
+> registered, mechanically-judged prediction on a frozen substrate,
+> behind a contact gate, resolved by the shipped pipeline plus a
+> reasoning rung. The only deferred remainder is Z11d's operational
+> autotelic-fill layer (plan §7).
 
 ## 0. The verdict in one sentence
 
