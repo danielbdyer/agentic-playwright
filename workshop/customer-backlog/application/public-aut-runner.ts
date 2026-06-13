@@ -68,6 +68,7 @@ import type { ClassifiedIntent } from '../../../product/domain/resolution/patter
 import { taggedFingerprintFor, type Fingerprint } from '../../../product/domain/kernel/hash';
 import type { LoadedPublicAutCase } from './load-public-aut-cohort';
 import { stripHtml, inferAllowedActions } from './intent-helpers';
+import { buildLiveSurface, resolveViaPatternRegistry, type LiveSurface } from './surface-harvest';
 
 /** Bumped from 'floor-a5-heuristic-naive-dom' at cycle 10: the
  *  degraded-resolution ladder can classify steps the A.5 runner
@@ -80,7 +81,7 @@ export const PUBLIC_AUT_SUBSTRATE_VERSION = 'floor-a6-degraded-ladder' as const;
  *  change that re-arms a clean-room evaluation. Distinct from the
  *  substrate version (which is the receipt-shape/measurement-axes
  *  version). */
-export const RESOLVER_VERSION = 'resolver-cycle10-degraded-ladder' as const;
+export const RESOLVER_VERSION = 'resolver-cycle11-unified-pattern-registry' as const;
 
 /**
  * Fingerprint of the resolution machinery a receipt was produced
@@ -137,7 +138,17 @@ export type TargetCorrectness =
  * a match. Null when the step never reached DOM resolution
  * (navigate, press, unclassified) or did not match.
  */
-export type ResolutionRung = 'strict' | 'phrase-reduction' | 'inventory-scored';
+export type ResolutionRung =
+  /** Cycle 11 / G7: the product's own pattern registry, run against
+   *  a live SurfaceIndex — the unified structured rung. */
+  | 'structured-pattern'
+  | 'strict'
+  | 'phrase-reduction'
+  | 'inventory-scored'
+  /** Cycle 11 / Z11d: the file-mediated reasoning rung resolved a
+   *  semantic bridge (e.g. "Japanese" → 日本語) from a filled pool
+   *  response. */
+  | 'reasoning';
 
 /** A harvested element, scored against the classifier phrase. */
 export interface ProbeCandidateEvidence {
@@ -334,6 +345,18 @@ export interface ResolutionTrace {
   readonly verb: ClassifiedIntent['verb'];
   readonly role: string;
   readonly phrase: string | null;
+  /** Cycle 11 / G7: the product pattern-registry verdict (the
+   *  structured rung). When matched, the registry resolved against
+   *  the live SurfaceIndex; replay trusts this recorded bit (the
+   *  full surface index is not captured in the lightweight trace,
+   *  consistent with G3's "replay the verdict, not re-run the
+   *  matchers" scope). Null when the structured rung did not run
+   *  (non-role verbs never reach the ladder). */
+  readonly structured: {
+    readonly matched: boolean;
+    readonly patternId: string | null;
+    readonly matcherId: string | null;
+  } | null;
   /** Live count of the strict getByRole(role, phrase) query. */
   readonly strictCount: number;
   /** Each phrase reduction tried (in order) with its live count.
@@ -467,6 +490,7 @@ async function probeByRoleLadder(
   const reductionsTried: { reduction: string; count: number }[] = [];
   let inventory: readonly CandidateSurface[] = [];
   let confirmation: ResolutionTrace['confirmation'] = null;
+  let structured: ResolutionTrace['structured'] = null;
   const byRole = (q?: string | RegExp) =>
     q !== undefined
       ? page.getByRole(role as Parameters<Page['getByRole']>[0], { name: q })
@@ -476,6 +500,7 @@ async function probeByRoleLadder(
     verb,
     role,
     phrase,
+    structured,
     strictCount,
     reductions: [...reductionsTried],
     inventory: [...inventory],
@@ -485,6 +510,45 @@ async function probeByRoleLadder(
   });
 
   try {
+    // ── Rung 0 (G7): the product's own pattern registry, run
+    // against a live SurfaceIndex harvested from the real page.
+    // This is the unification — the shipped resolution kernel now
+    // executes against the cohort, instead of a parallel ladder.
+    // Harvest once here; the inventory rung below reuses it.
+    const live = await buildLiveSurface(page, role);
+    const intent: ClassifiedIntent = {
+      verb,
+      targetShape: {
+        role,
+        ...(exactName !== null ? { name: exactName } : {}),
+        ...(nameSubstring !== null ? { nameSubstring } : {}),
+      },
+      originalActionText: phrase ?? '',
+    };
+    const candidate = resolveViaPatternRegistry(intent, live.surfaceIndex);
+    if (candidate) {
+      const locator = live.locate(candidate.targetSurfaceId);
+      structured = {
+        matched: true,
+        patternId: String(candidate.patternId),
+        matcherId: String(candidate.matcherId),
+      };
+      attempts.push(`pattern-registry: ${candidate.patternId}/${candidate.matcherId} → ${candidate.targetSurfaceId}`);
+      if (locator) {
+        return {
+          resolution: 'matched',
+          matchCount: 1,
+          rationale: `structured-pattern: ${candidate.patternId} via ${candidate.matcherId} (${candidate.rationale})`,
+          matchedLocator: locator,
+          resolutionRung: 'structured-pattern',
+          evidence: null,
+          trace: mkTrace('matched', 'structured-pattern', 0),
+        };
+      }
+    } else {
+      structured = { matched: false, patternId: null, matcherId: null };
+    }
+
     // ── Rung 1: strict — the full classifier phrase ──────────────
     const strictQuery: string | RegExp | undefined = exactName
       ?? (nameSubstring ? buildNameQuery(nameSubstring) : undefined);
@@ -529,7 +593,8 @@ async function probeByRoleLadder(
     }
 
     // ── Rung 3: inventory harvest + deterministic scoring ────────
-    const harvest = await harvestRoleInventory(page, role);
+    // Reuse the G7 harvest (no second DOM pass).
+    const harvest = roleInventoryFromLive(live);
     inventory = harvest.candidates;
     const ranked = rankCandidates(phrase ?? '', harvest.candidates);
     const evidence = buildProbeEvidence(role, phrase, harvest, ranked, attempts);
@@ -604,68 +669,23 @@ interface RoleInventory {
 }
 
 /**
- * Enumerate every element exposing the inferred role — INCLUDING
- * a11y-hidden ones (collapsed menus, aria-hidden regions). The
- * cycle-9 held-out failure mode was exactly this blindness: the
- * language-switcher links existed but were invisible to the
- * visible-only query, and the receipt could not say so.
- *
- * Names are in-page approximations of the accessible name
- * (aria-label → aria-labelledby → label association → text
- * content → title/alt). Approximation is acceptable because a
- * candidate is only ever ACCEPTED through a confirmation query
- * against Playwright's real accessible-name engine.
+ * Derive the inventory rung's RoleInventory from the single G7
+ * harvest (`buildLiveSurface`), which already enumerated every
+ * element of the role INCLUDING a11y-hidden ones (the cycle-9
+ * blindness fix — the language-switcher links existed but were
+ * invisible). No second DOM pass: the same harvest feeds the
+ * structured rung, the inventory rung, and the evidence payload.
  */
-async function harvestRoleInventory(page: Page, role: string): Promise<RoleInventory> {
-  const locator = page.getByRole(role as Parameters<Page['getByRole']>[0], {
-    includeHidden: true,
-  });
-  const total = await locator.count();
-  const sampled: ReadonlyArray<{ name: string; visible: boolean }> = await locator.evaluateAll(
-    (nodes, max) =>
-      nodes.slice(0, max).map((el) => {
-        const attr = (n: Element, a: string): string => (n.getAttribute(a) ?? '').trim();
-        let name = attr(el, 'aria-label');
-        if (!name) {
-          const labelledby = attr(el, 'aria-labelledby');
-          if (labelledby) {
-            name = labelledby
-              .split(/\s+/)
-              .map((id) => document.getElementById(id)?.textContent ?? '')
-              .join(' ')
-              .trim();
-          }
-        }
-        if (!name && el instanceof HTMLInputElement) {
-          if (el.labels && el.labels.length > 0) {
-            name = Array.from(el.labels)
-              .map((l) => l.textContent ?? '')
-              .join(' ')
-              .trim();
-          } else if (el.type === 'submit' || el.type === 'button') {
-            name = el.value.trim();
-          } else {
-            name = attr(el, 'placeholder');
-          }
-        }
-        if (!name) name = (el.textContent ?? '').trim();
-        if (!name) name = attr(el, 'title') || attr(el, 'alt');
-        name = name.replace(/\s+/g, ' ').slice(0, 80);
-        const visible =
-          typeof (el as HTMLElement & { checkVisibility?: () => boolean }).checkVisibility ===
-          'function'
-            ? (el as HTMLElement & { checkVisibility: () => boolean }).checkVisibility()
-            : el instanceof HTMLElement && el.offsetParent !== null;
-        return { name, visible };
-      }),
-    MAX_HARVEST,
-  );
+function roleInventoryFromLive(live: LiveSurface): RoleInventory {
+  const sampled = live.all
+    .slice(0, MAX_HARVEST)
+    .map((n) => ({ name: n.name ?? '', visible: n.visible }));
   const candidates = sampled.filter((c) => c.name.length > 0);
   const visibleCount = sampled.filter((c) => c.visible).length;
   return {
-    total,
+    total: live.all.length,
     visibleCount,
-    hiddenCount: total - visibleCount,
+    hiddenCount: live.all.length - visibleCount,
     candidates,
   };
 }

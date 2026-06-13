@@ -15,6 +15,7 @@
  *   ZC50.e   zero-overlap handoff trace → not-found.
  *   ZC50.f   ambiguous (strict > 1, no dominant) → ambiguous.
  *   ZC50.g   replayMatchesLive holds for every shape above.
+ *   ZC50.h   structured-pattern (G7) trace replays to matched.
  */
 
 import { describe, test, expect } from 'vitest';
@@ -29,6 +30,7 @@ function trace(over: Partial<ResolutionTrace>): ResolutionTrace {
     verb: 'click',
     role: 'link',
     phrase: 'English language',
+    structured: { matched: false, patternId: null, matcherId: null },
     strictCount: 0,
     reductions: [],
     inventory: [],
@@ -104,6 +106,16 @@ describe('Cycle 11 / G3 — offline resolution replay', () => {
       liveRung: null,
     });
     expect(replayResolutionTrace(t).resolution).toBe('not-found');
+    expect(replayMatchesLive(t)).toBe(true);
+  });
+
+  test('ZC50.h: structured-pattern (G7) trace replays to matched/structured-pattern', () => {
+    const t = trace({
+      structured: { matched: true, patternId: 'locator-by-role-and-name', matcherId: 'role-and-name-exact' },
+      liveResolution: 'matched',
+      liveRung: 'structured-pattern',
+    });
+    expect(replayResolutionTrace(t).rung).toBe('structured-pattern');
     expect(replayMatchesLive(t)).toBe(true);
   });
 

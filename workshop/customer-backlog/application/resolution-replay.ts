@@ -56,6 +56,15 @@ export interface ReplayedVerdict {
  *   else: strictCount > 1 ? ambiguous : not-found
  */
 export function replayResolutionTrace(trace: ResolutionTrace): ReplayedVerdict {
+  // Cycle 11 / G7: the structured (pattern-registry) rung ran first
+  // live. Its inputs (the full live SurfaceIndex) are not captured
+  // in the lightweight trace, so replay trusts the recorded verdict
+  // bit — consistent with G3's "replay the verdict, not re-run the
+  // matchers" scope. The inventory rung below IS fully re-derived.
+  if (trace.structured?.matched) {
+    return { resolution: 'matched', rung: 'structured-pattern', acceptedName: null };
+  }
+
   if (trace.strictCount === 1) {
     return { resolution: 'matched', rung: 'strict', acceptedName: null };
   }

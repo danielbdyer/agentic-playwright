@@ -64,14 +64,15 @@ export interface CompilePublicAutResult {
    *  debt — verifiedMatches + falsePositives is the verifiable
    *  population. */
   readonly unverifiedSteps: number;
-  /** Cycle 10: which rung of the degraded-resolution ladder the
-   *  DOM-targeting matches resolved on. Strict-only is the A.5
-   *  baseline; the other two rungs are the ladder earning its
-   *  keep. */
+  /** Which rung resolved each DOM-targeting match. Cycle 11 / G7
+   *  adds `structuredPattern` (the product's pattern registry run
+   *  live — the unified primary rung) and `reasoning` (Z11d). */
   readonly matchesByRung: {
+    readonly structuredPattern: number;
     readonly strict: number;
     readonly phraseReduction: number;
     readonly inventoryScored: number;
+    readonly reasoning: number;
   };
   /** Cycle 10 (journal Entry 35 priority 3): total wall-clock cost
    *  across all cases, so the summary carries the run's price tag. */
@@ -146,9 +147,11 @@ interface AggregateCounts {
   readonly domTargetMatched: number;
   readonly handoffsWithEvidence: number;
   readonly totalElapsedMs: number;
+  readonly structuredPattern: number;
   readonly strict: number;
   readonly phraseReduction: number;
   readonly inventoryScored: number;
+  readonly reasoning: number;
 }
 
 function aggregate(results: readonly PublicAutCaseResult[]): AggregateCounts {
@@ -162,9 +165,11 @@ function aggregate(results: readonly PublicAutCaseResult[]): AggregateCounts {
   let domTargetMatched = 0;
   let handoffsWithEvidence = 0;
   let totalElapsedMs = 0;
+  let structuredPattern = 0;
   let strict = 0;
   let phraseReduction = 0;
   let inventoryScored = 0;
+  let reasoning = 0;
   for (const r of results) {
     stepsTotal += r.stepCount;
     stepsMatched += r.stepsMatched;
@@ -177,15 +182,17 @@ function aggregate(results: readonly PublicAutCaseResult[]): AggregateCounts {
     handoffsWithEvidence += r.handoffsWithEvidence;
     totalElapsedMs += r.elapsedMs;
     for (const outcome of r.stepOutcomes) {
-      if (outcome.resolutionRung === 'strict') strict += 1;
+      if (outcome.resolutionRung === 'structured-pattern') structuredPattern += 1;
+      else if (outcome.resolutionRung === 'strict') strict += 1;
       else if (outcome.resolutionRung === 'phrase-reduction') phraseReduction += 1;
       else if (outcome.resolutionRung === 'inventory-scored') inventoryScored += 1;
+      else if (outcome.resolutionRung === 'reasoning') reasoning += 1;
     }
   }
   return {
     stepsTotal, stepsMatched, handoffsEmitted, falsePositives, verifiedMatches,
     unverifiedSteps, domTargetSteps, domTargetMatched, handoffsWithEvidence,
-    totalElapsedMs, strict, phraseReduction, inventoryScored,
+    totalElapsedMs, structuredPattern, strict, phraseReduction, inventoryScored, reasoning,
   };
 }
 
@@ -366,9 +373,11 @@ export const compilePublicAutCommand = createCommandSpec({
           verifiedMatches: counts.verifiedMatches,
           unverifiedSteps: counts.unverifiedSteps,
           matchesByRung: {
+            structuredPattern: counts.structuredPattern,
             strict: counts.strict,
             phraseReduction: counts.phraseReduction,
             inventoryScored: counts.inventoryScored,
+            reasoning: counts.reasoning,
           },
           totalElapsedMs: counts.totalElapsedMs,
           domTargetSteps: counts.domTargetSteps,
