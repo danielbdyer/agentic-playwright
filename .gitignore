@@ -43,3 +43,4 @@ generated/
 # Leftover synthetic output that may exist outside dogfood/ from
 # prior pipeline runs.  Safe to remove once all paths are migrated.
 scenarios/synthetic/
+workshop/substrate-study/logs/

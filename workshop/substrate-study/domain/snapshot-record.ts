@@ -84,6 +84,20 @@ export interface FormRef {
   readonly inputName: string | null;
 }
 
+/** Which naming path produced `ariaNaming.accessibleName`. Closed
+ *  union so the distillation can partition targets by how they are
+ *  named — the study's first real-substrate finding was that most
+ *  Reactive form controls are named by `<label for>` and most
+ *  buttons by content, neither of which the v1 walker resolved. */
+export type NamingSource =
+  | 'aria-label'
+  | 'aria-labelledby'
+  | 'label-for'
+  | 'label-wrap'
+  | 'placeholder'
+  | 'content'
+  | 'none';
+
 // ─── SnapshotNode ────────────────────────────────────────────
 
 export interface SnapshotNode {
@@ -102,6 +116,7 @@ export interface SnapshotNode {
   readonly ariaNaming: {
     readonly label: string | null;
     readonly accessibleName: string | null;
+    readonly source: NamingSource;
   };
   readonly interaction: {
     readonly tabindex: number | null;

@@ -132,6 +132,17 @@ export interface DomWalkOutput {
  *  serializes the function, not its closure. */
 export async function walkDom(page: Page): Promise<DomWalkOutput> {
   return page.evaluate(() => {
+    // esbuild/tsx compile this callback with `keepNames`, which wraps
+    // every nested declaration in a `__name(fn, "name")` helper call.
+    // That helper exists in Node but NOT in the page context Playwright
+    // serializes this function into, so the very first nested call threw
+    // `ReferenceError: __name is not defined` and the whole walk aborted
+    // — the harness then recorded zero nodes and the hydration detector
+    // read that as signature-unstable. Define a no-op shim before any
+    // wrapped declaration runs; harmless under tsc (which emits no
+    // `__name` calls). First real-Reactive-substrate finding, 2026-09-16.
+    (globalThis as unknown as { __name?: (fn: unknown, n?: string) => unknown }).__name ??= (fn) => fn;
+
     // ─── In-page helpers (mirror classify* exports) ─────────
     const EXCLUDED_TAGS = new Set(['SCRIPT', 'STYLE', 'TEMPLATE', 'NOSCRIPT']);
 
@@ -294,8 +305,10 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
       // in-page we use aria-label || labelledby-resolution ||
       // (for label-classified elements) textContent trimmed.
       let accessibleName: string | null = null;
+      let namingSource = 'none';
       if (ariaLabel !== null && ariaLabel.length > 0) {
         accessibleName = ariaLabel;
+        namingSource = 'aria-label';
       } else if (ariaLabelledBy !== null) {
         const ids = ariaLabelledBy.split(/\s+/);
         const texts: string[] = [];
@@ -305,6 +318,39 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
         }
         accessibleName = texts.join(' ').trim();
         if (accessibleName.length === 0) accessibleName = null;
+        else namingSource = 'aria-labelledby';
+      }
+      // Form controls: <label for=id>, then a wrapping <label>, then
+      // placeholder — the three ways Reactive-Web forms actually name
+      // their inputs (first real-substrate study, 2026-09-16).
+      const FORM_CONTROL_TAGS = new Set(['INPUT', 'SELECT', 'TEXTAREA']);
+      const collapse = (s: string): string => s.replace(/\s+/g, ' ').trim();
+      if (accessibleName === null && FORM_CONTROL_TAGS.has(root.tagName)) {
+        if (root.id) {
+          const forLabel = document.querySelector(`label[for="${CSS.escape(root.id)}"]`);
+          const t = forLabel ? collapse(forLabel.textContent ?? '') : '';
+          if (t.length > 0) { accessibleName = t.slice(0, 120); namingSource = 'label-for'; }
+        }
+        if (accessibleName === null) {
+          const wrap = root.closest('label');
+          const t = wrap ? collapse(wrap.textContent ?? '') : '';
+          if (t.length > 0) { accessibleName = t.slice(0, 120); namingSource = 'label-wrap'; }
+        }
+        if (accessibleName === null) {
+          const ph = collapse(root.getAttribute('placeholder') ?? '');
+          if (ph.length > 0) { accessibleName = ph.slice(0, 120); namingSource = 'placeholder'; }
+        }
+      }
+      // Content-named interactives: buttons, links, tabs, menu items
+      // take their accessible name from their text when nothing
+      // explicit names them.
+      const CONTENT_NAMED_ROLES = new Set(['button', 'link', 'tab', 'menuitem', 'option', 'treeitem']);
+      if (
+        accessibleName === null &&
+        (tag === 'button' || tag === 'a' || (ariaRole !== null && CONTENT_NAMED_ROLES.has(ariaRole)))
+      ) {
+        const t = collapse(root.textContent ?? '');
+        if (t.length > 0) { accessibleName = t.slice(0, 120); namingSource = 'content'; }
       }
 
       const labelLike = isLabelClassifiedIn(
@@ -443,6 +489,7 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
         ariaNaming: {
           label: ariaLabel,
           accessibleName,
+          source: namingSource as SnapshotNodeShape['ariaNaming']['source'],
         },
         interaction: {
           tabindex: parsedTabindex,
@@ -496,7 +543,11 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
       dataAttrValues: Readonly<Record<string, string>>;
       ariaRole: string | null;
       ariaState: Readonly<Record<string, string>>;
-      ariaNaming: { label: string | null; accessibleName: string | null };
+      ariaNaming: {
+        label: string | null;
+        accessibleName: string | null;
+        source: 'aria-label' | 'aria-labelledby' | 'label-for' | 'label-wrap' | 'placeholder' | 'content' | 'none';
+      };
       interaction: {
         tabindex: number | null; focusable: boolean; interactive: boolean;
         formRef: { formId: string | null; formName: string | null; inputName: string | null } | null;
@@ -558,12 +609,26 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
     ).length;
 
     // ─── Variant-classifier signals ────────────────────────
+    // 2026-09-16 recalibration: the real OutSystems Reactive corpus
+    // showed the first-token osui count undercounts (osui-* often
+    // sits mid-list) and that the runtime global + data-block are the
+    // decisive markers. Gather all of them; the classifier decides.
     let osuiClassCount = 0;
+    let osuiAnyTokenCount = 0;
+    let dataBlockCount = 0;
     for (const n of nodes) {
       if (n.classPrefixFamily === 'osui') osuiClassCount++;
+      if (n.classTokens.some((c) => c.startsWith('osui-'))) osuiAnyTokenCount++;
+      if (n.dataAttrNames.includes('data-block')) dataBlockCount++;
     }
     const osvstatePresent =
       document.querySelector('input[name="__OSVSTATE"]') !== null;
+    const w = window as unknown as Record<string, unknown>;
+    const outSystemsRuntimeGlobal =
+      w['OutSystems'] !== undefined || w['OSFramework'] !== undefined;
+    const outSystemsScriptPresent = Array.from(document.scripts).some((s) =>
+      /OutSystemsReactView|\/scripts\/OutSystems\.js|OutSystemsReactWidgets/i.test(s.src),
+    );
 
     return {
       nodes,
@@ -577,6 +642,10 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
       },
       variantSignals: {
         osuiClassCount,
+        osuiAnyTokenCount,
+        dataBlockCount,
+        outSystemsRuntimeGlobal,
+        outSystemsScriptPresent,
         osvstatePresent,
         reactDetected,
         angularDetected,
