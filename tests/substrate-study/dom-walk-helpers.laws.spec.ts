@@ -180,93 +180,83 @@ describe('isLabelClassified (Z11g.d.0a §3.4 PII discipline)', () => {
   });
 });
 
-describe('classifyVariant (Z11g.d.0a §4.4)', () => {
-  const FRAMEWORK_NONE = {
+describe('classifyVariant (Z11g.d.0a §4.4, recalibrated 2026-09-16)', () => {
+  const base: VariantClassifierSignals = {
+    osuiClassCount: 0,
+    osuiAnyTokenCount: 0,
+    dataBlockCount: 0,
+    outSystemsRuntimeGlobal: false,
+    outSystemsScriptPresent: false,
+    osvstatePresent: false,
     reactDetected: false,
     angularDetected: false,
     vueDetected: false,
-  } as const;
-
-  const base: VariantClassifierSignals = {
-    osuiClassCount: 0,
-    osvstatePresent: false,
-    ...FRAMEWORK_NONE,
   };
 
-  test('Reactive: ≥3 osui-* + zero __OSVSTATE + framework marker', () => {
-    const v = classifyVariant({
-      ...base,
-      osuiClassCount: 15,
-      reactDetected: true,
-    });
+  // The real corpus: OutSystems Reactive renders through OSFramework,
+  // leaving essentially no React fibers, so the runtime global and
+  // data-block are the load-bearing signals — never a framework marker.
+  const realReactiveCatalog: VariantClassifierSignals = {
+    ...base,
+    osuiClassCount: 5,
+    osuiAnyTokenCount: 5,
+    dataBlockCount: 48,
+    outSystemsRuntimeGlobal: true,
+    outSystemsScriptPresent: true,
+    reactDetected: false,
+  };
+
+  test('Reactive: real OutSystems shape (runtime global + data-block, NO React fiber)', () => {
+    const v = classifyVariant(realReactiveCatalog);
     expect(v.kind).toBe('reactive');
     if (v.kind === 'reactive') {
-      expect(v.osuiClassCount).toBe(15);
+      expect(v.osuiClassCount).toBe(5);
       expect(v.evidence).toEqual(
-        expect.arrayContaining([expect.stringContaining('osui-* class count')]),
+        expect.arrayContaining([expect.stringContaining('runtime global')]),
       );
     }
   });
 
-  test('Reactive requires ALL three conditions', () => {
-    // osui count below threshold → not-reactive
-    expect(
-      classifyVariant({ ...base, osuiClassCount: 2, reactDetected: true }).kind,
-    ).toBe('not-reactive');
-    // no framework marker → not-reactive
-    expect(classifyVariant({ ...base, osuiClassCount: 10 }).kind).toBe(
-      'not-reactive',
-    );
-    // __OSVSTATE present with strong osui-* signal → ambiguous
-    expect(
-      classifyVariant({
-        ...base,
-        osuiClassCount: 10,
-        reactDetected: true,
-        osvstatePresent: true,
-      }).kind,
-    ).toBe('ambiguous');
+  test('Reactive on the runtime global alone (no osui-*, no data-block yet)', () => {
+    expect(classifyVariant({ ...base, outSystemsRuntimeGlobal: true }).kind).toBe('reactive');
   });
 
-  test('Ambiguous: osui-* strong AND __OSVSTATE present', () => {
-    const v = classifyVariant({
-      ...base,
-      osuiClassCount: 10,
-      osvstatePresent: true,
-      reactDetected: true,
-    });
+  test('Reactive on data-block density alone', () => {
+    expect(classifyVariant({ ...base, dataBlockCount: 11 }).kind).toBe('reactive');
+  });
+
+  test('Reactive on the runtime bundle reference alone', () => {
+    expect(classifyVariant({ ...base, outSystemsScriptPresent: true }).kind).toBe('reactive');
+  });
+
+  test('A React marker alone is NOT sufficient (the old false requirement, inverted)', () => {
+    expect(classifyVariant({ ...base, reactDetected: true }).kind).toBe('not-reactive');
+  });
+
+  test('A lone osui-* class is corroborating, not sufficient', () => {
+    expect(classifyVariant({ ...base, osuiAnyTokenCount: 1 }).kind).toBe('not-reactive');
+    expect(classifyVariant({ ...base, osuiAnyTokenCount: 3 }).kind).toBe('reactive');
+  });
+
+  test('Ambiguous: a Reactive-positive signal AND __OSVSTATE present', () => {
+    const v = classifyVariant({ ...realReactiveCatalog, osvstatePresent: true });
     expect(v.kind).toBe('ambiguous');
     if (v.kind === 'ambiguous') {
       expect(v.conflictingEvidence).toEqual(
         expect.arrayContaining([
-          expect.stringContaining('reactive candidate'),
+          expect.stringContaining('reactive:'),
           expect.stringContaining('__OSVSTATE'),
         ]),
       );
     }
   });
 
-  test('Not-reactive: no osui-* signal', () => {
-    const v = classifyVariant(base);
-    expect(v.kind).toBe('not-reactive');
+  test('Not-reactive: no Reactive-positive signal', () => {
+    expect(classifyVariant(base).kind).toBe('not-reactive');
   });
 
-  test('Not-reactive (framework-only): React present but no osui- classes', () => {
-    const v = classifyVariant({ ...base, reactDetected: true });
-    expect(v.kind).toBe('not-reactive');
-    if (v.kind === 'not-reactive') {
-      expect(v.evidence).toEqual(
-        expect.arrayContaining([expect.stringContaining('osui-* count below threshold')]),
-      );
-    }
-  });
-
-  test('Not-reactive (osvstate-present): Traditional markers disqualify', () => {
-    const v = classifyVariant({
-      ...base,
-      osuiClassCount: 0,
-      osvstatePresent: true,
-    });
+  test('Not-reactive (osvstate-present): Traditional markers, no Reactive signal', () => {
+    const v = classifyVariant({ ...base, osvstatePresent: true });
     expect(v.kind).toBe('not-reactive');
     if (v.kind === 'not-reactive') {
       expect(v.evidence).toEqual(
@@ -277,19 +267,10 @@ describe('classifyVariant (Z11g.d.0a §4.4)', () => {
 
   test('evidence fields are non-empty for every verdict', () => {
     const verdicts = [
-      classifyVariant({ ...base }), // not-reactive
-      classifyVariant({ ...base, osvstatePresent: true }), // not-reactive (traditional marker)
-      classifyVariant({
-        ...base,
-        osuiClassCount: 5,
-        reactDetected: true,
-      }), // reactive
-      classifyVariant({
-        ...base,
-        osuiClassCount: 5,
-        osvstatePresent: true,
-        reactDetected: true,
-      }), // ambiguous
+      classifyVariant({ ...base }),
+      classifyVariant({ ...base, osvstatePresent: true }),
+      classifyVariant(realReactiveCatalog),
+      classifyVariant({ ...realReactiveCatalog, osvstatePresent: true }),
     ];
     for (const v of verdicts) {
       if (v.kind === 'ambiguous') {

@@ -50,7 +50,7 @@ import { generateCohortCorpus } from '../workshop/synthesis/cohort-generator';
 import {
   score as scoreCommand,
   captureBaseline,
-} from '../product/application/measurement';
+} from '../workshop/measurement';
 import { buildL4MetricTree } from '../workshop/metrics/metric/visitors';
 import { findLatestFitnessReport } from '../workshop/measurement/score';
 import { foldMetricTree } from '../workshop/metrics/metric/tree';

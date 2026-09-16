@@ -23,7 +23,7 @@ export function stubNode(overrides: Partial<SnapshotNode> = {}): SnapshotNode {
     dataAttrValues: {},
     ariaRole: null,
     ariaState: {},
-    ariaNaming: { label: null, accessibleName: null },
+    ariaNaming: { label: null, accessibleName: null, source: 'none' },
     interaction: {
       tabindex: null,
       focusable: false,
