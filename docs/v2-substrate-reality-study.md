@@ -71,11 +71,19 @@ designed, not a capture failure.
 ### F1. Reactive is identified by its runtime, not by React (corpus-backed, 7/7)
 
 OutSystems Reactive is React-based but renders through its own
-`OSFramework` runtime. Across a 377-node catalog page, exactly **one**
+`OSFramework` runtime. ~~Across a 377-node catalog page, exactly **one**
 DOM node carried a `__reactFiber*` key (the root container); the
 walker's fiber probe (which `break`s after the first element) never
-saw it. `__OSVSTATE` (the Traditional-Web marker) is absent on all
-seven routes, correctly.
+saw it.~~ **Corrected 2026-09-17 (handoff §1.1, N2):** the platform
+runs React 16, whose per-node markers are `__reactInternalInstance$…`
+/ `__reactEventHandlers$…`; the walker looked only for the React 17+
+names and only on the first element. Re-measured with both key
+families: **376 of 377** nodes on Productcatalog, 1219 of 1227 on the
+directory, 315 of 385 on request management. The policy conclusion
+below is unchanged — framework markers are version-fragile and never
+gate detection — but the marker is the handler-ownership channel F3
+needed (see the F3 correction). `__OSVSTATE` (the Traditional-Web
+marker) is absent on all seven routes, correctly.
 
 What IS present on every route, and absent from non-OutSystems pages:
 
@@ -136,6 +144,20 @@ almost never with an explicit role) and roleless clickable `<div>`s.
 
 The entire resolution ladder queries a role-and-name surface index.
 A quarter of real interactive targets are invisible to it.
+
+> **Corrected 2026-09-17 (handoff §1.2, N1):** the "precise probe"
+> above counted `cursor: pointer`, which inherits to every descendant
+> of a clickable ancestor. Re-measured by **handler ownership** (an
+> element that owns a React `onClick`, an `onclick` attribute,
+> `tabindex ≥ 0` or a platform widget attribute), the visible
+> roleless controls are: Productcatalog **0** (the "Filter" and
+> "Back to Overview" spans inherit the cursor from the handler-owning
+> container; clicking them works only because the event bubbles),
+> Employeesdirectory 6 of 24 visible interactives (25%), Requestmanagement 2
+> of 19 (11%), the promoted held-out route's sortable `<th>` headers
+> likewise. Roleless controls are real but fewer, and they are the
+> handler **owners**; the index marks owners and never
+> inherited-cursor descendants (§9.5).
 
 ### F4. Landmarks are 100% reliable (corpus-backed, 7/7)
 
@@ -383,6 +405,34 @@ which the same proxy serves correctly. With it, Productcatalog
 re-harvested to **377 nodes** — the study's own count exactly.
 `scripts/substrate-reality-stats.ts` prints F1–F6 for any
 SnapshotRecord so the numbers in §2 and §10 are reproducible.
+
+### 9.5 Round two (2026-09-17) — the handoff's agnostic channels
+
+`docs/v2-reactive-discovery-handoff.md` (PR #182) reviewed round one
+and named ten next items. Status after this round, each with a law
+(`tests/substrate-study/agnostic-channels.laws.spec.ts` AC1–AC8,
+`tests/resolution/patterns/reality-study-patterns.laws.spec.ts` RS9,
+`tests/probe-derivation/probe-target.laws.spec.ts` PT7):
+
+| # | Landed | Where | Re-measured on the study routes |
+|---|---|---|---|
+| N1 | Affordance ladder: native → aria-role → handler ownership → tabindex / platform attr → own-cursor (recorded, never sufficient). `affordanceSource` on `SnapshotNode` and `IndexedSurface`; discovery admits roleless controls only as handler owners named by descendant text | `dom-walk-capture.ts`, `snapshot-record.ts`, `rung-kernel.ts`, `discover-screen.ts` | roleless visible interactives: Productcatalog 0/15, Employeesdirectory 6/24, Requestmanagement 2/19; own-cursor-only decorative: 0 counted as interactive |
+| N2 | React detection reads both key families across every node; `reactMarkerNodeCount` recorded; floor 10; still corroborating only | `dom-walk-capture.ts` | 376 / 1219 / 315 marker nodes |
+| N3 | `ariaSnapshot()` captured per harvest; counts-only `AccessibilitySummary` with walker-vs-browser name agreement; names never persisted | `domain/aria-snapshot.ts`, harness | AX interactive 24 / 17 / 28 (identical to the handoff's §6); walker agreement 21/26, 22/27, 29/36 — the residual F2 error class, now measured |
+| N4 | `menu`, `menuitem`, `option`, `spinbutton` in `SurfaceRole` (33); `spinbutton` renders `<input type=number>`; `textbox` intents admit the text-entry family (`searchbox`, `spinbutton`) in the index | `surface-spec.ts`, renderer, projection, `rung-kernel.ts` | every interactive AX role in the 2026-09-17 fixture is a `SurfaceRole` (AC4) |
+| N5 | `partitionBlocksByOwner` from the manifest's `urlVersions`; recorded per harvest | `domain/block-ownership.ts`, harness | OutSystemsUI 10 (45) + OutSystemsUIWebsite 3 (3) on Productcatalog; 13 (160) + 3 + Maps 1 on the directory; **0 unresolved** — the handoff's partition exactly |
+| N6 | `scripts/harvest-screen-bundle.ts` + pure `extractViewBundleFacts`; the N6 law checked live | `domain/view-bundle.ts` | Productcatalog bundle 117,965 bytes, 89 `createElement`, 10 `onClick`, 18 block refs, `prompt: "Search Product"` — 1/1 static prompts found among rendered names |
+| N7 | Chrome signatures (banner, navigation) computed in the record constructor; rebased paths so depth does not matter | `snapshot-record.ts` | banner `84ddbf5a…`, navigation `9782b842…` identical on all three re-harvested routes |
+| N8 | `interactive-by-content` resolves the handler owner; an own-cursor descendant is never a candidate (RS9.d) | index + discovery | — |
+| N9 | Navigation budget 20 s; warm-up 0 (poll immediately, three quiet polls); `mutationCount` documented as post-networkidle | `hydration-detector.ts` | all three re-harvests stable on the first attempt |
+| N10 | C7: classifier `inRowWith` cue; `control-in-row-by-cell-text` matcher in a first-registered `row-scoped-control` pattern; probe targets accept `inRow`; `reactive-record-table` topology with unnamed bulk checkboxes; 3 fixtures | product patterns, `probe-target.ts`, `locate-target.ts`, topology catalog | rung-3 parity holds with the row query (`getByRole('row', { name }).getByRole('checkbox')`) |
+| N11 | Operator action (a second, owned substrate) — not mine | — | — |
+
+Not done in this round: product discovery still computes names in-page
+rather than from `ariaSnapshot()` (the harness does; the product's
+walk records the same naming ladder and the agreement metric now
+says how far apart they are); chrome subtraction is measured, not
+yet applied as a discovery tag.
 
 ## 10. Held-out evaluation — one route, spent
 

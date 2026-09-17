@@ -52,6 +52,12 @@ import { closedUnion } from '../../product/domain/algebra/closed-union';
  *  region + search + form) — landmarks are first-class for observe
  *  probes that verify landmark-aware queries.
  *
+ *  `menu` / `menuitem` / `option` / `spinbutton` joined on 2026-09-17
+ *  (handoff N4): the browser exposed all of them as interactive
+ *  roles on the study routes (the top menu is a real ARIA `menu`;
+ *  `<input type=number>` is a `spinbutton`; a `<select>`'s options
+ *  are `option`s).
+ *
  *  `generic` is ARIA's name for a roleless container (the implicit
  *  role of `<div>` / `<span>`). It renders as a bare `<div>` with NO
  *  `role` attribute; Playwright's role query cannot address it by
@@ -77,7 +83,10 @@ export type SurfaceRole =
   | 'list'
   | 'listitem'
   | 'main'
+  | 'menu'
+  | 'menuitem'
   | 'navigation'
+  | 'option'
   | 'radio'
   | 'radiogroup'
   | 'region'
@@ -85,6 +94,7 @@ export type SurfaceRole =
   | 'rowheader'
   | 'search'
   | 'searchbox'
+  | 'spinbutton'
   | 'status'
   | 'tab'
   | 'tablist'
@@ -116,7 +126,10 @@ const SURFACE_ROLE_UNION = closedUnion<SurfaceRole>([
   'list',
   'listitem',
   'main',
+  'menu',
+  'menuitem',
   'navigation',
+  'option',
   'radio',
   'radiogroup',
   'region',
@@ -124,6 +137,7 @@ const SURFACE_ROLE_UNION = closedUnion<SurfaceRole>([
   'rowheader',
   'search',
   'searchbox',
+  'spinbutton',
   'status',
   'tab',
   'tablist',
@@ -242,6 +256,7 @@ export function foldFormControlNaming<R>(
 const FORM_CONTROL_ROLES: ReadonlySet<SurfaceRole> = new Set<SurfaceRole>([
   'textbox',
   'searchbox',
+  'spinbutton',
   'combobox',
   'checkbox',
   'radio',

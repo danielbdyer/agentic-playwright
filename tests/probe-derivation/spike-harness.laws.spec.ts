@@ -146,19 +146,19 @@ describe('Probe IR Spike — end-to-end laws', () => {
     // interact grew to 6 (T2 role-disambiguation).
     // 2026-09-16 reality-study shapes: observe +5 (placeholder /
     // roleless / label-for / reactive chrome), interact +8. Total 47.
-    expect(derivation.probes).toHaveLength(47);
+    expect(derivation.probes).toHaveLength(50);
     const byVerb = new Map<string, number>();
     for (const probe of derivation.probes) {
       byVerb.set(probe.verb, (byVerb.get(probe.verb) ?? 0) + 1);
     }
-    expect(byVerb.get('observe')).toBe(12);
+    expect(byVerb.get('observe')).toBe(14);
     expect(byVerb.get('test-compose')).toBe(2);
     expect(byVerb.get('facet-query')).toBe(3);
     expect(byVerb.get('facet-mint')).toBe(2);
     expect(byVerb.get('facet-enrich')).toBe(2);
     expect(byVerb.get('locator-health-track')).toBe(2);
     expect(byVerb.get('intent-fetch')).toBe(4);
-    expect(byVerb.get('interact')).toBe(17);
+    expect(byVerb.get('interact')).toBe(18);
     expect(byVerb.get('navigate')).toBe(3);
   });
 

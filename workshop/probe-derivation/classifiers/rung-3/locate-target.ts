@@ -34,20 +34,29 @@ export interface LocatedTarget {
 
 export function locateProbeTarget(page: Page, target: ProbeTarget): LocatedTarget {
   return foldProbeTarget<LocatedTarget>(target, {
-    role: (t) => ({
-      a11y: t.name !== undefined
-        ? page.getByRole(t.role as PlaywrightRole, { name: t.name })
-        : page.getByRole(t.role as PlaywrightRole),
-      // The DOM handle accepts either the declared name OR the
-      // placeholder as the name — a placeholder-only textbox has no
-      // data-surface-name, and its accessible name IS the
-      // placeholder.
-      dom: t.name !== undefined
-        ? page.locator(
-            `${attr('data-surface-role', t.role)}:is(${attr('data-surface-name', t.name)}, ${attr('data-surface-placeholder', t.name)})`,
-          )
-        : page.locator(attr('data-surface-role', t.role)),
-    }),
+    role: (t) => {
+      // Row scoping (C7): the row's accessible name comes from its
+      // cells, so `getByRole('row', { name })` (substring by default)
+      // is the real verb's query; the DOM handle uses :has().
+      const scope = t.inRow !== undefined ? page.getByRole('row', { name: t.inRow }) : page;
+      const domScope = t.inRow !== undefined
+        ? `${attr('data-surface-role', 'row')}:has(${attr('data-surface-name', t.inRow)}) `
+        : '';
+      return {
+        a11y: t.name !== undefined
+          ? scope.getByRole(t.role as PlaywrightRole, { name: t.name })
+          : scope.getByRole(t.role as PlaywrightRole),
+        // The DOM handle accepts either the declared name OR the
+        // placeholder as the name — a placeholder-only textbox has no
+        // data-surface-name, and its accessible name IS the
+        // placeholder.
+        dom: t.name !== undefined
+          ? page.locator(
+              `${domScope}${attr('data-surface-role', t.role)}:is(${attr('data-surface-name', t.name)}, ${attr('data-surface-placeholder', t.name)})`,
+            )
+          : page.locator(`${domScope}${attr('data-surface-role', t.role)}`),
+      };
+    },
     placeholder: (t) => ({
       a11y: page.getByPlaceholder(t.placeholder, { exact: true }),
       dom: page.locator(attr('data-surface-placeholder', t.placeholder)),

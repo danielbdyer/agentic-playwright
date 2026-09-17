@@ -119,9 +119,21 @@ export const SURFACE_ROLE_PROJECTION: Record<SurfaceRole, SurfaceRoleProjection>
     strategy: 'generic',
     rationale: 'ARIA landmark; div+role matches canonical realization.',
   },
+  menu: {
+    strategy: 'generic',
+    rationale: 'Container role; the real Reactive top menu is a div+role=menu (handoff A5).',
+  },
+  menuitem: {
+    strategy: 'generic',
+    rationale: 'Container child role; div+role suffices — content-named like a link.',
+  },
   navigation: {
     strategy: 'generic',
     rationale: 'ARIA landmark; div+role matches canonical realization.',
+  },
+  option: {
+    strategy: 'generic',
+    rationale: 'Listbox / combobox child role; div+role suffices for observe probes.',
   },
   radio: {
     strategy: 'specialized',
@@ -150,6 +162,10 @@ export const SURFACE_ROLE_PROJECTION: Record<SurfaceRole, SurfaceRoleProjection>
   searchbox: {
     strategy: 'specialized',
     rationale: 'Native <input type="search"> — the element real Reactive search fields are (placeholder-named, no label; reality-study F2). Honors the naming + placeholder axes like textbox.',
+  },
+  spinbutton: {
+    strategy: 'specialized',
+    rationale: 'Native <input type="number">; honors the naming + placeholder axes like textbox (handoff N4).',
   },
   status: {
     strategy: 'generic',

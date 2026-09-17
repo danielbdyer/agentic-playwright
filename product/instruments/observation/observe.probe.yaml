@@ -267,3 +267,34 @@ fixtures:
       - rung: role
       - axis: chrome-vocabulary-reactive-block
       - preset: reactive-record-list
+
+  - name: unnamed-checkbox-in-row-visible
+    description: |
+      C7: observe the unnamed checkbox in the row whose cell says
+      "Borealis keyboard". Row-scoped role query; matched.
+    input:
+      target: { role: checkbox, inRow: "Borealis keyboard" }
+    world:
+      preset: reactive-record-table
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: row-scoped
+      - preset: reactive-record-table
+
+  - name: checkbox-in-unknown-row-fails-timeout
+    description: |
+      C7 negative: no row's cells say "Cascade monitor"; the row
+      query is empty, the DOM handle finds nothing → timeout, exactly
+      as a never-rendered surface.
+    input:
+      target: { role: checkbox, inRow: "Cascade monitor" }
+    world:
+      preset: reactive-record-table
+    expected:
+      classification: failed
+      error-family: timeout
+    exercises:
+      - error-family: timeout
+      - rung: row-scoped

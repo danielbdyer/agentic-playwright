@@ -13,6 +13,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
+import { EMPTY_ACCESSIBILITY_SUMMARY, EMPTY_BLOCK_OWNERSHIP } from '../../workshop/substrate-study/domain/snapshot-record';
 import { stubNode } from '../__fixtures__/snapshot-node-stub';
 import { snapshotRecord, type SnapshotNode } from '../../workshop/substrate-study/domain/snapshot-record';
 import { computeRealityStats, renderRealityStats } from '../../workshop/substrate-study/application/reality-stats';
@@ -27,8 +28,10 @@ function record(nodes: readonly SnapshotNode[]) {
     hydration: { kind: 'stable', diagnostic: 'ok', phases: [] } as never,
     captureLatencyMs: 1,
     nodes,
-    framework: { reactDetected: false, angularDetected: false, vueDetected: false, webComponentCount: 0, shadowRootCount: 0, iframeCount: 0 },
+    framework: { reactDetected: false, reactMarkerNodeCount: 0, angularDetected: false, vueDetected: false, webComponentCount: 0, shadowRootCount: 0, iframeCount: 0 },
     variantClassifier: { kind: 'reactive', osuiClassCount: 2, evidence: [] },
+    accessibility: EMPTY_ACCESSIBILITY_SUMMARY,
+    blockOwnership: EMPTY_BLOCK_OWNERSHIP,
   });
 }
 

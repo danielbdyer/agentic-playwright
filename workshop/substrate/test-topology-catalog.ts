@@ -314,6 +314,60 @@ const reactiveEntryForm: TestTopology = {
   },
 };
 
+/** reactive-record-table — the shape the promoted held-out route
+ *  (Bulkactionswithfilters, reality-study §10) exposed and the
+ *  record-list topology did not wear: a grid of rows whose bulk-
+ *  select checkboxes carry NO accessible name (`naming: 'none'`),
+ *  reachable only through the row their cell text identifies (C7 /
+ *  handoff N10); a select-all checkbox in the header row; sortable
+ *  column headers that are roleless clickables. */
+const reactiveRecordTable: TestTopology = {
+  id: 'reactive-record-table',
+  surfaces: [
+    {
+      role: 'main',
+      name: 'Requests',
+      children: [
+        {
+          role: 'grid',
+          name: 'Requests',
+          children: [
+            {
+              role: 'row',
+              children: [
+                { role: 'gridcell', children: [{ role: 'checkbox', naming: 'none', surfaceId: 'select-all' }] },
+                { role: 'rowheader', children: [{ role: 'generic', name: 'Name', clickable: true }] },
+                { role: 'rowheader', children: [{ role: 'generic', name: 'Status', clickable: true }] },
+              ],
+            },
+            {
+              role: 'row',
+              children: [
+                { role: 'gridcell', children: [{ role: 'checkbox', naming: 'none', surfaceId: 'select-1' }] },
+                { role: 'gridcell', name: 'Aurora headset' },
+                { role: 'gridcell', name: 'Pending' },
+              ],
+            },
+            {
+              role: 'row',
+              children: [
+                { role: 'gridcell', children: [{ role: 'checkbox', naming: 'none', surfaceId: 'select-2' }] },
+                { role: 'gridcell', name: 'Borealis keyboard' },
+                { role: 'gridcell', name: 'Approved' },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+  entropy: {
+    seed: 'reactive-record-table',
+    chromeVocabulary: 'reactive-block',
+    wrapperDepth: [2, 4],
+  },
+};
+
 export function createDefaultTopologyRegistry(): TestTopologyRegistry {
   return testTopologyRegistry([
     loginForm,
@@ -324,5 +378,6 @@ export function createDefaultTopologyRegistry(): TestTopologyRegistry {
     prefilledForm,
     reactiveRecordList,
     reactiveEntryForm,
+    reactiveRecordTable,
   ]);
 }

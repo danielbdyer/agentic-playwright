@@ -44,7 +44,7 @@ function surface(o: Partial<IndexedSurface> & Pick<IndexedSurface, 'surfaceId' |
     classes: [],
     placeholder: null,
     text: null,
-    interactive: false,
+    affordanceSource: 'none',
     ancestors: [],
     ...o,
   };
@@ -215,9 +215,10 @@ describe('Z11a.4c — observation-by-assertion-phrase', () => {
 // ─── ZC39.f: default registry ordering ──────────────────────────
 
 describe('Z11a.4c — DEFAULT_PATTERN_REGISTRY composition', () => {
-  test('ZC39.f: contains all seven patterns in specific → generic order', () => {
+  test('ZC39.f: contains all eight patterns in specific → generic order', () => {
     const ids = DEFAULT_PATTERN_REGISTRY.patterns.map((p) => p.id);
     expect(ids).toEqual([
+      patternId('row-scoped-control'),
       patternId('dialog-confirmation'),
       patternId('navigation-link-by-name'),
       patternId('form-submission'),

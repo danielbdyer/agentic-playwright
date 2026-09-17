@@ -23,9 +23,17 @@
  */
 
 import type { Browser, Page } from '@playwright/test';
-import { snapshotRecord, type SnapshotNode, type SnapshotRecord } from '../domain/snapshot-record';
+import {
+  EMPTY_ACCESSIBILITY_SUMMARY,
+  EMPTY_BLOCK_OWNERSHIP,
+  snapshotRecord,
+  type SnapshotNode,
+  type SnapshotRecord,
+} from '../domain/snapshot-record';
 import type { HydrationVerdict } from '../domain/hydration-verdict';
 import { classifyVariant } from './variant-classifier';
+import { parseAriaSnapshot, summarizeAccessibility } from '../domain/aria-snapshot';
+import { observedBlocks, partitionBlocksByOwner } from '../domain/block-ownership';
 import { detectHydrationAndCapture, type FrameworkReadiness, type HydrationDetectorOptions } from './hydration-detector';
 import { assertHarvestAllowed, type StudyPartitionManifest } from './study-partition';
 import { SUBSTRATE_VERSION } from '../../substrate/version';
@@ -197,12 +205,27 @@ export function redactPii(nodes: readonly SnapshotNode[]): {
 /** Reactive apps serve `<module>/moduleservices/moduleinfo` with a
  *  `manifest.versionToken`. Best-effort; null when unreachable. */
 export async function fetchHostVersionToken(page: Page, partition: StudyPartitionManifest): Promise<string | null> {
+  return (await fetchModuleManifest(page, partition))?.versionToken ?? null;
+}
+
+/** The slice of `moduleservices/moduleinfo` the harness reads:
+ *  the version token (drift key) and every bundle path the app can
+ *  load (block ownership, handoff §3.3). Best-effort; null when the
+ *  endpoint is unreachable or not a Reactive manifest. */
+export interface ModuleManifestSlice {
+  readonly versionToken: string;
+  readonly bundlePaths: readonly string[];
+}
+
+export async function fetchModuleManifest(page: Page, partition: StudyPartitionManifest): Promise<ModuleManifestSlice | null> {
   try {
     const endpoint = `${partition.baseUrl.replace(/\/+$/, '')}/${partition.moduleInfoEndpoint}`;
     const response = await page.request.get(endpoint, { timeout: 10_000 });
     if (!response.ok()) return null;
-    const json = (await response.json()) as { manifest?: { versionToken?: string } };
-    return json.manifest?.versionToken ?? null;
+    const json = (await response.json()) as { manifest?: { versionToken?: string; urlVersions?: Record<string, string> } };
+    const versionToken = json.manifest?.versionToken;
+    if (versionToken === undefined) return null;
+    return { versionToken, bundlePaths: Object.keys(json.manifest?.urlVersions ?? {}) };
   } catch {
     return null;
   }
@@ -259,7 +282,8 @@ export async function captureExternalSnapshot(
       ? { kind: 'skipped' }
       : await checkRobots(page, request.url, 'tesseract-substrate-study');
 
-    const hostVersionToken = await fetchHostVersionToken(page, request.partition);
+    const manifest = await fetchModuleManifest(page, request.partition);
+    const hostVersionToken = manifest?.versionToken ?? null;
     const substrateVersion = hostVersionToken ?? SUBSTRATE_VERSION;
 
     if (robots.kind === 'disallowed') {
@@ -282,6 +306,8 @@ export async function captureExternalSnapshot(
           nodes: [],
           framework: emptyFramework(),
           variantClassifier: { kind: 'not-reactive', evidence: ['page not fetched: robots-disallowed'] },
+          accessibility: EMPTY_ACCESSIBILITY_SUMMARY,
+          blockOwnership: EMPTY_BLOCK_OWNERSHIP,
         }),
         readiness: null,
         httpStatus: null,
@@ -297,6 +323,16 @@ export async function captureExternalSnapshot(
     const variantClassifier = walk
       ? classifyVariant(walk.variantSignals)
       : { kind: 'not-reactive' as const, evidence: ['no DOM walk retained'] };
+    // Handoff §3.1 (N3): the browser's accessibility tree is the
+    // ground truth for role + name. Captured after the walk, folded
+    // to counts, compared to the walker's names, then dropped.
+    const accessibility = walk
+      ? summarizeAccessibility(parseAriaSnapshot(await page.locator('body').ariaSnapshot().catch(() => '')), walk.nodes)
+      : EMPTY_ACCESSIBILITY_SUMMARY;
+    // Handoff §3.3 (N5): data-block ownership from the app's manifest.
+    const blockOwnership = walk
+      ? partitionBlocksByOwner(manifest?.bundlePaths ?? [], observedBlocks(walk.nodes))
+      : EMPTY_BLOCK_OWNERSHIP;
     const hydration: HydrationVerdict =
       redactions.length > 0
         ? {
@@ -317,6 +353,8 @@ export async function captureExternalSnapshot(
       nodes,
       framework: walk ? walk.frameworkCounts : emptyFramework(),
       variantClassifier,
+      accessibility,
+      blockOwnership,
     });
     return {
       record,
@@ -334,6 +372,7 @@ export async function captureExternalSnapshot(
 function emptyFramework(): SnapshotRecord['payload']['framework'] {
   return {
     reactDetected: false,
+    reactMarkerNodeCount: 0,
     angularDetected: false,
     vueDetected: false,
     webComponentCount: 0,

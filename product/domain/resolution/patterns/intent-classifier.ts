@@ -125,6 +125,22 @@ const LANDMARK_CUES: ReadonlyArray<{ readonly re: RegExp; readonly landmark: str
   { re: /\bsearch\b/i, landmark: 'search' },
 ];
 
+/**
+ * Row cues — handoff N10 (C7). "the checkbox in the row for Aurora
+ * headset", "in the Aurora headset row", "on the row containing
+ * ACME". The captured text is the cell content that identifies the
+ * row; the row-scoped matcher looks it up among `row` surfaces.
+ */
+const ROW_CUES: readonly RegExp[] = [
+  /\b(?:in|on|of|from)\s+(?:the\s+)?row\s+(?:for|containing|with|of|labell?ed)\s+["“]?(.+?)["”]?\s*$/i,
+  /\b(?:in|on|from)\s+the\s+["“]?(.+?)["”]?\s+row\b/i,
+];
+
+function extractRowHint(actionText: string): string | undefined {
+  const match = ROW_CUES.map((re) => re.exec(actionText)).find((m) => m !== null);
+  return match ? normalizeName(match[1]!) : undefined;
+}
+
 function extractLandmarkHint(actionText: string): string | undefined {
   return LANDMARK_CUES.find(({ re }) => re.test(actionText))?.landmark;
 }
@@ -134,7 +150,12 @@ function extractLandmarkHint(actionText: string): string | undefined {
  *  structurally unchanged. */
 function withLandmark(hint: TargetShapeHint, actionText: string): TargetShapeHint {
   const landmark = extractLandmarkHint(actionText);
-  return landmark === undefined ? hint : { ...hint, inLandmark: landmark };
+  const row = extractRowHint(actionText);
+  return {
+    ...hint,
+    ...(landmark === undefined ? {} : { inLandmark: landmark }),
+    ...(row === undefined ? {} : { inRowWith: row }),
+  };
 }
 
 // ─── Verb resolution ─────────────────────────────────────────
@@ -182,10 +203,12 @@ function extractClickTarget(actionText: string): TargetShapeHint {
   for (const { suffix, role } of CLICK_ROLE_SUFFIXES) {
     const match = clickRoleSuffixRe(suffix).exec(actionText);
     if (match) {
-      return {
-        role,
-        nameSubstring: normalizeName(match[1]!),
-      };
+      const captured = normalizeName(match[1]!);
+      // "Click the checkbox in the row for X" — the greedy capture
+      // lands on the article when nothing names the control (handoff
+      // N10: unnamed bulk checkboxes are addressed by row, not name).
+      // Emit the role alone; the row cue carries the identity.
+      return isPureArticle(captured) ? { role } : { role, nameSubstring: captured };
     }
   }
 

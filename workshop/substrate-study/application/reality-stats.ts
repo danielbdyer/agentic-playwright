@@ -61,10 +61,23 @@ export interface RealityStats {
   readonly namingShares: Readonly<Record<NamingSource, number>>;
   readonly placeholderOnlyInputs: number;
   readonly formControls: number;
-  /** F3 */
+  /** F3 — interactivity by the affordance ladder (handoff §3.2):
+   *  an inherited cursor is not an affordance; `rolelessOwnHandler`
+   *  is the honest roleless-control count. */
   readonly interactiveCount: number;
   readonly rolelessInteractiveCount: number;
   readonly rolelessInteractiveShare: number;
+  readonly rolelessOwnHandler: number;
+  readonly ownCursorOnly: number;
+  readonly reactMarkerNodeCount: number;
+  /** N3 / N5 / N7 */
+  readonly axInteractiveTotal: number;
+  readonly axUnnamedInteractive: number;
+  readonly axNameAgreement: { readonly compared: number; readonly agreed: number };
+  readonly chromeBanner: string | null;
+  readonly chromeNavigation: string | null;
+  readonly blocksByModule: readonly (readonly [module: string, distinct: number, nodes: number])[];
+  readonly unresolvedBlocks: number;
   readonly explicitRoleButtonDivs: number;
   readonly nativeButtons: number;
   readonly anchors: number;
@@ -134,6 +147,18 @@ export function computeRealityStats(record: SnapshotRecord): RealityStats {
     interactiveCount: interactive.length,
     rolelessInteractiveCount: rolelessInteractive.length,
     rolelessInteractiveShare: interactive.length === 0 ? 0 : rolelessInteractive.length / interactive.length,
+    rolelessOwnHandler: rolelessInteractive.filter((n) => n.interaction.affordanceSource === 'handler').length,
+    ownCursorOnly: nodes.filter((n) => n.interaction.affordanceSource === 'own-cursor').length,
+    reactMarkerNodeCount: record.payload.framework.reactMarkerNodeCount,
+    axInteractiveTotal: record.payload.accessibility.interactiveTotal,
+    axUnnamedInteractive: record.payload.accessibility.unnamedInteractive,
+    axNameAgreement: record.payload.accessibility.walkerNameAgreement,
+    chromeBanner: record.payload.chrome.banner?.signature.slice(0, 8) ?? null,
+    chromeNavigation: record.payload.chrome.navigation?.signature.slice(0, 8) ?? null,
+    blocksByModule: Object.entries(record.payload.blockOwnership.byModule)
+      .map(([module, blocks]) => [module, blocks.length, blocks.reduce((a, b) => a + b.nodes, 0)] as const)
+      .sort((a, b) => b[2] - a[2]),
+    unresolvedBlocks: record.payload.blockOwnership.unresolved.length,
     explicitRoleButtonDivs: nodes.filter((n) => n.ariaRole === 'button' && !['button', 'input'].includes(n.tag.toLowerCase())).length,
     nativeButtons: nodes.filter((n) => n.tag.toLowerCase() === 'button').length,
     anchors: nodes.filter((n) => n.tag.toLowerCase() === 'a').length,
@@ -155,7 +180,9 @@ export function renderRealityStats(s: RealityStats): string {
     `  nodes=${s.nodeCount} hydration=${s.hydration} variant=${s.variant} maxDepth=${s.maxDepth}`,
     `  F1 data-block=${s.dataBlockCount} (${s.distinctBlockNames} distinct) osui-any=${s.osuiAnyTokenCount}`,
     `  F2 named=${s.namedElements}: ${shares}; placeholder-only inputs ${s.placeholderOnlyInputs}/${s.formControls}`,
-    `  F3 interactive=${s.interactiveCount} roleless=${s.rolelessInteractiveCount} (${pct(s.rolelessInteractiveShare)}); <button>=${s.nativeButtons} <a>=${s.anchors} div[role=button]=${s.explicitRoleButtonDivs}`,
+    `  F3 interactive=${s.interactiveCount} roleless=${s.rolelessInteractiveCount} (${pct(s.rolelessInteractiveShare)}; own handler ${s.rolelessOwnHandler}; own-cursor-only decorative ${s.ownCursorOnly}); <button>=${s.nativeButtons} <a>=${s.anchors} div[role=button]=${s.explicitRoleButtonDivs}; react-marker nodes ${s.reactMarkerNodeCount}`,
+    `  AX interactive=${s.axInteractiveTotal} unnamed=${s.axUnnamedInteractive} walker-name agreement ${s.axNameAgreement.agreed}/${s.axNameAgreement.compared}`,
+    `  chrome banner=${s.chromeBanner ?? '-'} nav=${s.chromeNavigation ?? '-'}; blocks by module: ${s.blocksByModule.map(([m, d, n]) => `${m} ${d} (${n})`).join(', ') || '(none)'}; unresolved ${s.unresolvedBlocks}`,
     `  F4 landmarks=${s.landmarks.join('+') || '(none)'}`,
     `  F5 structural ids=${s.structuralIds} other ids=${s.otherIds} data-testid=${s.testIds}`,
     `  F6 data-*: ${s.topDataAttrs.map(([n, c]) => `${n}(${c})`).join(' ')}`,

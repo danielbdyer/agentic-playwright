@@ -7,9 +7,13 @@
  * Three shapes, one per way real DOM lets a locator reach an
  * element (docs/v2-substrate-reality-study.md §2):
  *
- *   { role, name? }   — role query; the accessible name is whatever
- *                       accname computes (aria-label, <label>,
- *                       placeholder, content).
+ *   { role, name?, inRow? } — role query; the accessible name is
+ *                       whatever accname computes (aria-label,
+ *                       <label>, placeholder, content). `inRow`
+ *                       scopes the query to the `row` whose accessible
+ *                       name (from its cells' content) contains the
+ *                       text — the C7 shape: an unnamed checkbox
+ *                       reachable only through its row.
  *   { placeholder }   — `getByPlaceholder`; the emitted-locator kind
  *                       the product's LocatorStrategyKind already
  *                       declares but no matcher produced (C1).
@@ -22,7 +26,7 @@
 import { accessibleNameOf, type SurfaceSpec } from '../substrate/surface-spec';
 
 export type ProbeTarget =
-  | { readonly kind: 'role'; readonly role: string; readonly name?: string }
+  | { readonly kind: 'role'; readonly role: string; readonly name?: string; readonly inRow?: string }
   | { readonly kind: 'placeholder'; readonly placeholder: string }
   | { readonly kind: 'text'; readonly text: string };
 
@@ -53,9 +57,12 @@ export function parseProbeTarget(input: unknown): ProbeTarget | null {
   const target = input['target'];
   if (!isRecord(target)) return null;
   if (typeof target['role'] === 'string') {
-    return typeof target['name'] === 'string'
-      ? { kind: 'role', role: target['role'], name: target['name'] }
-      : { kind: 'role', role: target['role'] };
+    return {
+      kind: 'role',
+      role: target['role'],
+      ...(typeof target['name'] === 'string' ? { name: target['name'] } : {}),
+      ...(typeof target['inRow'] === 'string' ? { inRow: target['inRow'] } : {}),
+    };
   }
   if (typeof target['placeholder'] === 'string') {
     return { kind: 'placeholder', placeholder: target['placeholder'] };
@@ -67,7 +74,9 @@ export function parseProbeTarget(input: unknown): ProbeTarget | null {
 }
 
 /** Does this surface satisfy the target under the substrate's
- *  declared accname semantics? Rung-2's prediction of rung-3. */
+ *  declared accname semantics? Rung-2's prediction of rung-3. Row
+ *  scoping is resolved by `findSurfaceForTarget`, which knows the
+ *  tree; here a role target matches on role + name alone. */
 export function surfaceMatchesTarget(surface: SurfaceSpec, target: ProbeTarget): boolean {
   return foldProbeTarget(target, {
     role: (t) =>
@@ -87,9 +96,33 @@ export function findSurfaceForTarget(
   surfaces: readonly SurfaceSpec[],
   target: ProbeTarget,
 ): SurfaceSpec | null {
+  if (target.kind === 'role' && target.inRow !== undefined) {
+    const row = resolveRowScope(surfaces, target.inRow);
+    const { inRow: _inRow, ...unscoped } = target;
+    return row === null ? null : findSurfaceForTarget(row.children ?? [], unscoped);
+  }
   return surfaces.reduce<SurfaceSpec | null>((found, s) => {
     if (found !== null) return found;
     if (surfaceMatchesTarget(s, target)) return s;
     return s.children !== undefined ? findSurfaceForTarget(s.children, target) : null;
   }, null);
+}
+
+/** The unique `row` surface whose descendants carry the cell text.
+ *  A row's accessible name comes from its content, so "the row
+ *  containing X" is the row with a descendant named X. Null when no
+ *  row or more than one row qualifies — at rung 3 the row query is
+ *  then empty and the verb times out, which is what rung 2 must
+ *  predict (a world without the row is a real world, not an
+ *  inconsistent fixture). */
+export function resolveRowScope(surfaces: readonly SurfaceSpec[], inRow: string): SurfaceSpec | null {
+  const rows = collectSurfaces(surfaces).filter(
+    (s) => s.role === 'row' && s.children !== undefined && collectSurfaces(s.children).some((d) => (d.name ?? '').includes(inRow)),
+  );
+  return rows.length === 1 ? rows[0]! : null;
+}
+
+/** Pre-order flattening of a surface tree. */
+function collectSurfaces(surfaces: readonly SurfaceSpec[]): readonly SurfaceSpec[] {
+  return surfaces.flatMap((s) => [s, ...(s.children !== undefined ? collectSurfaces(s.children) : [])]);
 }

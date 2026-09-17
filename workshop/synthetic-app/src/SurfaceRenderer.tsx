@@ -300,6 +300,19 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
     );
   }
 
+  // Spinbutton — a native <input type="number"> (handoff N4: real
+  // forms expose numeric fields this way; QA prose still says
+  // "field").
+  if (spec.role === 'spinbutton') {
+    const nameAttr = controlNamingAttrs(spec, naming);
+    const valueAttr = spec.initialValue !== undefined ? { defaultValue: spec.initialValue } : {};
+    return withLabel(
+      spec,
+      naming,
+      <input type="number" disabled={!enabled} {...nameAttr} {...valueAttr} {...commonRoleAttrs} />,
+    );
+  }
+
   // Searchbox — a native <input type="search">, the element real
   // Reactive search fields are (placeholder-named, no label).
   if (spec.role === 'searchbox') {
@@ -339,7 +352,8 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
   // the declared role + optional accessible name + recursive children.
   // Covers: region, alert, status, navigation, main, banner,
   // complementary, contentinfo, search, grid, gridcell, row,
-  // rowheader, list, listitem, radiogroup, tablist, tab, tabpanel.
+  // rowheader, list, listitem, radiogroup, tablist, tab, tabpanel,
+  // menu, menuitem, option.
   const nameAttr = spec.name !== undefined ? { 'aria-label': spec.name } : {};
   return (
     <div role={spec.role} {...nameAttr} {...commonRoleAttrs}>

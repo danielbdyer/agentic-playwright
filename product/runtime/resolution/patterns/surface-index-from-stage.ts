@@ -27,7 +27,12 @@
  */
 
 import { Option } from 'effect';
-import type { IndexedSurface, SurfaceIndex } from '../../../domain/resolution/patterns/rung-kernel';
+import {
+  isInteractiveAffordance,
+  rolesAdmittedBy,
+  type IndexedSurface,
+  type SurfaceIndex,
+} from '../../../domain/resolution/patterns/rung-kernel';
 import type { RuntimeAgentStageContext } from '../types';
 
 /** Empty SurfaceIndex — every query returns nothing. Used as the
@@ -56,15 +61,15 @@ export const EMPTY_SURFACE_INDEX: SurfaceIndex = {
 export function surfaceIndexFromList(surfaces: readonly IndexedSurface[]): SurfaceIndex {
   return {
     findByRoleAndName: (role, name) =>
-      surfaces.filter((s) => s.role === role && s.name === name),
-    findByRole: (role) => surfaces.filter((s) => s.role === role),
+      surfaces.filter((s) => rolesAdmittedBy(role).includes(s.role) && s.name === name),
+    findByRole: (role) => surfaces.filter((s) => rolesAdmittedBy(role).includes(s.role)),
     findLandmarkByRole: (role) =>
       Option.fromNullable(surfaces.find((s) => s.landmarkRole === role) ?? null),
     surfacesWithin: (ancestor) =>
       surfaces.filter((s) => s.ancestors.includes(ancestor.surfaceId)),
     findByPlaceholder: (placeholder) =>
       surfaces.filter((s) => s.placeholder === placeholder),
-    findInteractive: () => surfaces.filter((s) => s.interactive),
+    findInteractive: () => surfaces.filter((s) => isInteractiveAffordance(s.affordanceSource)),
   };
 }
 

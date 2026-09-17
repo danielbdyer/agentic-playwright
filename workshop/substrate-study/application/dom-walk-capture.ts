@@ -33,6 +33,7 @@
 
 import type { Page } from '@playwright/test';
 import type {
+  AffordanceSource,
   ClassPrefixFamily,
   SnapshotNode,
   TextLengthBucket,
@@ -109,10 +110,22 @@ export function isLabelClassified(input: {
 
 // ─── Browser-bound capture ──────────────────────────────────
 
+/** Nodes carrying a React marker (either key family) at or above
+ *  which a page reports `reactDetected`. Outer-scope twin of the
+ *  in-page constant (closure constraint; see coding-notes "In-page
+ *  evaluators"); a parity law pins the two. */
+export const REACT_MARKER_NODE_FLOOR = 10;
+
+/** Outer-scope twin of the in-page `isInteractiveAffordanceIn`. */
+export function isInteractiveAffordance(source: AffordanceSource): boolean {
+  return source === 'native' || source === 'aria-role' || source === 'handler' || source === 'tabindex' || source === 'platform-attr';
+}
+
 export interface DomWalkOutput {
   readonly nodes: readonly SnapshotNode[];
   readonly frameworkCounts: {
     readonly reactDetected: boolean;
+    readonly reactMarkerNodeCount: number;
     readonly angularDetected: boolean;
     readonly vueDetected: boolean;
     readonly webComponentCount: number;
@@ -212,16 +225,51 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
       return 'visible';
     }
 
-    function computeInteractive(el: Element, role: string | null): boolean {
-      const tag = el.tagName.toLowerCase();
-      if (tag === 'a' || tag === 'button') return true;
-      if (role === 'button') return true;
+    // Affordance ladder (docs/v2-reactive-discovery-handoff.md §3.2).
+    // Ranked; the first channel that fires is recorded. `own-cursor`
+    // is the weakest and is NEVER sufficient alone: `cursor: pointer`
+    // inherits to every descendant of a clickable ancestor and
+    // over-counted roleless controls by ~10× on the 2026-09-17 pass.
+    // A roleless CONTROL is an element that owns its handler.
+    const AX_INTERACTIVE_ROLES = new Set([
+      'button', 'link', 'menuitem', 'menuitemcheckbox', 'menuitemradio', 'tab',
+      'searchbox', 'textbox', 'spinbutton', 'checkbox', 'radio', 'combobox',
+      'option', 'switch', 'slider', 'treeitem',
+    ]);
+    function ownsClickHandler(el: Element): boolean {
       if (el.hasAttribute('onclick')) return true;
-      const tabindex = el.getAttribute('tabindex');
-      if (tabindex !== null && parseInt(tabindex, 10) >= 0) return true;
-      const style = window.getComputedStyle(el);
-      if (style.cursor === 'pointer') return true;
+      const record = el as unknown as Record<string, unknown>;
+      for (const key of Object.keys(record)) {
+        // React 16: __reactEventHandlers$…; React 17+: __reactProps$…
+        if (key.startsWith('__reactEventHandlers$') || key.startsWith('__reactProps$')) {
+          const props = record[key] as Record<string, unknown> | null;
+          if (props !== null && typeof props === 'object' && typeof props['onClick'] === 'function') return true;
+        }
+      }
       return false;
+    }
+    function computeAffordance(
+      el: Element,
+      role: string | null,
+    ): 'native' | 'aria-role' | 'handler' | 'tabindex' | 'platform-attr' | 'own-cursor' | 'none' {
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'button' || tag === 'input' || tag === 'select' || tag === 'textarea' || tag === 'summary') return 'native';
+      if (tag === 'a' && el.hasAttribute('href')) return 'native';
+      if (role !== null && AX_INTERACTIVE_ROLES.has(role)) return 'aria-role';
+      if (ownsClickHandler(el)) return 'handler';
+      const tabindex = el.getAttribute('tabindex');
+      if (tabindex !== null && parseInt(tabindex, 10) >= 0) return 'tabindex';
+      if (el.hasAttribute('data-link') || el.hasAttribute('data-button')) return 'platform-attr';
+      const style = window.getComputedStyle(el);
+      if (style.cursor === 'pointer') {
+        const parent = el.parentElement;
+        const parentCursor = parent !== null ? window.getComputedStyle(parent).cursor : '';
+        if (parentCursor !== 'pointer') return 'own-cursor';
+      }
+      return 'none';
+    }
+    function isInteractiveAffordanceIn(source: string): boolean {
+      return source === 'native' || source === 'aria-role' || source === 'handler' || source === 'tabindex' || source === 'platform-attr';
     }
 
     // CSS-selector-ish path. Used as stable identity per capture.
@@ -435,7 +483,8 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
         Number.isFinite(parsedTabindex) &&
         parsedTabindex >= 0;
 
-      const interactive = computeInteractive(root, ariaRole);
+      const affordanceSource = computeAffordance(root, ariaRole);
+      const interactive = isInteractiveAffordanceIn(affordanceSource);
 
       // Structural parent info.
       const parent = root.parentElement;
@@ -495,6 +544,7 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
           tabindex: parsedTabindex,
           focusable,
           interactive,
+          affordanceSource: affordanceSource as SnapshotNodeShape['interaction']['affordanceSource'],
           formRef,
           inputType,
           disabled: root.hasAttribute('disabled'),
@@ -550,6 +600,7 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
       };
       interaction: {
         tabindex: number | null; focusable: boolean; interactive: boolean;
+        affordanceSource: 'native' | 'aria-role' | 'handler' | 'tabindex' | 'platform-attr' | 'own-cursor' | 'none';
         formRef: { formId: string | null; formName: string | null; inputName: string | null } | null;
         inputType: string | null; disabled: boolean; readonly: boolean; required: boolean;
         placeholder: string | null;
@@ -573,19 +624,33 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
     if (document.body) walkFrom(document.body, false, nodes, visited);
 
     // ─── Page-level framework detection ────────────────────
-    const reactDetected =
-      document.querySelector('[data-reactroot]') !== null ||
-      document.querySelector('[data-reactid]') !== null ||
-      (() => {
-        for (const el of Array.from(document.querySelectorAll('*'))) {
-          for (const key of Object.keys(el)) {
-            if (key.startsWith('__reactFiber') || key.startsWith('__reactProps'))
-              return true;
-          }
-          break; // Only check a few; full scan is expensive.
+    // Handoff §1.1 (N2): OutSystems Reactive runs React 16, whose
+    // per-node markers are `__reactInternalInstance$…` /
+    // `__reactEventHandlers$…`; React 17+ uses `__reactFiber$…` /
+    // `__reactProps$…`. The old detector checked only the 17+ names
+    // and only on the FIRST element, so it never saw React on a page
+    // where nearly every node carries a marker. Count both families
+    // across every element; the page is React when at least
+    // REACT_MARKER_NODE_FLOOR nodes carry one. Corroborating only —
+    // never a gate (variant-classifier.ts).
+    const REACT_MARKER_NODE_FLOOR_IN = 10;
+    const reactMarkerNodeCount = (() => {
+      let count = 0;
+      for (const el of Array.from(document.querySelectorAll('*'))) {
+        for (const key of Object.keys(el)) {
+          if (
+            key.startsWith('__reactFiber$') || key.startsWith('__reactProps$') ||
+            key.startsWith('__reactInternalInstance$') || key.startsWith('__reactEventHandlers$') ||
+            key.startsWith('__reactContainer')
+          ) { count++; break; }
         }
-        return false;
-      })();
+      }
+      return count;
+    })();
+    const reactDetected =
+      reactMarkerNodeCount >= REACT_MARKER_NODE_FLOOR_IN ||
+      document.querySelector('[data-reactroot]') !== null ||
+      document.querySelector('[data-reactid]') !== null;
     const angularDetected =
       document.querySelector('[ng-version]') !== null ||
       document.querySelector('[_ngcontent]') !== null ||
@@ -634,6 +699,7 @@ export async function walkDom(page: Page): Promise<DomWalkOutput> {
       nodes,
       frameworkCounts: {
         reactDetected,
+        reactMarkerNodeCount,
         angularDetected,
         vueDetected,
         webComponentCount,

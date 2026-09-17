@@ -106,6 +106,6 @@ describe('catalog-driven generation laws (Z11g.c)', () => {
     // addition to the union, update both this number and the
     // SURFACE_ROLE_VALUES array in the same commit — that's the
     // anti-parallel-apparatus discipline at work.
-    expect(SURFACE_ROLE_VALUES.length).toBe(29);
+    expect(SURFACE_ROLE_VALUES.length).toBe(33);
   });
 });

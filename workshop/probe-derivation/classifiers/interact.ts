@@ -37,7 +37,7 @@ import {
   isSurfaceHidden,
 } from '../../substrate/surface-spec';
 import { resolveProbeSurfaces } from '../world-resolution';
-import { findSurfaceForTarget, parseProbeTarget } from '../probe-target';
+import { findSurfaceForTarget, parseProbeTarget, resolveRowScope } from '../probe-target';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -52,7 +52,14 @@ function classifyInteract(probe: Probe): Effect.Effect<ProbeOutcome['observed'],
   if (action === null || target === null) {
     return Effect.succeed({ classification: 'failed', errorFamily: 'unclassified' });
   }
-  const surface = findSurfaceForTarget(resolveProbeSurfaces(probe.worldSetup), target);
+  const surfaces = resolveProbeSurfaces(probe.worldSetup);
+  // Row scoping (C7): when no row carries the cell text, the verb's
+  // row query is empty and the action times out — a real world
+  // state rung 3 reports as timeout, not a fixture inconsistency.
+  if (target.kind === 'role' && target.inRow !== undefined && resolveRowScope(surfaces, target.inRow) === null) {
+    return Effect.succeed({ classification: 'failed', errorFamily: 'timeout' });
+  }
+  const surface = findSurfaceForTarget(surfaces, target);
   if (surface === null) {
     return Effect.succeed({ classification: 'failed', errorFamily: 'unclassified' });
   }

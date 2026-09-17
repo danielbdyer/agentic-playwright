@@ -77,6 +77,33 @@ export interface BoundingBucket {
   readonly heightBin: number;
 }
 
+/** Which affordance channel marked a node interactive
+ *  (docs/v2-reactive-discovery-handoff.md §3.2), ranked:
+ *
+ *    'native'        — button, input, select, textarea, summary, a[href]
+ *    'aria-role'     — an explicit interactive ARIA role
+ *    'handler'       — the element OWNS a click handler (React 16
+ *                      `__reactEventHandlers$…onClick`, React 17+
+ *                      `__reactProps$…onClick`, or an onclick attribute)
+ *    'tabindex'      — tabindex ≥ 0
+ *    'platform-attr' — an OutSystems widget attribute (data-link, data-button)
+ *    'own-cursor'    — computed `cursor: pointer` on the element whose
+ *                      parent does not also have it. Recorded, but
+ *                      NEVER sufficient: inherited cursors over-counted
+ *                      roleless controls ~10× on the 2026-09-17 pass.
+ *    'none'          — no channel fired.
+ *
+ *  `interaction.interactive` is true iff the source is one of the
+ *  first five. */
+export type AffordanceSource =
+  | 'native'
+  | 'aria-role'
+  | 'handler'
+  | 'tabindex'
+  | 'platform-attr'
+  | 'own-cursor'
+  | 'none';
+
 /** Form-association record for inputs / selects / textareas. */
 export interface FormRef {
   readonly formId: string | null;
@@ -122,6 +149,7 @@ export interface SnapshotNode {
     readonly tabindex: number | null;
     readonly focusable: boolean;
     readonly interactive: boolean;
+    readonly affordanceSource: AffordanceSource;
     readonly formRef: FormRef | null;
     readonly inputType: string | null;
     readonly disabled: boolean;
@@ -207,6 +235,48 @@ export function foldVariantClassifier<R>(
 
 // ─── SnapshotRecord (top-level envelope) ─────────────────────
 
+/** Counts-only summary of the browser's accessibility tree
+ *  (`locator.ariaSnapshot()`), the ground truth `getByRole` resolves
+ *  against (handoff §3.1). Names are never persisted; the agreement
+ *  pair says how many walker-named interactive nodes carried a name
+ *  the AX tree also produced. */
+export interface AccessibilitySummary {
+  readonly interactiveTotal: number;
+  readonly unnamedInteractive: number;
+  readonly interactiveRoles: Readonly<Record<string, number>>;
+  readonly walkerNameAgreement: { readonly compared: number; readonly agreed: number };
+}
+
+/** Structural signature of one chrome landmark's subtree (handoff
+ *  §3.4): identical across every screen of one app version, so it
+ *  can be discovered once and subtracted. */
+export interface ChromeSignature {
+  readonly signature: Fingerprint<'snapshot-signature'>;
+  readonly nodes: number;
+}
+
+export interface ChromeSignatures {
+  readonly banner: ChromeSignature | null;
+  readonly navigation: ChromeSignature | null;
+}
+
+/** `data-block` values partitioned by the module whose bundle
+ *  `<Module>.<Folder>.<Block>.mvc.js` the app's own manifest lists
+ *  (handoff §3.3). Platform blocks are the Platonic forms to
+ *  distill once; app blocks are per-catalog. */
+export interface BlockOwnership {
+  readonly byModule: Readonly<Record<string, readonly { readonly block: string; readonly nodes: number }[]>>;
+  readonly unresolved: readonly { readonly block: string; readonly nodes: number }[];
+}
+
+export const EMPTY_BLOCK_OWNERSHIP: BlockOwnership = { byModule: {}, unresolved: [] };
+export const EMPTY_ACCESSIBILITY_SUMMARY: AccessibilitySummary = {
+  interactiveTotal: 0,
+  unnamedInteractive: 0,
+  interactiveRoles: {},
+  walkerNameAgreement: { compared: 0, agreed: 0 },
+};
+
 export interface SnapshotRecordPayload {
   readonly url: string;
   readonly fetchedAt: string;
@@ -220,6 +290,9 @@ export interface SnapshotRecordPayload {
   readonly nodes: readonly SnapshotNode[];
   readonly framework: {
     readonly reactDetected: boolean;
+    /** Nodes carrying a React marker of either key family (React 16
+     *  `__reactInternalInstance$` / React 17+ `__reactFiber$`). */
+    readonly reactMarkerNodeCount: number;
     readonly angularDetected: boolean;
     readonly vueDetected: boolean;
     readonly webComponentCount: number;
@@ -227,6 +300,9 @@ export interface SnapshotRecordPayload {
     readonly iframeCount: number;
   };
   readonly variantClassifier: VariantClassifierVerdict;
+  readonly accessibility: AccessibilitySummary;
+  readonly chrome: ChromeSignatures;
+  readonly blockOwnership: BlockOwnership;
 }
 
 export interface SnapshotRecord extends WorkflowMetadata<'preparation'> {
@@ -286,6 +362,35 @@ export function computeStructuralSignature(
   return snapshotStructuralQuotient.witness(nodes);
 }
 
+// ─── Chrome signatures ───────────────────────────────────────
+
+const CHROME_LANDMARKS: readonly (readonly [key: keyof ChromeSignatures, role: string, tag: string])[] = [
+  ['banner', 'banner', 'header'],
+  ['navigation', 'navigation', 'nav'],
+];
+
+/** Signature of a landmark's subtree — the structural quotient over
+ *  the landmark node and every node under its path, with paths
+ *  rebased to the landmark so the same chrome at a different depth
+ *  still hashes the same. The first landmark of each role wins; a
+ *  page without one records null. Pure. */
+export function computeChromeSignatures(nodes: readonly SnapshotNode[]): ChromeSignatures {
+  const entry = (role: string, tag: string): ChromeSignature | null => {
+    const landmark = nodes.find((n) => n.ariaRole === role || (n.ariaRole === null && n.tag.toLowerCase() === tag));
+    if (landmark === undefined) return null;
+    const prefix = `${landmark.path} > `;
+    const subtree = nodes
+      .filter((n) => n === landmark || n.path.startsWith(prefix))
+      .map((n) => ({
+        ...n,
+        path: n === landmark ? '.' : `. > ${n.path.slice(prefix.length)}`,
+        depth: n.depth - landmark.depth,
+      }));
+    return { signature: snapshotStructuralQuotient.witness(subtree), nodes: subtree.length };
+  };
+  return Object.fromEntries(CHROME_LANDMARKS.map(([key, role, tag]) => [key, entry(role, tag)])) as unknown as ChromeSignatures;
+}
+
 // ─── Constructor ─────────────────────────────────────────────
 
 /** Pure constructor. Stamps stage/scope/kind constants;
@@ -302,8 +407,11 @@ export function snapshotRecord(input: {
   readonly nodes: readonly SnapshotNode[];
   readonly framework: SnapshotRecordPayload['framework'];
   readonly variantClassifier: VariantClassifierVerdict;
+  readonly accessibility: AccessibilitySummary;
+  readonly blockOwnership: BlockOwnership;
 }): SnapshotRecord {
   const structuralSignature = computeStructuralSignature(input.nodes);
+  const chrome = computeChromeSignatures(input.nodes);
   const payload: SnapshotRecordPayload = {
     url: input.url,
     fetchedAt: input.fetchedAt,
@@ -317,6 +425,9 @@ export function snapshotRecord(input: {
     nodes: input.nodes,
     framework: input.framework,
     variantClassifier: input.variantClassifier,
+    accessibility: input.accessibility,
+    chrome,
+    blockOwnership: input.blockOwnership,
   };
   return mintEvidenceEnvelope({
     stage: 'preparation',

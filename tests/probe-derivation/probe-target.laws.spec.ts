@@ -80,3 +80,26 @@ describe('ProbeTarget laws', () => {
     expect(findSurfaceForTarget(world, { kind: 'text', text: 'Nope' })).toBeNull();
   });
 });
+
+/**
+ * PT7 (C7 / N10): a role target with `inRow` resolves inside the
+ * unique `row` whose descendants carry the cell text; two such
+ * rows or none → null.
+ */
+describe('ProbeTarget row scoping', () => {
+  const row = (id: string, cell: string): SurfaceSpec => ({
+    role: 'row',
+    children: [
+      { role: 'gridcell', children: [{ role: 'checkbox', naming: 'none', surfaceId: id }] },
+      { role: 'gridcell', name: cell },
+    ],
+  });
+  test('PT7', () => {
+    const world: readonly SurfaceSpec[] = [{ role: 'grid', children: [row('cb1', 'Aurora headset'), row('cb2', 'Borealis keyboard')] }];
+    expect(parseProbeTarget({ target: { role: 'checkbox', inRow: 'Aurora headset' } })).toEqual({ kind: 'role', role: 'checkbox', inRow: 'Aurora headset' });
+    expect(findSurfaceForTarget(world, { kind: 'role', role: 'checkbox', inRow: 'Aurora headset' })?.surfaceId).toBe('cb1');
+    expect(findSurfaceForTarget(world, { kind: 'role', role: 'checkbox', inRow: 'Borealis' })?.surfaceId).toBe('cb2');
+    expect(findSurfaceForTarget(world, { kind: 'role', role: 'checkbox', inRow: 'Cascade' })).toBeNull();
+    expect(findSurfaceForTarget([{ role: 'grid', children: [row('a', 'Same'), row('b', 'Same')] }], { kind: 'role', role: 'checkbox', inRow: 'Same' })).toBeNull();
+  });
+});

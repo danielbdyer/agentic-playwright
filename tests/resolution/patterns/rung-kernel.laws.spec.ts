@@ -49,7 +49,7 @@ function surface(overrides: Partial<IndexedSurface> & Pick<IndexedSurface, 'surf
     classes: [],
     placeholder: null,
     text: null,
-    interactive: false,
+    affordanceSource: 'none',
     ancestors: [],
     ...overrides,
   };
@@ -67,7 +67,7 @@ function stubSurfaceIndex(surfaces: readonly IndexedSurface[]): SurfaceIndex {
     // implementation narrows by ancestor. Matchers that rely on
     // containment are tested against scoped stubs in their own laws.
     findByPlaceholder: (placeholder) => surfaces.filter((s) => s.placeholder === placeholder),
-    findInteractive: () => surfaces.filter((s) => s.interactive),
+    findInteractive: () => surfaces.filter((s) => s.affordanceSource !== 'none' && s.affordanceSource !== 'own-cursor'),
   };
 }
 

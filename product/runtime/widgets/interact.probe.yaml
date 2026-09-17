@@ -397,3 +397,22 @@ fixtures:
       - rung: role-dispatcher
       - axis: chrome-vocabulary-reactive-block
       - preset: reactive-record-list
+
+  - name: click-unnamed-checkbox-in-row-by-cell-text
+    description: |
+      Reality-study §10 / handoff N10 (C7): a bulk-select checkbox
+      with NO accessible name, reachable only through the row whose
+      cell says "Aurora headset". The verb queries the row by its
+      content-derived name, then the checkbox inside it.
+    input:
+      action: click
+      target: { role: checkbox, inRow: "Aurora headset" }
+    world:
+      preset: reactive-record-table
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: row-scoped
+      - axis: naming-none
+      - preset: reactive-record-table

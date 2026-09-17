@@ -272,14 +272,36 @@ export function discoverScreenScaffold(options: {
         // no role-bearing control (so wrappers around real buttons
         // are not double-counted). It is reported with ARIA's
         // implicit role `generic`; discovery emits a text locator.
-        const ROLELESS_TEXT_MAX = 60;
+        //
+        // Handoff §3.2 / N1 / N8: the affordance is handler OWNERSHIP,
+        // never an inherited cursor. `cursor: pointer` inherits to
+        // every descendant of a clickable ancestor and over-counted
+        // roleless controls ~10× on the 2026-09-17 pass; the control
+        // is the element that owns the click handler (React 16
+        // `__reactEventHandlers$…onClick`, React 17+
+        // `__reactProps$…onClick`, an onclick attribute), or that
+        // carries tabindex ≥ 0 or a platform widget attribute. It is
+        // named by its descendant text.
+        const ROLELESS_TEXT_MAX = 80;
+        function ownsClickHandler(html: HTMLElement): boolean {
+          if (html.hasAttribute('onclick')) return true;
+          const record = html as unknown as Record<string, unknown>;
+          return Object.keys(record).some((key) => {
+            if (!key.startsWith('__reactEventHandlers$') && !key.startsWith('__reactProps$')) return false;
+            const props = record[key] as Record<string, unknown> | null;
+            return props !== null && typeof props === 'object' && typeof props['onClick'] === 'function';
+          });
+        }
         function isRolelessClickable(element: Element): boolean {
           const html = element as HTMLElement;
           const tagName = html.tagName.toLowerCase();
           if (tagName === 'script' || tagName === 'style' || tagName === 'svg' || tagName === 'path') return false;
-          const style = window.getComputedStyle(html);
           const tabindex = html.getAttribute('tabindex');
-          const affordance = style.cursor === 'pointer' || html.hasAttribute('onclick') || (tabindex !== null && Number.parseInt(tabindex, 10) >= 0);
+          const affordance =
+            ownsClickHandler(html)
+            || (tabindex !== null && Number.parseInt(tabindex, 10) >= 0)
+            || html.hasAttribute('data-link')
+            || html.hasAttribute('data-button');
           if (!affordance) return false;
           const text = normalizeText(html.innerText || html.textContent);
           if (!text || text.length > ROLELESS_TEXT_MAX) return false;

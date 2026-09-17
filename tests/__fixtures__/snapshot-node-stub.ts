@@ -28,6 +28,7 @@ export function stubNode(overrides: Partial<SnapshotNode> = {}): SnapshotNode {
       tabindex: null,
       focusable: false,
       interactive: false,
+      affordanceSource: 'none',
       formRef: null,
       inputType: null,
       disabled: false,
