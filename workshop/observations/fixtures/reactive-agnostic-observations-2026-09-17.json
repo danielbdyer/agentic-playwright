@@ -1,0 +1,640 @@
+{
+  "$comment": "Counts-only aggregates from the 2026-09-17 agnostic observation pass over the seven STUDY routes of the OutSystems UI website (held-out routes untouched). Reproduces docs/v2-reactive-discovery-handoff.md §6. No text content, no accessible names, no PII: only counts, hashes, class-prefix families and data-block names (which are public block identifiers).",
+  "capturedAt": "2026-09-17",
+  "aut": "outsystems-ui-website",
+  "hostVersionToken": "Ov_NiUhPHp8ffKKXiJmiNA",
+  "modulesDeclaredByApp": [
+    "OutSystemsUIWebsite",
+    "OutSystemsCharts",
+    "OutSystemsSampleDataDB",
+    "StyleGuidePreviewAssets",
+    "OutSystemsUI",
+    "OutSystemsMaps",
+    "OSUIWebsiteBackoffice_CS"
+  ],
+  "platformMvcBundlesAvailable": 90,
+  "dataBlockOwnership": {
+    "OutSystemsUIWebsite": [
+      {
+        "block": "Layouts.LayoutBase",
+        "nodes": 2
+      },
+      {
+        "block": "Common.Menu",
+        "nodes": 7
+      },
+      {
+        "block": "Common.AccordionMenu",
+        "nodes": 7
+      },
+      {
+        "block": "Layouts.LayoutBaseSection",
+        "nodes": 9
+      },
+      {
+        "block": "Common.FooterContent",
+        "nodes": 2
+      },
+      {
+        "block": "Layouts.LayoutTopMenu",
+        "nodes": 5
+      },
+      {
+        "block": "SiteOSPatterns.Navigation",
+        "nodes": 1
+      },
+      {
+        "block": "SiteOSPatterns.NavigationItem",
+        "nodes": 8
+      },
+      {
+        "block": "MainFlow.ItemOverview",
+        "nodes": 8
+      },
+      {
+        "block": "MainFlow.AssetImage",
+        "nodes": 87
+      }
+    ],
+    "OutSystemsUI": [
+      {
+        "block": "Content.DEPRECATED_Accordion",
+        "nodes": 8
+      },
+      {
+        "block": "Content.DEPRECATED_AccordionItem",
+        "nodes": 16
+      },
+      {
+        "block": "Adaptive.Columns2",
+        "nodes": 16
+      },
+      {
+        "block": "Content.Tag",
+        "nodes": 17
+      },
+      {
+        "block": "Adaptive.Columns4",
+        "nodes": 1
+      },
+      {
+        "block": "Adaptive.ColumnsSmallRight",
+        "nodes": 2
+      },
+      {
+        "block": "Adaptive.Columns3",
+        "nodes": 1
+      },
+      {
+        "block": "Content.Card",
+        "nodes": 7
+      },
+      {
+        "block": "Adaptive.ColumnsMediumRight",
+        "nodes": 4
+      },
+      {
+        "block": "Navigation.DEPRECATED_TabsV2",
+        "nodes": 1
+      },
+      {
+        "block": "Utilities.AlignCenter",
+        "nodes": 21
+      },
+      {
+        "block": "Navigation.DEPRECATED_TabsHeaderItem",
+        "nodes": 3
+      },
+      {
+        "block": "Interaction.Search",
+        "nodes": 4
+      },
+      {
+        "block": "Navigation.DEPRECATED_TabsContentItem",
+        "nodes": 3
+      },
+      {
+        "block": "Adaptive.MasterDetail",
+        "nodes": 3
+      },
+      {
+        "block": "Content.ListItemContent",
+        "nodes": 81
+      },
+      {
+        "block": "Content.UserAvatar",
+        "nodes": 57
+      },
+      {
+        "block": "Utilities.Separator",
+        "nodes": 8
+      },
+      {
+        "block": "Adaptive.ColumnsMediumLeft",
+        "nodes": 2
+      },
+      {
+        "block": "Adaptive.Gallery",
+        "nodes": 9
+      },
+      {
+        "block": "Interaction.Animate",
+        "nodes": 12
+      },
+      {
+        "block": "Content.CardSectioned",
+        "nodes": 15
+      },
+      {
+        "block": "Navigation.Pagination",
+        "nodes": 2
+      },
+      {
+        "block": "Numbers.Counter",
+        "nodes": 3
+      },
+      {
+        "block": "Numbers.DEPRECATED_ProgressBarV2",
+        "nodes": 1
+      },
+      {
+        "block": "Adaptive.DisplayOnDevice",
+        "nodes": 1
+      },
+      {
+        "block": "Numbers.DEPRECATED_ProgressCircle",
+        "nodes": 2
+      },
+      {
+        "block": "Interaction.ScrollableArea",
+        "nodes": 1
+      },
+      {
+        "block": "Adaptive.ColumnsSmallLeft",
+        "nodes": 1
+      }
+    ],
+    "OutSystemsMaps": [
+      {
+        "block": "Maps.Map",
+        "nodes": 1
+      }
+    ],
+    "OutSystemsCharts": [
+      {
+        "block": "Version1.LineChart_v1",
+        "nodes": 2
+      },
+      {
+        "block": "Version1.DonutChart_v1",
+        "nodes": 1
+      }
+    ]
+  },
+  "routes": {
+    "(home)": {
+      "domNodes": 276,
+      "mainNodes": 225,
+      "chrome": {
+        "banner": "10cef894",
+        "nav": "45261ee6",
+        "bannerNodes": 40,
+        "navNodes": 11
+      },
+      "frameworkKeyPrefixes": {
+        "__reactContainere": 1,
+        "__reactInternalInstance": 273,
+        "__reactEventHandlers": 273
+      },
+      "onClickHandlerOwners": 36,
+      "rolelessCursorPointer": 0,
+      "rolelessWithOwnHandler": 0,
+      "rolelessInheritedCursorOnly": 0,
+      "rolelessWithOwnText": 0,
+      "nativeControlNaming": {
+        "aria-label": 2,
+        "content": 31,
+        "none": 1
+      },
+      "accessibilityTree": {
+        "interactiveTotal": 25,
+        "unnamedInteractive": 0,
+        "interactiveRoles": {
+          "link": 18,
+          "menuitem": 6,
+          "button": 1
+        }
+      },
+      "dataBlocksByOwnerModule": {
+        "OutSystemsUIWebsite": {
+          "distinct": 5,
+          "nodes": 11
+        },
+        "OutSystemsUI": {
+          "distinct": 9,
+          "nodes": 14
+        }
+      },
+      "hydration": {
+        "verdict": "stable",
+        "phaseTimingsMs": {
+          "phaseAms": 4866,
+          "phaseBms": 1110,
+          "phaseCms": 715,
+          "phaseDms": 3,
+          "phaseEms": 780
+        },
+        "mutationCount": 0,
+        "phaseBRetries": 0,
+        "nodeCount": 275,
+        "captureLatencyMs": 8457,
+        "variant": "reactive"
+      }
+    },
+    "Employeesdirectory": {
+      "domNodes": 1228,
+      "mainNodes": 1177,
+      "chrome": {
+        "banner": "10cef894",
+        "nav": "45261ee6",
+        "bannerNodes": 40,
+        "navNodes": 11
+      },
+      "frameworkKeyPrefixes": {
+        "__reactContainere": 1,
+        "__reactInternalInstance": 1218,
+        "__reactEventHandlers": 1218,
+        "__e3_": 1
+      },
+      "onClickHandlerOwners": 101,
+      "rolelessCursorPointer": 603,
+      "rolelessWithOwnHandler": 50,
+      "rolelessInheritedCursorOnly": 553,
+      "rolelessWithOwnText": 101,
+      "nativeControlNaming": {
+        "aria-label": 2,
+        "content": 19,
+        "none": 4,
+        "placeholder": 1
+      },
+      "accessibilityTree": {
+        "interactiveTotal": 17,
+        "unnamedInteractive": 0,
+        "interactiveRoles": {
+          "link": 4,
+          "menuitem": 6,
+          "button": 3,
+          "tab": 3,
+          "searchbox": 1
+        }
+      },
+      "dataBlocksByOwnerModule": {
+        "OutSystemsUIWebsite": {
+          "distinct": 3,
+          "nodes": 3
+        },
+        "OutSystemsUI": {
+          "distinct": 13,
+          "nodes": 160
+        },
+        "OutSystemsMaps": {
+          "distinct": 1,
+          "nodes": 1
+        }
+      },
+      "hydration": {
+        "verdict": "sensitive-content-detected",
+        "phaseTimingsMs": {
+          "phaseAms": 6409,
+          "phaseBms": 1115,
+          "phaseCms": 1760,
+          "phaseDms": 3,
+          "phaseEms": 1633
+        },
+        "mutationCount": 0,
+        "phaseBRetries": 0,
+        "nodeCount": 1227,
+        "captureLatencyMs": 11747,
+        "variant": "reactive"
+      }
+    },
+    "Productcatalog": {
+      "domNodes": 378,
+      "mainNodes": 327,
+      "chrome": {
+        "banner": "10cef894",
+        "nav": "45261ee6",
+        "bannerNodes": 40,
+        "navNodes": 11
+      },
+      "frameworkKeyPrefixes": {
+        "__reactContainere": 1,
+        "__reactInternalInstance": 375,
+        "__reactEventHandlers": 375
+      },
+      "onClickHandlerOwners": 29,
+      "rolelessCursorPointer": 13,
+      "rolelessWithOwnHandler": 0,
+      "rolelessInheritedCursorOnly": 13,
+      "rolelessWithOwnText": 4,
+      "nativeControlNaming": {
+        "aria-label": 7,
+        "content": 18,
+        "none": 3,
+        "placeholder": 1
+      },
+      "accessibilityTree": {
+        "interactiveTotal": 24,
+        "unnamedInteractive": 1,
+        "interactiveRoles": {
+          "link": 4,
+          "menuitem": 6,
+          "button": 8,
+          "searchbox": 1,
+          "combobox": 1,
+          "option": 4
+        }
+      },
+      "dataBlocksByOwnerModule": {
+        "OutSystemsUIWebsite": {
+          "distinct": 3,
+          "nodes": 3
+        },
+        "OutSystemsUI": {
+          "distinct": 10,
+          "nodes": 45
+        }
+      },
+      "hydration": {
+        "verdict": "stable",
+        "phaseTimingsMs": {
+          "phaseAms": 5227,
+          "phaseBms": 1113,
+          "phaseCms": 796,
+          "phaseDms": 3,
+          "phaseEms": 794
+        },
+        "mutationCount": 0,
+        "phaseBRetries": 0,
+        "nodeCount": 377,
+        "captureLatencyMs": 8905,
+        "variant": "reactive"
+      }
+    },
+    "Requestmanagement": {
+      "domNodes": 387,
+      "mainNodes": 336,
+      "chrome": {
+        "banner": "10cef894",
+        "nav": "45261ee6",
+        "bannerNodes": 40,
+        "navNodes": 11
+      },
+      "frameworkKeyPrefixes": {
+        "__reactContainere": 1,
+        "__reactInternalInstance": 314,
+        "__reactEventHandlers": 314
+      },
+      "onClickHandlerOwners": 49,
+      "rolelessCursorPointer": 53,
+      "rolelessWithOwnHandler": 11,
+      "rolelessInheritedCursorOnly": 42,
+      "rolelessWithOwnText": 18,
+      "nativeControlNaming": {
+        "aria-label": 9,
+        "content": 22,
+        "none": 5,
+        "placeholder": 1
+      },
+      "accessibilityTree": {
+        "interactiveTotal": 28,
+        "unnamedInteractive": 0,
+        "interactiveRoles": {
+          "link": 9,
+          "menuitem": 6,
+          "button": 9,
+          "radio": 3,
+          "searchbox": 1
+        }
+      },
+      "dataBlocksByOwnerModule": {
+        "OutSystemsUIWebsite": {
+          "distinct": 3,
+          "nodes": 3
+        },
+        "OutSystemsUI": {
+          "distinct": 14,
+          "nodes": 38
+        },
+        "OutSystemsCharts": {
+          "distinct": 1,
+          "nodes": 1
+        }
+      },
+      "hydration": {
+        "verdict": "stable",
+        "phaseTimingsMs": {
+          "phaseAms": 5409,
+          "phaseBms": 1110,
+          "phaseCms": 876,
+          "phaseDms": 3,
+          "phaseEms": 854
+        },
+        "mutationCount": 0,
+        "phaseBRetries": 0,
+        "nodeCount": 385,
+        "captureLatencyMs": 8934,
+        "variant": "reactive"
+      }
+    },
+    "Productform": {
+      "domNodes": 113,
+      "mainNodes": 62,
+      "chrome": {
+        "banner": "10cef894",
+        "nav": "45261ee6",
+        "bannerNodes": 40,
+        "navNodes": 11
+      },
+      "frameworkKeyPrefixes": {
+        "__reactContainere": 1,
+        "__reactInternalInstance": 110,
+        "__reactEventHandlers": 110
+      },
+      "onClickHandlerOwners": 26,
+      "rolelessCursorPointer": 7,
+      "rolelessWithOwnHandler": 1,
+      "rolelessInheritedCursorOnly": 6,
+      "rolelessWithOwnText": 3,
+      "nativeControlNaming": {
+        "aria-label": 3,
+        "content": 18,
+        "none": 1,
+        "label-wrap": 1,
+        "label-for": 6
+      },
+      "accessibilityTree": {
+        "interactiveTotal": 19,
+        "unnamedInteractive": 0,
+        "interactiveRoles": {
+          "link": 3,
+          "menuitem": 6,
+          "button": 4,
+          "textbox": 2,
+          "spinbutton": 3,
+          "checkbox": 1
+        }
+      },
+      "dataBlocksByOwnerModule": {
+        "OutSystemsUIWebsite": {
+          "distinct": 3,
+          "nodes": 3
+        },
+        "OutSystemsUI": {
+          "distinct": 7,
+          "nodes": 8
+        }
+      },
+      "hydration": {
+        "verdict": "stable",
+        "phaseTimingsMs": {
+          "phaseAms": 4599,
+          "phaseBms": 1116,
+          "phaseCms": 521,
+          "phaseDms": 3,
+          "phaseEms": 617
+        },
+        "mutationCount": 0,
+        "phaseBRetries": 0,
+        "nodeCount": 112,
+        "captureLatencyMs": 7601,
+        "variant": "reactive"
+      }
+    },
+    "Transactionsdashboard": {
+      "domNodes": 352,
+      "mainNodes": 301,
+      "chrome": {
+        "banner": "10cef894",
+        "nav": "45261ee6",
+        "bannerNodes": 40,
+        "navNodes": 11
+      },
+      "frameworkKeyPrefixes": {
+        "__reactContainere": 1,
+        "__reactInternalInstance": 197,
+        "__reactEventHandlers": 197
+      },
+      "onClickHandlerOwners": 27,
+      "rolelessCursorPointer": 12,
+      "rolelessWithOwnHandler": 5,
+      "rolelessInheritedCursorOnly": 7,
+      "rolelessWithOwnText": 6,
+      "nativeControlNaming": {
+        "aria-label": 6,
+        "content": 17,
+        "none": 1
+      },
+      "accessibilityTree": {
+        "interactiveTotal": 15,
+        "unnamedInteractive": 0,
+        "interactiveRoles": {
+          "link": 3,
+          "menuitem": 6,
+          "button": 6
+        }
+      },
+      "dataBlocksByOwnerModule": {
+        "OutSystemsUIWebsite": {
+          "distinct": 3,
+          "nodes": 3
+        },
+        "OutSystemsUI": {
+          "distinct": 5,
+          "nodes": 13
+        },
+        "OutSystemsCharts": {
+          "distinct": 2,
+          "nodes": 2
+        }
+      },
+      "hydration": {
+        "verdict": "stable",
+        "phaseTimingsMs": {
+          "phaseAms": 4802,
+          "phaseBms": 1116,
+          "phaseCms": 759,
+          "phaseDms": 6,
+          "phaseEms": 809
+        },
+        "mutationCount": 0,
+        "phaseBRetries": 0,
+        "nodeCount": 349,
+        "captureLatencyMs": 8176,
+        "variant": "reactive"
+      }
+    },
+    "PatternsOverview": {
+      "domNodes": 1070,
+      "mainNodes": 1019,
+      "chrome": {
+        "banner": "10cef894",
+        "nav": "45261ee6",
+        "bannerNodes": 40,
+        "navNodes": 11
+      },
+      "frameworkKeyPrefixes": {
+        "__reactContainere": 1,
+        "__reactInternalInstance": 1067,
+        "__reactEventHandlers": 1067
+      },
+      "onClickHandlerOwners": 214,
+      "rolelessCursorPointer": 468,
+      "rolelessWithOwnHandler": 0,
+      "rolelessInheritedCursorOnly": 468,
+      "rolelessWithOwnText": 190,
+      "nativeControlNaming": {
+        "aria-label": 2,
+        "content": 200,
+        "none": 1,
+        "placeholder": 1
+      },
+      "accessibilityTree": {
+        "interactiveTotal": 124,
+        "unnamedInteractive": 1,
+        "interactiveRoles": {
+          "link": 99,
+          "menuitem": 6,
+          "button": 9,
+          "tab": 9,
+          "searchbox": 1
+        }
+      },
+      "dataBlocksByOwnerModule": {
+        "OutSystemsUIWebsite": {
+          "distinct": 9,
+          "nodes": 110
+        },
+        "OutSystemsUI": {
+          "distinct": 6,
+          "nodes": 24
+        }
+      },
+      "hydration": {
+        "verdict": "stable",
+        "phaseTimingsMs": {
+          "phaseAms": 9197,
+          "phaseBms": 1112,
+          "phaseCms": 1532,
+          "phaseDms": 3,
+          "phaseEms": 1451
+        },
+        "mutationCount": 0,
+        "phaseBRetries": 0,
+        "nodeCount": 1051,
+        "captureLatencyMs": 13964,
+        "variant": "reactive"
+      }
+    }
+  }
+}
