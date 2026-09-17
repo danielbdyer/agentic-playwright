@@ -14,7 +14,8 @@
  * runtime mutation is not supported.
  *
  * Production default seeds with `formSubmissionPattern` (Z11a.4a);
- * Z11a.4c adds five more seed patterns to the default list.
+ * Z11a.4c adds five more seed patterns to the default list; the
+ * 2026-09-16 reality study adds the content-named-interactive floor.
  */
 
 import type { Pattern } from './rung-kernel';
@@ -24,6 +25,8 @@ import { formSubmissionPattern } from './patterns/form-submission.pattern';
 import { locatorByRoleAndNamePattern } from './patterns/locator-by-role-and-name.pattern';
 import { navigationLinkByNamePattern } from './patterns/navigation-link-by-name.pattern';
 import { observationByAssertionPhrasePattern } from './patterns/observation-by-assertion-phrase.pattern';
+import { contentNamedInteractivePattern } from './patterns/content-named-interactive.pattern';
+import { rowScopedControlPattern } from './patterns/row-scoped-control.pattern';
 
 export interface PatternRegistry {
   readonly patterns: readonly Pattern[];
@@ -38,10 +41,12 @@ export function createPatternRegistry(patterns: readonly Pattern[]): PatternRegi
  *  Agent-discovered customer-specific patterns prepend to this list
  *  at composition time via the proposal-gated catalog flow. */
 export const DEFAULT_PATTERN_REGISTRY: PatternRegistry = createPatternRegistry([
-  dialogConfirmationPattern,           // narrowest: dialog-scoped buttons
+  rowScopedControlPattern,             // narrowest: a control inside a row named by its cell (C7)
+  dialogConfirmationPattern,           // narrow: dialog-scoped buttons
   navigationLinkByNamePattern,         // narrow: nav-landmark-scoped links
   formSubmissionPattern,               // narrow: form-scoped submit
   fieldInputByLabelPattern,            // input verb; includes form-single-textbox fallback
   observationByAssertionPhrasePattern, // observe verb; includes status/alert inference
   locatorByRoleAndNamePattern,         // generic: any role+name intent
+  contentNamedInteractivePattern,      // floor: click by visible text, roleless included (reality-study C2)
 ]);

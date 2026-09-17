@@ -39,8 +39,14 @@
  * existing receipts.
  */
 
-/** The current substrate semantic version. */
-export const SUBSTRATE_VERSION = '1.0.0';
+/** The current substrate semantic version.
+ *
+ *  1.1.0 (2026-09-16, MINOR) — reality-study axes: `generic` role,
+ *  `naming` / `placeholder` / `clickable` SurfaceSpec axes, the
+ *  `reactive-block` chrome vocabulary, and the `reactive-record-list`
+ *  topology. Existing axes' semantics are unchanged; fixtures that do
+ *  not consult the new axes render byte-identical DOM. */
+export const SUBSTRATE_VERSION = '1.1.0';
 
 /** Parse a semver string into parts. Returns null when the input
  *  is malformed. */

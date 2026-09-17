@@ -222,3 +222,197 @@ fixtures:
       - rung: role-dispatcher
       - composition: form-submit-success
       - preset: prefilled-form
+
+  # ─── Reality-study shapes (docs/v2-substrate-reality-study.md §4) ───
+  # Each fixture below poses a DOM shape the first real OutSystems
+  # Reactive harvest exhibited and the substrate previously could not.
+
+  - name: fill-placeholder-named-search-by-role
+    description: |
+      Reality-study F2 (S1): a search input named by `placeholder`
+      ALONE — no label, no aria-label. The role query still reaches
+      it: accname step 2D takes the placeholder as the accessible
+      name (verified empirically 2026-09-16, refuting the study's
+      §2 claim that only getByPlaceholder can). The world lives in
+      real Reactive chrome (`data-block` nesting, 3–5 deep).
+    input:
+      action: input
+      target: { role: textbox, name: "Search products" }
+      value: "headset"
+    world:
+      surfaces:
+        - { role: textbox, naming: none, placeholder: "Search products" }
+      entropy:
+        seed: interact-placeholder-search
+        chromeVocabulary: reactive-block
+        wrapperDepth: [3, 5]
+        siblingJitter: [0, 2]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role-dispatcher
+      - axis: naming-none
+      - axis: placeholder
+
+  - name: fill-by-placeholder-locator
+    description: |
+      Reality-study C1: the `placeholder` locator kind, which the
+      product's LocatorStrategyKind declared but nothing exercised.
+      Same placeholder-only surface, addressed by getByPlaceholder.
+    input:
+      action: input
+      target: { placeholder: "Search products" }
+      value: "headset"
+    world:
+      surfaces:
+        - { role: textbox, naming: none, placeholder: "Search products" }
+      entropy:
+        seed: interact-placeholder-locator
+        chromeVocabulary: reactive-block
+        wrapperDepth: [2, 4]
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: placeholder-locator
+      - axis: placeholder
+
+  - name: fill-label-for-named-field
+    description: |
+      Reality-study F2 (S2): a true data-entry form names its inputs
+      by a sibling `<label for=id>` (Productform, 6 of 7 inputs).
+      The role query resolves the label text as the accessible name.
+    input:
+      action: input
+      target: { role: textbox, name: "Product name" }
+      value: "Aurora headset"
+    world:
+      preset: reactive-entry-form
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role-dispatcher
+      - axis: naming-label-for
+      - preset: reactive-entry-form
+
+  - name: fill-label-wrap-named-field
+    description: |
+      Reality-study F2: the wrapping-`<label>` realization (1 of the
+      corpus's 435 named elements — rare but real). Textarea backing.
+    input:
+      action: input
+      target: { role: textbox, name: "Description" }
+      value: "Over-ear, wireless"
+    world:
+      preset: reactive-entry-form
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role-dispatcher
+      - axis: naming-label-wrap
+      - preset: reactive-entry-form
+
+  - name: click-roleless-filter-by-text
+    description: |
+      Reality-study F3 (S3 / C2) — the highest-leverage gap. The
+      target is a `<div style="cursor:pointer">` with NO ARIA role
+      and the visible text "Filter"; ~24% of real Reactive controls
+      look like this. No role query can reach it; the text locator
+      can. Click dispatches; classification is matched.
+    input:
+      action: click
+      target: { text: "Filter" }
+    world:
+      preset: reactive-record-list
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: text-locator
+      - axis: roleless-clickable
+      - preset: reactive-record-list
+
+  - name: click-roleless-hidden-fails-not-visible
+    description: |
+      Roleless clickable rendered display:none. The DOM handle sees
+      it; isVisible() is false; not-visible. The visibility axis is
+      orthogonal to rolelessness.
+    input:
+      action: click
+      target: { text: "Back to Overview" }
+    world:
+      surfaces:
+        - { role: generic, name: "Back to Overview", clickable: true, visibility: display-none }
+      entropy:
+        seed: interact-roleless-hidden
+        chromeVocabulary: reactive-block
+        wrapperDepth: [1, 3]
+    expected:
+      classification: failed
+      error-family: not-visible
+    exercises:
+      - error-family: not-visible
+      - axis: roleless-clickable
+
+  - name: fill-roleless-target-fails-assertion
+    description: |
+      Filling a roleless <div> — the same "Element is not an <input>"
+      assertion div-with-role raises. Pins that a text-located
+      surface still goes through fill's actionability contract.
+    input:
+      action: input
+      target: { text: "Filter" }
+      value: "any"
+    world:
+      surfaces:
+        - { role: generic, name: "Filter", clickable: true }
+      entropy:
+        seed: interact-roleless-fill
+    expected:
+      classification: failed
+      error-family: assertion-like
+    exercises:
+      - error-family: assertion-like
+      - axis: roleless-clickable
+
+  - name: click-nav-link-in-reactive-chrome
+    description: |
+      Reality-study F4/F5: a content-named link inside the
+      `navigation` landmark, wrapped 3–5 levels deep in `data-block`
+      / `data-container` chrome with structural ids. The click must
+      be invariant under the real wrapper vocabulary, not just the
+      historical fuzz-shell one.
+    input:
+      action: click
+      target: { role: link, name: "Requests" }
+    world:
+      preset: reactive-record-list
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role-dispatcher
+      - axis: chrome-vocabulary-reactive-block
+      - preset: reactive-record-list
+
+  - name: click-unnamed-checkbox-in-row-by-cell-text
+    description: |
+      Reality-study §10 / handoff N10 (C7): a bulk-select checkbox
+      with NO accessible name, reachable only through the row whose
+      cell says "Aurora headset". The verb queries the row by its
+      content-derived name, then the checkbox inside it.
+    input:
+      action: click
+      target: { role: checkbox, inRow: "Aurora headset" }
+    world:
+      preset: reactive-record-table
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: row-scoped
+      - axis: naming-none
+      - preset: reactive-record-table

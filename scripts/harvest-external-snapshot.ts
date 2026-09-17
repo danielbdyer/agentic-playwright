@@ -12,6 +12,7 @@
  *     --aut outsystems-ui-website \
  *     [--viewport 1280x800] [--timeout-navigation 15000] \
  *     [--timeout-hydration 20000] [--ignore-robots] [--out <path>] [--retry 0]
+ *     [--relay-subresources]   # egress proxies that fail Chromium subresource fetches
  *
  * Exit codes (§7.3): 0 stable · 10 stable-but-framework-confirmed-only ·
  * 20 record persisted with a failure verdict · 30 hard failure (no record).
@@ -36,6 +37,7 @@ interface Args {
   readonly navigationTimeoutMs: number;
   readonly hydrationTimeoutMs: number;
   readonly ignoreRobots: boolean;
+  readonly relaySubresources: boolean;
   readonly out: string | null;
   readonly retry: number;
 }
@@ -48,7 +50,7 @@ function parseArgs(argv: readonly string[]): Args {
   const url = get('--url');
   const aut = get('--aut');
   if (!url || !aut) {
-    throw new Error('usage: harvest-external-snapshot --url <url> --aut <partition-name> [--viewport WxH] [--timeout-navigation ms] [--timeout-hydration ms] [--ignore-robots] [--out path] [--retry n]');
+    throw new Error('usage: harvest-external-snapshot --url <url> --aut <partition-name> [--viewport WxH] [--timeout-navigation ms] [--timeout-hydration ms] [--ignore-robots] [--relay-subresources] [--out path] [--retry n]');
   }
   const vp = (get('--viewport') ?? '1280x800').split('x').map((n) => Number.parseInt(n, 10));
   return {
@@ -58,6 +60,7 @@ function parseArgs(argv: readonly string[]): Args {
     navigationTimeoutMs: Number.parseInt(get('--timeout-navigation') ?? '15000', 10),
     hydrationTimeoutMs: Number.parseInt(get('--timeout-hydration') ?? '20000', 10),
     ignoreRobots: argv.includes('--ignore-robots'),
+    relaySubresources: argv.includes('--relay-subresources'),
     out: get('--out'),
     retry: Number.parseInt(get('--retry') ?? '0', 10),
   };
@@ -81,6 +84,7 @@ async function main(argv: readonly string[]): Promise<number> {
         partition,
         viewport: args.viewport,
         ignoreRobots: args.ignoreRobots,
+        relaySubresources: args.relaySubresources,
         hydration: {
           navigationTimeoutMs: args.navigationTimeoutMs,
           hydrationTimeoutMs: args.hydrationTimeoutMs,

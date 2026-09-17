@@ -159,6 +159,9 @@ function isValidSurfaceSpec(value: unknown): value is SurfaceSpec {
   if (value['visibility'] !== undefined && typeof value['visibility'] !== 'string') return false;
   if (value['enabled'] !== undefined && typeof value['enabled'] !== 'boolean') return false;
   if (value['inputBacking'] !== undefined && typeof value['inputBacking'] !== 'string') return false;
+  if (value['naming'] !== undefined && typeof value['naming'] !== 'string') return false;
+  if (value['placeholder'] !== undefined && typeof value['placeholder'] !== 'string') return false;
+  if (value['clickable'] !== undefined && typeof value['clickable'] !== 'boolean') return false;
   if (value['detachAfterMs'] !== undefined && typeof value['detachAfterMs'] !== 'number') return false;
   if (value['surfaceId'] !== undefined && typeof value['surfaceId'] !== 'string') return false;
   if (value['initialValue'] !== undefined && typeof value['initialValue'] !== 'string') return false;

@@ -30,6 +30,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
+import { EMPTY_ACCESSIBILITY_SUMMARY, EMPTY_BLOCK_OWNERSHIP } from '../../workshop/substrate-study/domain/snapshot-record';
 import {
   computeStructuralSignature,
   foldVariantClassifier,
@@ -216,6 +217,7 @@ describe('SnapshotRecord domain laws (Z11g.d.0a Phase 1)', () => {
         nodes: [stubNode()],
         framework: {
           reactDetected: false,
+          reactMarkerNodeCount: 0,
           angularDetected: false,
           vueDetected: false,
           webComponentCount: 0,
@@ -223,6 +225,8 @@ describe('SnapshotRecord domain laws (Z11g.d.0a Phase 1)', () => {
           iframeCount: 0,
         },
         variantClassifier: { kind: 'not-os', evidence: ['stub'] },
+        accessibility: EMPTY_ACCESSIBILITY_SUMMARY,
+        blockOwnership: EMPTY_BLOCK_OWNERSHIP,
       });
       expect(rec.stage).toBe('preparation');
       expect(rec.scope).toBe('run');
@@ -246,6 +250,7 @@ describe('SnapshotRecord domain laws (Z11g.d.0a Phase 1)', () => {
         nodes: [stubNode()],
         framework: {
           reactDetected: false,
+          reactMarkerNodeCount: 0,
           angularDetected: false,
           vueDetected: false,
           webComponentCount: 0,
@@ -253,6 +258,8 @@ describe('SnapshotRecord domain laws (Z11g.d.0a Phase 1)', () => {
           iframeCount: 0,
         },
         variantClassifier: { kind: 'not-os' as const, evidence: ['stub'] },
+        accessibility: EMPTY_ACCESSIBILITY_SUMMARY,
+        blockOwnership: EMPTY_BLOCK_OWNERSHIP,
       };
       const r1 = snapshotRecord(input);
       const r2 = snapshotRecord(input);
@@ -273,6 +280,7 @@ describe('SnapshotRecord domain laws (Z11g.d.0a Phase 1)', () => {
         nodes: [],
         framework: {
           reactDetected: false,
+          reactMarkerNodeCount: 0,
           angularDetected: false,
           vueDetected: false,
           webComponentCount: 0,
@@ -280,6 +288,8 @@ describe('SnapshotRecord domain laws (Z11g.d.0a Phase 1)', () => {
           iframeCount: 0,
         },
         variantClassifier: { kind: 'not-os', evidence: [] },
+        accessibility: EMPTY_ACCESSIBILITY_SUMMARY,
+        blockOwnership: EMPTY_BLOCK_OWNERSHIP,
       });
       expect(rec.lineage.sources).toEqual(['external-snapshot:https://foo.example.com/bar']);
     });

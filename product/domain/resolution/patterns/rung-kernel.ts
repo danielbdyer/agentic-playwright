@@ -79,6 +79,11 @@ export interface TargetShapeHint {
   /** ARIA landmark role of an ancestor (e.g., 'form', 'navigation',
    *  'main') the target lives inside. */
   readonly inLandmark?: string | undefined;
+  /** Text of a cell in the `row` the target lives inside ("the
+   *  checkbox in the row for Aurora headset"). Reality-study §10 /
+   *  handoff N10 (C7): bulk-action checkboxes carry no name at all;
+   *  row context is their only handle. */
+  readonly inRowWith?: string | undefined;
   /** Value to enter for `input`/`select` verbs; ignored otherwise. */
   readonly value?: string | undefined;
 }
@@ -97,13 +102,81 @@ export interface ClassifiedIntent {
 
 /** A narrow handle on a rendered surface the matchers query against.
  *  The full Surface model carries more; this interface exposes only
- *  what matchers need so the MatcherContext stays minimal. */
+ *  what matchers need so the MatcherContext stays minimal.
+ *
+ *  The 2026-09-16 reality study (`docs/v2-substrate-reality-study.md
+ *  §2`) widened it by four fields, one per finding the role+name
+ *  surface alone could not express:
+ *
+ *    placeholder — F2: real search inputs are named by placeholder
+ *                  alone. `name` already carries the accname result
+ *                  (placeholder is a valid accname source); the raw
+ *                  placeholder is kept so a `getByPlaceholder`
+ *                  strategy can be emitted (C1).
+ *    text        — F2/F3: the visible text content. For content-named
+ *                  controls it equals `name`; for roleless surfaces it
+ *                  is the ONLY handle.
+ *    interactive — F3: the element carries a click affordance (native
+ *                  control, click handler, tabindex, or computed
+ *                  `cursor: pointer`). ~24% of real controls are
+ *                  interactive but roleless; without this bit they
+ *                  are invisible to every matcher (C2).
+ *    ancestors   — F4: surfaceIds of enclosing surfaces, nearest
+ *                  first. Makes `surfacesWithin` a real containment
+ *                  query so landmark scoping (100% reliable on
+ *                  Reactive) means something (C3). */
 export interface IndexedSurface {
   readonly surfaceId: string;
+  /** ARIA role. `'generic'` for a roleless element (ARIA's implicit
+   *  role for div/span), never null — a matcher branching on
+   *  "has a role" compares against 'generic'. */
   readonly role: string;
+  /** Accessible name as accname computes it (aria-label,
+   *  aria-labelledby, <label>, placeholder, content), or null. */
   readonly name: string | null;
   readonly landmarkRole: string | null;
   readonly classes: readonly string[];
+  readonly placeholder: string | null;
+  readonly text: string | null;
+  /** Which affordance channel marked the surface interactive
+   *  (docs/v2-reactive-discovery-handoff.md §3.2). Discovery records
+   *  the channel; `isInteractiveAffordance` says whether it counts.
+   *  An inherited `cursor: pointer` never does — that descendant is
+   *  decorative and the control is its handler-owning ancestor. */
+  readonly affordanceSource: AffordanceSource;
+  readonly ancestors: readonly string[];
+}
+
+/** Ranked affordance channels. Mirrors the workshop walker's
+ *  `AffordanceSource`; product cannot import workshop, so the
+ *  vocabulary is declared on both sides and pinned by a law. */
+export type AffordanceSource =
+  | 'native'
+  | 'aria-role'
+  | 'handler'
+  | 'tabindex'
+  | 'platform-attr'
+  | 'own-cursor'
+  | 'none';
+
+export function isInteractiveAffordance(source: AffordanceSource): boolean {
+  return source === 'native' || source === 'aria-role' || source === 'handler' || source === 'tabindex' || source === 'platform-attr';
+}
+
+/** ARIA's implicit role for a div/span — the marker for a roleless
+ *  surface in the index. */
+export const ROLELESS_SURFACE_ROLE = 'generic';
+
+/** Roles an intent classified as `textbox` ("the X field") may
+ *  resolve to (handoff N4): the browser exposes `<input type=search>`
+ *  as `searchbox` and `<input type=number>` as `spinbutton`, and QA
+ *  prose calls all three "field". */
+export const TEXT_ENTRY_ROLES: readonly string[] = ['textbox', 'searchbox', 'spinbutton'];
+
+/** The roles a hinted role admits: the text-entry family for
+ *  `textbox`; the role itself otherwise. */
+export function rolesAdmittedBy(role: string): readonly string[] {
+  return role === 'textbox' ? TEXT_ENTRY_ROLES : [role];
 }
 
 /** Query port over the surface canon. Implementations (Z11a.4b) back
@@ -113,7 +186,14 @@ export interface SurfaceIndex {
   readonly findByRoleAndName: (role: string, name: string) => readonly IndexedSurface[];
   readonly findByRole: (role: string) => readonly IndexedSurface[];
   readonly findLandmarkByRole: (role: string) => Option.Option<IndexedSurface>;
+  /** Surfaces contained (at any depth) by `ancestor`. */
   readonly surfacesWithin: (ancestor: IndexedSurface) => readonly IndexedSurface[];
+  /** Surfaces whose `placeholder` equals the argument exactly
+   *  (case-sensitive; the matcher relaxes as it needs). */
+  readonly findByPlaceholder: (placeholder: string) => readonly IndexedSurface[];
+  /** Every surface whose affordance channel counts as interactive
+   *  (`isInteractiveAffordance`), role-bearing or not. */
+  readonly findInteractive: () => readonly IndexedSurface[];
 }
 
 // ─── Matcher + orchestration ────────────────────────────────────

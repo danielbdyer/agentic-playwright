@@ -13,8 +13,9 @@
  *   ZC39.e   observation-by-assertion-phrase: observe verb +
  *            success cue resolves to role=status; error cue
  *            resolves to role=alert.
- *   ZC39.f   DEFAULT_PATTERN_REGISTRY contains all 6 patterns in
- *            specific → generic order.
+ *   ZC39.f   DEFAULT_PATTERN_REGISTRY contains all 7 patterns in
+ *            specific → generic order (the content-named-interactive
+ *            floor last — reality-study C2).
  */
 
 import { describe, test, expect } from 'vitest';
@@ -37,7 +38,16 @@ import { observationByAssertionPhrasePattern } from '../../../product/domain/res
 import { surfaceIndexFromList } from '../../../product/runtime/resolution/patterns/surface-index-from-stage';
 
 function surface(o: Partial<IndexedSurface> & Pick<IndexedSurface, 'surfaceId' | 'role'>): IndexedSurface {
-  return { name: null, landmarkRole: null, classes: [], ...o };
+  return {
+    name: null,
+    landmarkRole: null,
+    classes: [],
+    placeholder: null,
+    text: null,
+    affordanceSource: 'none',
+    ancestors: [],
+    ...o,
+  };
 }
 
 function ctx(
@@ -54,7 +64,7 @@ function ctx(
 
 function runPattern(pattern: Pattern, c: MatcherContext): { matched: boolean; targetSurfaceId?: string; matcherIndex?: number } {
   const result = pattern.orchestrator(pattern, c);
-  return foldPatternRungResult(result, {
+  return foldPatternRungResult<{ matched: boolean; targetSurfaceId?: string; matcherIndex?: number }>(result, {
     matched: (r) => ({ matched: true, targetSurfaceId: r.candidate.targetSurfaceId, matcherIndex: r.candidate.matcherIndex }),
     noMatch: () => ({ matched: false }),
   });
@@ -77,18 +87,18 @@ describe('Z11a.4c — locator-by-role-and-name', () => {
     expect(locatorByRoleAndNamePattern.applicabilityGuard(both)).toBe(true);
   });
 
-  test('ZC39.a: resolves exact role+name at M0', () => {
+  test('ZC39.a: resolves exact role+name at M1 (M0 is the landmark-scoped rung, silent without a hint)', () => {
     const save = surface({ surfaceId: 'sid:save', role: 'button', name: 'Save' });
     const c = ctx('click', '', { role: 'button', name: 'Save' }, [save]);
     const r = runPattern(locatorByRoleAndNamePattern, c);
-    expect(r).toMatchObject({ matched: true, targetSurfaceId: 'sid:save', matcherIndex: 0 });
+    expect(r).toMatchObject({ matched: true, targetSurfaceId: 'sid:save', matcherIndex: 1 });
   });
 
-  test('ZC39.a.substring: falls through to M1 on casing mismatch', () => {
+  test('ZC39.a.substring: falls through to M2 on casing mismatch', () => {
     const save = surface({ surfaceId: 'sid:save', role: 'button', name: 'Save' });
     const c = ctx('click', '', { role: 'button', nameSubstring: 'save' }, [save]);
     const r = runPattern(locatorByRoleAndNamePattern, c);
-    expect(r).toMatchObject({ matched: true, targetSurfaceId: 'sid:save', matcherIndex: 1 });
+    expect(r).toMatchObject({ matched: true, targetSurfaceId: 'sid:save', matcherIndex: 2 });
   });
 });
 
@@ -108,7 +118,7 @@ describe('Z11a.4c — navigation-link-by-name', () => {
 
   test('ZC39.b.resolves: link inside nav landmark resolves single match', () => {
     const nav = surface({ surfaceId: 'sid:nav', role: 'navigation', landmarkRole: 'navigation' });
-    const archive = surface({ surfaceId: 'sid:archive', role: 'link', name: 'Archive' });
+    const archive = surface({ surfaceId: 'sid:archive', role: 'link', name: 'Archive', ancestors: ['sid:nav'] });
     const c = ctx('click', 'Click the Archive link', { nameSubstring: 'Archive' }, [nav, archive]);
     const r = runPattern(navigationLinkByNamePattern, c);
     expect(r).toMatchObject({ matched: true, targetSurfaceId: 'sid:archive' });
@@ -125,19 +135,19 @@ describe('Z11a.4c — navigation-link-by-name', () => {
 // ─── ZC39.c: field-input-by-label ───────────────────────────────
 
 describe('Z11a.4c — field-input-by-label', () => {
-  test('ZC39.c: exact textbox name fires M0', () => {
+  test('ZC39.c: exact textbox name fires M1 (M0 is landmark-scoped, silent without a hint)', () => {
     const tb = surface({ surfaceId: 'sid:email', role: 'textbox', name: 'Email' });
     const c = ctx('input', '', { role: 'textbox', name: 'Email' }, [tb]);
     const r = runPattern(fieldInputByLabelPattern, c);
-    expect(r).toMatchObject({ matched: true, matcherIndex: 0 });
+    expect(r).toMatchObject({ matched: true, matcherIndex: 1 });
   });
 
-  test('ZC39.c.single-in-form: falls to M2 when name hint absent but form has single textbox', () => {
+  test('ZC39.c.single-in-form: falls to M4 when name hint absent but form has single textbox', () => {
     const form = surface({ surfaceId: 'sid:form', role: 'form', landmarkRole: 'form' });
-    const tb = surface({ surfaceId: 'sid:email', role: 'textbox', name: 'Email' });
+    const tb = surface({ surfaceId: 'sid:email', role: 'textbox', name: 'Email', ancestors: ['sid:form'] });
     const c = ctx('input', 'Enter the value', {}, [form, tb]);
     const r = runPattern(fieldInputByLabelPattern, c);
-    expect(r).toMatchObject({ matched: true, matcherIndex: 2, targetSurfaceId: 'sid:email' });
+    expect(r).toMatchObject({ matched: true, matcherIndex: 4, targetSurfaceId: 'sid:email' });
   });
 
   test('ZC39.c.wrong-verb: click verb not applicable', () => {
@@ -170,7 +180,7 @@ describe('Z11a.4c — dialog-confirmation', () => {
 
   test('ZC39.d.resolves: with dialog landmark + confirm button, matcher resolves', () => {
     const dialog = surface({ surfaceId: 'sid:dlg', role: 'dialog', landmarkRole: 'dialog' });
-    const confirm = surface({ surfaceId: 'sid:confirm', role: 'button', name: 'Confirm' });
+    const confirm = surface({ surfaceId: 'sid:confirm', role: 'button', name: 'Confirm', ancestors: ['sid:dlg'] });
     const c = ctx('click', 'Click Confirm in the modal', { name: 'Confirm' }, [dialog, confirm]);
     const r = runPattern(dialogConfirmationPattern, c);
     expect(r).toMatchObject({ matched: true, targetSurfaceId: 'sid:confirm' });
@@ -205,15 +215,17 @@ describe('Z11a.4c — observation-by-assertion-phrase', () => {
 // ─── ZC39.f: default registry ordering ──────────────────────────
 
 describe('Z11a.4c — DEFAULT_PATTERN_REGISTRY composition', () => {
-  test('ZC39.f: contains all six patterns in specific → generic order', () => {
+  test('ZC39.f: contains all eight patterns in specific → generic order', () => {
     const ids = DEFAULT_PATTERN_REGISTRY.patterns.map((p) => p.id);
     expect(ids).toEqual([
+      patternId('row-scoped-control'),
       patternId('dialog-confirmation'),
       patternId('navigation-link-by-name'),
       patternId('form-submission'),
       patternId('field-input-by-label'),
       patternId('observation-by-assertion-phrase'),
       patternId('locator-by-role-and-name'),
+      patternId('content-named-interactive'),
     ]);
   });
 });

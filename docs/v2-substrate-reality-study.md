@@ -1,7 +1,9 @@
 # Substrate Reality Study — first real Reactive contact
 
-> Status: study (2026-09-16). First harvest of a genuine OutSystems
-> Reactive substrate through the Z11g.d.0a harness. Companion to
+> Status: study (2026-09-16); §§9–10 record the alignment that landed
+> on 2026-09-16/17 and the single held-out evaluation. First harvest
+> of a genuine OutSystems Reactive substrate through the Z11g.d.0a
+> harness. Companion to
 > `docs/v2-substrate-source-survey.md` (which was Traditional Web and
 > said so) and `docs/v2-substrate-ladder-plan.d0a-harness-design.md`
 > (whose Q1 — "confirmed Reactive URL" — this study closes). The
@@ -69,11 +71,19 @@ designed, not a capture failure.
 ### F1. Reactive is identified by its runtime, not by React (corpus-backed, 7/7)
 
 OutSystems Reactive is React-based but renders through its own
-`OSFramework` runtime. Across a 377-node catalog page, exactly **one**
+`OSFramework` runtime. ~~Across a 377-node catalog page, exactly **one**
 DOM node carried a `__reactFiber*` key (the root container); the
 walker's fiber probe (which `break`s after the first element) never
-saw it. `__OSVSTATE` (the Traditional-Web marker) is absent on all
-seven routes, correctly.
+saw it.~~ **Corrected 2026-09-17 (handoff §1.1, N2):** the platform
+runs React 16, whose per-node markers are `__reactInternalInstance$…`
+/ `__reactEventHandlers$…`; the walker looked only for the React 17+
+names and only on the first element. Re-measured with both key
+families: **376 of 377** nodes on Productcatalog, 1219 of 1227 on the
+directory, 315 of 385 on request management. The policy conclusion
+below is unchanged — framework markers are version-fragile and never
+gate detection — but the marker is the handler-ownership channel F3
+needed (see the F3 correction). `__OSVSTATE` (the Traditional-Web
+marker) is absent on all seven routes, correctly.
 
 What IS present on every route, and absent from non-OutSystems pages:
 
@@ -111,8 +121,11 @@ name. Real Reactive almost never does. Two sub-findings:
 
 - **Search inputs are placeholder-named** (partial, 5/7). Every route
   with a search box named it by `placeholder` alone — no label, no
-  `aria-label`. Playwright's `getByRole('textbox', { name })` does not
-  match placeholder; only `getByPlaceholder` does.
+  `aria-label`. ~~Playwright's `getByRole('textbox', { name })` does not
+  match placeholder; only `getByPlaceholder` does.~~ **Refuted
+  empirically on 2026-09-16 — see §9.1**: the role query resolves a
+  placeholder-named input; the gap is in the surface index, not the
+  locator kind.
 - **True forms use `<label for>`** (single-route: Productform, 6 of 7
   inputs). The only genuine data-entry form in the study named its
   inputs by `<label for=id>`, which the v1 walker did not resolve at
@@ -131,6 +144,20 @@ almost never with an explicit role) and roleless clickable `<div>`s.
 
 The entire resolution ladder queries a role-and-name surface index.
 A quarter of real interactive targets are invisible to it.
+
+> **Corrected 2026-09-17 (handoff §1.2, N1):** the "precise probe"
+> above counted `cursor: pointer`, which inherits to every descendant
+> of a clickable ancestor. Re-measured by **handler ownership** (an
+> element that owns a React `onClick`, an `onclick` attribute,
+> `tabindex ≥ 0` or a platform widget attribute), the visible
+> roleless controls are: Productcatalog **0** (the "Filter" and
+> "Back to Overview" spans inherit the cursor from the handler-owning
+> container; clicking them works only because the event bubbles),
+> Employeesdirectory 6 of 24 visible interactives (25%), Requestmanagement 2
+> of 19 (11%), the promoted held-out route's sortable `<th>` headers
+> likewise. Roleless controls are real but fewer, and they are the
+> handler **owners**; the index marks owners and never
+> inherited-cursor descendants (§9.5).
 
 ### F4. Landmarks are 100% reliable (corpus-backed, 7/7)
 
@@ -300,3 +327,157 @@ route (authored blind, per the clean-room C5) measures whether the
 substrate and ladder now match Reactive reality on screens the
 canon-graduation pipeline never saw. Spending them before those
 changes land would measure nothing. They stay untouched.
+
+## 9. What landed (2026-09-16/17) — synthetic alignment to the findings
+
+Every item below is in code with a law; the substrate is at
+**1.1.0** (MINOR: new axes, old semantics preserved — every
+pre-existing fixture renders byte-identical DOM). Gates on the final
+tree: `npm run build` clean; unit suite 4142 passing; rung-3 parity
+**29/29** in a real Chromium; axis-invariance **19/19** including the
+new chrome vocabulary.
+
+### 9.1 A correction the work forced: F2 is an *indexing* gap, not a locator gap
+
+§2 F2 claimed "Playwright's `getByRole('textbox', { name })` does not
+match placeholder; only `getByPlaceholder` does." Checked against
+Chromium + Playwright before any code moved: **false**. The role
+query resolves a placeholder-only input, a `<label for>`-named input
+and a `<label>`-wrapped input by accessible name (accname step 2D
+takes the placeholder when nothing else names the control). Verified
+in the same run: `getByRole('generic', { name })` matches nothing, a
+bare `<a>` without `href` has no link role, and `getByText` is
+role-agnostic (it matched a `div`, a `span` and a `<button>` with the
+same text).
+
+Consequence: the search-input problem lives in the **surface index**
+— the product must record the accessible name the way accname
+computes it (content, placeholder, `<label>`), and the catalog it
+builds from a real SUT must too — not in the locator kind. C1 (a
+placeholder matcher) still landed, but as an emission/fallback rung
+(`getByPlaceholder` provenance; indexes whose naming resolution
+recorded the placeholder separately), not as the fix. The substrate's
+`accessibleNameOf` states these semantics explicitly and rung-2
+predicts rung-3 through it.
+
+### 9.2 Substrate (workshop/) — S1–S5
+
+| # | Change | Where | Law |
+|---|---|---|---|
+| S1 | `placeholder` axis on form-control roles; `naming: 'none'` yields a placeholder-only control | `workshop/substrate/surface-spec.ts`, `SurfaceRenderer.tsx` | SS4, PT2, I8/I9 |
+| S2 | `naming` axis: `aria-label` (default) / `label-for` (sibling `<label for=id>`) / `label-wrap` / `none` | same | SS4; fixtures `fill-label-for-named-field`, `fill-label-wrap-named-field`, `label-for-named-field-visible` |
+| S3 | `generic` role (bare `<div>`, no `role` attribute) + `clickable` axis (cursor:pointer + handler) — the roleless interactive | `surface-spec.ts`, `SurfaceRenderer.tsx`, `catalog-projection.ts` | SS5/SS6, PT3/PT4, I10–I13; fixtures `click-roleless-filter-by-text`, `click-roleless-hidden-fails-not-visible`, `fill-roleless-target-fails-assertion`, `roleless-clickable-by-text` |
+| S4 | `chromeVocabulary: 'reactive-block'` on EntropyProfile: wrapper layers become `data-block` + `data-container` / `OSInline` / `OSFillParent` with structural ids (`b3-Column`, `l1-0_0-$b2`) | `entropy-profile.ts`, `EntropyWrapper.tsx` | axis-invariance gate (19/19 under two seeds) |
+| S5 | `reactive-record-list` topology (banner + nav + main + search landmark, placeholder-only search, roleless "Filter" and "Back to Overview", list-in-blocks 3–5 deep) and `reactive-entry-form` (label-for / label-wrap inputs) | `test-topology-catalog.ts` | fixtures above via `preset:` |
+| — | `searchbox` now renders `<input type="search">` | `SurfaceRenderer.tsx` | L-Projection-Terminal |
+| — | Probe target grammar shared by rung 2 and rung 3: `{ role, name? }`, `{ placeholder }`, `{ text }` | `workshop/probe-derivation/probe-target.ts`, `classifiers/rung-3/locate-target.ts` | PT1–PT6, parity 29/29 |
+
+Fixture count: interact 9 → 17, observe 7 → 12.
+
+### 9.3 Product (product/) — C1–C5
+
+| # | Change | Where | Law |
+|---|---|---|---|
+| C1 | `textbox-by-placeholder` matcher; `field-input-by-label` ladder is now in-landmark / exact / substring / placeholder / single-in-form | `patterns/matchers/textbox-by-placeholder.ts` | RS4 |
+| C2 | `IndexedSurface` gains `placeholder`, `text`, `interactive`, `ancestors`; `SurfaceIndex` gains `findByPlaceholder`, `findInteractive`; `interactive-by-content` matcher inside a new `content-named-interactive` pattern registered **last** — the role-agnostic click floor | `rung-kernel.ts`, `surface-index-from-stage.ts`, `matchers/interactive-by-content.ts`, `patterns/content-named-interactive.pattern.ts`, `registry.ts` | RS5–RS7; ZC39.f (7 patterns) |
+| C3 | Classifier emits `inLandmark` from prose cues (navigation / menu / header / sidebar → `navigation`; footer → `contentinfo`; search → `search`); `role-and-name-in-landmark` matcher is M0 of `locator-by-role-and-name` and `field-input-by-label`; `surfacesWithin` is now real containment via `ancestors` | `intent-classifier.ts`, `matchers/role-and-name-in-landmark.ts` | RS1–RS3, RS8 |
+| C4 | Discovery admits roleless clickables (visible, click affordance, short own text, no nested control) as role `generic` with an **exact text** locator and no role candidate; `discover-screen` already resolved names via `<label>`, placeholder and content | `product/instruments/tooling/discover-screen.ts`, `product/domain/knowledge/discovery.ts` | `tests/target/discovery.spec.ts` (roleless case) |
+| C5 | Verified rather than changed: the widget layer keys on role (`deriveRoleFromSignature`: explicit role → input type → tag); `os-*` ids are contract names, nothing in the runtime matches an `os-*` class or tag against the DOM. `generic` maps to the button-shaped contract with a click affordance | `role-affordances.ts` | — |
+| §6 | Public-AUT cohort receipts (schema 5) carry a `pageFingerprint`: title, final URL, landmarks, role counts, interactive / roleless-interactive counts, placeholder-only inputs, `data-block` count, runtime global | `workshop/customer-backlog/application/page-fingerprint.ts`, `public-aut-runner.ts` | — |
+
+Not landed, deliberately: **C6** (`data-block` as a scoping unit in
+the OutSystems-generic tier) waits for the distillation pipeline;
+**namingSource** is not yet threaded into the product's discovery
+report (the walker has it; the report schema does not); the
+substrate's depth axis is expressed as topologies, not as a
+distribution knob.
+
+### 9.4 Harness — subresource relay
+
+The remote session's egress proxy served the HTML but failed every
+larger subresource from Chromium with `net::ERR_TOO_MANY_RETRIES`, so
+the Reactive runtime never mounted and a harvest captured the
+21-node pre-hydration shell as "stable". `captureExternalSnapshot`
+now takes `relaySubresources` (`--relay-subresources` on the CLI):
+every non-document request is fulfilled through Playwright's request
+context (`request.fetch(Request)` — method, headers, body preserved),
+which the same proxy serves correctly. With it, Productcatalog
+re-harvested to **377 nodes** — the study's own count exactly.
+`scripts/substrate-reality-stats.ts` prints F1–F6 for any
+SnapshotRecord so the numbers in §2 and §10 are reproducible.
+
+### 9.5 Round two (2026-09-17) — the handoff's agnostic channels
+
+`docs/v2-reactive-discovery-handoff.md` (PR #182) reviewed round one
+and named ten next items. Status after this round, each with a law
+(`tests/substrate-study/agnostic-channels.laws.spec.ts` AC1–AC8,
+`tests/resolution/patterns/reality-study-patterns.laws.spec.ts` RS9,
+`tests/probe-derivation/probe-target.laws.spec.ts` PT7):
+
+| # | Landed | Where | Re-measured on the study routes |
+|---|---|---|---|
+| N1 | Affordance ladder: native → aria-role → handler ownership → tabindex / platform attr → own-cursor (recorded, never sufficient). `affordanceSource` on `SnapshotNode` and `IndexedSurface`; discovery admits roleless controls only as handler owners named by descendant text | `dom-walk-capture.ts`, `snapshot-record.ts`, `rung-kernel.ts`, `discover-screen.ts` | roleless visible interactives: Productcatalog 0/15, Employeesdirectory 6/24, Requestmanagement 2/19; own-cursor-only decorative: 0 counted as interactive |
+| N2 | React detection reads both key families across every node; `reactMarkerNodeCount` recorded; floor 10; still corroborating only | `dom-walk-capture.ts` | 376 / 1219 / 315 marker nodes |
+| N3 | `ariaSnapshot()` captured per harvest; counts-only `AccessibilitySummary` with walker-vs-browser name agreement; names never persisted | `domain/aria-snapshot.ts`, harness | AX interactive 24 / 17 / 28 (identical to the handoff's §6); walker agreement 21/26, 22/27, 29/36 — the residual F2 error class, now measured |
+| N4 | `menu`, `menuitem`, `option`, `spinbutton` in `SurfaceRole` (33); `spinbutton` renders `<input type=number>`; `textbox` intents admit the text-entry family (`searchbox`, `spinbutton`) in the index | `surface-spec.ts`, renderer, projection, `rung-kernel.ts` | every interactive AX role in the 2026-09-17 fixture is a `SurfaceRole` (AC4) |
+| N5 | `partitionBlocksByOwner` from the manifest's `urlVersions`; recorded per harvest | `domain/block-ownership.ts`, harness | OutSystemsUI 10 (45) + OutSystemsUIWebsite 3 (3) on Productcatalog; 13 (160) + 3 + Maps 1 on the directory; **0 unresolved** — the handoff's partition exactly |
+| N6 | `scripts/harvest-screen-bundle.ts` + pure `extractViewBundleFacts`; the N6 law checked live | `domain/view-bundle.ts` | Productcatalog bundle 117,965 bytes, 89 `createElement`, 10 `onClick`, 18 block refs, `prompt: "Search Product"` — 1/1 static prompts found among rendered names |
+| N7 | Chrome signatures (banner, navigation) computed in the record constructor; rebased paths so depth does not matter | `snapshot-record.ts` | banner `84ddbf5a…`, navigation `9782b842…` identical on all three re-harvested routes |
+| N8 | `interactive-by-content` resolves the handler owner; an own-cursor descendant is never a candidate (RS9.d) | index + discovery | — |
+| N9 | Navigation budget 20 s; warm-up 0 (poll immediately, three quiet polls); `mutationCount` documented as post-networkidle | `hydration-detector.ts` | all three re-harvests stable on the first attempt |
+| N10 | C7: classifier `inRowWith` cue; `control-in-row-by-cell-text` matcher in a first-registered `row-scoped-control` pattern; probe targets accept `inRow`; `reactive-record-table` topology with unnamed bulk checkboxes; 3 fixtures | product patterns, `probe-target.ts`, `locate-target.ts`, topology catalog | rung-3 parity holds with the row query (`getByRole('row', { name }).getByRole('checkbox')`) |
+| N11 | Operator action (a second, owned substrate) — not mine | — | — |
+
+Not done in this round: product discovery still computes names in-page
+rather than from `ariaSnapshot()` (the harness does; the product's
+walk records the same naming ladder and the agreement metric now
+says how far apart they are); chrome subtraction is measured, not
+yet applied as a discovery tag.
+
+## 10. Held-out evaluation — one route, spent
+
+Per §8 the held-out routes are the honest test. One was promoted
+(C4: one-time, irreversible, recorded under `promotions` in the
+partition file): **Bulkactionswithfilters**, chosen blind by name for
+the shapes it was expected to exhibit. Harvested once after §9
+landed, through the guard, with the relay. Thirteen held-out routes
+remain untouched.
+
+| axis | study routes (§2) | Productcatalog re-harvest | **Bulkactionswithfilters** (never seen) |
+|---|---|---|---|
+| nodes / hydration / variant | 112–1227 / stable / reactive | 377 / stable / reactive | 285 / stable / reactive |
+| F1 `data-block` (distinct) · `osui-*` any | 11–164 · sparse | 48 (13) · 5 | **17 (9) · 4** |
+| F2 naming shares (named elements) | content 81%, aria-label 14%, placeholder 1% | content 64%, aria-label 32%, placeholder 4% (28) | **content 61%, aria-label 35%, placeholder 3% (31)** |
+| F2 placeholder-only search input | 5/7 routes | 1 of 2 form controls | **1 of 11** (the search box; the other ten are unnamed) |
+| F3 roleless share of visible interactives | ~24% (precise probe) | 8 of 22 (36%) | **14 of 36 (39%)** |
+| F4 landmarks | banner+navigation+main; search on list routes | banner+main+navigation+search | **banner+main+navigation+search** |
+| F5 structural ids : other · `data-testid` | structural, sparse test ids | 140 : 25 · 6 | **73 : 11 · 6** |
+| F6 top `data-*` | container, expression, block, link, image | container 103, expression 54, block 48, icon, link | **expression 48, header 48, container 42, link 18, block 17** |
+
+**Verdict: F1, F2, F3, F4 and F6 generalize to the unseen screen; F5
+generalizes with a caveat.** Two things the held-out screen adds
+that the study routes did not show:
+
+- **Unnamed controls.** Nine bulk-select checkboxes and the sort
+  `<select>` carry no accessible name at all (naming source `none`);
+  their only handles are structural ids (`SelectAll`,
+  `l2_0-2_0-Select`) and row context. The substrate can already
+  pose this (`role: checkbox` with `naming: 'none'` and no
+  placeholder); the ladder has no rung for "the checkbox in the row
+  whose cell says X" — a candidate C7.
+- **Designer-given semantic ids** alongside the structural ones
+  (`Filters`, `FilterBy`, `Search`, `Table`, `SelectAll`, `Remove`,
+  `Add`) — 11 of 84 ids. F5's "ids are never semantic" is too strong;
+  on a hand-built screen some are, and they are a locator source the
+  study under-weighted.
+
+The roleless interactives on this screen are mostly sortable table
+headers (`<th class="sortable">` with a `sortable-icon` div), a
+pagination chevron (`<i class="fa-chevron-left">`) and an image —
+the F3 shape, in a table dress the record-list topology does not yet
+wear.
+
+The route is spent for this canon fingerprint and version token
+(`Ov_NiUhPHp8ffKKXiJmiNA`, C3). The fixture-based evaluation (C5,
+human-authored from screenshots) has not been run; it needs one of
+the thirteen remaining routes.

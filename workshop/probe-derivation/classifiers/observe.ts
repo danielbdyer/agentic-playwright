@@ -8,9 +8,11 @@
  * applies observe's classification logic axis-by-axis.
  *
  * Algorithm:
- *   1. Shape check: input.target has a role string.
- *   2. Find the surface in world.surfaces matching (role, name).
- *      If absent, the fixture is inconsistent — failed/unclassified.
+ *   1. Shape check: input.target parses (role / placeholder / text
+ *      — see probe-target.ts).
+ *   2. Find the surface in world.surfaces satisfying the target
+ *      under the substrate's accname semantics. If absent, the
+ *      fixture is inconsistent — failed/unclassified.
  *   3. If surface.detachAfterMs present, classify as timeout
  *      (element vanishes before observe can see it).
  *   4. If surface.visibility is not 'visible', classify as
@@ -26,55 +28,23 @@ import { Effect } from 'effect';
 import type { VerbClassifier } from '../verb-classifier';
 import type { Probe } from '../probe-ir';
 import type { ProbeOutcome } from '../probe-receipt';
-import type { SurfaceSpec } from '../../substrate/surface-spec';
 import { isSurfaceHidden } from '../../substrate/surface-spec';
 import { resolveProbeSurfaces } from '../world-resolution';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function extractTarget(input: unknown): { role: string; name?: string } | null {
-  if (!isRecord(input)) return null;
-  const target = input['target'];
-  if (!isRecord(target)) return null;
-  if (typeof target['role'] !== 'string') return null;
-  const out: { role: string; name?: string } = { role: target['role'] };
-  if (typeof target['name'] === 'string') out.name = target['name'];
-  return out;
-}
-
-function extractSurfaces(world: unknown): readonly SurfaceSpec[] {
-  // Delegate to the shared resolver — handles both explicit
-  // surfaces lists and preset-based worlds.
-  return resolveProbeSurfaces(world);
-}
-
-function findMatchingSurface(
-  surfaces: readonly SurfaceSpec[],
-  target: { role: string; name?: string },
-): SurfaceSpec | null {
-  // Recursive search — composed surfaces nest children, so the
-  // target may live arbitrarily deep in the tree.
-  for (const s of surfaces) {
-    if (s.role === target.role && (target.name === undefined || s.name === target.name)) {
-      return s;
-    }
-    if (s.children !== undefined) {
-      const found = findMatchingSurface(s.children, target);
-      if (found !== null) return found;
-    }
-  }
-  return null;
-}
+import { findSurfaceForTarget, parseProbeTarget, resolveRowScope } from '../probe-target';
 
 function classifyObserve(probe: Probe): Effect.Effect<ProbeOutcome['observed'], Error, never> {
-  const target = extractTarget(probe.input);
+  const target = parseProbeTarget(probe.input);
   if (target === null) {
     return Effect.succeed({ classification: 'failed', errorFamily: 'unclassified' });
   }
-  const surfaces = extractSurfaces(probe.worldSetup);
-  const surface = findMatchingSurface(surfaces, target);
+  const surfaces = resolveProbeSurfaces(probe.worldSetup);
+  // Row scoping (C7): when no row carries the cell text, the verb's
+  // row query is empty and the action times out — a real world
+  // state rung 3 reports as timeout, not a fixture inconsistency.
+  if (target.kind === 'role' && target.inRow !== undefined && resolveRowScope(surfaces, target.inRow) === null) {
+    return Effect.succeed({ classification: 'failed', errorFamily: 'timeout' });
+  }
+  const surface = findSurfaceForTarget(surfaces, target);
   if (surface === null) {
     return Effect.succeed({ classification: 'failed', errorFamily: 'unclassified' });
   }

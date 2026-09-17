@@ -180,3 +180,121 @@ fixtures:
       - rung: role
       - axis: invalid
       - preset: validation-error-form
+
+  # ─── Reality-study shapes (docs/v2-substrate-reality-study.md §4) ───
+
+  - name: placeholder-named-search-visible
+    description: |
+      Reality-study F2 (S1): observe a placeholder-only search input
+      by role + name. accname resolves the placeholder; matched.
+    input:
+      target: { role: textbox, name: "Search products" }
+    world:
+      preset: reactive-record-list
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - axis: naming-none
+      - preset: reactive-record-list
+
+  - name: roleless-clickable-by-text
+    description: |
+      Reality-study F3 (S3): observe a roleless clickable by its
+      visible text. The text query reaches it; matched.
+    input:
+      target: { text: "Filter" }
+    world:
+      preset: reactive-record-list
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: text-locator
+      - axis: roleless-clickable
+      - preset: reactive-record-list
+
+  - name: roleless-hidden-fails-not-visible
+    description: |
+      A roleless surface rendered display:none is DOM-present but
+      not visible; not-visible, exactly as for a role-bearing one.
+    input:
+      target: { text: "Back to Overview" }
+    world:
+      surfaces:
+        - { role: generic, name: "Back to Overview", clickable: true, visibility: display-none }
+      entropy:
+        seed: observe-roleless-hidden
+        chromeVocabulary: reactive-block
+        wrapperDepth: [2, 3]
+    expected:
+      classification: failed
+      error-family: not-visible
+    exercises:
+      - error-family: not-visible
+      - axis: roleless-clickable
+
+  - name: label-for-named-field-visible
+    description: |
+      Reality-study F2 (S2): a `<label for>`-named input observed by
+      role + label text.
+    input:
+      target: { role: combobox, name: "Category" }
+    world:
+      preset: reactive-entry-form
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - axis: naming-label-for
+      - preset: reactive-entry-form
+
+  - name: landmarks-under-reactive-chrome
+    description: |
+      Reality-study F4: landmarks are 100% reliable on real Reactive
+      pages. Observe the `search` landmark inside the reactive-block
+      chrome; matched regardless of wrapper depth.
+    input:
+      target: { role: search, name: "Search" }
+    world:
+      preset: reactive-record-list
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: role
+      - axis: chrome-vocabulary-reactive-block
+      - preset: reactive-record-list
+
+  - name: unnamed-checkbox-in-row-visible
+    description: |
+      C7: observe the unnamed checkbox in the row whose cell says
+      "Borealis keyboard". Row-scoped role query; matched.
+    input:
+      target: { role: checkbox, inRow: "Borealis keyboard" }
+    world:
+      preset: reactive-record-table
+    expected:
+      classification: matched
+      error-family: null
+    exercises:
+      - rung: row-scoped
+      - preset: reactive-record-table
+
+  - name: checkbox-in-unknown-row-fails-timeout
+    description: |
+      C7 negative: no row's cells say "Cascade monitor"; the row
+      query is empty, the DOM handle finds nothing → timeout, exactly
+      as a never-rendered surface.
+    input:
+      target: { role: checkbox, inRow: "Cascade monitor" }
+    world:
+      preset: reactive-record-table
+    expected:
+      classification: failed
+      error-family: timeout
+    exercises:
+      - error-family: timeout
+      - rung: row-scoped

@@ -40,6 +40,7 @@ import { classifyIntent } from '../../../product/domain/resolution/patterns/inte
 import type { ClassifiedIntent } from '../../../product/domain/resolution/patterns/rung-kernel';
 import type { LoadedPublicAutCase } from './load-public-aut-cohort';
 import { stripHtml, inferAllowedActions } from './intent-helpers';
+import { capturePageFingerprint, type PageFingerprint } from './page-fingerprint';
 
 export type StepDomResolution =
   | 'matched'
@@ -640,8 +641,16 @@ export async function runPublicAutCase(
   const preconditionOutcomes: PublicAutStepOutcome[] = [];
   let preconditionsSucceeded = 0;
 
+  // Reality-study §6: the receipt records what page the case actually
+  // met — title, final URL, landmarks, roleless-interactive and
+  // placeholder-named-input counts, data-block density, runtime
+  // global — so a later `not-found` can be read as classifier gap
+  // or site drift without re-running. Captured once after load;
+  // `finalUrl` is re-read after the steps so navigation is visible.
+  let pageFingerprint: PageFingerprint | null = null;
   try {
     await page.goto(autUrl, { waitUntil: 'networkidle', timeout: 30_000 });
+    pageFingerprint = await capturePageFingerprint(page).catch(() => null);
 
     // Cycle 7 (Probe Seed 8 Phase B): execute preconditions before
     // the main step loop. Preconditions reuse the same classify +
@@ -693,6 +702,9 @@ export async function runPublicAutCase(
         unverifiedSteps += 1;
       }
     }
+    if (pageFingerprint !== null) {
+      pageFingerprint = { ...pageFingerprint, finalUrl: page.url() };
+    }
   } finally {
     await ctx.close();
   }
@@ -717,6 +729,7 @@ export async function runPublicAutCase(
     elapsedMs,
     runStartedAt,
     logRoot: options.logRoot,
+    pageFingerprint,
   });
 
   return {
@@ -761,6 +774,7 @@ interface WriteReceiptArgs {
   readonly elapsedMs: number;
   readonly runStartedAt: string;
   readonly logRoot: string;
+  readonly pageFingerprint: PageFingerprint | null;
 }
 
 function writeCaseReceipt(args: WriteReceiptArgs): string {
@@ -770,7 +784,8 @@ function writeCaseReceipt(args: WriteReceiptArgs): string {
   const file = `${args.snapshot.id}-${stamp}.json`;
   const fullPath = path.join(dir, file);
   const receipt = {
-    schemaVersion: 4,
+    // v5 (2026-09-16): adds `pageFingerprint` (reality-study §6).
+    schemaVersion: 5,
     substrateVersion: 'floor-a5-heuristic-naive-dom',
     aut: args.aut,
     autUrl: args.autUrl,
@@ -790,6 +805,7 @@ function writeCaseReceipt(args: WriteReceiptArgs): string {
     falsePositives: args.falsePositives,
     verifiedMatches: args.verifiedMatches,
     unverifiedSteps: args.unverifiedSteps,
+    pageFingerprint: args.pageFingerprint,
     stepOutcomes: args.stepOutcomes,
   };
   fs.writeFileSync(fullPath, JSON.stringify(receipt, null, 2));

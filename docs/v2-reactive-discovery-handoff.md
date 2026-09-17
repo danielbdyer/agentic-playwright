@@ -219,6 +219,24 @@ Each item names the anchor and the law that pins it.
   **one** on the fixture-based evaluation the clean room's C5 asks
   for, authored by a human from screenshots.
 
+## 4.1 Status (2026-09-17, PR #181 round two)
+
+N1–N10 landed on PR #181 with laws; the re-measurements and file
+anchors are in `docs/v2-substrate-reality-study.md §9.5`. Two
+observations from landing them:
+
+- §1.2 held on re-harvest: by handler ownership Productcatalog has
+  **zero** visible roleless controls (the "Filter" / "Back to
+  Overview" spans inherit their cursor), the directory six, request
+  management two. The C2 floor now resolves only owners.
+- §3.1's gap is now a number: the walker's hand-rolled accname
+  agrees with the browser on 21/26, 22/27 and 29/36 named
+  interactive nodes on the three re-harvested routes. Product
+  discovery still names in-page; moving it onto `ariaSnapshot()` is
+  the remaining half of N3.
+
+N11 is the operator's.
+
 ## 5. Observation protocol — how to look without contaminating
 
 1. Study routes only. The guard at
@@ -239,6 +257,9 @@ Each item names the anchor and the law that pins it.
    references. It is page source.
 6. Disclosed User-Agent; one URL per invocation; the TLS 1.2 launcher
    wrapper is a property of this sandbox's proxy, not of the harness.
+   Where the proxy fails Chromium subresource fetches
+   (`ERR_TOO_MANY_RETRIES`), `--relay-subresources` on the harvest
+   script fulfils them through Playwright's request context.
 7. Record counts, hashes, and block names — never text. The PII gate
    stays on. Reproduce with the fixture named at the top and
    `scripts/substrate-reality-stats.ts` (#181).

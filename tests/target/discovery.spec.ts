@@ -121,3 +121,63 @@ test('buildDiscoveryArtifacts emits deterministic selector and action scaffolds 
     policyNumberInput: expect.any(Object),
   });
 });
+
+test('a roleless clickable (reality-study F3) is reported as `generic` with an exact text locator, never a role locator', () => {
+  const input = {
+    screen: 'product-catalog',
+    url: 'https://example.test/Productcatalog',
+    title: 'Product catalog',
+    rootSelector: 'main',
+    rootSnapshot: ['role: main', 'name: Product catalog'].join('\n'),
+    surfaces: [
+      {
+        selector: 'main',
+        parentSelector: null,
+        role: 'main',
+        name: 'Product catalog',
+        testId: null,
+        idAttribute: null,
+        contract: null,
+        tagName: 'main',
+      },
+    ],
+    elements: [
+      {
+        selector: 'main > div:nth-of-type(2) > div',
+        surfaceSelector: 'main',
+        role: 'generic',
+        name: 'Filter',
+        testId: null,
+        idAttribute: 'b3-Column',
+        contract: null,
+        tagName: 'div',
+        inputType: null,
+        required: false,
+      },
+      {
+        selector: 'main > button',
+        surfaceSelector: 'main',
+        role: 'button',
+        name: 'Search',
+        testId: null,
+        idAttribute: null,
+        contract: null,
+        tagName: 'button',
+        inputType: null,
+        required: false,
+      },
+    ],
+  } as const;
+
+  const artifacts = buildDiscoveryArtifacts(input);
+  const filter = artifacts.report.elements.find((element) => element.name === 'Filter');
+  expect(filter).toEqual(expect.objectContaining({
+    role: 'generic',
+    locatorHint: 'text',
+    widgetSuggestion: 'os-button',
+    supportedActions: ['click'],
+    locatorCandidates: [{ kind: 'text', value: 'Filter', exact: true }],
+  }));
+  const search = artifacts.report.elements.find((element) => element.name === 'Search');
+  expect(search?.locatorCandidates[0]).toEqual({ kind: 'role', role: 'button', name: 'Search' });
+});

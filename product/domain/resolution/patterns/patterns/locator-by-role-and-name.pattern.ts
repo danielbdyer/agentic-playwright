@@ -3,7 +3,9 @@
  *
  * Applies to any intent whose target-shape carries both a role and
  * some name hint (exact or substring). Matcher ladder is the
- * generic role+name resolution: exact first, substring second.
+ * generic role+name resolution: landmark-scoped first (when the
+ * classifier hinted a landmark — reality-study C3), then exact,
+ * then substring.
  *
  * This pattern is the last broadly-applicable fallback in the
  * registry; more-specific patterns (form-submission, navigation-
@@ -18,6 +20,7 @@
 import type { Matcher, MatcherContext, Pattern } from '../rung-kernel';
 import { patternId } from '../rung-kernel';
 import { firstMatchWins } from '../orchestrators/first-match-wins';
+import { roleAndNameInLandmarkMatcher } from '../matchers/role-and-name-in-landmark';
 import { roleAndNameExactMatcher } from '../matchers/role-and-name-exact';
 import { roleAndNameSubstringMatcher } from '../matchers/role-and-name-substring';
 
@@ -27,6 +30,7 @@ function hasRoleAndName(ctx: MatcherContext): boolean {
 }
 
 const matchers: readonly Matcher[] = [
+  roleAndNameInLandmarkMatcher,
   roleAndNameExactMatcher,
   roleAndNameSubstringMatcher,
 ];

@@ -23,9 +23,17 @@
  */
 
 import type { Browser, Page } from '@playwright/test';
-import { snapshotRecord, type SnapshotNode, type SnapshotRecord } from '../domain/snapshot-record';
+import {
+  EMPTY_ACCESSIBILITY_SUMMARY,
+  EMPTY_BLOCK_OWNERSHIP,
+  snapshotRecord,
+  type SnapshotNode,
+  type SnapshotRecord,
+} from '../domain/snapshot-record';
 import type { HydrationVerdict } from '../domain/hydration-verdict';
 import { classifyVariant } from './variant-classifier';
+import { parseAriaSnapshot, summarizeAccessibility } from '../domain/aria-snapshot';
+import { observedBlocks, partitionBlocksByOwner } from '../domain/block-ownership';
 import { detectHydrationAndCapture, type FrameworkReadiness, type HydrationDetectorOptions } from './hydration-detector';
 import { assertHarvestAllowed, type StudyPartitionManifest } from './study-partition';
 import { SUBSTRATE_VERSION } from '../../substrate/version';
@@ -43,6 +51,17 @@ export interface ExternalSnapshotRequest {
   readonly hydration?: HydrationDetectorOptions;
   /** Skip the robots.txt check. Strongly discouraged (§6.3). */
   readonly ignoreRobots?: boolean;
+  /** Fulfil every subresource request (scripts, styles, XHR, fetch)
+   *  through Playwright's request context instead of Chromium's own
+   *  network stack. Some egress proxies (the remote-session agent
+   *  proxy, 2026-09-16) let the HTML document through but fail every
+   *  larger subresource with `net::ERR_TOO_MANY_RETRIES`, so the
+   *  Reactive runtime never mounts and the harvest captures the
+   *  pre-hydration shell. The request context uses a separate HTTP
+   *  stack that the same proxy serves correctly. Method, headers and
+   *  body are preserved (`request.fetch(Request)`); the DOM the page
+   *  builds is the same, only the transport differs. Off by default. */
+  readonly relaySubresources?: boolean;
   readonly now?: () => Date;
 }
 
@@ -186,12 +205,27 @@ export function redactPii(nodes: readonly SnapshotNode[]): {
 /** Reactive apps serve `<module>/moduleservices/moduleinfo` with a
  *  `manifest.versionToken`. Best-effort; null when unreachable. */
 export async function fetchHostVersionToken(page: Page, partition: StudyPartitionManifest): Promise<string | null> {
+  return (await fetchModuleManifest(page, partition))?.versionToken ?? null;
+}
+
+/** The slice of `moduleservices/moduleinfo` the harness reads:
+ *  the version token (drift key) and every bundle path the app can
+ *  load (block ownership, handoff §3.3). Best-effort; null when the
+ *  endpoint is unreachable or not a Reactive manifest. */
+export interface ModuleManifestSlice {
+  readonly versionToken: string;
+  readonly bundlePaths: readonly string[];
+}
+
+export async function fetchModuleManifest(page: Page, partition: StudyPartitionManifest): Promise<ModuleManifestSlice | null> {
   try {
     const endpoint = `${partition.baseUrl.replace(/\/+$/, '')}/${partition.moduleInfoEndpoint}`;
     const response = await page.request.get(endpoint, { timeout: 10_000 });
     if (!response.ok()) return null;
-    const json = (await response.json()) as { manifest?: { versionToken?: string } };
-    return json.manifest?.versionToken ?? null;
+    const json = (await response.json()) as { manifest?: { versionToken?: string; urlVersions?: Record<string, string> } };
+    const versionToken = json.manifest?.versionToken;
+    if (versionToken === undefined) return null;
+    return { versionToken, bundlePaths: Object.keys(json.manifest?.urlVersions ?? {}) };
   } catch {
     return null;
   }
@@ -227,13 +261,29 @@ export async function captureExternalSnapshot(
   const userAgent = request.userAgent ?? HARVEST_USER_AGENT;
   const context = await browser.newContext({ viewport, userAgent, ignoreHTTPSErrors: true });
   const page = await context.newPage();
+  if (request.relaySubresources === true) {
+    await page.route('**/*', async (route) => {
+      const req = route.request();
+      if (req.isNavigationRequest() && req.frame() === page.mainFrame()) {
+        await route.continue();
+        return;
+      }
+      try {
+        const relayed = await context.request.fetch(req, { timeout: 60_000, maxRedirects: 5 });
+        await route.fulfill({ response: relayed });
+      } catch {
+        await route.abort();
+      }
+    });
+  }
   const started = now();
   try {
     const robots: RobotsVerdict = request.ignoreRobots
       ? { kind: 'skipped' }
       : await checkRobots(page, request.url, 'tesseract-substrate-study');
 
-    const hostVersionToken = await fetchHostVersionToken(page, request.partition);
+    const manifest = await fetchModuleManifest(page, request.partition);
+    const hostVersionToken = manifest?.versionToken ?? null;
     const substrateVersion = hostVersionToken ?? SUBSTRATE_VERSION;
 
     if (robots.kind === 'disallowed') {
@@ -256,6 +306,8 @@ export async function captureExternalSnapshot(
           nodes: [],
           framework: emptyFramework(),
           variantClassifier: { kind: 'not-reactive', evidence: ['page not fetched: robots-disallowed'] },
+          accessibility: EMPTY_ACCESSIBILITY_SUMMARY,
+          blockOwnership: EMPTY_BLOCK_OWNERSHIP,
         }),
         readiness: null,
         httpStatus: null,
@@ -271,6 +323,16 @@ export async function captureExternalSnapshot(
     const variantClassifier = walk
       ? classifyVariant(walk.variantSignals)
       : { kind: 'not-reactive' as const, evidence: ['no DOM walk retained'] };
+    // Handoff §3.1 (N3): the browser's accessibility tree is the
+    // ground truth for role + name. Captured after the walk, folded
+    // to counts, compared to the walker's names, then dropped.
+    const accessibility = walk
+      ? summarizeAccessibility(parseAriaSnapshot(await page.locator('body').ariaSnapshot().catch(() => '')), walk.nodes)
+      : EMPTY_ACCESSIBILITY_SUMMARY;
+    // Handoff §3.3 (N5): data-block ownership from the app's manifest.
+    const blockOwnership = walk
+      ? partitionBlocksByOwner(manifest?.bundlePaths ?? [], observedBlocks(walk.nodes))
+      : EMPTY_BLOCK_OWNERSHIP;
     const hydration: HydrationVerdict =
       redactions.length > 0
         ? {
@@ -291,6 +353,8 @@ export async function captureExternalSnapshot(
       nodes,
       framework: walk ? walk.frameworkCounts : emptyFramework(),
       variantClassifier,
+      accessibility,
+      blockOwnership,
     });
     return {
       record,
@@ -308,6 +372,7 @@ export async function captureExternalSnapshot(
 function emptyFramework(): SnapshotRecord['payload']['framework'] {
   return {
     reactDetected: false,
+    reactMarkerNodeCount: 0,
     angularDetected: false,
     vueDetected: false,
     webComponentCount: 0,

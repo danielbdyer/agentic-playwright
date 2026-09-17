@@ -9,15 +9,17 @@
  *
  * Algorithm (mirrors the real interact verb's precondition
  * ordering):
- *   1. Shape check: input.action + input.target.role.
- *   2. Find the surface in world.surfaces matching (role, name).
- *      If absent, failed/unclassified.
+ *   1. Shape check: input.action + a parseable input.target
+ *      (role / placeholder / text — see probe-target.ts).
+ *   2. Find the surface in world.surfaces satisfying the target
+ *      under the substrate's accname semantics. If absent,
+ *      failed/unclassified.
  *   3. detachAfterMs present → timeout (element vanishes before
  *      click/fill can act on it).
  *   4. visibility not 'visible' → not-visible.
  *   5. enabled === false → not-enabled.
- *   6. action=input + surface.role=textbox + inputBacking=div-with-role
- *      → assertion-like (fill on non-input surfaces).
+ *   6. action=input + a fill-rejecting surface (textbox backed by
+ *      div-with-role, or a roleless generic) → assertion-like.
  *   7. Otherwise, matched.
  *
  * Manifest error families:
@@ -29,50 +31,16 @@ import { Effect } from 'effect';
 import type { VerbClassifier } from '../verb-classifier';
 import type { Probe } from '../probe-ir';
 import type { ProbeOutcome } from '../probe-receipt';
-import type { SurfaceSpec } from '../../substrate/surface-spec';
 import {
   SURFACE_SPEC_DEFAULTS,
   isSurfaceFillRejecting,
   isSurfaceHidden,
 } from '../../substrate/surface-spec';
 import { resolveProbeSurfaces } from '../world-resolution';
+import { findSurfaceForTarget, parseProbeTarget, resolveRowScope } from '../probe-target';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function extractTarget(input: unknown): { role: string; name?: string } | null {
-  if (!isRecord(input)) return null;
-  const target = input['target'];
-  if (!isRecord(target)) return null;
-  if (typeof target['role'] !== 'string') return null;
-  const out: { role: string; name?: string } = { role: target['role'] };
-  if (typeof target['name'] === 'string') out.name = target['name'];
-  return out;
-}
-
-function extractSurfaces(world: unknown): readonly SurfaceSpec[] {
-  // Delegate to the shared resolver — handles both explicit
-  // surfaces lists and preset-based worlds.
-  return resolveProbeSurfaces(world);
-}
-
-function findMatchingSurface(
-  surfaces: readonly SurfaceSpec[],
-  target: { role: string; name?: string },
-): SurfaceSpec | null {
-  // Recursive search — composed surfaces nest children via the
-  // SurfaceSpec.children axis; the target may live at any depth.
-  for (const s of surfaces) {
-    if (s.role === target.role && (target.name === undefined || s.name === target.name)) {
-      return s;
-    }
-    if (s.children !== undefined) {
-      const found = findMatchingSurface(s.children, target);
-      if (found !== null) return found;
-    }
-  }
-  return null;
 }
 
 function classifyInteract(probe: Probe): Effect.Effect<ProbeOutcome['observed'], Error, never> {
@@ -80,12 +48,18 @@ function classifyInteract(probe: Probe): Effect.Effect<ProbeOutcome['observed'],
     return Effect.succeed({ classification: 'failed', errorFamily: 'unclassified' });
   }
   const action = typeof probe.input['action'] === 'string' ? probe.input['action'] : null;
-  const target = extractTarget(probe.input);
+  const target = parseProbeTarget(probe.input);
   if (action === null || target === null) {
     return Effect.succeed({ classification: 'failed', errorFamily: 'unclassified' });
   }
-  const surfaces = extractSurfaces(probe.worldSetup);
-  const surface = findMatchingSurface(surfaces, target);
+  const surfaces = resolveProbeSurfaces(probe.worldSetup);
+  // Row scoping (C7): when no row carries the cell text, the verb's
+  // row query is empty and the action times out — a real world
+  // state rung 3 reports as timeout, not a fixture inconsistency.
+  if (target.kind === 'role' && target.inRow !== undefined && resolveRowScope(surfaces, target.inRow) === null) {
+    return Effect.succeed({ classification: 'failed', errorFamily: 'timeout' });
+  }
+  const surface = findSurfaceForTarget(surfaces, target);
   if (surface === null) {
     return Effect.succeed({ classification: 'failed', errorFamily: 'unclassified' });
   }

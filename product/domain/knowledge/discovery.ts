@@ -256,9 +256,14 @@ function supportedActionsForRole(role: string, widget: string): ('click' | 'inpu
   return ['assert-snapshot'];
 }
 
-function selectLocatorHint(testId: string | null, name: string | null): DiscoveryElementReport['locatorHint'] {
+/** ARIA's implicit role for div/span — what discovery assigns to an
+ *  interactive element that carries no role (reality-study F3). A
+ *  role query cannot reach it; its locator is its visible text. */
+const ROLELESS_ROLE = 'generic';
+
+function selectLocatorHint(testId: string | null, name: string | null, role: string): DiscoveryElementReport['locatorHint'] {
   if (name) {
-    return 'role';
+    return role === ROLELESS_ROLE ? 'text' : 'role';
   }
   if (testId) {
     return 'test-id';
@@ -272,8 +277,15 @@ function locatorCandidatesForElement(input: {
   name: string | null;
   testId: string | null;
 }): DiscoveryElementReport['locatorCandidates'] {
+  // A roleless element gets no role candidate — `getByRole('generic',
+  // { name })` matches nothing (verified 2026-09-16). Its visible
+  // text is the primary strategy, exact so a "Filter" toggle does
+  // not also match a "Filters applied" caption.
+  const primary = input.role === ROLELESS_ROLE
+    ? (input.name ? [{ kind: 'text' as const, value: input.name, exact: true }] : [])
+    : [{ kind: 'role' as const, role: input.role, name: input.name }];
   return [
-    { kind: 'role' as const, role: input.role, name: input.name },
+    ...primary,
     ...(input.testId ? [{ kind: 'test-id' as const, value: input.testId }] : []),
     ...(!input.testId && !input.name ? [{ kind: 'css' as const, value: input.selector }] : []),
   ];
@@ -429,7 +441,7 @@ export function buildDiscoveryArtifacts(input: DiscoveryInput): DiscoveryArtifac
       const surfaceId = element.surfaceSelector
         ? (surfaceIdsBySelector.get(element.surfaceSelector) ?? rootSurfaceId)
         : rootSurfaceId;
-      const locatorHint = selectLocatorHint(element.testId, element.name);
+      const locatorHint = selectLocatorHint(element.testId, element.name, role);
       const locatorCandidates = locatorCandidatesForElement({
         selector: element.selector,
         role,

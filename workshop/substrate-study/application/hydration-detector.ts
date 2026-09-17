@@ -51,11 +51,16 @@ export interface HydrationDetectorOptions {
 }
 
 export const DEFAULT_HYDRATION_OPTIONS: Required<HydrationDetectorOptions> = {
-  navigationTimeoutMs: 15_000,
+  // Handoff N9: Phase A dominated at 4.6–9.2 s through a proxy on
+  // every study route; 15 s left no headroom. 20 s.
+  navigationTimeoutMs: 20_000,
   hydrationTimeoutMs: 20_000,
   mutationQuietPolls: 3,
   mutationPollIntervalMs: 200,
-  warmUpMs: 500,
+  // Handoff N9: poll immediately; the quiet-poll count (3) is the
+  // settle criterion, not a fixed sleep. All seven study routes
+  // settled with 0 post-networkidle mutations on the first attempt.
+  warmUpMs: 0,
   signatureSettleDelayMs: 400,
   phaseBRetryCap: 3,
   validationDelayMs: 500,

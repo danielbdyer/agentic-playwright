@@ -77,7 +77,7 @@ describe('closedUnion factory', () => {
     // values-array shapes via the factory. This catches drift
     // if a future PR removes a value without updating the
     // companion fold.
-    expect(SURFACE_ROLE_VALUES.length).toBe(28);
+    expect(SURFACE_ROLE_VALUES.length).toBe(33);
     expect(SURFACE_VISIBILITY_VALUES.length).toBe(5);
     expect(PARITY_DIVERGENCE_AXIS_VALUES.length).toBe(2);
     expect(WORKFLOW_STAGE_VALUES.length).toBe(6);

@@ -16,6 +16,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
+import { EMPTY_ACCESSIBILITY_SUMMARY, EMPTY_BLOCK_OWNERSHIP } from '../../workshop/substrate-study/domain/snapshot-record';
 import { Effect } from 'effect';
 import {
   mkdtempSync,
@@ -63,6 +64,7 @@ function stubRecord(overrides: {
     nodes: [stubNode()],
     framework: {
       reactDetected: false,
+      reactMarkerNodeCount: 0,
       angularDetected: false,
       vueDetected: false,
       webComponentCount: 0,
@@ -70,6 +72,8 @@ function stubRecord(overrides: {
       iframeCount: 0,
     },
     variantClassifier: { kind: 'not-os', evidence: ['stub'] },
+    accessibility: EMPTY_ACCESSIBILITY_SUMMARY,
+    blockOwnership: EMPTY_BLOCK_OWNERSHIP,
   });
 }
 
