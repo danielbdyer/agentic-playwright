@@ -43,6 +43,17 @@ export interface ExternalSnapshotRequest {
   readonly hydration?: HydrationDetectorOptions;
   /** Skip the robots.txt check. Strongly discouraged (§6.3). */
   readonly ignoreRobots?: boolean;
+  /** Fulfil every subresource request (scripts, styles, XHR, fetch)
+   *  through Playwright's request context instead of Chromium's own
+   *  network stack. Some egress proxies (the remote-session agent
+   *  proxy, 2026-09-16) let the HTML document through but fail every
+   *  larger subresource with `net::ERR_TOO_MANY_RETRIES`, so the
+   *  Reactive runtime never mounts and the harvest captures the
+   *  pre-hydration shell. The request context uses a separate HTTP
+   *  stack that the same proxy serves correctly. Method, headers and
+   *  body are preserved (`request.fetch(Request)`); the DOM the page
+   *  builds is the same, only the transport differs. Off by default. */
+  readonly relaySubresources?: boolean;
   readonly now?: () => Date;
 }
 
@@ -227,6 +238,21 @@ export async function captureExternalSnapshot(
   const userAgent = request.userAgent ?? HARVEST_USER_AGENT;
   const context = await browser.newContext({ viewport, userAgent, ignoreHTTPSErrors: true });
   const page = await context.newPage();
+  if (request.relaySubresources === true) {
+    await page.route('**/*', async (route) => {
+      const req = route.request();
+      if (req.isNavigationRequest() && req.frame() === page.mainFrame()) {
+        await route.continue();
+        return;
+      }
+      try {
+        const relayed = await context.request.fetch(req, { timeout: 60_000, maxRedirects: 5 });
+        await route.fulfill({ response: relayed });
+      } catch {
+        await route.abort();
+      }
+    });
+  }
   const started = now();
   try {
     const robots: RobotsVerdict = request.ignoreRobots

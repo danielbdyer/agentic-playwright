@@ -14,7 +14,8 @@
  * runtime mutation is not supported.
  *
  * Production default seeds with `formSubmissionPattern` (Z11a.4a);
- * Z11a.4c adds five more seed patterns to the default list.
+ * Z11a.4c adds five more seed patterns to the default list; the
+ * 2026-09-16 reality study adds the content-named-interactive floor.
  */
 
 import type { Pattern } from './rung-kernel';
@@ -24,6 +25,7 @@ import { formSubmissionPattern } from './patterns/form-submission.pattern';
 import { locatorByRoleAndNamePattern } from './patterns/locator-by-role-and-name.pattern';
 import { navigationLinkByNamePattern } from './patterns/navigation-link-by-name.pattern';
 import { observationByAssertionPhrasePattern } from './patterns/observation-by-assertion-phrase.pattern';
+import { contentNamedInteractivePattern } from './patterns/content-named-interactive.pattern';
 
 export interface PatternRegistry {
   readonly patterns: readonly Pattern[];
@@ -44,4 +46,5 @@ export const DEFAULT_PATTERN_REGISTRY: PatternRegistry = createPatternRegistry([
   fieldInputByLabelPattern,            // input verb; includes form-single-textbox fallback
   observationByAssertionPhrasePattern, // observe verb; includes status/alert inference
   locatorByRoleAndNamePattern,         // generic: any role+name intent
+  contentNamedInteractivePattern,      // floor: click by visible text, roleless included (reality-study C2)
 ]);

@@ -5,9 +5,20 @@
  *
  *   role           → semantic element (<button>, <input>, <div
  *                    role="...">), wrapped in the right ARIA
- *                    conventions.
+ *                    conventions. `generic` renders a bare <div>
+ *                    with NO role attribute (reality-study F3).
  *   name           → accessible-name mechanism appropriate to the
- *                    element (textContent / aria-label).
+ *                    element (textContent / aria-label / <label>).
+ *   naming         → for form controls, WHICH mechanism realizes
+ *                    the name: aria-label (default), a sibling
+ *                    <label for=id>, a wrapping <label>, or none
+ *                    (reality-study F2: real Reactive forms name by
+ *                    <label for>; real search boxes by placeholder
+ *                    alone).
+ *   placeholder    → `placeholder` attribute on form controls, plus
+ *                    `data-surface-placeholder` for the DOM handle.
+ *   clickable      → on `generic`: cursor:pointer + click handler —
+ *                    the roleless click affordance.
  *   visibility     → style/class carrying the CSS mechanism:
  *                      display-none      → { display: 'none' }
  *                      visibility-hidden → { visibility: 'hidden' }
@@ -33,6 +44,8 @@
 import { useEffect, useState, type CSSProperties, type FC, type ReactNode } from 'react';
 import {
   SURFACE_SPEC_DEFAULTS,
+  foldFormControlNaming,
+  type FormControlNaming,
   type SurfaceSpec,
   type SurfaceVisibility,
 } from '../../substrate/surface-spec';
@@ -41,6 +54,14 @@ import { FormRenderer } from './FormRenderer';
 export interface SurfaceRendererProps {
   readonly spec: SurfaceSpec;
 }
+
+/** Content for a value-less div-backed textbox. A non-breaking space
+ *  (U+00A0) — a plain space collapses and the div renders with zero
+ *  height, which Playwright reports as not visible; the NBSP keeps
+ *  a line box so the visibility axis stays independent of the
+ *  input-backing axis. Spelled as an escape so the invariant is
+ *  legible in source rather than hidden in an invisible glyph. */
+const EMPTY_CONTENT = '\u00A0';
 
 /** Apply the visibility axis as inline style. Return undefined when
  *  the axis is 'visible' so the DOM element receives no style prop. */
@@ -68,6 +89,59 @@ function renderChildren(children: readonly SurfaceSpec[] | undefined): ReactNode
   ));
 }
 
+/** Deterministic element id for label-for naming. Derived from the
+ *  surfaceId when present, otherwise from the name — the same spec
+ *  always yields the same id (reproducibility law). */
+function controlIdFor(spec: SurfaceSpec): string {
+  const seed = spec.surfaceId ?? spec.name ?? spec.placeholder ?? spec.role;
+  return `ctl-${seed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+}
+
+/** The attributes the naming axis puts ON the control itself. The
+ *  label element (for label-for / label-wrap) is added by
+ *  `withLabel` around it. */
+function controlNamingAttrs(
+  spec: SurfaceSpec,
+  naming: FormControlNaming,
+): Record<string, string> {
+  const placeholderAttrs: Record<string, string> =
+    spec.placeholder !== undefined
+      ? { placeholder: spec.placeholder, 'data-surface-placeholder': spec.placeholder }
+      : {};
+  return foldFormControlNaming<Record<string, string>>(naming, {
+    ariaLabel: () => ({
+      ...(spec.name !== undefined ? { 'aria-label': spec.name } : {}),
+      ...placeholderAttrs,
+    }),
+    labelFor: () => ({ id: controlIdFor(spec), ...placeholderAttrs }),
+    labelWrap: () => placeholderAttrs,
+    none: () => placeholderAttrs,
+  });
+}
+
+/** Wrap a rendered control in the label element its naming axis
+ *  calls for. aria-label / none: the control alone. */
+function withLabel(spec: SurfaceSpec, naming: FormControlNaming, control: ReactNode): ReactNode {
+  return foldFormControlNaming<ReactNode>(naming, {
+    ariaLabel: () => control,
+    none: () => control,
+    labelFor: () => (
+      <>
+        <label htmlFor={controlIdFor(spec)} data-surface-label-for={controlIdFor(spec)}>
+          {spec.name ?? ''}
+        </label>
+        {control}
+      </>
+    ),
+    labelWrap: () => (
+      <label data-surface-label-wrap="">
+        {spec.name ?? ''}
+        {control}
+      </label>
+    ),
+  });
+}
+
 export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
   const detachAfterMs = spec.detachAfterMs;
   const [detached, setDetached] = useState(false);
@@ -83,6 +157,8 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
   const visibility = spec.visibility ?? SURFACE_SPEC_DEFAULTS.visibility;
   const enabled = spec.enabled ?? SURFACE_SPEC_DEFAULTS.enabled;
   const inputBacking = spec.inputBacking ?? SURFACE_SPEC_DEFAULTS.inputBacking;
+  const naming = spec.naming ?? SURFACE_SPEC_DEFAULTS.naming;
+  const clickable = spec.clickable ?? SURFACE_SPEC_DEFAULTS.clickable;
   const style = styleForVisibility(visibility);
   const surfaceIdAttr = spec.surfaceId !== undefined ? { 'data-surface-id': spec.surfaceId } : {};
   const surfaceRoleAttr = { 'data-surface-role': spec.role };
@@ -116,36 +192,68 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
     );
   }
 
+  // Roleless surfaces (reality-study F3). A bare <div> with no role
+  // attribute; its only handle is its visible text. `clickable`
+  // adds the affordance real Reactive gives filter toggles and
+  // expandable headers: cursor:pointer + a click handler. Playwright
+  // reports isEnabled() true for any div, so the `enabled` axis is
+  // not realizable here and is deliberately not read.
+  if (spec.role === 'generic') {
+    const clickStyle: CSSProperties | undefined = clickable
+      ? { ...(style ?? {}), cursor: 'pointer' }
+      : style;
+    const affordanceAttr = clickable ? { 'data-surface-affordance': 'click' } : {};
+    return (
+      <div
+        {...commonRoleAttrs}
+        {...(clickStyle !== undefined ? { style: clickStyle } : {})}
+        {...affordanceAttr}
+        {...(clickable ? { onClick: (e: { preventDefault: () => void }) => e.preventDefault() } : {})}
+      >
+        {spec.name ?? ''}
+        {children}
+      </div>
+    );
+  }
+
   // Textbox surfaces (four backing realizations).
   if (spec.role === 'textbox') {
-    const nameAttr = spec.name !== undefined ? { 'aria-label': spec.name } : {};
+    const nameAttr = controlNamingAttrs(spec, naming);
     const valueAttr = spec.initialValue !== undefined ? { defaultValue: spec.initialValue } : {};
     switch (inputBacking) {
       case 'native-input':
-        return (
+        return withLabel(
+          spec,
+          naming,
           <input
             type="text"
             disabled={!enabled}
             {...nameAttr}
             {...valueAttr}
             {...commonRoleAttrs}
-          />
+          />,
         );
       case 'native-textarea':
-        return (
-          <textarea disabled={!enabled} {...nameAttr} {...valueAttr} {...commonRoleAttrs} />
+        return withLabel(
+          spec,
+          naming,
+          <textarea disabled={!enabled} {...nameAttr} {...valueAttr} {...commonRoleAttrs} />,
         );
       case 'div-with-role':
-        return (
+        return withLabel(
+          spec,
+          naming,
           <div role="textbox" {...nameAttr} {...commonRoleAttrs}>
-            {spec.initialValue ?? ' '}
-          </div>
+            {spec.initialValue ?? EMPTY_CONTENT}
+          </div>,
         );
       case 'contenteditable':
-        return (
+        return withLabel(
+          spec,
+          naming,
           <div contentEditable {...nameAttr} {...commonRoleAttrs}>
-            {spec.initialValue ?? ' '}
-          </div>
+            {spec.initialValue ?? EMPTY_CONTENT}
+          </div>,
         );
     }
   }
@@ -162,27 +270,45 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
 
   // Checkbox surfaces.
   if (spec.role === 'checkbox') {
-    const nameAttr = spec.name !== undefined ? { 'aria-label': spec.name } : {};
-    return (
-      <input type="checkbox" disabled={!enabled} {...nameAttr} {...commonRoleAttrs} />
+    const nameAttr = controlNamingAttrs(spec, naming);
+    return withLabel(
+      spec,
+      naming,
+      <input type="checkbox" disabled={!enabled} {...nameAttr} {...commonRoleAttrs} />,
     );
   }
 
   // Radio surfaces.
   if (spec.role === 'radio') {
-    const nameAttr = spec.name !== undefined ? { 'aria-label': spec.name } : {};
-    return (
-      <input type="radio" disabled={!enabled} {...nameAttr} {...commonRoleAttrs} />
+    const nameAttr = controlNamingAttrs(spec, naming);
+    return withLabel(
+      spec,
+      naming,
+      <input type="radio" disabled={!enabled} {...nameAttr} {...commonRoleAttrs} />,
     );
   }
 
   // Combobox (a <select> element).
   if (spec.role === 'combobox') {
-    const nameAttr = spec.name !== undefined ? { 'aria-label': spec.name } : {};
-    return (
+    const nameAttr = controlNamingAttrs(spec, naming);
+    return withLabel(
+      spec,
+      naming,
       <select disabled={!enabled} {...nameAttr} {...commonRoleAttrs}>
         <option value="">{spec.initialValue ?? ''}</option>
-      </select>
+      </select>,
+    );
+  }
+
+  // Searchbox — a native <input type="search">, the element real
+  // Reactive search fields are (placeholder-named, no label).
+  if (spec.role === 'searchbox') {
+    const nameAttr = controlNamingAttrs(spec, naming);
+    const valueAttr = spec.initialValue !== undefined ? { defaultValue: spec.initialValue } : {};
+    return withLabel(
+      spec,
+      naming,
+      <input type="search" disabled={!enabled} {...nameAttr} {...valueAttr} {...commonRoleAttrs} />,
     );
   }
 
@@ -213,8 +339,7 @@ export const SurfaceRenderer: FC<SurfaceRendererProps> = ({ spec }) => {
   // the declared role + optional accessible name + recursive children.
   // Covers: region, alert, status, navigation, main, banner,
   // complementary, contentinfo, search, grid, gridcell, row,
-  // rowheader, list, listitem, radiogroup, tablist, tab, tabpanel,
-  // searchbox.
+  // rowheader, list, listitem, radiogroup, tablist, tab, tabpanel.
   const nameAttr = spec.name !== undefined ? { 'aria-label': spec.name } : {};
   return (
     <div role={spec.role} {...nameAttr} {...commonRoleAttrs}>

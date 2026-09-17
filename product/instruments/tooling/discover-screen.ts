@@ -262,17 +262,45 @@ export function discoverScreenScaffold(options: {
           parentSelectorByElement.set(element, parentSelector);
         }
 
+        // Reality-study F3: a quarter of real OutSystems Reactive
+        // controls are `div`/`span` with a click affordance and no
+        // role at all (filter toggles, "Back to Overview", pagination,
+        // expandable headers). A roleless element is admitted as an
+        // element when it is visible, carries a click affordance
+        // (cursor:pointer, an onclick handler, or a non-negative
+        // tabindex), has short visible text of its own, and contains
+        // no role-bearing control (so wrappers around real buttons
+        // are not double-counted). It is reported with ARIA's
+        // implicit role `generic`; discovery emits a text locator.
+        const ROLELESS_TEXT_MAX = 60;
+        function isRolelessClickable(element: Element): boolean {
+          const html = element as HTMLElement;
+          const tagName = html.tagName.toLowerCase();
+          if (tagName === 'script' || tagName === 'style' || tagName === 'svg' || tagName === 'path') return false;
+          const style = window.getComputedStyle(html);
+          const tabindex = html.getAttribute('tabindex');
+          const affordance = style.cursor === 'pointer' || html.hasAttribute('onclick') || (tabindex !== null && Number.parseInt(tabindex, 10) >= 0);
+          if (!affordance) return false;
+          const text = normalizeText(html.innerText || html.textContent);
+          if (!text || text.length > ROLELESS_TEXT_MAX) return false;
+          const nested = html.querySelector('[role], a[href], button, input, select, textarea');
+          return nested === null;
+        }
+
         const elements: RawDiscoveredElement[] = [];
         for (const element of candidates) {
           if (!hasVisibleBox(element)) {
             continue;
           }
-          const role = normalizeText((element as HTMLElement).getAttribute('role')) ?? inferImplicitRole(element);
+          const explicitOrImplicitRole = normalizeText((element as HTMLElement).getAttribute('role')) ?? inferImplicitRole(element);
           const tagName = element.tagName.toLowerCase();
           const inputType = tagName === 'input' ? normalizeText((element as HTMLInputElement).type) : null;
-          if (!elementRoles.has(role ?? '') && tagName !== 'input' && tagName !== 'textarea' && tagName !== 'select' && tagName !== 'button') {
+          const isRoleQualified = elementRoles.has(explicitOrImplicitRole ?? '') || tagName === 'input' || tagName === 'textarea' || tagName === 'select' || tagName === 'button';
+          const rolelessClickable = !isRoleQualified && explicitOrImplicitRole === null && isRolelessClickable(element);
+          if (!isRoleQualified && !rolelessClickable) {
             continue;
           }
+          const role = rolelessClickable ? 'generic' : explicitOrImplicitRole;
           let current = element.parentElement;
           let surfaceSelector: string | null = null;
           while (current && current !== root.parentElement) {

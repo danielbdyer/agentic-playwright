@@ -3,9 +3,22 @@
  *
  * SurfaceSpec describes a DOM surface by the axes a classifier
  * actually probes:
- * role, accessible name, visibility, enabled state, input backing,
- * detach timing. A probe's WorldShape is an ordered list of
- * SurfaceSpecs — each one a point in axis-space.
+ * role, accessible name, naming mechanism, placeholder, click
+ * affordance, visibility, enabled state, input backing, detach
+ * timing. A probe's WorldShape is an ordered list of SurfaceSpecs
+ * — each one a point in axis-space.
+ *
+ * ## Reality-study axes (2026-09-16)
+ *
+ * `docs/v2-substrate-reality-study.md §4` named four shapes real
+ * OutSystems Reactive DOM exhibits that the substrate could not
+ * pose: content/placeholder naming instead of explicit accessible
+ * names (F2), interactive elements with no ARIA role at all (F3),
+ * `<label for>`-named form controls (F2), and `data-block`
+ * wrapper chrome (F5/F6 — see EntropyProfile.chromeVocabulary).
+ * The `naming`, `placeholder`, `clickable` axes and the `generic`
+ * role are the substrate's way of exhibiting them so the ladder's
+ * blindness to them becomes measurable.
  *
  * ## Axis discipline
  *
@@ -37,7 +50,16 @@ import { closedUnion } from '../../product/domain/algebra/closed-union';
  *  exercises plus the five ARIA landmark roles (banner,
  *  complementary, contentinfo, main, plus the existing navigation +
  *  region + search + form) — landmarks are first-class for observe
- *  probes that verify landmark-aware queries. */
+ *  probes that verify landmark-aware queries.
+ *
+ *  `generic` is ARIA's name for a roleless container (the implicit
+ *  role of `<div>` / `<span>`). It renders as a bare `<div>` with NO
+ *  `role` attribute; Playwright's role query cannot address it by
+ *  name (verified: `getByRole('generic', { name })` returns 0). It
+ *  exists so the substrate can pose reality-study F3 — a quarter of
+ *  real Reactive controls are roleless `div`s with a click
+ *  affordance — and so the ladder's text-only fallback can be
+ *  measured against it. */
 export type SurfaceRole =
   | 'alert'
   | 'banner'
@@ -47,6 +69,7 @@ export type SurfaceRole =
   | 'complementary'
   | 'contentinfo'
   | 'form'
+  | 'generic'
   | 'grid'
   | 'gridcell'
   | 'heading'
@@ -85,6 +108,7 @@ const SURFACE_ROLE_UNION = closedUnion<SurfaceRole>([
   'complementary',
   'contentinfo',
   'form',
+  'generic',
   'grid',
   'gridcell',
   'heading',
@@ -164,14 +188,93 @@ export type InputBacking =
   | 'div-with-role'       // <div role="textbox"> — fill() fails
   | 'contenteditable';    // <div contenteditable="true"> — fill() works
 
+/** How a form control's accessible name is realized in DOM. Real
+ *  Reactive forms name inputs by `<label for>` (Productform, 6/7
+ *  inputs) and search boxes by `placeholder` alone (5/7 routes);
+ *  `aria-label` — the substrate's historical default — was 14% of
+ *  the corpus. Each value is one DOM mechanism:
+ *
+ *    'aria-label'  → `aria-label="<name>"` on the control (default).
+ *    'label-for'   → sibling `<label for=id>` + `id` on the control.
+ *    'label-wrap'  → the control nested inside `<label>`.
+ *    'none'        → no explicit name; the accessible name falls to
+ *                    the `placeholder` axis (accname step 2D — the
+ *                    browser and Playwright both apply it), or to
+ *                    nothing when no placeholder is declared.
+ *
+ *  Ignored for roles that are not form controls (button/link name by
+ *  content; containers by aria-label). */
+export type FormControlNaming = 'aria-label' | 'label-for' | 'label-wrap' | 'none';
+
+const FORM_CONTROL_NAMING_UNION = closedUnion<FormControlNaming>([
+  'aria-label',
+  'label-for',
+  'label-wrap',
+  'none',
+]);
+
+export const FORM_CONTROL_NAMING_VALUES = FORM_CONTROL_NAMING_UNION.values;
+
+/** Exhaustive fold over FormControlNaming. */
+export function foldFormControlNaming<R>(
+  naming: FormControlNaming,
+  cases: {
+    readonly ariaLabel: () => R;
+    readonly labelFor: () => R;
+    readonly labelWrap: () => R;
+    readonly none: () => R;
+  },
+): R {
+  switch (naming) {
+    case 'aria-label':
+      return cases.ariaLabel();
+    case 'label-for':
+      return cases.labelFor();
+    case 'label-wrap':
+      return cases.labelWrap();
+    case 'none':
+      return cases.none();
+  }
+}
+
+/** Roles whose `naming` + `placeholder` axes apply — the surfaces
+ *  the renderer realizes as native form controls. */
+const FORM_CONTROL_ROLES: ReadonlySet<SurfaceRole> = new Set<SurfaceRole>([
+  'textbox',
+  'searchbox',
+  'combobox',
+  'checkbox',
+  'radio',
+]);
+
+export function isFormControlRole(role: SurfaceRole): boolean {
+  return FORM_CONTROL_ROLES.has(role);
+}
+
 /** One point in axis-space. Every surface the substrate renders is
  *  described by one of these. */
 export interface SurfaceSpec {
   /** ARIA role. Required. */
   readonly role: SurfaceRole;
   /** Accessible name. Optional — omitted means the surface has no
-   *  explicit name (role-only query finds it generically). */
+   *  explicit name (role-only query finds it generically). For the
+   *  `generic` role this is the element's visible text — the only
+   *  handle a roleless surface offers. */
   readonly name?: string;
+  /** Naming-mechanism axis for form-control roles. Default:
+   *  'aria-label'. See `FormControlNaming`. */
+  readonly naming?: FormControlNaming;
+  /** Placeholder axis for form-control roles. Renders the
+   *  `placeholder` attribute. When `naming` is 'none' (or `name` is
+   *  absent) this becomes the accessible name — the reality-study's
+   *  placeholder-only search inputs. */
+  readonly placeholder?: string;
+  /** Click-affordance axis for the `generic` role: renders
+   *  `cursor: pointer` + a click handler on a roleless `<div>`, the
+   *  shape real Reactive uses for filter toggles, back links and
+   *  expandable headers. Default: false. Ignored for other roles
+   *  (native controls carry their own affordance). */
+  readonly clickable?: boolean;
   /** Visibility axis. Default: 'visible'. */
   readonly visibility?: SurfaceVisibility;
   /** Enabled state axis. Default: true. */
@@ -241,12 +344,47 @@ export interface SurfaceSpec {
  *  SurfaceSpec field is unspecified. Exported so classifiers and
  *  tests can refer to the same defaults. */
 export const SURFACE_SPEC_DEFAULTS: Required<
-  Pick<SurfaceSpec, 'visibility' | 'enabled' | 'inputBacking'>
+  Pick<SurfaceSpec, 'visibility' | 'enabled' | 'inputBacking' | 'naming' | 'clickable'>
 > = {
   visibility: 'visible',
   enabled: true,
   inputBacking: 'native-input',
+  naming: 'aria-label',
+  clickable: false,
 };
+
+/** The accessible name Playwright's role query would compute for
+ *  the surface, given its naming axes. This is the substrate's
+ *  statement of accname semantics, and rung-2 classifiers predict
+ *  rung-3 through it:
+ *
+ *    - form controls named explicitly (aria-label / label-for /
+ *      label-wrap) → `name`;
+ *    - form controls with `naming: 'none'` → `placeholder` (accname
+ *      2D; verified empirically against Chromium + Playwright on
+ *      2026-09-16, which REFUTED the reality-study's claim that a
+ *      role query cannot see a placeholder-named input);
+ *    - the `generic` role → null: a roleless element has no
+ *      role-addressable name, whatever its text;
+ *    - every other role → `name`. */
+export function accessibleNameOf(spec: SurfaceSpec): string | null {
+  if (spec.role === 'generic') return null;
+  if (!isFormControlRole(spec.role)) return spec.name ?? null;
+  const naming = spec.naming ?? SURFACE_SPEC_DEFAULTS.naming;
+  return foldFormControlNaming(naming, {
+    ariaLabel: () => spec.name ?? spec.placeholder ?? null,
+    labelFor: () => spec.name ?? spec.placeholder ?? null,
+    labelWrap: () => spec.name ?? spec.placeholder ?? null,
+    none: () => spec.placeholder ?? null,
+  });
+}
+
+/** True when the surface renders with no ARIA role at all — the
+ *  reality-study F3 shape. Role queries cannot reach it; only text
+ *  (or a DOM handle) can. */
+export function isSurfaceRoleless(spec: SurfaceSpec): boolean {
+  return spec.role === 'generic';
+}
 
 /** True when the spec's visibility axis would render the surface
  *  invisible (excluded from the accessibility tree or outside the
@@ -259,6 +397,9 @@ export function isSurfaceHidden(spec: SurfaceSpec): boolean {
 /** True when the spec's input backing would make Playwright's
  *  `fill()` raise an internal assertion. */
 export function isSurfaceFillRejecting(spec: SurfaceSpec): boolean {
+  // A roleless <div> is never an <input>; fill() raises the same
+  // "Element is not an <input>" assertion as div-with-role.
+  if (spec.role === 'generic') return true;
   if (spec.role !== 'textbox') return false;
   const backing = spec.inputBacking ?? SURFACE_SPEC_DEFAULTS.inputBacking;
   return backing === 'div-with-role';

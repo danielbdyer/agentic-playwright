@@ -97,14 +97,49 @@ export interface ClassifiedIntent {
 
 /** A narrow handle on a rendered surface the matchers query against.
  *  The full Surface model carries more; this interface exposes only
- *  what matchers need so the MatcherContext stays minimal. */
+ *  what matchers need so the MatcherContext stays minimal.
+ *
+ *  The 2026-09-16 reality study (`docs/v2-substrate-reality-study.md
+ *  §2`) widened it by four fields, one per finding the role+name
+ *  surface alone could not express:
+ *
+ *    placeholder — F2: real search inputs are named by placeholder
+ *                  alone. `name` already carries the accname result
+ *                  (placeholder is a valid accname source); the raw
+ *                  placeholder is kept so a `getByPlaceholder`
+ *                  strategy can be emitted (C1).
+ *    text        — F2/F3: the visible text content. For content-named
+ *                  controls it equals `name`; for roleless surfaces it
+ *                  is the ONLY handle.
+ *    interactive — F3: the element carries a click affordance (native
+ *                  control, click handler, tabindex, or computed
+ *                  `cursor: pointer`). ~24% of real controls are
+ *                  interactive but roleless; without this bit they
+ *                  are invisible to every matcher (C2).
+ *    ancestors   — F4: surfaceIds of enclosing surfaces, nearest
+ *                  first. Makes `surfacesWithin` a real containment
+ *                  query so landmark scoping (100% reliable on
+ *                  Reactive) means something (C3). */
 export interface IndexedSurface {
   readonly surfaceId: string;
+  /** ARIA role. `'generic'` for a roleless element (ARIA's implicit
+   *  role for div/span), never null — a matcher branching on
+   *  "has a role" compares against 'generic'. */
   readonly role: string;
+  /** Accessible name as accname computes it (aria-label,
+   *  aria-labelledby, <label>, placeholder, content), or null. */
   readonly name: string | null;
   readonly landmarkRole: string | null;
   readonly classes: readonly string[];
+  readonly placeholder: string | null;
+  readonly text: string | null;
+  readonly interactive: boolean;
+  readonly ancestors: readonly string[];
 }
+
+/** ARIA's implicit role for a div/span — the marker for a roleless
+ *  surface in the index. */
+export const ROLELESS_SURFACE_ROLE = 'generic';
 
 /** Query port over the surface canon. Implementations (Z11a.4b) back
  *  this with either the live interface-graph projection or a test
@@ -113,7 +148,13 @@ export interface SurfaceIndex {
   readonly findByRoleAndName: (role: string, name: string) => readonly IndexedSurface[];
   readonly findByRole: (role: string) => readonly IndexedSurface[];
   readonly findLandmarkByRole: (role: string) => Option.Option<IndexedSurface>;
+  /** Surfaces contained (at any depth) by `ancestor`. */
   readonly surfacesWithin: (ancestor: IndexedSurface) => readonly IndexedSurface[];
+  /** Surfaces whose `placeholder` equals the argument exactly
+   *  (case-sensitive; the matcher relaxes as it needs). */
+  readonly findByPlaceholder: (placeholder: string) => readonly IndexedSurface[];
+  /** Every surface carrying a click affordance, role-bearing or not. */
+  readonly findInteractive: () => readonly IndexedSurface[];
 }
 
 // ─── Matcher + orchestration ────────────────────────────────────

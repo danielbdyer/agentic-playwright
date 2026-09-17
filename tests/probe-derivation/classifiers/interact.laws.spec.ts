@@ -98,3 +98,53 @@ describe('interact classifier laws', () => {
     });
   });
 });
+
+/**
+ * Reality-study target shapes (docs/v2-substrate-reality-study.md §4).
+ *
+ *   I8.  role target reaches a placeholder-only textbox → matched.
+ *   I9.  placeholder target → matched on the declaring surface.
+ *   I10. text target on a roleless clickable → matched for click.
+ *   I11. text target on a roleless surface → assertion-like for input.
+ *   I12. text target on a hidden roleless surface → not-visible.
+ *   I13. role target on a generic surface → unclassified (a role
+ *        query cannot reach a roleless surface; the fixture is
+ *        inconsistent).
+ */
+describe('interact classifier — reality-study target shapes', () => {
+  const SEARCH_WORLD = { surfaces: [{ role: 'textbox', naming: 'none', placeholder: 'Search products' }] };
+
+  test('I8: role target reaches a placeholder-only textbox', async () => {
+    const input = { action: 'input', target: { role: 'textbox', name: 'Search products' }, value: 'x' };
+    expect(await run(input, SEARCH_WORLD)).toEqual({ classification: 'matched', errorFamily: null });
+  });
+
+  test('I9: placeholder target matches the declaring surface', async () => {
+    const input = { action: 'input', target: { placeholder: 'Search products' }, value: 'x' };
+    expect(await run(input, SEARCH_WORLD)).toEqual({ classification: 'matched', errorFamily: null });
+  });
+
+  test('I10: click on a roleless clickable by text → matched', async () => {
+    const world = { surfaces: [{ role: 'generic', name: 'Filter', clickable: true }] };
+    expect(await run({ action: 'click', target: { text: 'Filter' } }, world))
+      .toEqual({ classification: 'matched', errorFamily: null });
+  });
+
+  test('I11: fill on a roleless surface → assertion-like', async () => {
+    const world = { surfaces: [{ role: 'generic', name: 'Filter', clickable: true }] };
+    expect(await run({ action: 'input', target: { text: 'Filter' }, value: 'x' }, world))
+      .toEqual({ classification: 'failed', errorFamily: 'assertion-like' });
+  });
+
+  test('I12: hidden roleless surface → not-visible', async () => {
+    const world = { surfaces: [{ role: 'generic', name: 'Filter', clickable: true, visibility: 'display-none' }] };
+    expect(await run({ action: 'click', target: { text: 'Filter' } }, world))
+      .toEqual({ classification: 'failed', errorFamily: 'not-visible' });
+  });
+
+  test('I13: role target cannot reach a generic surface → unclassified', async () => {
+    const world = { surfaces: [{ role: 'generic', name: 'Filter', clickable: true }] };
+    expect(await run({ action: 'click', target: { role: 'generic', name: 'Filter' } }, world))
+      .toEqual({ classification: 'failed', errorFamily: 'unclassified' });
+  });
+});

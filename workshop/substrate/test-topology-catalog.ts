@@ -219,6 +219,101 @@ const landmarkPage: TestTopology = {
   ],
 };
 
+/** reactive-record-list — the central-tendency shape of a real
+ *  OutSystems Reactive list screen (docs/v2-substrate-reality-study.md
+ *  §§1.1, 2). Four things the older topologies never posed, in one
+ *  composition:
+ *
+ *    - a `search` landmark whose textbox is named by placeholder
+ *      ALONE (F2: 5/7 study routes);
+ *    - a roleless, content-named click affordance — the "Filter"
+ *      toggle that is a `<div style="cursor:pointer">` on the real
+ *      catalog page (F3: ~24% of interactive controls);
+ *    - `banner` + `navigation` + `main` landmarks (F4: 100%
+ *      reliable), with content-named links inside `navigation`;
+ *    - a list nested 3–5 levels deep in `data-block` chrome (F5),
+ *      each item carrying a content-named link — the compiled
+ *      block-in-list nesting whose ids are structural paths.
+ *
+ *  The default entropy selects the `reactive-block` chrome
+ *  vocabulary at real depths so the axis-invariance gate runs
+ *  against the wrapper shape a customer's DOM actually has. */
+const reactiveRecordList: TestTopology = {
+  id: 'reactive-record-list',
+  surfaces: [
+    { role: 'banner', name: 'App header' },
+    {
+      role: 'navigation',
+      name: 'Main menu',
+      children: [
+        { role: 'link', name: 'Products' },
+        { role: 'link', name: 'Requests' },
+        { role: 'link', name: 'Employees' },
+      ],
+    },
+    {
+      role: 'main',
+      name: 'Product catalog',
+      children: [
+        {
+          role: 'search',
+          name: 'Search',
+          children: [
+            { role: 'textbox', naming: 'none', placeholder: 'Search products', surfaceId: 'catalog-search' },
+            { role: 'generic', name: 'Filter', clickable: true, surfaceId: 'catalog-filter' },
+          ],
+        },
+        {
+          role: 'list',
+          children: [
+            { role: 'listitem', children: [{ role: 'link', name: 'Aurora headset' }] },
+            { role: 'listitem', children: [{ role: 'link', name: 'Borealis keyboard' }] },
+            { role: 'listitem', children: [{ role: 'link', name: 'Cascade monitor' }] },
+          ],
+        },
+        { role: 'generic', name: 'Back to Overview', clickable: true, surfaceId: 'catalog-back' },
+      ],
+    },
+  ],
+  entropy: {
+    seed: 'reactive-record-list',
+    chromeVocabulary: 'reactive-block',
+    wrapperDepth: [3, 5],
+    siblingJitter: [0, 2],
+  },
+};
+
+/** reactive-entry-form — the shape of the one genuine data-entry
+ *  form in the study corpus (Productform): inputs named by
+ *  `<label for=id>` (6 of 7), one by a wrapping `<label>`, and a
+ *  content-named submit button. Exercises the label-for and
+ *  label-wrap naming realizations end to end. */
+const reactiveEntryForm: TestTopology = {
+  id: 'reactive-entry-form',
+  surfaces: [
+    {
+      role: 'form',
+      name: 'Product',
+      submitReveal: 'success-on-required-filled',
+      successMessage: 'Product saved',
+      errorMessage: 'Product has errors',
+      children: [
+        { role: 'textbox', name: 'Product name', naming: 'label-for', required: true },
+        { role: 'textbox', name: 'SKU', naming: 'label-for' },
+        { role: 'textbox', name: 'Description', naming: 'label-wrap', inputBacking: 'native-textarea' },
+        { role: 'combobox', name: 'Category', naming: 'label-for' },
+        { role: 'checkbox', name: 'Featured', naming: 'label-wrap' },
+        { role: 'button', name: 'Save' },
+      ],
+    },
+  ],
+  entropy: {
+    seed: 'reactive-entry-form',
+    chromeVocabulary: 'reactive-block',
+    wrapperDepth: [2, 4],
+  },
+};
+
 export function createDefaultTopologyRegistry(): TestTopologyRegistry {
   return testTopologyRegistry([
     loginForm,
@@ -227,5 +322,7 @@ export function createDefaultTopologyRegistry(): TestTopologyRegistry {
     landmarkPage,
     validationErrorForm,
     prefilledForm,
+    reactiveRecordList,
+    reactiveEntryForm,
   ]);
 }

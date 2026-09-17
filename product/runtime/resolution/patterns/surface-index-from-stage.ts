@@ -38,12 +38,21 @@ export const EMPTY_SURFACE_INDEX: SurfaceIndex = {
   findByRole: () => [],
   findLandmarkByRole: () => Option.none(),
   surfacesWithin: () => [],
+  findByPlaceholder: () => [],
+  findInteractive: () => [],
 };
 
 /** Build a SurfaceIndex from a list of surfaces. Test harnesses use
  *  this directly; production will pipe through
  *  `surfaceIndexFromStage` once the projection from
- *  InterfaceResolutionContext is wired. */
+ *  InterfaceResolutionContext is wired.
+ *
+ *  Containment is real: `surfacesWithin(a)` returns the surfaces
+ *  whose `ancestors` list names `a.surfaceId`. A flat list with
+ *  empty `ancestors` therefore contains nothing — landmark-scoped
+ *  matchers only fire when the index declares who lives inside
+ *  whom, which is exactly the signal the reality study says is
+ *  100% reliable on Reactive DOM (F4). */
 export function surfaceIndexFromList(surfaces: readonly IndexedSurface[]): SurfaceIndex {
   return {
     findByRoleAndName: (role, name) =>
@@ -51,11 +60,11 @@ export function surfaceIndexFromList(surfaces: readonly IndexedSurface[]): Surfa
     findByRole: (role) => surfaces.filter((s) => s.role === role),
     findLandmarkByRole: (role) =>
       Option.fromNullable(surfaces.find((s) => s.landmarkRole === role) ?? null),
-    surfacesWithin: () => surfaces,
-    // `surfacesWithin` returns all surfaces in the flat index. When
-    // the interface-graph projection lands, this narrows by
-    // ancestor containment. For Z11a.4b the form-context-submit
-    // matcher still works correctly against flat test fixtures.
+    surfacesWithin: (ancestor) =>
+      surfaces.filter((s) => s.ancestors.includes(ancestor.surfaceId)),
+    findByPlaceholder: (placeholder) =>
+      surfaces.filter((s) => s.placeholder === placeholder),
+    findInteractive: () => surfaces.filter((s) => s.interactive),
   };
 }
 

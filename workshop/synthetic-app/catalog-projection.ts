@@ -82,6 +82,11 @@ export const SURFACE_ROLE_PROJECTION: Record<SurfaceRole, SurfaceRoleProjection>
     strategy: 'generic',
     rationale: 'ARIA landmark; div+role matches canonical realization.',
   },
+  generic: {
+    strategy: 'specialized',
+    rationale:
+      'Bare <div> with NO role attribute — the roleless-interactive shape a quarter of real Reactive controls take (reality-study F3). Realizes the `clickable` axis (cursor:pointer + click handler) and is addressable only by text or DOM handle, never by role query.',
+  },
   form: {
     strategy: 'specialized',
     rationale: 'Stateful <form> rendered via FormRenderer — handles submitReveal, required-field validation, success/error alerts that form-related probes exercise.',
@@ -143,8 +148,8 @@ export const SURFACE_ROLE_PROJECTION: Record<SurfaceRole, SurfaceRoleProjection>
     rationale: 'ARIA landmark; div+role matches canonical realization.',
   },
   searchbox: {
-    strategy: 'generic',
-    rationale: 'Currently rendered via the generic fallback; specialized rendering as <input type="search"> is a future additive change once a probe needs it.',
+    strategy: 'specialized',
+    rationale: 'Native <input type="search"> — the element real Reactive search fields are (placeholder-named, no label; reality-study F2). Honors the naming + placeholder axes like textbox.',
   },
   status: {
     strategy: 'generic',

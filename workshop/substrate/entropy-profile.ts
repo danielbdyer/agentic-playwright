@@ -10,7 +10,12 @@
  *
  * ## Axes (all orthogonal)
  *
- *   wrapperDepth    — N nested `<div class="fuzz-shell-{n}">` layers
+ *   wrapperDepth    — N nested wrapper layers around each surface
+ *   chromeVocabulary— which wrapper shape the layers take: the
+ *                     historical `fuzz-shell` divs, or the real
+ *                     Reactive `data-block` / `data-container` /
+ *                     `OSInline` / `OSFillParent` nesting with
+ *                     structural block-path ids (reality-study F5/F6)
  *   chromeTone      — applies a CSS class from a closed set to the
  *                     wrapper chain; tests that classifiers don't
  *                     rely on specific visual chrome.
@@ -54,6 +59,21 @@
  * Pure domain; seeded RNG is the only stateful primitive.
  */
 
+/** Closed set of wrapper vocabularies the wrapperDepth axis renders.
+ *
+ *    'fuzz-shell'      → `<div class="fuzz-shell fuzz-shell-N">` (default;
+ *                        the v1 profile's shape).
+ *    'reactive-block'  → the shape real OutSystems Reactive wraps every
+ *                        surface in: `<div data-block="…" id="bN-…"
+ *                        class="osblockwidget">` containing
+ *                        `<div data-container class="OSInline|OSFillParent">`.
+ *                        Ids are structural block/list paths
+ *                        (`b3-Column`, `l1-0_0-$b2`), never semantic.
+ *
+ *  Adding a vocabulary is additive; the default keeps every existing
+ *  fixture's DOM byte-identical. */
+export type ChromeVocabulary = 'fuzz-shell' | 'reactive-block';
+
 /** Closed set of chrome-tone classes the substrate renderer honors.
  *  Adding a tone is additive — renderer CSS expands. */
 export type ChromeTone = 'reef' | 'ember' | 'atlas' | 'quartz' | 'slate';
@@ -93,9 +113,12 @@ export interface EntropyProfile {
   /** RNG seed. The same (profile, seed) produces identical DOM.
    *  Optional — when absent, all axes produce their zero variance. */
   readonly seed?: string;
-  /** Wrap each surface in this many nested `<div class="fuzz-shell">`
-   *  layers. Random within [min, max]. */
+  /** Wrap each surface in this many nested wrapper layers. Random
+   *  within [min, max]. The layers' shape is `chromeVocabulary`. */
   readonly wrapperDepth?: readonly [min: number, max: number];
+  /** Wrapper vocabulary for the wrapperDepth layers. Default:
+   *  'fuzz-shell'. */
+  readonly chromeVocabulary?: ChromeVocabulary;
   /** Chrome tone CSS class applied to the outer wrapper. */
   readonly chromeTone?: readonly ChromeTone[];
   /** Spacing density class. */

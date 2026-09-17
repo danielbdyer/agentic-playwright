@@ -38,3 +38,56 @@ describe('SurfaceSpec laws', () => {
     expect(isSurfaceFillRejecting({ role: 'button', inputBacking: 'div-with-role' })).toBe(false);
   });
 });
+
+/**
+ * Reality-study axes (docs/v2-substrate-reality-study.md §4).
+ *
+ *   SS4. accessibleNameOf: explicit naming (aria-label / label-for /
+ *        label-wrap) yields `name`; `naming: 'none'` yields the
+ *        placeholder; `generic` yields null; non-form-control roles
+ *        yield `name`.
+ *   SS5. isSurfaceRoleless is true only for the `generic` role.
+ *   SS6. isSurfaceFillRejecting is true for a generic surface (a
+ *        roleless <div> is never an <input>).
+ *   SS7. SURFACE_SPEC_DEFAULTS names the naming + clickable defaults.
+ */
+import {
+  FORM_CONTROL_NAMING_VALUES,
+  accessibleNameOf,
+  isFormControlRole,
+  isSurfaceRoleless,
+} from '../../workshop/substrate/surface-spec';
+
+describe('SurfaceSpec reality-study axis laws', () => {
+  test('SS4: accessibleNameOf follows the naming axis', () => {
+    for (const naming of ['aria-label', 'label-for', 'label-wrap'] as const) {
+      expect(accessibleNameOf({ role: 'textbox', name: 'Email', naming, placeholder: 'you@example' })).toBe('Email');
+    }
+    expect(accessibleNameOf({ role: 'textbox', naming: 'none', placeholder: 'Search products' })).toBe('Search products');
+    expect(accessibleNameOf({ role: 'textbox', naming: 'none' })).toBeNull();
+    // No explicit name but a placeholder: the placeholder names it
+    // whichever mechanism is selected (there is nothing else).
+    expect(accessibleNameOf({ role: 'searchbox', placeholder: 'Find' })).toBe('Find');
+    expect(accessibleNameOf({ role: 'generic', name: 'Filter', clickable: true })).toBeNull();
+    expect(accessibleNameOf({ role: 'button', name: 'Save' })).toBe('Save');
+    expect(accessibleNameOf({ role: 'link' })).toBeNull();
+    expect(FORM_CONTROL_NAMING_VALUES).toEqual(['aria-label', 'label-for', 'label-wrap', 'none']);
+    expect(isFormControlRole('textbox')).toBe(true);
+    expect(isFormControlRole('button')).toBe(false);
+  });
+
+  test('SS5: isSurfaceRoleless is true only for generic', () => {
+    expect(isSurfaceRoleless({ role: 'generic', name: 'Filter' })).toBe(true);
+    expect(isSurfaceRoleless({ role: 'button', name: 'Filter' })).toBe(false);
+    expect(isSurfaceRoleless({ role: 'region' })).toBe(false);
+  });
+
+  test('SS6: a generic surface rejects fill', () => {
+    expect(isSurfaceFillRejecting({ role: 'generic', name: 'Filter', clickable: true })).toBe(true);
+  });
+
+  test('SS7: defaults name the naming + clickable axes', () => {
+    expect(SURFACE_SPEC_DEFAULTS.naming).toBe('aria-label');
+    expect(SURFACE_SPEC_DEFAULTS.clickable).toBe(false);
+  });
+});

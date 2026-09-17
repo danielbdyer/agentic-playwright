@@ -1,6 +1,6 @@
 {
   "$schemaVersion": 1,
-  "$comment": "Route-level clean-room partition for the first real Reactive substrate (docs/v2-cold-start-cohort-spike.md §4.4, applied at route granularity because one host serves many independent screens). Declared BEFORE any structural harvest. Prior contact, disclosed: on 2026-09-04 a fresh session rendered the seven `study` routes once and read structural counts only (no accessible names, no text); the `heldOut` and `outOfScope` routes were never fetched. The harvest guard at workshop/substrate-study/application/study-partition.ts refuses any route not listed under `study`.",
+  "$comment": "Route-level clean-room partition for the first real Reactive substrate (docs/v2-cold-start-cohort-spike.md \u00a74.4, applied at route granularity because one host serves many independent screens). Declared BEFORE any structural harvest. Prior contact, disclosed: on 2026-09-04 a fresh session rendered the seven `study` routes once and read structural counts only (no accessible names, no text); the `heldOut` and `outOfScope` routes were never fetched. The harvest guard at workshop/substrate-study/application/study-partition.ts refuses any route not listed under `study`.",
   "aut": "outsystems-ui-website",
   "baseUrl": "https://outsystemsui.outsystems.com/OutSystemsUIWebsite/",
   "moduleName": "OutSystemsUIWebsite",
@@ -9,15 +9,15 @@
   "versionSequenceAtDeclaration": 5375,
   "declaredAt": "2026-09-16",
   "declaredBy": "claude (fresh session, not the agent that trained the classifier)",
-  "publisher": "OutSystems — public product showcase for the OutSystems UI framework; anonymous; no robots.txt served; no consent banner",
+  "publisher": "OutSystems \u2014 public product showcase for the OutSystems UI framework; anonymous; no robots.txt served; no consent banner",
   "rules": [
-    "C1 — routes are assigned before contact; this file is committed before the first harvest.",
-    "C2 — held-out routes never feed canon graduation, matcher proposals, or classifier changes; they are reserved for a designated single-use evaluation.",
-    "C3 — a held-out evaluation is single-use per canon fingerprint and per versionToken.",
-    "C4 — promotion heldOut → study is allowed once and is irreversible; study → heldOut is forbidden.",
-    "C5 — held-out fixtures are authored by a human from screenshots, blind to catalog contents; the agent does not read held-out accessible names.",
-    "C6 — a leak is logged, the route is demoted to study, and a replacement held-out route is named; pretending is the only unrecoverable failure.",
-    "Harvest posture — read-only; one route per invocation; disclosed User-Agent; no link following; no form submission; no clicks on controls that could create, update, or delete records.",
+    "C1 \u2014 routes are assigned before contact; this file is committed before the first harvest.",
+    "C2 \u2014 held-out routes never feed canon graduation, matcher proposals, or classifier changes; they are reserved for a designated single-use evaluation.",
+    "C3 \u2014 a held-out evaluation is single-use per canon fingerprint and per versionToken.",
+    "C4 \u2014 promotion heldOut \u2192 study is allowed once and is irreversible; study \u2192 heldOut is forbidden.",
+    "C5 \u2014 held-out fixtures are authored by a human from screenshots, blind to catalog contents; the agent does not read held-out accessible names.",
+    "C6 \u2014 a leak is logged, the route is demoted to study, and a replacement held-out route is named; pretending is the only unrecoverable failure.",
+    "Harvest posture \u2014 read-only; one route per invocation; disclosed User-Agent; no link following; no form submission; no clicks on controls that could create, update, or delete records.",
     "Out-of-scope routes are documentation screens (pattern galleries, release notes, cheat sheets) and screens that require query parameters; they are not app-like and are never fetched by a harness."
   ],
   "routes": {
@@ -28,12 +28,12 @@
       "Requestmanagement",
       "Productform",
       "Transactionsdashboard",
-      "PatternsOverview"
+      "PatternsOverview",
+      "Bulkactionswithfilters"
     ],
     "heldOut": [
       "Admindashboard",
       "Branchlocator",
-      "Bulkactionswithfilters",
       "Dashboard",
       "Employeeslistanddetail",
       "Fourcolumngallery",
@@ -61,5 +61,16 @@
       "WhatsNew",
       "_error.html"
     ]
-  }
+  },
+  "promotions": [
+    {
+      "route": "Bulkactionswithfilters",
+      "from": "heldOut",
+      "to": "study",
+      "promotedAt": "2026-09-16",
+      "promotedBy": "claude (session that landed the reality-study S1\u2013S5 / C1\u2013C4 changes)",
+      "rule": "C4 \u2014 one-time, irreversible",
+      "purpose": "Single-use structural validation of reality-study findings F1\u2013F6 on a screen the study never saw, AFTER the substrate and ladder changes landed (study \u00a78). The route was chosen blind, by name only, for the shapes it was expected to exhibit (search + filters \u2192 placeholder naming, roleless toggles, landmarks). Thirteen held-out routes remain untouched for the fixture-based evaluation (C5)."
+    }
+  ]
 }

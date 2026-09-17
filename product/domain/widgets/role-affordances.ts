@@ -84,6 +84,15 @@ export const ROLE_AFFORDANCES: Readonly<Record<string, readonly RoleAffordance[]
   dialog: [
     { action: 'get-value', method: 'innerText', args: 'none', effectCategory: 'observation', preconditions: observationPre },
   ],
+  // A roleless element (ARIA implicit `generic`) reaches this table
+  // only when discovery accepted it as interactive — a `div`/`span`
+  // with a click affordance and visible text, the shape ~24% of real
+  // OutSystems Reactive controls take (docs/v2-substrate-reality-
+  // study.md F3). Its affordance is click; its locator is text.
+  generic: [
+    { action: 'click', method: 'click', args: 'none', effectCategory: 'mutation', preconditions: mutationPre },
+    { action: 'get-value', method: 'innerText', args: 'none', effectCategory: 'observation', preconditions: observationPre },
+  ],
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -150,6 +159,12 @@ export const PRIMARY_WIDGET_FOR_ROLE: Readonly<Record<string, string>> = {
   slider: 'os-input',
   spinbutton: 'os-input',
   dialog: 'os-region',
+  // Roleless clickable → the button-shaped contract. The `os-*` ids
+  // are contract names keyed by ROLE, not DOM expectations: nothing
+  // in the runtime matches an `os-*` class or tag against the page
+  // (reality-study C5 — the widget layer is already native-role-
+  // first; `osui-*` styling classes never participate in identity).
+  generic: 'os-button',
 } as const;
 
 // ---------------------------------------------------------------------------

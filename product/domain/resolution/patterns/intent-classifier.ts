@@ -110,6 +110,33 @@ function observeRoleSuffixRe(suffix: string): RegExp {
   );
 }
 
+/**
+ * Landmark cues — reality-study C3 (2026-09-16). Landmarks are
+ * 100% reliable on real OutSystems Reactive routes (`banner` +
+ * `navigation` + `main` everywhere; `search` on every list/gallery
+ * screen), so a prose cue that names one is precision at near-zero
+ * cost: the in-landmark matcher scopes the lookup and falls through
+ * silently when the landmark is absent. First cue wins; the table
+ * is ordered specific → generic.
+ */
+const LANDMARK_CUES: ReadonlyArray<{ readonly re: RegExp; readonly landmark: string }> = [
+  { re: /\b(?:nav(?:igation)?(?:\s+bar)?|menu|header|side\s*bar|side\s+nav|top\s+bar)\b/i, landmark: 'navigation' },
+  { re: /\bfooter\b/i, landmark: 'contentinfo' },
+  { re: /\bsearch\b/i, landmark: 'search' },
+];
+
+function extractLandmarkHint(actionText: string): string | undefined {
+  return LANDMARK_CUES.find(({ re }) => re.test(actionText))?.landmark;
+}
+
+/** Attach the landmark hint to a target shape when the prose carries
+ *  a cue. Only adds the key when present so intents without cues are
+ *  structurally unchanged. */
+function withLandmark(hint: TargetShapeHint, actionText: string): TargetShapeHint {
+  const landmark = extractLandmarkHint(actionText);
+  return landmark === undefined ? hint : { ...hint, inLandmark: landmark };
+}
+
 // ─── Verb resolution ─────────────────────────────────────────
 
 function actionToVerb(action: StepAction): PatternVerb | null {
@@ -283,10 +310,10 @@ export function classifyIntent(
 
   const targetShape: TargetShapeHint = (() => {
     switch (verb) {
-      case 'click':    return extractClickTarget(actionText);
-      case 'input':    return extractInputTarget(actionText);
-      case 'navigate': return extractNavigateTarget(actionText);
-      case 'observe':  return extractObserveTarget(actionText);
+      case 'click':    return withLandmark(extractClickTarget(actionText), actionText);
+      case 'input':    return withLandmark(extractInputTarget(actionText), actionText);
+      case 'navigate': return withLandmark(extractNavigateTarget(actionText), actionText);
+      case 'observe':  return withLandmark(extractObserveTarget(actionText), actionText);
       case 'press':    return extractPressTarget(actionText);
       case 'select':   return {};  // no selector patterns in Z11a.4b
     }
