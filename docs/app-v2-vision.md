@@ -8,7 +8,7 @@ The repository already uses "v2" for its April 2026 compartmentalization into `p
 
 Sections 1 through 3 are about v1 and are evidence-based; every number was measured in this session or is quoted from a file at `HEAD` with its path. Sections 4 through 9 are about v2 and are design; they are opinionated on purpose, and where a choice could reasonably go the other way, the alternative is named. Section 10 holds the evidence index, the glossary, and sample artifacts.
 
-If you read one section, read §1. If you read two, add §2.12.
+If you read one section, read §1. If you read two, add §2.12. If you are a QA lead, read §4.6, §5.3, §5.5 and §6.1; that is the whole product from your seat. v1 terms used in §§2–3 (probe, rung, verdict, cohort, posture, M5, C6) are v1's own and are defined in `docs/glossary.md`; v2 terms are defined in Appendix B and are not used before §4.
 
 ## 1. The one-page answer
 
@@ -16,11 +16,11 @@ If you read one section, read §1. If you read two, add §2.12.
 
 **What v1 has actually done.** It has never authored a test for a real customer backlog. Its flagship emitted test is four opaque calls into the engine, every step deferred, default mode `dry-run`. No default code path calls a model; the "agent" in every measurement loop is a regular expression. The workshop graduated two verdicts on the synthetic app in April; the first real OutSystems page in September showed the synthetic app could not render the shapes real pages have — content-named controls, placeholder-named inputs, roleless clickables, `data-block` nesting. The one thing that worked on real websites, at 15 of 18 steps, is an 835-line runner that bypasses the engine's parser, binder, and ladder entirely. The unit suite is green (4,161 tests); the lint gate the README calls authoritative has been red since March (298 errors today).
 
-**What v1 got right.** Provenance minted at the event. Append-only evidence. A structured needs-human handoff instead of a thrown error. The facet — a named, role-bearing, provenance-carrying unit of memory queryable by intent phrase — as the compounding asset. Role-and-name-first locators. A four-family error classification on interaction. ADO identity annotated on every test. The clean-room evaluation discipline: declare the partition before contact, promote one way, evaluate with a fresh session, retract when contaminated. And, in its last thirty days, a method: touch a real page, write down what broke, fix it with a law, spend one held-out route, report the number.
+**What v1 got right.** Provenance minted at the event. Append-only evidence. A structured needs-human handoff instead of a thrown error. The facet — a named, role-bearing, provenance-carrying unit of memory queryable by intent phrase — as the compounding asset. Role-and-name-first locators. Four named error families on interaction, plus `unclassified`. ADO identity annotated on every test. The clean-room evaluation discipline: declare the partition before contact, promote one way, evaluate with a fresh session, retract when contaminated. And, in its last thirty days, a method: touch a real page, write down what broke, fix it with a law, spend one held-out route, report the number.
 
-**What v2 is.** The inversion. The agent is the compiler and the engine is its toolbox: twelve tools with stable names and receipts — fetch intent, open, observe, act, assert, query memory, mint, enrich, emit, run, publish, raise a handoff — exposed over MCP to whatever agent host the customer already runs and to a thin batch driver. The product surface is the customer's own repository: plain Playwright specs with the ADO wording as step titles and a generated page object per screen, runnable with `npx playwright test` and nothing else. Memory is a facet catalog earned from real screens through the observation harness v1 built in its final month, living in YAML beside the tests, gated so agent-minted facets are candidates until a human accepts a test that uses them. Measurement is three numbers a QA lead already cares about — acceptance, survival, cost — on held-out real applications, with synthetic fixtures downstream of incidents and never upstream of any verdict. Results go back to Azure DevOps as test runs, closing the loop v1 never closed.
+**What v2 is.** The inversion. The agent is the compiler and the engine is its toolbox: thirteen tools with stable names and receipts — fetch intent, open, observe, act, assert, query memory, mint, enrich, emit, run, publish, raise a handoff, record a review — exposed over MCP to whatever agent host the customer already runs and to a thin batch driver. The product surface is the customer's own repository: plain Playwright specs with the ADO wording as step titles and a generated page object per screen, runnable with `npx playwright test` and nothing else. Memory is a facet catalog earned from real screens through the observation harness v1 built in its final month, living in YAML beside the tests, gated so agent-minted facets are candidates until a human accepts a test that uses them. Measurement is three numbers a QA lead already cares about — acceptance, survival, cost — on held-out real applications, with synthetic fixtures downstream of incidents and never upstream of any verdict. Results go back to Azure DevOps as test runs, closing the loop v1 never closed.
 
-**What changes in size.** About 25,000 lines instead of 126,000. Twelve tools instead of thirty-seven commands. Four moves instead of eleven rungs. Six artifact kinds instead of a twelve-directory runtime root. Five documents under 3,000 lines instead of ninety documents at 59,000. Forty terms instead of a hundred and some, with no collisions.
+**What changes in size.** About 25,000 lines instead of 126,000. Thirteen tools instead of thirty-seven commands. Four moves instead of eleven rungs. Seven artifact kinds instead of a dozen-directory runtime root. Five documents under 3,000 lines instead of ninety documents at 59,000. Forty terms instead of a hundred and some, with no collisions.
 
 **What changes in method.** Every pull request lands with a receipt from a real application. Plans are pull-request descriptions. No verdict is declared on synthetic evidence. The gate is green or the work does not merge.
 
@@ -37,11 +37,11 @@ This section is the ground the rest stands on. Every claim was checked against t
 | hand-written TypeScript, excluding tests | `product/` 79,391 lines · `workshop/` 28,420 · `dashboard/` 18,143 · total ≈ 126,000 |
 | tests | ≈ 73,000 lines; 347 spec files; 4,161 vitest tests passing, 10 skipped, in 64 seconds |
 | documents | 90 Markdown files under `docs/` (59,330 lines) plus README, VISION, BACKLOG, AGENTS (1,574) ≈ 60,900 lines; of which active v2 planning ≈ 25,000, v1 reference 15,682, archive 8,456 |
-| plan documents | 13 distinct plans; the two largest (substrate study, 3,947 lines; live adapter, 1,023) have landed no code |
+| plan documents | 10 surveyed (about 17,500 lines); the largest unexecuted plan (substrate study, 3,947 lines) and the plan for the project's largest gap (live adapter, 1,023) have landed no code between them |
 | commits | 497 between 2026-03-29 and 2026-09-17; Claude 398, Daniel Dyer 85, Copilot bot 10, Danny 4; 56 pull requests merged, 54 by Daniel; branch prefixes claude 28, codex 24, copilot 2 |
 | commit gap | zero commits between 2026-05-04 and 2026-09-03 (122 days) |
 | CLI commands | 37 (23 product, 14 workshop) |
-| MCP tools | about 20 hand-curated plus manifest-derived entries |
+| MCP tools | 27 hand-curated in `product/domain/observation/dashboard.ts` plus 9 manifest-derived, about 36 |
 | manifest verbs | 9 |
 | resolution rungs | 11 (code); CLAUDE.md and the glossary each list 7 |
 | fingerprint tags | 42 in a closed registry |
@@ -50,7 +50,7 @@ This section is the ground the rest stands on. Every claim was checked against t
 | terms of art | about 132, with at least seven words carrying two or more meanings |
 | `TODO` / `FIXME` / `HACK` in code | 0 |
 
-The last row is not a compliment. A 126,000-line codebase with zero TODOs and 298 lint errors is a codebase whose authors did not leave notes for themselves, because the authors were sessions that ended.
+The last row is not a compliment. A 126,000-line codebase with zero TODOs and 298 lint errors is one where no note to a future self ever survived a session; the coding notes forbid deprecation markers, and the sessions that wrote the code ended.
 
 ### 2.2 What works end to end
 
@@ -63,12 +63,12 @@ Being fair about this matters, because a great deal of v1 is real and some of it
 - The runtime interpreter with three modes (`playwright`, `dry-run`, `diagnostic`), role-affordance dispatch, navigation strategy, ARIA observation, state-topology observation, evidence persistence, proposal generation, trust-policy-gated activation, hints writer, semantic dictionary, interface graph, selector canon, state graph, drift analysis, learning corpora. All in-memory tested; none exercised against a real customer application.
 - The workshop machinery: speedrun (corpus / iterate / fitness / score / baseline), convergence proof, scorecard with Pareto frontier, six of seven metric visitors (the seventh, C6, returns zero), the compounding engine with its hypotheses, receipts, trajectories and graduation gate, probe derivation across three rungs, the synthetic React substrate with 33 roles and nine axes, the customer-backlog corpora (8 fabricated resolvable cases, 14 fabricated needs-human cases), the public-AUT cold-start runner, the pattern ladder (8 patterns).
 - The observation harness in `workshop/substrate-study/`: hydration detector, DOM walker with an accessible-name ladder and an affordance ladder, variant classifier, PII gate, snapshot store, page fingerprint, external harness with subresource relay. Used against a real OutSystems Reactive application on 2026-09-16/17.
-- The dashboard: an 18,000-line React and three.js application with a five-zone shell, a spatial scene, playback, bookmarks, narration, and an MCP server; a VS Code extension with a task provider and a chat participant. No tests under `dashboard/src`.
+- The dashboard: an 18,000-line React and three.js application with a five-zone shell, a spatial scene, playback, bookmarks, narration, and an MCP server; a 522-line VS Code extension with a task provider and a chat participant. No test file lives under `dashboard/`; its 13 specs sit in `tests/dashboard/`, and none drives the React or three.js layer.
 - Architecture laws: seam enforcement, governance-verdict discipline, log-registry invariants, manifest drift check, phantom-axis laws, and 28 architecture test files (6,525 lines).
 
 **Real but never used as designed:** the Reasoning port and its adapters. `select` defaults to `deterministic-token-overlap`; `interpret` defaults to `disabled`, whose stub rationale reads "No interactive agent session available. Escalating to needs-human." The `llm-api` and `session` adapters expect a caller to inject a `createChatCompletion` function; no file in the repository defines one. `synthesize` is a no-op in every adapter. There are zero model call sites in the codebase.
 
-**Declared and not built:** the facet catalog. `product/domain/memory/facet-record.ts` is 64 lines of types, referenced by two files, with no store, no writer, no reader, and no data. `product/catalog/` — named in CLAUDE.md, the direction document, the product README, and the lookup-chain table — does not exist. The four memory verbs in the manifest carry the comment "implementations land at Step 7." Step 7 has not started. The five-slot lookup chain that the catalog was to feed handles two slots (the canonical-artifact ones) and says of the other three, in its own header: "Slots 1, 4, and 5 are stub paths that record their slot in `slotsConsulted`."
+**Declared and not built:** the facet catalog. `product/domain/memory/facet-record.ts` is 64 lines of types that no product module imports; its only importer is its own law test, and the manifest names the file as a string. There is no store, no writer, no reader, and no data. `product/catalog/` — named in CLAUDE.md, the direction document, the product README, and the lookup-chain table — does not exist. The four memory verbs in the manifest carry the comment "implementations land at Step 7." Step 7 has not started. The five-slot lookup chain that the catalog was to feed handles two slots (the canonical-artifact ones) and says of the other three, in its own header: "Slots 1, 4, and 5 are stub paths that record their slot in `slotsConsulted`."
 
 ### 2.3 What the flagship test actually looks like
 
@@ -112,7 +112,7 @@ Nothing in `.tesseract/runs/` exists for 10001 in this checkout. The flagship ha
 
 The vision document says "Claude is the first citizen of this loop today." The direction document says the codebase is "an API for an agent." The measurement documents describe "the agent" authoring against probes, resolving with reasoning, and earning batting averages.
 
-At `HEAD`, no default code path calls a model, and no code path can. Every number the project has ever reported — the 33% to 78% cold-start climb, Verdict-10, Verdict-11, 29 of 29 parity, 100% probe coverage — was produced by regular expressions, token overlap, and lookup tables. The design intent, visible in the reasoning port's comments and the live-adapter plan, was that a Copilot session in VS Code would be the primary provider, an Azure OpenAI deployment the secondary, and Anthropic third; the plan to make the coding session itself the adapter (Z11d, 1,023 lines) has been "planning — no code has landed" since April. The one adapter that could dial out has no dialer.
+At `HEAD`, no default code path calls a model, and nothing outside the test tree supplies the `createChatCompletion` the adapters require; `scripts/agent-speedrun.ts` documents the socket, in prose, and leaves it unplugged. Every number the project has ever reported — the 33% to 78% cold-start climb, Verdict-10, Verdict-11, 29 of 29 parity, 100% probe coverage — was produced by regular expressions, token overlap, and lookup tables. The design intent, visible in the reasoning port's comments and the live-adapter plan, was that a Copilot session in VS Code would be the primary provider, an Azure OpenAI deployment the secondary, and Anthropic third; the plan to make the coding session itself the adapter (Z11d, 1,023 lines) has been "planning — no code has landed" since April. The one adapter that could dial out has no dialer.
 
 This is not a configuration oversight. It is the shape of the system: the engine was built to consult an agent at rungs 8 and 10 of an eleven-rung ladder whose first seven rungs read from a catalog that does not exist. On a new customer's first contact all seven are empty by definition. The cold-start path through the ladder is token overlap, then `getByRole`, then token overlap again, then needs-human.
 
@@ -120,13 +120,13 @@ This is not a configuration oversight. It is the shape of the system: the engine
 
 The workshop's claim (direction document §5.2): "There is no separate evaluation runner. There is `product/`, invoked by `workshop/`." The code says otherwise.
 
-- `workshop/probe-derivation/` imports nothing from `product/runtime/`, `product/composition/`, or the codegen. The rung-3 classifiers say in their own docstrings that they "mirror the real interact verb" and call `page.click()` themselves. The celebrated "rung-3 parity 29/29" proves the workshop's two models of a verb agree with each other.
+- `workshop/probe-derivation/` imports nothing from `product/runtime/`, `product/composition/`, or the codegen. The rung-3 classifiers say in their own docstrings that they "mirror the real interact verb" and call `page.click()` themselves. The celebrated "rung-3 parity 29/29" proves the workshop's two models of a verb agree with each other — which is a real property, and the reason the reality study could quantify the gap the moment it saw a real DOM. It is a well-built substrate test. It is not a measurement of the product.
 - Probes are "derived from the manifest" in the sense that the manifest supplies nine names; every probe's content is one of nine hand-written YAML files totaling 1,067 lines. The direction document's "not a handwritten scenario corpus" is a handwritten scenario corpus with a directory convention.
 - Four of the nine verbs — the memory verbs with no implementation — have classifiers that read the fixture's own fields and report `matched` if the fixture is well-formed. Four ninths of "100% coverage" has no product code in the loop.
-- Coverage is defined as verb × facet-kind × error-family; the manifest has no facet-kind axis. Two of three dimensions are unrepresentable.
+- Coverage is defined as verb × facet-kind × error-family. Error families are declared per verb in the manifest; the facet-kind axis is not in the manifest at all — it is read out of the same hand-written fixture the probe was derived from. One of the three dimensions is supplied by the thing being measured.
 - The older speedrun and dogfood loop does invoke the real compile and run pipeline (`workshop/orchestration/` imports `application/resolution/compile` and `application/commitment/run`), against the synthetic app, with the deterministic adapters. That loop is the one whose flywheel the March archive said "has never turned once."
 
-Then the reality study. On 2026-04-23 and 2026-04-24 the graduation gate returned `holds`, twice, with the verdict memos grading themselves "structural-plus-narrow" and "multi-cohort-synthetic" and saying plainly: "ADO cases are fabricated … CompilationReceipts are produced by a heuristic … NOT the real compile pipeline … No LLM reasoning." On 2026-09-16 the first real OutSystems Reactive page showed that 81% of accessible names come from element content, that a quarter to a third of visible interactive controls carry no ARIA role, that search inputs are placeholder-named, that identity is `data-block` density and runtime globals rather than React fibers or `osui-*` classes, and that the synthetic substrate "has no way to render" the roleless-control shape at all, "so the ladder's blindness to it is currently unmeasurable." The graduation gate had passed on a device that could not pose the dominant failure mode, and nothing inside the workshop could have told it so.
+Then the reality study. On 2026-04-23 and 2026-04-24 the graduation gate returned `holds`, twice, with the verdict memos grading themselves "structural-plus-narrow" and "multi-cohort-synthetic" and saying plainly: "ADO cases are fabricated … CompilationReceipts are produced by a heuristic … NOT the real compile pipeline … No LLM reasoning." On 2026-09-16 the first real OutSystems Reactive page showed that 81% of accessible names come from element content, that roughly a quarter of visible interactive controls across the seven study routes carry no ARIA role, and 36–39% on the two routes re-measured after the walker was fixed, that search inputs are placeholder-named, that identity is `data-block` density and runtime globals rather than React fibers or `osui-*` classes, and that the synthetic substrate "has no way to render" the roleless-control shape at all, "so the ladder's blindness to it is currently unmeasurable." The graduation gate had passed on a device that could not pose the dominant failure mode, and nothing inside the workshop could have told it so.
 
 The archived March assessment already contained the number that mattered: on the synthetic scenarios that "test real intelligence," the alias-matching path hit 32%.
 
@@ -140,7 +140,7 @@ The journal's own stakeholder summary of this runner is the most honest sentence
 
 ### 2.7 The doctrine-to-delivery ratio
 
-Roughly one line of active planning per five lines of hand-written code, and the distribution is bimodal: the plans that shipped inside the week they were written shipped completely (probe IR, scenario corpus, compounding engine — about 4,100 lines, all landed), while the two plans that named an external gate (legal review for the substrate study; an operator-confirmed URL for the harness) stalled for months or entirely. The live-adapter plan, whose subject is the single largest gap between what the system calls itself and what has run, is the one plan nobody executed.
+The plans that shipped inside the week they were written shipped completely (probe IR, scenario corpus, compounding engine — about 4,100 lines, all landed); the plans that named an external gate (legal review for the substrate study; an operator-confirmed URL for the harness) stalled for months or entirely. That bimodality is the finding. The aggregate ratio — roughly one line of active planning per five lines of hand-written code — is the symptom. The live-adapter plan, whose subject is the single largest gap between what the system calls itself and what has run, is the one plan nobody executed.
 
 The direction document — the one CLAUDE.md tells a fresh session to read first — carries "Status as of 2026-04-21" and marks Step 1.5, the "customer-reality probe," as landed. No artifact of it exists anywhere in the tree; the directory it names (`workshop/observations/customer-probe-01/`) was never created. The transmogrification document's definition-of-done table marks the dashboard MCP server split into `handlers/context/actions` as complete; the file is a single 1,806-line module with no such folders. Sixty-five files, including CLAUDE.md, VISION.md, README.md, BACKLOG.md, `knip.json`, and the ESLint config, still reference a `lib/` tree deleted on 2026-04-19. CLAUDE.md contradicts itself between its third line ("the code lives under `lib/`") and its eighty-third ("The `lib/` tree is gone"). README documents five npm scripts that do not exist and three doc paths that moved.
 
@@ -154,7 +154,7 @@ About 132 terms of art. "Probe" has three meanings and a glossary section to say
 |---|---|---|
 | `npm run build` | emits runtime artifacts | passes; manifest drift check clean |
 | `npm run typecheck` | "strict repo-wide typecheck including tests" | fails, 50 diagnostics; the shipping build relaxes `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` and excludes `tests/` |
-| `npm run lint` | "typed lint over hand-authored sources" | fails, 298 errors (checked-in output from March shows 417) |
+| `npm run lint` | "typed lint over hand-authored sources" | fails, 298 errors (the checked-in output from March shows 415) |
 | `npm run test:unit` | — | passes: 4,161 tests, 64 seconds, with `@playwright/test` aliased to a 39-line shim |
 | `npm run test:integration` | — | cannot start: all three Playwright configs point their web server at `dogfood/fixtures/demo-harness/server.cjs`, deleted on 2026-04-22 |
 | `npm test` | "run compiler/runtime/documentation law tests" | red since 2026-04-22 |
@@ -192,7 +192,7 @@ That is the method. It produced more verified truth about the problem in nine wo
 
 The system built an elaborate account of how it would know it was improving before it had done the thing once for anyone. Theorem groups, proof obligations, seven metric visitors, a compounding engine, a convergence machine, a graduation gate, a scorecard with a Pareto frontier, a three-dimensional observatory — every one of them a way of measuring the system by the system, on a world the system's authors built. Meanwhile the one loop that touched the world was 835 lines that bypassed the engine, and the emitted "test" was a pointer back into the engine.
 
-It is a beautiful cathedral. The Galois connections are correct. The phantom axes do what they say. The documents are lucid and self-critical in a way most codebases never manage; the archive already said "the flywheel has never turned once" in March and "the system is ~60% of its own specification." The problem is not the quality of the thinking. The problem is what the thinking was protecting against: the small, exposing act of authoring one test for one real screen and handing it to someone who did not build the system.
+The thinking is not the problem. The Galois connections are correct. The phantom axes do what they say. The documents are lucid and self-critical in a way most codebases never manage; the archive already said "the flywheel has never turned once" in March and "the system is ~60% of its own specification." The problem is that nothing in the loop required contact. Every gate the system built could be satisfied from inside it, so the work went where the gates were. That is a property of the structure, not of the people, and it is the one thing v2 changes first: the only gate that counts is one test, for one real screen, read by someone who did not build the system.
 
 The May journal and the September study are the repository finding its way out. v2 is what it looks like to trust that.
 
@@ -200,7 +200,7 @@ The May journal and the September study are the repository finding its way out. 
 
 Fifteen lessons, each traceable to something the repository did, measured, or admitted. The history roll-up behind this section holds sixty-seven verbatim admissions; these are the ones that change what v2 builds.
 
-1. **A measurement the authors can satisfy without leaving the building measures nothing.** Two graduations passed on a synthetic app that could not render the dominant real-world failure shape (§2.5). The only instrument that found this was contact with a real page.
+1. **A measurement the authors can satisfy without leaving the building measures nothing.** §2.5 is the evidence; the only instrument that found the gap was contact with a real page.
 
 2. **Contact produces more truth per day than construction.** Nine working days across May and September produced the false-positive detector, the contamination retraction, the walker fix, six findings, ten corrections, and a held-out generalization result. Five months of substrate work produced a substrate that had to be corrected on first contact.
 
@@ -252,7 +252,7 @@ The evidence in §2 is unambiguous. The eleven-rung deterministic ladder produce
 
 So v2 stops trying to be the thing that understands the test case. The host agent — Claude Code, Copilot, Codex, whatever the customer already runs — reads the ADO steps, looks at the page through Tesseract's eyes, decides, and writes the test. Tesseract provides the eyes (observation), the memory (facets), the hands (verified interaction), the pen (emission), the harness (execution), and the ledger (receipts and ADO results). Every one of those is a tool with a stable name and a receipt. The "vocabulary manifest" v1 wanted becomes what it always should have been: the tool list an agent host shows the model, plus a two-page playbook.
 
-What this preserves from v1: the manifest idea, the Reasoning receipt (provider, model, tokens, latency, prompt fingerprint — recorded on every authoring decision), provider polymorphism, the four-family error classification on interact. What it retires: the ladder as the seat of judgment; the heuristic classifier as anything but a fallback and a candidate pre-filter.
+What this preserves from v1: the manifest idea, the Reasoning receipt (provider, model, tokens, latency, prompt fingerprint — recorded on every authoring decision), provider polymorphism, the four named error families (plus `unclassified`) on interact. What it retires: the ladder as the seat of judgment; the heuristic classifier as anything but a fallback and a candidate pre-filter.
 
 ### 4.2 The product surface is the customer's repository
 
@@ -290,7 +290,7 @@ This is the compile framing done properly. The agent is the compiler. The compil
 
 v1's operator runs thirty-seven CLI commands, reads a review file that is a hundred lines of "none" per step, and watches a three-dimensional scene of particles and glass panes. v2's operator points the agent at an ADO suite, a URL, and credentials; watches the agent author in a headed browser or reads the pull request; reviews plain tests; and sees results as green and red points on the ADO test plan they already own.
 
-The dashboard becomes three things a QA lead already understands: the pull request, a one-page authoring receipt per test (what was observed, which facets were used or minted, what the agent decided and why, where it needed a human), and the ADO test run. The needs-human handoff — v1's genuinely good idea — becomes a comment on the ADO test case and a `test.fixme` in the spec with the structured reason inline, not an item in a bespoke inbox.
+The dashboard becomes three things a QA lead already understands: the pull request, a one-page authoring receipt per test (what was observed, which facets were used or minted, what the agent decided and why, where it needed a human), and the ADO test run. Azure Test Plans is a paid add-on (on the order of fifty dollars per user per month, with no free seats), so every prospect who can use the ADO loop already has a budget owner for it; that is the qualifying question for a pilot, and the reason the results loop is the purchase justification rather than a feature. The needs-human handoff — v1's genuinely good idea — becomes a comment on the ADO test case and a `test.fixme` in the spec with the structured reason inline, not an item in a bespoke inbox.
 
 ### 4.7 Why an inversion and not a repair
 
@@ -302,7 +302,7 @@ The other reason is the process rules in §8.5. They only hold in a tree where t
 
 ### 4.8 What the inversion is not
 
-It is not a rewrite for its own sake, and it is not a rejection of v1's ideas. Provenance minted at the event, append-only evidence, the structured handoff, the facet as the unit of memory, the four-family error classification, the locator ladder order, the accessible-name ladder, the affordance ladder, the clean-room evaluation rules, the annotation of tests with ADO identity — all of these are v1's, and all of them survive. What does not survive is the shape that put an engine where an agent should be and a synthetic mirror where a customer should be.
+It is not a rewrite for its own sake, and it is not a rejection of v1's ideas. Provenance minted at the event, append-only evidence, the structured handoff, the facet as the unit of memory, the interaction error families, the locator ladder order, the accessible-name ladder, the affordance ladder, the clean-room evaluation rules, the annotation of tests with ADO identity — all of these are v1's, and all of them survive. What does not survive is the shape that put an engine where an agent should be and a synthetic mirror where a customer should be.
 
 ## 5. v2 — the system
 
@@ -329,22 +329,25 @@ There is no `domain/application/runtime/instruments` layering ceremony. Each com
 
 ### 5.2 The tool surface
 
-Twelve tools. This is the manifest reborn: every tool has a name, a typed input and output, named error families, a version, and a receipt. The same twelve are exposed over MCP for interactive hosts and called directly by the batch driver. Adding capability means adding a tool; changing a tool's meaning means a new name.
+Thirteen tools. This is the manifest reborn: every tool has a name, a typed input and output, named error families, a version, and a receipt. The same thirteen are exposed over MCP for interactive hosts and called directly by the batch driver; the last, `review.record`, is the one a human calls, through the CLI or the pull request, because acceptance is a human decision and the number in §6.1 is derived from its receipts. Adding capability means adding a tool; changing a tool's meaning means a new name.
 
 | Tool | Input | Output | Error families |
 |---|---|---|---|
-| `ado.fetch` | `{ suite?: string; ids?: string[]; wiql?: string }` | `TestCase[]` with steps (action, expected), parameters, data rows, shared steps expanded, revision, content hash | rate-limited, unavailable, malformed, unclassified |
-| `ado.publish` | `{ runName; results: { testCaseId; outcome; durationMs; errorMessage?; traceRef? }[] }` | `{ runId; url }` | rate-limited, unavailable, unclassified |
+| `ado.fetch` | `{ planId?; suiteId?; ids?: string[]; wiql?: string }` | `TestCase[]` with steps (action, expected), parameters, data rows, shared steps expanded inline with each expanded step keeping its ADO `stepIdentifier` (`"<parentId>;<childIndex>"`), revision, content hash | rate-limited, unavailable, malformed-response, unclassified |
+| `ado.publish` | `{ planId; suiteId; runName; results: { testCaseId; testPointId; testCaseRevision; outcome; durationMs; errorMessage?; failureType?; traceRef?; steps?: { stepIdentifier; outcome }[] }[]; associateAutomation?: boolean }` | `{ runId; url; resultIds[] }` | rate-limited, unavailable, unclassified |
 | `app.open` | `{ url; auth?: 'storage-state' \| 'form'; profile? }` | `{ pageId; finalUrl; variant: 'reactive' \| 'traditional' \| 'unknown'; hydration }` | timeout, unavailable, unclassified |
-| `app.observe` | `{ pageId; scope?: 'page' \| landmark \| dataBlock; includeScreenshot? }` | `Snapshot`: candidates with role, accessible name, naming source, affordance source, landmark, data-block scope, ids, visibility, enabled; page fingerprint; ARIA snapshot text | timeout, unclassified |
+| `app.observe` | `{ pageId; scope?: 'page' \| landmark \| dataBlock; includeScreenshot? }` | `Snapshot`: `snapshotId`; candidates with role, accessible name, naming source, affordance source, landmark, data-block scope, ids, visibility, enabled; page fingerprint; ARIA snapshot text; `truncated: boolean`. Capped at 200 candidates and 32 KB of ARIA text per scope; non-interactive nodes are dropped first, then disabled, then off-screen | timeout, unclassified |
 | `app.act` | `{ pageId; action: click \| fill \| select \| check \| press \| hover; target: Locator; value? }` | `{ outcome; postState: Snapshot delta; errorFamily? }` | not-visible, not-enabled, timeout, assertion-like, unclassified |
 | `app.assert` | `{ pageId; assertion: visible \| text \| value \| url \| count; target?; expected }` | `{ passed; observed }` | timeout, assertion-like |
-| `memory.query` | `{ screen; phrase; kind?; scope? }` | ranked `Facet[]` with confidence and health | none |
-| `memory.mint` | `{ screen; facet: FacetDraft; evidence: ObservationRef }` | `Facet` (status `candidate`) | conflict, unclassified |
-| `memory.enrich` | `{ facetId; aliases?; locator?; evidence }` | `Facet` | conflict, unclassified |
-| `test.emit` | `{ testCase; flow: ResolvedStep[]; screens: ScreenRef[] }` | `{ specPath; pageObjectPaths[]; diff }` | malformed, unclassified |
-| `test.run` | `{ specPaths[]; headed?; retries? }` | `RunReceipt[]` with per-step outcomes, failure family, facet references, trace path | timeout, unclassified |
-| `handoff.raise` | `{ testCaseId; stepIndex; unresolvedIntent; attempted; evidence; candidates; nextMoves }` | `{ handoffId; adoCommentUrl?; specMarker }` | unavailable |
+| `memory.query` | `{ screen; phrase; kind?; scope? }` | at most 8 `Facet`s scoring above 0.3, ordered by status weight × phrase score × locator health, trusted never below candidate at equal score; empty on an unseen screen | malformed-response, unclassified |
+| `memory.mint` | `{ screen; facet: FacetDraft; evidence: { snapshotId; candidateRef } }` | `Facet` (status `candidate`) | conflict, unclassified |
+| `memory.enrich` | `{ facetId; aliases?; locator?; evidence: { snapshotId; candidateRef } }` | `Facet` | conflict, unclassified |
+| `test.emit` | `{ testCase; flow: ResolvedStep[]; screens: ScreenRef[]; handoffs: HandoffRef[] }` | `{ specPath; pageObjectPaths[]; diff }` | malformed-response, unclassified |
+| `test.run` | `{ specPaths[]; profile; headed?; retries? }` | `RunReceipt[]` with per-step outcomes, failure family, facet references, trace path, page fingerprint at failure | timeout, unclassified |
+| `handoff.raise` | `{ testCaseId; stepIndex; unresolvedIntent; attempted; evidence: { snapshotId }; candidates; nextMoves }` | `{ handoffId; adoCommentUrl? }` | unavailable, unclassified |
+| `review.record` | `{ testCaseId; decision: accept \| accept-with-edit \| reject; reviewer; changedLines?; locatorEdited?; note? }` | `AcceptanceReceipt` | malformed-response |
+
+`ResolvedStep` is the centre of the loop: `{ index; stepIdentifier; actionText; expectedText; verb; target?: { facetId } \| { locator; strategy; snapshotId; candidateRef }; value?; assertion?; }` or the `unresolved` variant `{ index; stepIdentifier; actionText; expectedText; handoffId }`. `Locator` is a Playwright locator expression plus the strategy that produced it; `FacetDraft` is a facet without provenance or status; `ScreenRef` is a screen name plus its page fingerprint; `HandoffRef` is a handoff id.
 
 Every tool call appends one line to `receipts/authoring.jsonl` with the tool name, inputs (redacted), outputs (summarized), duration, and — for any step where a model decided something — the host's model id, prompt fingerprint, and token counts as reported by the host. That is v1's `ReasoningReceipt` moved to where decisions actually happen.
 
@@ -358,7 +361,7 @@ The playbook (`PLAYBOOK.md`, under 200 lines) tells the agent: read the test cas
 4. For step 2, "Enter policy number in search field": `memory.query` misses. `app.observe` scoped to the `search` landmark returns one textbox named by placeholder "Search Policy" (naming source: placeholder). The agent binds the parameter value, `app.act` fills it, and mints an element facet `policy-search:policy-number-input` with alias "search field", locator `getByRole('textbox', { name: 'Search Policy' })`, naming source recorded.
 5. Step 3, "Click Search button": one `button` named "Search" inside the same landmark; act; mint.
 6. Step 4, "Verify search results show policy": `app.observe` after the action shows a table whose row contains `POL-001`; `app.assert` visible on `getByRole('row', { name: /POL-001/ })`. The expected text "Matching policy appears in Search Results" is kept as the step title.
-7. `test.emit` writes `tests/policy/10001-verify-policy-search-returns-matching-policy.spec.ts` and regenerates `pages/policy-search.page.ts` from the catalog.
+7. `test.emit` receives the four `ResolvedStep`s (and any handoffs, which become `test.fixme` steps with the reason inline), writes `tests/policy/10001-verify-policy-search-returns-matching-policy.spec.ts`, and regenerates `pages/policy-search.page.ts` from the catalog.
 8. `test.run` executes the emitted spec headless with the engine out of the loop; it passes; the run receipt links the Playwright trace.
 9. `ado.publish` creates a test run and marks the test point passed; the authoring receipt is written; the pull request is opened by the host.
 
@@ -476,6 +479,8 @@ export class PolicySearchPage {
 }
 ```
 
+When a test case carries more than one data row, the emitter writes one spec file with one `test()` per row, titled with the row's values, inside a `test.describe` named for the case; each row publishes as an iteration of the same test point with its parameters, which is how Azure DevOps models parameterized cases, and acceptance is recorded per case.
+
 Properties a reviewer can check in a minute: no selectors in the test body; the ADO wording is the step title; the page object is the only place locators live and each carries its facet id and naming rationale; a failing step shows up in the Playwright report under its ADO wording with a trace; nothing imports Tesseract. When the catalog changes, the page object regenerates; when a QA edits a locator by hand, they mark it `tesseract:keep` or move it to `policy-search.page.overrides.ts`, and regeneration honors it.
 
 OutSystems-specific waiting (feedback messages, loading overlays, hydration) goes into a small optional helper package a customer can read in ten minutes, never into hidden runtime behavior.
@@ -483,6 +488,8 @@ OutSystems-specific waiting (feedback messages, loading overlays, hydration) goe
 ### 5.6 Execution and reporting
 
 `test.run` is a thin wrapper over the Playwright test runner: it runs the emitted specs with the customer's own config, collects the JSON report and traces, classifies each failed step against the facets it references (not-found against a trusted facet is drift; assertion mismatch on expected text is a candidate real bug; timeout after a navigation is an environment signal), and writes one run receipt per test.
+
+**Monday morning.** When a release goes out and the suite goes red, `test.run` diffs each failing screen's current page fingerprint against the fingerprint its facets last saw, groups the failures by suspect facet, re-observes those screens, and opens one drift pull request per screen: the facets it proposes to enrich, the before-and-after snapshots, and the tests that would go green. The failing `test.step` names the ADO step; the receipt names the strategy that resolved the locator and the evidence it rested on; the fix is accepting the pull request or editing one override. That is the five-minute path, and it is the reason a QA team keeps the tool after the first release. Staleness is announced by the fingerprint diff before anyone opens a trace.
 
 `ado.publish` closes the loop v1 never closed. Results go back to Azure DevOps as a test run: create the run against the plan and suite, add one result per test point with outcome, duration, error message, and a link to the trace. The test case gains the automation association fields so that the plan shows it as automated. A QA lead sees green and red where they already look. Publishing is idempotent per run id and never modifies test case steps.
 
@@ -508,7 +515,7 @@ The snapshot handed to the model is the candidates list plus the ARIA snapshot t
 
 ### 5.9 Resolution: from eleven rungs to four steps
 
-v1's ladder had eleven rungs; three of them (semantic dictionary, approved-equivalent overlay, structured translation) had no real producer, and two (live DOM, agent-interpreted) were never exercised with a model. v2 resolves a step in four moves, each of which is a tool call the host makes, not a rung the engine walks:
+v1's ladder had eleven rungs; two of them (semantic dictionary, approved-equivalent overlay) had no producer at all, a third (structured translation) had only a token-overlap adapter, and the two rungs meant to do the judging (live DOM, agent-interpreted) were never exercised against a real application, let alone with a model. v2 resolves a step in four moves, each of which is a tool call the host makes, not a rung the engine walks:
 
 1. **Memory** — `memory.query` on the current screen. A trusted facet with healthy locators resolves the step without observation. This is v1's Level 3 "DOM-less authoring," available from the first revisit rather than deferred to a later level.
 2. **Observe and decide** — `app.observe`, scoped by any landmark or row cue in the wording; the host model picks from candidates; the tool verifies the locator resolves to exactly one visible element before anything is written. The heuristic classifier and pattern library run first as a cheap pre-filter and as the fallback when no model is present.
@@ -519,32 +526,35 @@ Precedence inside step 2 is the locator ladder — role and name, label, placeho
 
 ### 5.10 Data on disk
 
-Six artifact kinds, all in the customer's repository, all reviewable:
+Seven artifact kinds, all in the customer's repository, all reviewable:
 
 | Path | What | Written by | Append-only |
 |---|---|---|---|
-| `tests/**/<adoId>-<slug>.spec.ts` | emitted tests | `test.emit` | no (regenerated; keep-markers) |
-| `pages/<screen>.page.ts` (+ `.overrides.ts`) | page objects | `test.emit` | no (regenerated; overrides survive) |
+| `tests/**/<adoId>-<slug>.spec.ts` | emitted tests | `test.emit` | no (rewritten only when the ADO revision changes or on request; keep-markers survive) |
+| `pages/<screen>.page.ts` (+ `.overrides.ts`) | page objects | `test.emit` | no (regenerated freely; overrides survive) |
+| `.tesseract/snapshots/<snapshotId>.json` | PII-gated observations the receipts cite | `app.observe` | yes, gitignored, pruned by age |
 | `.tesseract/catalog/<screen>.yaml` | facets | `memory.mint/enrich`, human edits | no (proposal-gated) |
 | `.tesseract/evidence/<screen>.jsonl` | observations and run outcomes per facet | tools | yes |
 | `.tesseract/receipts/authoring.jsonl`, `runs.jsonl` | every tool call and every run | tools | yes |
 | `.tesseract/handoffs/<adoId>-<step>.json` | open handoffs | `handoff.raise` | yes (resolved by a later record) |
 
-Nothing else. No twelve-directory runtime engine, no graph index, no interface index, no learning manifest, no scoreboard snapshots. If a projection is needed for a report, it is computed from these six.
+Nothing else. No dozen-directory runtime engine, no graph index, no interface index, no learning manifest, no scoreboard snapshots. If a projection is needed for a report, it is computed from these.
+
+The alternative for the spec file deserves naming, because it is stronger in one respect: emit the spec exactly once, never rewrite it, and land any re-authoring as a diff in a proposals file for the human to apply. That removes the keep-marker parser entirely and makes the spec unambiguously human-owned. v2 does not choose it for one reason: an ADO revision changes step wording, and a spec whose `test.step` titles no longer match the test case it is annotated with is a lie the ADO loop would propagate. So the spec is rewritten on a revision change or on request, always as a pull-request diff, with keep-marked regions preserved; page objects regenerate freely. If the pilot shows that reviewers never edit spec bodies, switch to emit-once.
 
 ### 5.11 Hosting
 
-Three ways to run the same twelve tools:
+Three ways to run the same thirteen tools:
 
 - **Interactive** — an MCP server the QA lead's agent host connects to (Claude Code, Copilot, Codex, Cursor). The playbook ships as a skill. This is the mode for the first tests on a new app, for handoffs, and for review.
-- **Batch** — a driver that loops a pinned model over a suite with the same tools, bounded budgets per test, and receipts; it is the descendant of `public-aut-runner.ts`, and the only place Tesseract itself calls a model. It runs nightly or per release to author new test cases and to re-author changed ones.
+- **Batch** — a driver that loops a pinned model over a suite with the same tools; it is the descendant of `public-aut-runner.ts`, and the only place Tesseract itself calls a model. It runs nightly or per release to author new test cases and to re-author changed ones. The loop, per test case: the model's context holds the playbook, the test case, the current step, the most recent snapshot (scoped, capped as §5.2 says), the facets `memory.query` returned, and a one-line summary of each earlier step's outcome — never the full history of snapshots. Each step has a retry budget of three tool-call rounds; each test case has a token budget and a wall-clock budget, and exhausting either raises a handoff on the current step rather than failing silently. A `context-exceeded` error from the host drops the oldest step summaries first, then the ARIA text, then raises a handoff. A failed test case is re-authored from scratch on the next run, not resumed, because the page may have changed. The driver commits the emitted files to a branch and opens the pull request itself, with the authoring receipts attached; there is no other host in this mode.
 - **CLI** — every tool callable from the shell for scripting and debugging, and `tesseract run`/`tesseract publish` for CI.
 
 The host owns the model, the prompt loop, the context window, and the safety policy. Tesseract owns the tools, the memory, the emission, and the receipts. Provider polymorphism is free because it is the host's problem.
 
 ### 5.12 Security and data
 
-Credentials for ADO and the application come from environment or the host's secret store and never enter receipts. Snapshots passed to a model are PII-gated and size-capped; a customer that cannot send page content to a hosted model runs the batch driver against an in-tenant model, which the host abstraction allows. Test data is declared, not scraped: ADO parameters and data rows are the source, environment profiles name the QA tenant, and a step that needs data the suite does not declare raises a handoff rather than inventing a value. Storage states for authenticated sessions are per-profile files the customer owns.
+An environment profile is a small file the customer owns: `.tesseract/profiles/<name>.json` holding `{ name, baseURL, storageStatePath, tenant, dataSet }`, selected with `--profile` or `TESSERACT_PROFILE`, and projected into the customer's `playwright.config.ts` by a generated snippet the README shows (that is where the page objects' relative `goto('/PolicySearch')` gets its base URL). Credentials for ADO and the application come from environment or the host's secret store and never enter receipts. Snapshots passed to a model are PII-gated and size-capped; a customer that cannot send page content to a hosted model runs the batch driver against an in-tenant model, which the host abstraction allows. Test data is declared, not scraped: ADO parameters and data rows are the source, environment profiles name the QA tenant, and a step that needs data the suite does not declare raises a handoff rather than inventing a value. Storage states for authenticated sessions are per-profile files the customer owns.
 
 ## 6. v2 — measurement
 
@@ -554,11 +564,13 @@ v1's workshop was twenty-eight thousand lines answering the question "is the pro
 
 | Number | Definition | Denominator | Where it comes from |
 |---|---|---|---|
-| **Acceptance** | fraction of emitted tests a human accepts into the suite as written or with a small edit (≤ 5 changed lines that do not touch a locator) | tests emitted for a cohort | the pull request outcome, recorded in the authoring receipt by the reviewer's decision |
+| **Acceptance** | fraction of emitted tests a human accepts into the suite as written or with a small edit (≤ 5 changed lines; a locator edit that lands in the overrides file counts as accepted-with-edit, because that is the edit §4.2 designs for) | tests emitted for a cohort | `review.record` receipts, written by the reviewer from the pull request |
 | **Survival** | fraction of accepted tests still passing without edits after N runs and one application release; flake rate as a companion | accepted tests | run receipts over time, joined on ADO id |
 | **Cost** | wall-clock minutes and model tokens per accepted test; reported separately for first visit to a screen and for revisits | accepted tests | authoring receipts (tool durations, host-reported tokens) |
 
-Diagnostics underneath, reported but never optimized directly: handoff rate per step, handoff reasons by type, facet reuse rate on revisits, locator strategy distribution, naming-source distribution on real screens, drift proposals per release.
+Diagnostics underneath, reported but never optimized directly: handoff rate per step, handoff reasons by type, locator-edit rate among accepted tests (the signal that resolution is weak), assertion substance (the share of steps whose assertion checks a value or a row rather than mere visibility), facet reuse rate on revisits, locator strategy distribution, naming-source distribution on real screens, drift proposals per release.
+
+Who accepts matters. The clean-room rules below restrict who may *evaluate a held-out route*; they do not forbid the owner from reviewing tests. In week one the accepting human may be the owner. From M1 onward the headline acceptance number comes from a reviewer who did not build v2 — the pilot's QA lead, or a contracted QA engineer if no pilot exists yet — and the owner's own acceptances are recorded under their name and reported separately.
 
 The cost trend on revisited screens is v1's "memory worthiness" (M5) said plainly. The acceptance trend across revisions is v1's "intervention marginal value" (C6) said plainly. Neither needs a visitor tree.
 
@@ -571,6 +583,8 @@ The clean-room rules the cold-start spike wrote down in May are correct and surv
 3. The evaluator is not the improver. A held-out run is executed by a fresh session that cannot modify code, and its receipt is relayed verbatim.
 4. A spent route is spent for that page version. The page fingerprint and version token are recorded; a new version re-opens the route.
 5. Retract when contaminated. If a number was produced under a violated rule, the number is withdrawn in the same document that reported it.
+6. Held-out fixtures are authored blind. The test cases for a held-out route are written by a human from screenshots, without reading the catalog, so that the evaluation measures resolution and not familiarity. (This is the reality study's C5, declared and never yet run.)
+7. A leak names its replacement. If a held-out route is touched outside an evaluation, the leak is logged, the route is demoted to training, and a replacement held-out route is named in the same commit. (The reality study's C6.)
 
 Cohorts at the start of v2: the thirteen untouched routes of the OutSystems UI website; further public OutSystems Reactive applications as they are found (the source survey's legal envelope applies — disclosed user agent, robots respected, PII gated, snapshots not committed); and, from the first pilot onward, the customer's own screens that the agent has not seen, chosen by the QA lead.
 
@@ -590,17 +604,17 @@ This inverts v1's relationship between synthetic and real. Synthetic fixtures ar
 
 ## 7. What v2 keeps, transforms, and leaves — the ledger
 
-Three dispositions. **Lift** means copy the file and its tests into the new package as they are, with history noted. **Transform** means the idea and usually some code survive, reshaped as §5 describes. **Leave** means it stays on the archive branch. Line counts are from the ingestion reports; they are there to show where the weight is.
+Three dispositions. **Lift** means copy the file and its tests into the new package as they are, with history noted. **Transform** means the idea and usually some code survive, reshaped as §5 describes. **Leave** means it stays on the archive branch. Line counts are TypeScript lines from the ingestion reports unless a row says otherwise; the tables name where the weight is and are not a partition of every file, so each folder ends with a catch-all row for what is not enumerated.
 
 ### 7.1 `product/`
 
 | v1 module | Lines (approx.) | Disposition | Note |
 |---|---|---|---|
 | `instruments/intent/live-ado-source.ts` | 270 | **Lift + extend** | WIQL and work-item fetch stay; add shared steps, plan/suite membership via the Test Plans API, and the publish path (`ado/`). |
-| `instruments/observation/aria.ts` | 506 | **Lift** | ARIA snapshot capture; merged with the harvester (§5.8). |
+| `instruments/observation/aria.ts` (35) + `domain/knowledge/aria-snapshot.ts` (144) + `instruments/observation/state-topology.ts` (506) | 685 | **Transform** | Snapshot normalisation and the tree walk survive; the deprecated `page.accessibility.snapshot()` call is replaced by `locator.ariaSnapshot()` per §5.8; state-topology observation is deferred until a pilot asks for it. |
 | `instruments/codegen/spec-codegen.ts` | 412 | **Transform** | AST emission stays; the target becomes the §5.5 spec and page object; the `renderScreenFacadeModule` idea becomes the page object; the `scenario.executeX` emission goes. |
 | `instruments/tooling/playwright-bridge.ts`, `browser-options.ts`, `discover-screen.ts` | ~600 | **Lift** | Browser launch, channel and headless resolution, the discovery walk (already resolves names via label, placeholder, content, and admits roleless handler owners). |
-| `runtime/widgets/interact.ts`, `domain/widgets/role-affordances.ts` | ~800 | **Lift** | Action dispatch with precondition checks and the four error families; the role-affordance table. |
+| `runtime/widgets/interact.ts`, `domain/widgets/role-affordances.ts` | ~800 | **Lift** | Action dispatch with precondition checks and the five error families; the role-affordance table. |
 | `runtime/adapters/navigation-strategy.ts` | ~200 | **Lift** | Route classification and `page.url()` idempotence. |
 | `runtime/resolve/` locator ladder (`locate.ts` lineage) | ~400 | **Lift + reorder** | Role-name, label, placeholder, text, test id, css; add the OutSystems id-suffix strategy and `os-test-id` support. |
 | `domain/resolution/patterns/` (kernel, 8 patterns, registry, `intent-classifier.ts`) | ~2,000 | **Transform** | The classifier becomes the no-model fallback and candidate pre-filter; the patterns become `patterns/` versioned by variant; `SurfaceIndex` becomes the snapshot index. |
@@ -622,9 +636,10 @@ Three dispositions. **Lift** means copy the file and its tests into the new pack
 | `application/drift/` (eight analyzers) | ~1,200 | **Transform** | Drift classification of run failures against facets survives as a function in `run/`; the regression vectors reduce to not-found, changed-name, changed-role, timeout. |
 | `application/projections/`, `domain/projection/` (scene state, flywheel acts, summary view) | ~2,500 | **Leave** | Dashboard read models. |
 | `application/agency/`, `domain/agency/`, `domain/commitment/`, `domain/aggregates/`, `domain/attention/`, `domain/synthesis/`, `domain/learning/`, `application/learning/`, `application/improvement/`, `domain/improvement/`, `domain/proposal/` (clusters, particle physics, glass pane) | ~8,000 | **Leave** | Measurement and workbench machinery. The proposal *kinds* (hypothesis, revision, candidate) survive as a review-template line and as the facet status. |
-| `manifest/declarations.ts`, `build/emitter/` drift check | ~600 | **Transform** | Nine verbs become twelve tools; the declaration shape (name, inputs, outputs, error families, since) survives as the MCP tool schema; the drift check survives as "the tool list in the playbook equals the tool list in code." |
+| `manifest/declarations.ts`, `build/emitter/` drift check | ~600 | **Transform** | Nine verbs become thirteen tools; the declaration shape (name, inputs, outputs, error families, since) survives as the MCP tool schema; the drift check survives as "the tool list in the playbook equals the tool list in code." |
 | `cli/` (23 commands) | ~1,100 | **Transform** | About eight commands: `fetch`, `author`, `run`, `publish`, `catalog`, `eval`, `harvest`, `serve` (MCP). |
 | `tests/architecture/` seam law, governance law, log-registry law | ~700 | **Transform** | The seam becomes TypeScript project references; the governance law survives as "no string comparison on status outside a fold"; the log law survives for the three logs. |
+| everything in `product/` not enumerated above: schemas and validators (~4k), execution and interpretation types, widgets beyond the affordance table, runtime support (browser pool, concurrency), paths, reporting, build, `product/tests/` fluency and manifest harnesses | ~40k | **Leave** | Types and plumbing for the shape v2 inverts. Anything a lifted module imports comes with it, minimally. |
 
 ### 7.2 `workshop/`
 
@@ -632,7 +647,7 @@ Three dispositions. **Lift** means copy the file and its tests into the new pack
 |---|---|---|---|
 | `substrate-study/` (dom-walk-capture, snapshot-record, hydration-detector, variant-classifier, aria-snapshot, block-ownership, view-bundle, study-partition, external-snapshot-harness, snapshot store) | ~3,000 | **Lift into `observe/`** | This is the product's eyes; it was built in the workshop because the product had no place for it. The partition guard becomes part of `eval/`. |
 | `customer-backlog/application/public-aut-runner.ts`, `page-fingerprint.ts`, `intent-helpers.ts`, cohort loader, `cohort.json`, the public-AUT fixtures | ~1,500 | **Transform** | The runner's loop (classify, open, probe, act, verify expected target, receipt) is the batch driver's skeleton with the model in the decide step; the cohort manifest and clean-room rules move to `eval/`. |
-| `customer-backlog/fixtures/` (8 resolvable, 14 needs-human fabricated ADO cases) | ~1,400 | **Leave** | Fabricated cases against synthetic presets. Real ADO cases replace them. |
+| `customer-backlog/fixtures/` (8 resolvable, 14 needs-human fabricated ADO cases) | ~1,400 data lines (JSON, not code) | **Leave** | Fabricated cases against synthetic presets. Real ADO cases replace them. |
 | `synthetic-app/` (server, `SubstrateRenderer`, `SurfaceRenderer`, `EntropyWrapper`) and `substrate/` (`SurfaceSpec`, `WorldShape`, `EntropyProfile`, topologies) | ~2,500 | **Transform** | Survives only as the fixture renderer for incident-to-fixture regression (§6.3). The axes that mirror real shapes (naming, placeholder, clickable, `reactive-block` chrome) are the reason it is worth keeping. |
 | `probe-derivation/` (probe IR, derive, classifiers, three rung harnesses, parity, coverage) | ~3,200 | **Leave** | The probe IR is retired with the manifest-as-measurement idea. The `probe-target` grammar (`{role,name}`, `{placeholder}`, `{text}`, `inRow`) survives in the locator ladder. |
 | `scenarios/` (corpus, harnesses, loader) and `synthesis/` (deprecated generators) | ~3,700 | **Leave** | |
@@ -646,10 +661,11 @@ Three dispositions. **Lift** means copy the file and its tests into the new pack
 
 | v1 module | Lines (approx.) | Disposition | Note |
 |---|---|---|---|
-| `mcp/dashboard-mcp-server.ts` and MCP tooling | ~2,400 | **Transform** | The server framework survives; the tool set becomes the twelve in §5.2; the pending-decision closure, suggested-action scoring, and speedrun control go. |
+| `mcp/dashboard-mcp-server.ts` and MCP tooling | ~2,400 | **Transform** | The server framework survives; the tool set becomes the thirteen in §5.2; the pending-decision closure, suggested-action scoring, and speedrun control go. |
 | `bridges/` (file decision bridge, event bus, journal writer, WS adapter) | ~1,400 | **Leave** | No inbox, no live decision loop; handoffs land in ADO and the spec. |
-| `server/`, `src/` (React, three.js scene, playback, bookmarks, narration, spatial overlays) | ~14,500 | **Leave** | Replaced by the authoring receipt page and the pull request. |
-| `extension/` (VS Code task provider, diagnostics, chat participant) | ~700 | **Defer** | Revisit after the pilot if the host is VS Code; the chat participant idea is subsumed by the MCP server. |
+| `server/`, `src/` (React, three.js scene, playback, bookmarks, narration, spatial overlays) | ~14,300 | **Leave** | Replaced by the authoring receipt page and the pull request. |
+
+The top-level `extension/` folder (522 lines: a VS Code task provider, diagnostics, and a chat participant, with the task provider itself at `product/instruments/vscode/task-provider.ts`) is **deferred**: revisit after the pilot if the host is VS Code; the chat participant is subsumed by the MCP server.
 
 ### 7.4 Tests, docs, scripts, configuration
 
@@ -658,7 +674,7 @@ Three dispositions. **Lift** means copy the file and its tests into the new pack
 | ~73k lines of tests | **Leave, then re-derive** | Tests that pin lifted code come with it (ADO XML parsing, locator ladder determinism, accname agreement, affordance ranking, codegen idempotence, handoff shape, catalog round trips, PII gate). Laws about phantom axes, algebra, visitors, compounding, projections, and the dashboard stay on the archive branch. Add what v1 never had: a real-browser fixture suite, HAR-replay tests of real routes, one end-to-end fluency check. |
 | `docs/` (90 files) | **Archive wholesale** | `docs/archive/v1/`. Five documents replace them (§8.6). The reality study and the cold-start journal are the two v1 documents worth reading in full; `eval/README.md` links them. |
 | `scripts/` (27) | **Transform** | Keep `harvest-external-snapshot.ts` and `substrate-reality-stats.ts` as `tesseract harvest`; keep `build.cjs`, `check.cjs`, `lint.cjs`, `typecheck.cjs` in spirit with the strict flags on; leave speedrun, evolve, experiments, graduate, sensitivity, convergence-proof, generate-synthetic, mcp-call, migrate-*. |
-| `.tesseract/` (12 directories) | **Leave** | Replaced by `.tesseract/catalog`, `evidence`, `receipts`, `handoffs` in the customer's repository. |
+| `.tesseract/` (12 directories at checkout, 14 after one compile and typecheck) | **Leave** | Replaced by `.tesseract/catalog`, `evidence`, `receipts`, `handoffs` in the customer's repository. |
 | `dogfood/` | **Leave** | The 10001 demo, its fixtures, runbooks, and generated output. A real ADO-shaped fixture set (with shared steps and parameters) replaces it under `eval/`. |
 | `tsconfig.build.json` relaxations, `vitest` shim of `@playwright/test`, three Playwright configs pointing at a deleted server | **Leave** | v2 has one strict `tsconfig`, project references for the seam, and Playwright configs that point at things that exist. |
 | `.github/instructions/*`, `AGENTS.md`/`CLAUDE.md`/`CODEX.md` symlinks | **Rewrite** | One CLAUDE.md under 200 lines; per-folder instructions only where a folder has a rule the root does not. |
@@ -671,7 +687,7 @@ Three dispositions. **Lift** means copy the file and its tests into the new pack
 | `workshop/` (28k) | ≈ 3k | ≈ 4k (≈ 1.5k survives) | ≈ 21k |
 | `dashboard/` (18k) | 0 | ≈ 2.4k (≈ 0.8k survives) | ≈ 15.6k |
 
-Roughly 8,000 lines of v1 code survive into a 20–25k-line v2; the rest of v2 is new and small: the catalog store, the emitter's new target, the publish path, the batch driver, the eval harness, the report. The work is mostly deletion, and the deletion is what makes the rest legible.
+Roughly eleven thousand lines of v1 code survive into a 20–25k-line v2 — about six and a half thousand lifted unchanged and about five thousand reshaped; the rest of v2 is new and small: the catalog store, the emitter's new target, the publish path, the batch driver, the eval harness, the report. The work is mostly deletion, and the deletion is what makes the rest legible.
 
 ## 8. Sizing and the ninety-day build
 
@@ -679,11 +695,15 @@ Roughly 8,000 lines of v1 code survive into a 20–25k-line v2; the rest of v2 i
 
 Every pull request lands with a receipt from a real application or a HAR replay of one. Not a synthetic probe, not a law test alone. This one rule is the difference between v2 and v1; the rest of this section is its consequences.
 
+The acceptance ladder, stated once: week one, at least one test accepted; the abort threshold in §9, below 50% at ten test cases; M1, at least 70% at ten cases across three or more screens; M2, at least 70% held at fifty cases with survival measured. No pilot customer is assumed by this document. If none is committed by week eight, M3 substitutes a public OutSystems application with a hand-authored ADO suite, and the QA-lead verdict comes from a contracted reviewer who did not build v2.
+
 ### 8.2 Week one: the vertical slice
 
-Goal: one real OutSystems Reactive screen, one ADO-shaped test case with real steps XML, a host agent with the twelve tools (most stubbed), one emitted spec and page object of the §5.5 shape, passing under `npx playwright test` with Tesseract absent from the runtime path, read and accepted by a human, with an authoring receipt.
+Day one: branch `v2`; a `v2/` directory beside `product/` with its own `tsconfig` and a workspace entry in `package.json`; the old gates keep running unchanged on the old tree; the first commit is `v2/observe/` lifted from `workshop/substrate-study/` with its tests, and the first command is `npx tsx v2/cli.ts harvest <url>` printing a snapshot with a `snapshotId`.
 
-The application is the OutSystems UI website's Productcatalog route (a study route, already harvested, already known) or a customer DEV environment if one is available. The test case is authored from a screenshot in the ADO steps format, including a parameter. The tools that must be real in week one: `app.open`, `app.observe` (the reality-study walker, lifted), `app.act`, `test.emit`, `test.run`. The tools that may be stubs: `ado.fetch` (fixture-backed), `ado.publish` (log-only), `memory.*` (in-memory), `handoff.raise` (file-only).
+Goal for the week: one real OutSystems Reactive screen, one ADO-shaped test case with real steps XML, a host agent with the thirteen tools (most stubbed), one emitted spec and page object of the §5.5 shape, passing under `npx playwright test` with Tesseract absent from the runtime path, read and accepted by a human, with an authoring receipt.
+
+The application is the OutSystems UI website's Productcatalog route (a study route, already harvested, already known) or a customer DEV environment if one is available. Productcatalog is deliberately the easy route — it is the one study route with no roleless controls on first harvest — because the point of week one is the artifact shape and the loop, not resolution difficulty; the roleless and placeholder shapes are M1's problem, on Employeesdirectory and Requestmanagement. The test case is authored from a screenshot in the ADO steps format, including a parameter. The tools that must be real in week one: `app.open` with one storage-state profile against one authenticated environment (or the public route, which needs none), `app.observe` (the reality-study walker, lifted), `app.act`, `test.emit`, `test.run`, `review.record`. The tools that may be stubs: `ado.fetch` (fixture-backed), `ado.publish` (log-only), `memory.*` (in-memory), `handoff.raise` (file-only). The accepting human in week one is the owner; that is allowed, and it is recorded as such.
 
 Exit: the spec in §5.5 exists for a real page, a human has accepted it, and the receipt names every decision. Nothing else counts.
 
@@ -691,9 +711,9 @@ Exit: the spec in §5.5 exists for a real page, a human has accepted it, and the
 
 | Milestone | Weeks | Ships | Exit criterion (all measured on real applications) |
 |---|---|---|---|
-| **M1 — the toolbox is real** | 2–4 | all twelve tools real; catalog on disk with provenance and evidence; ADO fetch against a live project; ADO publish creating a test run; the playbook; the CLI; HAR recording of the study routes | ten test cases authored on ≥3 screens; acceptance ≥ 70% on first emission; every test runs with the engine absent; results visible on an ADO test plan |
+| **M1 — the toolbox is real** | 2–4 | all thirteen tools real; catalog on disk with provenance and evidence; ADO fetch against a live project; ADO publish creating a test run; the playbook; the CLI; HAR recording of the study routes | ten test cases authored on ≥3 screens; acceptance ≥ 70% on first emission; every test runs with the engine absent; results visible on an ADO test plan |
 | **M2 — memory earns its keep** | 5–8 | batch driver with budgets; facet reuse on revisits; regeneration with keep-markers and overrides; handoff to ADO comment + `test.fixme`; incident-to-fixture regression suite in CI; the three-number report | fifty test cases; revisit cost ≤ 50% of first-visit cost on the same screen; survival ≥ 90% over ten runs; held-out cohort (five untouched routes) authored blind by a fresh session with acceptance reported and no retractions needed |
-| **M3 — drift and the pilot** | 9–12 | drift classification on run failures with proposals as pull requests; OutSystems-generic pattern library grounded in ≥ 3 public apps and versioned by variant; auth and environment profiles; test-data declaration; the pilot on a customer backlog under the QA lead's review | first customer pilot: ≥ 25 accepted tests on their app; one release crossed with survival reported; a QA lead's written verdict on legibility; all docs ≤ 3,000 lines total |
+| **M3 — drift and the pilot** | 9–12 | drift classification on run failures with proposals as pull requests (the Monday-morning path in §5.6); OutSystems-generic pattern library grounded in ≥ 3 public apps and versioned by variant; multiple environment profiles and the single-sign-on and multi-factor edge cases of authentication; test-data declaration; the pilot on a customer backlog under the QA lead's review | first customer pilot: ≥ 25 accepted tests on their app; one release crossed with survival reported; a QA lead's written verdict on legibility; all docs ≤ 3,000 lines total |
 
 Beyond M3, the roadmap is the pilot's handoffs, ranked by frequency. That is the only backlog.
 
@@ -707,7 +727,7 @@ Eighty percent of v1's commits were authored by an agent, and the plans that out
 
 1. **Plan equals pull request.** A plan is the description of the pull request that implements it. A design document longer than 300 lines does not merge without the code it describes.
 2. **Reality budget.** Every pull request carries a receipt from a real application or a HAR replay. A pull request that only adds laws, types, or docs is a documentation change and says so.
-3. **One CLAUDE.md, under 200 lines.** It names the twelve tools, the six artifacts, the three numbers, the clean-room checklist, and the playbook. It never describes a plan.
+3. **One CLAUDE.md, under 200 lines.** It names the thirteen tools, the seven artifacts, the three numbers, the clean-room checklist, and the playbook. It never describes a plan.
 4. **No new vocabulary without a glossary line.** The glossary is capped at forty terms. A new term retires an old one or is not introduced.
 5. **The gate is green.** Build, typecheck, lint, unit tests, the fixture suite in a real browser, and the fluency check on a pinned model. A red gate blocks merge; there is no "authoritative gate" that has been red for six months.
 6. **Held-out runs are run by someone else.** A session that changed code in the last cycle does not evaluate held-out routes.
@@ -725,10 +745,10 @@ Eighty percent of v1's commits were authored by an agent, and the plans that out
 | product code (excluding tests) | 79,391 lines across `product/`; plus 28,420 `workshop/`; plus 18,143 `dashboard/` | 20–25k in one package |
 | tests | ~73k lines, 4,161 unit tests, none in a real browser | ~15k lines; law tests where they earn it; a real-browser fixture suite; HAR-replay suite; one fluency check |
 | active documents | 24,687 lines of v2 planning plus 15,682 v1-reference plus 8,456 archive | ≤ 3,000 lines across five documents |
-| CLI commands | 37 | ~8 |
-| MCP tools | ~20 hand-curated plus manifest-derived | 12 |
+| CLI commands | 37 | about 8 |
+| MCP tools | about 36 (27 hand-curated plus 9 manifest-derived) | 13 |
 | terms of art | well over a hundred, with at least seven collisions | ≤ 40 |
-| directories under the runtime state root | 12 | 4 |
+| directories under the runtime state root | 12 at checkout, 14 after one compile and typecheck | 4 |
 | resolution rungs | 11 | 4 moves |
 | measurement machinery | 7 visitors, 20 proof obligations, 10 theorem groups, compounding engine, convergence FSM, scoreboard, Pareto frontier | 3 numbers and a diagnostics table |
 
@@ -756,7 +776,9 @@ Stated plainly, with what it would cost to find out.
 
 **Host dependence.** If the customer's agent host changes its tool protocol or model, authoring quality shifts. The batch driver pins a model and the receipts record it, so the shift is visible; the emitted tests are unaffected.
 
-**The 13 held-out routes are finite.** Public OutSystems Reactive applications are rare and legally delicate to harvest. The customer's own unseen screens are the durable held-out; the pilot must reserve some.
+**The 13 held-out routes are finite.** M2 spends five of them, leaving eight for M3 and the pilot; M3 also wants three public applications and there is one. Public OutSystems Reactive applications are rare and legally delicate to harvest. The named replenishment action — a free OutSystems personal environment with a published Forge sample application, which the discovery handoff calls "the operator's" — has an owner (Danny) and no date, and it is the only path to a second independently-owned Reactive application. The customer's own unseen screens are the durable held-out; the pilot must reserve some.
+
+**Three harness questions the reality study left open and v2 inherits.** How deep to recurse into shadow DOM; how to fingerprint high-cardinality `data-*` attributes without the fingerprint changing on every render; and whether the accessible-name computation should come from the browser's `ariaSnapshot()` alone, from the DOM walk alone, or from both with disagreement recorded (v2 says both, and the disagreement rate is a diagnostic).
 
 **Result publishing to ADO touches a system of record.** Creating test runs and results is safe; the association fields on the test case are a write to a work item and should be an explicit, opt-in flag.
 
@@ -774,7 +796,7 @@ Everything below was observed in this session on 2026-09-18 at commit `9714891` 
 |---|---|
 | `npm run build` (session start hook) | ok; "manifest drift-check: no drift" |
 | `npm run test:unit` | 326 files passed, 1 skipped; 4,161 tests passed, 10 skipped; 64 s |
-| `npm run lint` | 298 errors, 0 warnings; exit 1 (151 `no-unused-vars`, 72 `no-restricted-syntax`, 46 `consistent-type-imports`, 19 `no-restricted-imports`, 3 `switch-exhaustiveness-check`, 1 `no-misused-promises`); the checked-in `lint-output-full.txt` from 2026-03-29 shows 417 |
+| `npm run lint` | 298 errors, 0 warnings; exit 1 (151 `no-unused-vars`, 72 `no-restricted-syntax`, 46 `consistent-type-imports`, 19 `no-restricted-imports`, 3 `switch-exhaustiveness-check`, 1 `no-misused-promises`); the checked-in `lint-output-full.txt` from 2026-03-29 shows 415 |
 | `node dist/bin/tesseract.js compile --ado-id 10001` | wrote `dogfood/generated/demo/policy-search/10001.spec.ts`, `.review.md`, `.trace.json`, `.proposals.json`, `.tesseract/bound/10001.json`, `.tesseract/tasks/10001.resolution.json`, graph and interface indexes |
 | `git log` authorship | Claude 398, Daniel Dyer 85, copilot-swe-agent 10, Danny 4 (497 total, 2026-03-29 → 2026-09-17); merged branch prefixes: claude 28, codex 24, copilot 2 |
 | line counts (`.ts`/`.tsx`, excluding tests) | product 79,391; workshop 28,420; dashboard 18,143 |
@@ -834,7 +856,7 @@ Forty terms is the cap. These are the ones v2 needs.
 | four moves | memory, observe-and-decide, try, handoff |
 | error family | not-visible, not-enabled, timeout, assertion-like, unclassified |
 | handoff | a structured needs-human record: unresolved intent, attempts, evidence, candidates, next moves |
-| tool | one of the twelve named operations with typed input, output, error families, and a receipt |
+| tool | one of the thirteen named operations with typed input, output, error families, and a receipt |
 | playbook | the short document the agent reads at session start |
 | host | the agent runtime that calls the tools (Claude Code, Copilot, Codex, the batch driver) |
 | batch driver | Tesseract's own loop over a suite with a pinned model |
@@ -845,6 +867,8 @@ Forty terms is the cap. These are the ones v2 needs.
 | run | execute specs with Playwright; classify failures; write run receipts |
 | publish | create an ADO test run and results for test points |
 | acceptance / survival / cost | the three numbers |
+| acceptance receipt | the record `review.record` writes: who reviewed which test, the decision, and what was edited |
+| profile | an environment file: name, base URL, storage-state path, tenant, data set |
 | cohort | a named set of applications and routes with a declared partition |
 | training / held-out | partition; promotion is one-way and recorded |
 | spent | a held-out route evaluated once for a page version |
