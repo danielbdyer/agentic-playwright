@@ -68,7 +68,7 @@ Being fair about this matters, because a great deal of v1 is real and some of it
 
 **Real but never used as designed:** the Reasoning port and its adapters. `select` defaults to `deterministic-token-overlap`; `interpret` defaults to `disabled`, whose stub rationale reads "No interactive agent session available. Escalating to needs-human." The `llm-api` and `session` adapters expect a caller to inject a `createChatCompletion` function; no file in the repository defines one. `synthesize` is a no-op in every adapter. There are zero model call sites in the codebase.
 
-**Declared and not built:** the facet catalog. `product/domain/memory/facet-record.ts` is 64 lines of types, referenced by two files, with no store, no writer, no reader, and no data. `product/catalog/` — named in CLAUDE.md, the direction document, the product README, and the lookup-chain table — does not exist. The four memory verbs in the manifest carry the comment "implementations land at Step 7." Step 7 has not started.
+**Declared and not built:** the facet catalog. `product/domain/memory/facet-record.ts` is 64 lines of types, referenced by two files, with no store, no writer, no reader, and no data. `product/catalog/` — named in CLAUDE.md, the direction document, the product README, and the lookup-chain table — does not exist. The four memory verbs in the manifest carry the comment "implementations land at Step 7." Step 7 has not started. The five-slot lookup chain that the catalog was to feed handles two slots (the canonical-artifact ones) and says of the other three, in its own header: "Slots 1, 4, and 5 are stub paths that record their slot in `slotsConsulted`."
 
 ### 2.3 What the flagship test actually looks like
 
@@ -786,7 +786,8 @@ Everything below was observed in this session on 2026-09-18 at commit `9714891` 
 - `product/manifest/manifest.json` — 9 verbs (`facet-enrich`, `facet-mint`, `facet-query`, `intent-fetch`, `interact`, `locator-health-track`, `navigate`, `observe`, `test-compose`).
 - `product/manifest/declarations.ts` — facet verbs "Declared with FROZEN signatures; implementations land at Step 7".
 - `product/composition/scenario-context.ts` — `createScenarioContext` loads the run plan from `<cwd>/dogfood`, defaults `TESSERACT_INTERPRETER_MODE` to `'dry-run'`, and each generated method calls `runScenarioHandshake`.
-- `dogfood/generated/demo/policy-search/10001.spec.ts` — the emitted spec (reproduced in §2.3).
+- `dogfood/generated/demo/policy-search/10001.spec.ts` — the emitted spec (reproduced in §2.3); its fixture import is built at `product/application/commitment/emit.ts:143,271` from `path.join(rootDir, 'fixtures', 'index.ts')`, a path that does not exist.
+- `product/application/pipeline/lookup-chain-impl.ts:6-9` — "Slots 1, 4, and 5 are stub paths that record their slot in `slotsConsulted`."
 - `dogfood/generated/demo/policy-search/10001.review.md` — "Knowledge hit rate: 0", "Step provenance: … unresolved=4".
 - `product/reasoning/reasoning.ts` — adapter priority "VSCode GitHub Copilot … Azure AI Foundry … Direct Anthropic"; `synthesize` "no production caller yet".
 - `product/reasoning/adapters/agent-backends.ts` — `disabled`, `heuristic`, `llm-api` (Azure OpenAI, vision), `session` adapters.
