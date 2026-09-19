@@ -583,6 +583,64 @@ The host owns the model, the prompt loop, the context window, and the safety pol
 
 An environment profile is a small file the customer owns: `.tesseract/profiles/<name>.json` holding `{ name, baseURL, storageStatePath, tenant, dataSet }`, selected with `--profile` or `TESSERACT_PROFILE`, and projected into the customer's `playwright.config.ts` by a generated snippet the README shows (that is where the page objects' relative `goto('/PolicySearch')` gets its base URL). Credentials for ADO and the application come from environment or the host's secret store and never enter receipts. Snapshots passed to a model are PII-gated and size-capped; a customer that cannot send page content to a hosted model runs the batch driver against an in-tenant model, which the host abstraction allows. Test data is declared, not scraped: ADO parameters and data rows are the source, environment profiles name the QA tenant, and a step that needs data the suite does not declare raises a handoff rather than inventing a value. Storage states for authenticated sessions are per-profile files the customer owns.
 
+### 5.13 The platform around the node
+
+Tesseract is one node. The platform is the team's, lives in its own repository, and is not planned here. This section names the neighbors v2 should expect, so that its contracts are designed against real siblings rather than hypothetical ones, and so that a builder knows which requests are Tesseract's to satisfy and which are another node's. The nodes cluster around the four questions an engineering manager answers every week.
+
+**What are we shipping.**
+
+| Node | Exposes | Tesseract's relationship to it |
+|---|---|---|
+| delivery (Azure DevOps) | work items and WIQL, sprint and iteration state, pull requests and review threads, pipeline runs and release gates; writes only to comments and test runs | shares the ADO adapter's lineage; Tesseract's `ado.*` tools are the test-plan slice of this node and may be folded into it once it exists |
+| repository intelligence | code ownership, change impact for a diff, the map from changed screens to covering tests | consumes the catalog's screen-to-test map; supplies the "which tests to run for this diff" answer |
+| release state (OutSystems LifeTime) | which module versions are in which environment, read-only | the missing half of the Monday-morning path: whether a red suite is drift or a deploy is answered by joining page fingerprints to deployment state |
+
+**Is it working.**
+
+| Node | Exposes | Tesseract's relationship to it |
+|---|---|---|
+| test data | seed a record through the application's APIs or a gated write path, mask personal data in lower environments, tear down afterward | the largest gap in this document, deliberately outside it; `flow.run` calls it for preconditions a recording cannot supply |
+| observability | read-only queries over logs and telemetry with time and row caps | joins a failing test to the exceptions logged at that minute; a run receipt carries the query it would ask |
+| accessibility | an audit of a page against accessibility rules | a short step from the observation harness, which already computes names the way the browser does; a separate node so its findings are not Tesseract's to fix |
+| results | the three numbers and their diagnostics as a queryable surface | Tesseract writes receipts; this node reads them, so other nodes and people query survival without asking Tesseract |
+
+**What do we know.**
+
+| Node | Exposes | Tesseract's relationship to it |
+|---|---|---|
+| knowledge base | recall and remember, kept apart; remember gated, with provenance | the facet catalog is a knowledge base of one kind; the general one holds everything that is not a facet |
+| document ingest | requirements, runbooks, decision records, wiki pages, extracted into candidates for review | what v1 planned as its "Level 2 operator-supplied semantics"; here it is a neighbor that proposes facet aliases and business vocabulary |
+| glossary | business vocabulary per domain | facets borrow display names from it so tests, tickets, and catalog use the same nouns |
+| personal memory | the manager's own notes, one-on-ones, decisions | a privacy boundary no other node crosses; named here only so nobody builds it into a shared node by accident |
+
+**Who needs to decide.**
+
+| Node | Exposes | Tesseract's relationship to it |
+|---|---|---|
+| handoff | delivers any node's needs-human record into channels people already watch (Teams, an ADO comment, a pull request) and collects the decision back with a receipt | `handoff.raise` and `review.record` are Tesseract's ends of this; the inbox v1 built as a bespoke UI is this node as a plain adapter |
+| approvals and policy | allow, ask, or deny per tool and per environment | the gate in front of every write; Tesseract declares which of its tools write and lets the policy decide |
+| delivery health | lead time, deployment frequency, change failure rate, time to restore, flake trend, computed read-only from receipts | consumes the results node; the manager's weekly view, computed rather than typed |
+
+**The platform's own nodes.** The gateway with namespaces, policy, and audit. A credential vault, so no node holds a secret. A cost ledger per node, per person, and per task. A session-receipt store, which is the provenance discipline applied to the agents themselves: what a session was asked, what it called, what it changed, what it cost. A fluency eval per skill on a pinned model, run when a skill or a tool declaration changes. A sandboxed local-tool runner for the .NET tools, with an allowlist of commands, so "run the migration checker" is a dedicated tool that can be gated and audited rather than a shell string. And the marketplace that indexes every node's plugin.
+
+**One shape for every node.** Each node's tools fall into seven verb classes, and each class has a maturity. The matrix is the enumerable state of the platform: a cell is absent, a stub, real for reads, real for gated writes, or real and unattended. Tesseract's row at M2:
+
+| Verb class | Meaning | Tesseract at M2 |
+|---|---|---|
+| sense | read the world without changing it | real: `app.observe`, `ado.fetch`, `memory.query` |
+| act | change the world | gated: `app.act`, `flow.run` (interactive and batch, never production) |
+| remember | write to memory with provenance | gated: `memory.mint`, `memory.enrich` (candidate until accepted) |
+| verify | compare expectation to observation | real: `app.assert`, `memory.preflight`, `test.run` |
+| emit | produce a durable artifact a human owns | real: `test.emit`, `flow.record` |
+| decide | hand to a human, or record their decision | real: `handoff.raise`, `review.record` |
+| account | write a receipt for everything above | real, unconditional |
+
+A node whose row has no `decide` cell cannot be trusted with a write; a node whose `account` cell is a stub cannot be measured. Every node declares the cells it provides and the cells it requires from neighbors (Tesseract requires a vault for credentials, a handoff channel, and, for preconditions a recording cannot supply, the test-data node); the platform's dependency graph is those declarations, it must be acyclic, and every edge is a contract of the same shape as §5.2.
+
+**What would surprise me.** A chat interface. A dashboard with a camera. A node that writes to production. A per-repository copy of the gateway. Any node whose first version is a plan longer than its code.
+
+**The order.** Test data and release state first, because both unblock the pilot and neither is glamorous. The handoff node third, because it makes every node usable by people who are not the author. Delivery health last, once the receipts exist to compute it from.
+
 ## 6. v2 — measurement
 
 v1's workshop was twenty-eight thousand lines answering the question "is the product improving?" with probes, rungs, visitors, hypotheses, receipts, ratchets, trajectories, graduation gates, convergence machines, and theorem groups. It answered the question twice, on 2026-04-23 and 2026-04-24, with "yes." Five months later the first real page said no. v2's evaluation harness is small because the question is small: does a QA lead accept the tests, do they keep passing, and what did they cost.
@@ -905,6 +963,7 @@ Forty terms is the cap. These are the ones v2 needs.
 | preflight | the check that a screen's facets and flows still resolve before a session trusts them |
 | plugin | the unit v2 ships as: skill, MCP server, CLI, hooks; installed from a marketplace, namespaced by server name |
 | gateway | the team's front door that mounts many tool servers under namespaces with policy and audit; assumed, never built here |
+| node | one capability behind the gateway: a namespaced tool server with its skill; Tesseract is one; its state is its row in the seven-verb matrix (§5.13) |
 | acceptance / survival / cost | the three numbers |
 | profile | an environment file: name, base URL, storage-state path or login flow, tenant, data set |
 | cohort | a named set of applications and routes with a declared partition |
