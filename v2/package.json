@@ -1,0 +1,37 @@
+{
+  "name": "tesseract-qa",
+  "version": "2.0.0-alpha.1",
+  "description": "QA authoring toolbox for agents: OutSystems-aware observation, a provenance-threaded facet catalog, plain Playwright emission, and the Azure DevOps test-plan loop, served over MCP.",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "tesseract-qa": "dist/bin/tesseract-qa.js"
+  },
+  "main": "dist/src/index.js",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "build": "node scripts/build-inpage.mjs && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "generate": "node dist/bin/tesseract-qa.js generate",
+    "drift": "node dist/bin/tesseract-qa.js drift-check",
+    "serve": "node dist/bin/tesseract-qa.js serve",
+    "build:inpage": "node scripts/build-inpage.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@playwright/test": "1.55.1",
+    "yaml": "^2.8.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.57",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.8",
+    "esbuild": "^0.27.4"
+  }
+}

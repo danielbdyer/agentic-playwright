@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "tesseract-qa": {
+      "command": "npx",
+      "args": ["--yes", "tesseract-qa@2.0.0-alpha.1", "serve"]
+    }
+  }
+}
