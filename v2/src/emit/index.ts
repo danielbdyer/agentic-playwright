@@ -29,7 +29,7 @@ export { DEFAULT_LAYOUT } from './types.js';
 export { renderSpec } from './spec.js';
 export { renderPageObject, renderOverridesScaffold, overriddenMembers, overridesClassName, routeUrl } from './page-object.js';
 export type { PageObjectOptions } from './page-object.js';
-export { renderFlow } from './flow.js';
+export { navigationPath, renderFlow } from './flow.js';
 export type { FlowOptions } from './flow.js';
 export {
   checkGenerated,

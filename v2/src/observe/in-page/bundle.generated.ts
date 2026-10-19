@@ -2,7 +2,7 @@
 // Rebuild with `npm run build:inpage`; `node scripts/build-inpage.mjs --check` fails when this file is stale.
 /* eslint-disable */
 
-export const IN_PAGE_BUNDLE_HASH = 'sha256:e72e78e54c15b8f4cb24252ca02de5ae25aa833381e3885c3d87a94df3c5a057';
+export const IN_PAGE_BUNDLE_HASH = 'sha256:c744c79273daf93d26297101ba43d331bf3e5e3591f5437e9b552987e8ad243d';
 
 export const IN_PAGE_BUNDLE: string = `"use strict";
 var __tesseractInPage = (() => {
@@ -27,6 +27,7 @@ var __tesseractInPage = (() => {
   // src/observe/in-page/walker.ts
   var walker_exports = {};
   __export(walker_exports, {
+    describeElement: () => describeElement,
     describeRef: () => describeRef,
     disconnectMutationCounter: () => disconnectMutationCounter,
     indexOfRef: () => indexOfRef,
@@ -40,6 +41,7 @@ var __tesseractInPage = (() => {
     walk: () => walk
   });
   var IGNORED_TAGS = /* @__PURE__ */ new Set(["SCRIPT", "STYLE", "TEMPLATE", "NOSCRIPT"]);
+  var IGNORE_ATTRIBUTE = "data-tesseract-ignore";
   var VALID_ROLES = /* @__PURE__ */ new Set([
     "alert",
     "alertdialog",
@@ -284,7 +286,7 @@ var __tesseractInPage = (() => {
     while (stack.length > 0) {
       const el = stack.pop();
       if (el === void 0) break;
-      if (IGNORED_TAGS.has(tagOf(el))) continue;
+      if (IGNORED_TAGS.has(tagOf(el)) || el.hasAttribute(IGNORE_ATTRIBUTE)) continue;
       if (!visit(el)) continue;
       const children = [];
       for (let child = el.firstElementChild; child !== null; child = child.nextElementSibling) children.push(child);
@@ -1232,6 +1234,9 @@ var __tesseractInPage = (() => {
     if (registry === null || registry.snapshotId !== snapshotId) return null;
     const el = registry.refs.get(ref);
     if (el === void 0 || !el.isConnected) return null;
+    return describeElement(el, ref);
+  };
+  var describeElement = (el, ref) => {
     const ctx = newCtx();
     const rawRole = roleOf(el, ctx);
     const affordance = affordanceOf(el, rawRole);

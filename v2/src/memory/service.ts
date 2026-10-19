@@ -188,6 +188,7 @@ export const contractRoute = (route: CatalogRoute): ScreenRoute => ({
   ...(route.variant !== undefined ? { variant: route.variant } : {}),
   ...(route.fingerprint !== undefined ? { fingerprint: route.fingerprint } : {}),
   ...(route.title !== undefined ? { title: route.title } : {}),
+  ...(route.landmarks !== undefined ? { landmarks: [...route.landmarks] } : {}),
 });
 
 // ─── Reading ───────────────────────────────────────────────────────────────
@@ -305,6 +306,8 @@ const withRoute = (
     ...((route.variant ?? keep?.variant) !== undefined ? { variant: route.variant ?? keep?.variant } : {}),
     ...((route.title ?? keep?.title) !== undefined ? { title: route.title ?? keep?.title } : {}),
     ...(fingerprint !== undefined ? { fingerprint } : {}),
+    // goto() waits for the main landmark when the route lists it (ScreenRoute.landmarks).
+    ...((route.landmarks ?? keep?.landmarks) !== undefined ? { landmarks: [...new Set(route.landmarks ?? keep?.landmarks ?? [])].sort() } : {}),
     ...((summary ?? keptSummary) !== undefined ? { summary: summary ?? keptSummary } : {}),
   };
   const unchanged = JSON.stringify(contractRoute(next)) === JSON.stringify(previous === undefined ? null : contractRoute(previous)) &&

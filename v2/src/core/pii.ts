@@ -32,15 +32,28 @@ export interface Redaction {
   readonly redacted: readonly string[];
 }
 
+/**
+ * Tesseract's own ids (newId: `<prefix>-<yyyymmddhhmmss>-<8 hex>`) carry a
+ * fourteen-digit timestamp that the card and number rules would otherwise
+ * eat, leaving receipts unable to cite the snapshot or event they mean.
+ */
+const OWN_ID = /\b[a-z]{1,12}-\d{14}-[0-9a-f]{8}\b/g;
+
 export const redactText = (text: string, mode: PiiMode): Redaction => {
   const redacted: string[] = [];
+  const kept: string[] = [];
+  const shielded = mode === 'off' ? text : text.replace(OWN_ID, (id) => {
+    kept.push(id);
+    return `\u0000${kept.length - 1}\u0000`;
+  });
   const out = rulesFor(mode).reduce((acc, rule) => {
     return acc.replace(rule.re, () => {
       redacted.push(rule.label);
       return `<${rule.label}>`;
     });
-  }, text);
-  return { text: out, redacted };
+  }, shielded);
+  const restored = kept.length === 0 ? out : out.replace(/\u0000(\d+)\u0000/g, (_m, i: string) => kept[Number(i)] ?? '');
+  return { text: restored, redacted };
 };
 
 export const redact = (text: string, mode: PiiMode): string => redactText(text, mode).text;

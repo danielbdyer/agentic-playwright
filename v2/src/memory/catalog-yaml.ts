@@ -228,7 +228,7 @@ export const parseCatalogYaml = (text: string, file: string, screen: string): Pa
 /** Fixed key order per level; keys the contract adds later follow, alphabetically. */
 const ORDER = {
   catalog: ['screen', 'route', 'facets'],
-  route: ['url', 'variant', 'title', 'fingerprint', 'summary'],
+  route: ['url', 'variant', 'title', 'fingerprint', 'landmarks', 'summary'],
   summary: ['landmarks', 'interactiveRoles', 'dataBlocks'],
   facet: ['id', 'kind', 'displayName', 'aliases', 'role', 'tag', 'namingSource', 'affordance', 'scope', 'locators', 'parameter', 'member', 'status', 'provenance', 'evidence'],
   facetScope: ['landmark', 'dataBlock'],

@@ -12,7 +12,7 @@
  */
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startFixtureApp, type FixtureApp } from '../support/fixture-app.js';
 import { startMockAdo, type MockAdo } from '../support/mock-ado.js';
@@ -168,11 +168,12 @@ describe('tesseract-qa end to end over MCP stdio', () => {
     const run = await mcp.call<Json>('test_run', { profile: 'qa' });
     expect(run.summary).toMatchObject({ passed: 1, failed: 0 });
     runId = run.runId as string;
-    // The same spec passes with nothing but npx playwright test.
-    const direct = spawnSync(process.execPath, [require_resolve_playwright_cli(), 'test', '--reporter=line'], {
-      cwd: ws.root, encoding: 'utf8', env: { ...process.env, ...env, TESSERACT_PROFILE: 'qa' },
+    // The same spec passes with nothing but npx playwright test. Spawned asynchronously: the
+    // fixture app lives in this process, and a synchronous spawn would block it from answering.
+    const direct = await runAsync(process.execPath, [require_resolve_playwright_cli(), 'test', '--reporter=line'], {
+      cwd: ws.root, env: { ...process.env, ...env, TESSERACT_PROFILE: 'qa' },
     });
-    expect(direct.status, direct.stdout + direct.stderr).toBe(0);
+    expect(direct.status, direct.output).toBe(0);
   });
 
   it('records the review, promotes facets, and publishes to the test plan', async () => {
@@ -255,6 +256,16 @@ describe('tesseract-qa end to end over MCP stdio', () => {
     expect(bad.status).toBe(2);
   });
 });
+
+function runAsync(command: string, args: readonly string[], options: { cwd: string; env: NodeJS.ProcessEnv }): Promise<{ status: number | null; output: string }> {
+  return new Promise((resolve) => {
+    const child = spawn(command, [...args], { cwd: options.cwd, env: options.env });
+    let output = '';
+    child.stdout.on('data', (chunk: Buffer) => { output += chunk.toString(); });
+    child.stderr.on('data', (chunk: Buffer) => { output += chunk.toString(); });
+    child.on('close', (status) => resolve({ status, output }));
+  });
+}
 
 function require_resolve_playwright_cli(): string {
   return path.join(V2_ROOT, '..', 'node_modules', '@playwright', 'test', 'cli.js');

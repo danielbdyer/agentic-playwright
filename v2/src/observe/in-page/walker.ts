@@ -161,6 +161,9 @@ export interface HydrationPoll {
 
 const IGNORED_TAGS = new Set(['SCRIPT', 'STYLE', 'TEMPLATE', 'NOSCRIPT']);
 
+/** Marks Tesseract's own UI in the page (the flow recorder's Stop button): never part of what is observed. */
+const IGNORE_ATTRIBUTE = 'data-tesseract-ignore';
+
 /** Playwright's role list: a role attribute token outside it is ignored, exactly as getByRole ignores it. */
 const VALID_ROLES = new Set([
   'alert', 'alertdialog', 'application', 'article', 'banner', 'blockquote', 'button', 'caption', 'cell', 'checkbox',
@@ -294,7 +297,7 @@ const forEachElement = (root: Element, visit: (el: Element) => boolean): void =>
   while (stack.length > 0) {
     const el = stack.pop();
     if (el === undefined) break;
-    if (IGNORED_TAGS.has(tagOf(el))) continue;
+    if (IGNORED_TAGS.has(tagOf(el)) || el.hasAttribute(IGNORE_ATTRIBUTE)) continue;
     if (!visit(el)) continue;
     const children: Element[] = [];
     for (let child = el.firstElementChild; child !== null; child = child.nextElementSibling) children.push(child);
@@ -1404,6 +1407,15 @@ export const describeRef = (snapshotId: string, ref: string): RefDescription | n
   if (registry === null || registry.snapshotId !== snapshotId) return null;
   const el = registry.refs.get(ref);
   if (el === undefined || !el.isConnected) return null;
+  return describeElement(el, ref);
+};
+
+/**
+ * The raw description of any element, registered or not, under the given
+ * ref. The flow recorder describes the element a user touched with it, so a
+ * recorded step reads the page exactly the way an observation would.
+ */
+export const describeElement = (el: Element, ref: string): RefDescription => {
   const ctx = newCtx();
   const rawRole = roleOf(el, ctx);
   const affordance = affordanceOf(el, rawRole);

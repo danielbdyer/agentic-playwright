@@ -278,6 +278,7 @@ export const FlowRecordingStepSchema = z.object({
   value: FlowValueSchema.optional(),
   url: z.string(),
   snapshotId: z.string().optional(),
+  navigatesTo: z.string().optional().describe('The URL (relative to the base when possible) this step navigated to; replay waits for it before the next step.'),
 });
 
 /** .tesseract/flows/<name>.json, written by flow.record and read by flow.run and emission. */

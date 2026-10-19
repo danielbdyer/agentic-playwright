@@ -54,6 +54,19 @@ interface Resolved {
  * names match the page objects. `routesByScreen` gives goto() targets; a
  * navigate step on a screen without a route falls back to page.goto(url).
  */
+/** The path a navigating step lands on, for waitForURL: "PolicySearch?x=1" → "/PolicySearch". */
+export const navigationPath = (target: string): string => {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(target)) {
+    try {
+      return new URL(target).pathname;
+    } catch {
+      // fall through to the relative reading
+    }
+  }
+  const path = target.split(/[?#]/)[0] ?? '';
+  return path.startsWith('/') ? path : `/${path}`;
+};
+
 export const renderFlow = (
   recording: FlowRecording,
   facetsById: ReadonlyMap<string, Facet> | Readonly<Record<string, Facet>>,
@@ -157,7 +170,7 @@ export const renderFlow = (
   const poVars = assignIdentifiers(screens, new Set([...RESERVED_WORDS, 'page', 'params', 'requireEnv', fn, typeName, ...screens.map(pageClassName)]), 'Page', 'Page');
   const po = (screen: string): string => poVars.get(screen)!;
 
-  const usesPage = screens.length > 0 || resolved.some((r) => r.usesPage);
+  const usesPage = screens.length > 0 || resolved.some((r) => r.usesPage || r.step.navigatesTo !== undefined);
   const usesParams = resolved.some((r) => r.usesParams);
   const hasParams = recording.params.length > 0;
   const paramsType = hasParams
@@ -183,6 +196,8 @@ export const renderFlow = (
     ...resolved.flatMap((r) => [
       `// step ${r.step.index} — ${commentText(`${r.step.action} ${r.facetId ?? r.step.url}`)}`,
       r.statement(po),
+      // The recording saw this step navigate: wait for the new page so the next call does not race it.
+      ...(r.step.navigatesTo !== undefined ? [`await page.waitForURL((url) => url.pathname.endsWith(${quote(navigationPath(r.step.navigatesTo))}));`] : []),
     ]),
   ];
   const fnBlock = [

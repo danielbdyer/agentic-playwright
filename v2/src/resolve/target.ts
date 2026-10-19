@@ -164,7 +164,7 @@ const ROW_CUES: readonly RegExp[] = [
 ];
 
 /** "Click View for @policyNumber", "Edit for POL-001": a row named by a value with digits, a parameter, or a quote. */
-const FOR_VALUE_RE = /\s+for\s+(?:the\s+)?(?:[a-z]+\s+)?(@[A-Za-z_]\w*|\{[A-Za-z_]\w*\}|\d+|[A-Za-z]*\d[\w-]*)$/;
+const FOR_VALUE_RE = /\s+for\s+(?:the\s+)?(?:[a-z]+\s+)?(@[A-Za-z_]\w*|\{[A-Za-z_]\w*\}|\uE000\d+\uE001|[A-Za-z]*\d[\w-]*)$/;
 
 const ORDINAL = /^(?:first|second|third|fourth|fifth|last|top|bottom|next|previous|\d+(?:st|nd|rd|th))$/i;
 
@@ -281,7 +281,7 @@ export const analyzeTarget = (raw: string, mode: TargetMode): TargetAnalysis => 
   const mention = tidy(unmask(text, masked.quotes));
 
   // The name: a quoted segment wins outright; the role word is read from what follows it.
-  const quoteMatch = /(\d+)/.exec(text);
+  const quoteMatch = /\uE000(\d+)\uE001/.exec(text);
   let exact = false;
   let roleHint: string | null = null;
   let phrase: string | null;

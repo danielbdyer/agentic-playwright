@@ -257,7 +257,7 @@ describe('evidence from use: resolutions, runs, acceptance', () => {
     expect(result.changes).toEqual([{ facetId: 'policy-search:search-button', from: 'trusted', to: 'stale', reason: 'health-floor' }]);
     expect(result.drift).toHaveLength(3);
     expect(result.drift[0]).toMatchObject({ facetId: 'policy-search:search-button', outcome: 'not-found' });
-    expect(result.unknown.sort()).toEqual(['garbage', 'policy-search:unknown']);
+    expect([...result.unknown].sort()).toEqual(['garbage', 'policy-search:unknown']);
     expect((await findFacet(ws, 'policy-search:search-button', options))?.locators[0]?.health).toBe('1/4');
   });
 
@@ -269,7 +269,7 @@ describe('evidence from use: resolutions, runs, acceptance', () => {
     expect(first.promoted).toEqual([]);
     await recordTestRun(ws, { runId: 'r2', testCaseId: '10001', facetIds: ids, outcome: 'passed' }, options);
     const third = await recordTestRun(ws, { runId: 'r3', testCaseId: '10001', facetIds: ids, outcome: 'passed' }, options);
-    expect(third.promoted.sort()).toEqual(ids);
+    expect([...third.promoted].sort()).toEqual(ids);
     const facet = await findFacet(ws, 'policy-search:search-button', options);
     expect(facet?.status).toBe('trusted');
     expect(facet?.locators[0]?.health).toBe('4/4');

@@ -30,7 +30,7 @@ export interface ScoredCandidate {
   readonly score: number;
   /** Plain-words reasons for the score, strongest first. */
   readonly reasons: readonly string[];
-  /** What counted against it (hidden, disabled, wrong role) and cues the page could not honor. */
+  /** What counted against it (hidden, disabled, wrong role, weak signals) and cues the page could not honor. */
   readonly against: readonly string[];
   readonly patterns: readonly PatternMatch[];
 }
@@ -320,17 +320,20 @@ export const scoreCandidates = (
     }
 
     const score = round3(Math.min(1, base * BASE_SCALE + bonus) * factor);
+    // Signals that held (value ≥ 0.5) explain the score; weak ones count against it.
     const positive = [
-      ...parts.map((p) => ({ value: p.weight * p.value, reason: p.reason })),
+      ...parts.filter((p) => p.value >= 0.5).map((p) => ({ value: p.weight * p.value, reason: p.reason })),
       ...bonuses.filter((b) => b.reason.length > 0).map((b) => ({ value: b.value, reason: b.reason })),
     ]
       .sort((a, b) => b.value - a.value)
       .map((p) => p.reason);
+    const weak = parts.filter((p) => p.value < 0.5).sort((a, b) => b.weight - a.weight).map((p) => p.reason);
     const notes = [
       ...(cue !== null && !cueOnPage ? [`no ${cue} landmark on the page`] : []),
       ...(rowCue !== null && !rowCueUsable ? [`row value ${rowCue} unknown`] : []),
+      ...(rowCueUsable && !rowCueOnPage ? [`no row with "${rowCue}" on the page`] : []),
     ];
-    return { ref: c.ref, index: entry.index, score, reasons: positive, against: [...penalties, ...notes], patterns: own };
+    return { ref: c.ref, index: entry.index, score, reasons: positive, against: [...penalties, ...notes, ...weak], patterns: own };
   });
 
   return [...scored].sort((a, b) => b.score - a.score || a.index - b.index);

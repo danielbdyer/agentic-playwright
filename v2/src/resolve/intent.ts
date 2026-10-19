@@ -233,7 +233,7 @@ const fill = (rest: string, env: Env): Reading => {
   const back = (s: string): string => unmask(s, masked.quotes);
   /** Values keep their quote marks so a quoted literal is never mistaken for a description. */
   const quotedBack = (s: string): string => requote(s, masked.quotes);
-  const leadingQuote = /^(\d+)\s*(.*)$/.exec(text);
+  const leadingQuote = /^(\uE000\d+\uE001)\s*(.*)$/.exec(text);
   const leadingParam = /^(@[A-Za-z_]\w*|\{[A-Za-z_]\w*\})\s*(.*)$/.exec(text);
   const lead = leadingQuote ?? leadingParam;
   if (lead !== null) {

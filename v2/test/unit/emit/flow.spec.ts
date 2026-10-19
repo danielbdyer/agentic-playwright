@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isToolError } from '../../../src/core/errors.js';
-import { paramEnvName, renderFlow } from '../../../src/emit/index.js';
+import { navigationPath, paramEnvName, renderFlow } from '../../../src/emit/index.js';
 import type { FlowRecording } from '../../../src/emit/index.js';
 import { facet, loginCatalog, loginFacets, loginRecording, policySearchCatalog, policySearchFacets } from './fixtures.js';
 
@@ -49,6 +49,15 @@ describe('renderFlow', () => {
     expect(flow.screens).toEqual(['login']);
     expect(flow.facetsUsed).toEqual(['login:username-input', 'login:password-input', 'login:log-in-button']);
     expect(flow.text).toBe(GOLDEN_LOGIN);
+  });
+
+  it('waits for the URL a recorded step navigated to, so the caller does not race the redirect', () => {
+    const last = loginRecording.steps[loginRecording.steps.length - 1]!;
+    const navigating = { ...loginRecording, steps: [...loginRecording.steps.slice(0, -1), { ...last, navigatesTo: 'PolicySearch?tab=1' }] };
+    const text = renderFlow(navigating, byId, routes).text;
+    expect(text).toMatch(/\.click\(\);\n\s*await page\.waitForURL\(\(url\) => url\.pathname\.endsWith\('\/PolicySearch'\)\);/);
+    expect(navigationPath('https://host/App/Home#x')).toBe('/App/Home');
+    expect(navigationPath('')).toBe('/');
   });
 
   it('accepts a record of facets and routes as well as maps', () => {

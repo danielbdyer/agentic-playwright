@@ -29,10 +29,10 @@ export const plainText = (raw: string): string => {
     text = stripHtml(decodeNumeric(text));
   }
   return text
-    .replace(/[“”„‟«»″]/g, '"')
-    .replace(/[‘’‚‛′]/g, "'")
-    .replace(/[–—−]/g, '-')
-    .replace(/ /g, ' ')
+    .replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB\u2033]/g, '"')
+    .replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'")
+    .replace(/[\u2013\u2014\u2212]/g, '-')
+    .replace(/\u00A0/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 };
@@ -45,10 +45,10 @@ export interface Masked {
   readonly quotes: readonly string[];
 }
 
-const OPEN = '';
-const CLOSE = '';
-const MASK_ANY = /(\d+)/g;
-const MASK_WHOLE = /^(\d+)$/;
+const OPEN = '\uE000';
+const CLOSE = '\uE001';
+const MASK_ANY = /\uE000(\d+)\uE001/g;
+const MASK_WHOLE = /^\uE000(\d+)\uE001$/;
 
 /**
  * Double quotes always quote; single quotes quote only when they are not
@@ -79,11 +79,11 @@ export const wholeQuote = (text: string, quotes: readonly string[]): string | nu
   return match === null ? null : quotes[Number(match[1])] ?? null;
 };
 
-export const hasMask = (text: string): boolean => /\d+/.test(text);
+export const hasMask = (text: string): boolean => /\uE000\d+\uE001/.test(text);
 
 /** The first quoted segment inside a masked string. */
 export const firstQuote = (text: string, quotes: readonly string[]): string | null => {
-  const match = /(\d+)/.exec(text);
+  const match = /\uE000(\d+)\uE001/.exec(text);
   return match === null ? null : quotes[Number(match[1])] ?? null;
 };
 

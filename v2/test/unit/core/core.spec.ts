@@ -24,6 +24,13 @@ describe('pii', () => {
     expect(redactText('a@b.co and c@d.io', 'standard').redacted).toEqual(['email', 'email']);
   });
 
+  it('never mangles Tesseract ids, whose timestamps look like card numbers', () => {
+    const id = 'snap-20261019062635-d9f9ffff';
+    expect(redact(`snapshot ${id} cited`, 'standard')).toBe(`snapshot ${id} cited`);
+    expect(redact(`${id} and 4111 1111 1111 1111`, 'strict')).toBe(`${id} and <card>`);
+    expect(redactDeep({ snapshotId: id, note: 'call 555-123-4567' }, 'standard')).toEqual({ snapshotId: id, note: 'call <phone>' });
+  });
+
   it('redacts query values and fragments in URLs', () => {
     expect(redactUrl('https://app.example.com/App/Detail?id=123&email=a@b.co#top', 'standard')).toBe(
       'https://app.example.com/App/Detail?id=<redacted>&email=<redacted>#<redacted>',

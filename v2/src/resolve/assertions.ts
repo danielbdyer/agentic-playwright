@@ -473,7 +473,7 @@ const SHAPES: readonly Shape[] = [
 export const splitClauses = (text: string): readonly string[] => {
   const masked = maskQuotes(text);
   return masked.text
-    .split(/[.;!?]+(?:\s+|$)|,?\s+and\s+(?=(?:the|a|an|it|its|they|no|only|all|each|every|then)\b|[A-Z0-9@])|,?\s+then\s+/)
+    .split(/[.;!?]+(?:\s+|$)|,?\s+and\s+(?=(?:the|a|an|it|its|they|no|only|all|each|every|then)\b|[A-Z0-9@\uE000])|,?\s+then\s+/)
     .map((part) => tidy(requote(part, masked.quotes)))
     .filter((part): part is string => part !== null);
 };

@@ -9,7 +9,8 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { TOOLS, CONTRACT_VERSION, findTool, wireName, type ToolDeclaration, type ToolOutput } from '../contract/tools.js';
 import { ToolError, isToolError } from '../core/errors.js';
-import { appendJsonl, exists, readJsonl, writeFileAtomic } from '../core/fsio.js';
+import { exists, writeFileAtomic } from '../core/fsio.js';
+import { appendPreflightReceipt, lastPreflightReceipt } from '../tools/handlers/memory.js';
 import { packageRoot, packageVersion } from '../core/package-root.js';
 import { loadWorkspace } from '../workspace/workspace.js';
 import { profilePath } from '../workspace/profiles.js';
@@ -116,7 +117,7 @@ Usage:
   tesseract-qa record <flow-name> --url <url> [--profile <name>] [--screen <s>] [--stop manual|urlChange]
   tesseract-qa preflight [--screen <s>] [--profile <p>] [--format text|md|json|hook] [--fail-on missing|stale|none] [--max-age 12h]
   tesseract-qa audit <url> [--profile <p>] [--format md|json]
-  tesseract-qa author --ids <id,...> | --plan <p> --suite <s> [--profile <p>] [--decider heuristic|anthropic] [--run] [--publish --run-name <n>]
+  tesseract-qa author --ids <id,...> | --plan <p> --suite <s> [--profile <p>] [--decider heuristic|anthropic] [--attempts <n>] [--case-budget-ms <ms>] [--no-refresh] [--run] [--publish --run-name <n>]
   tesseract-qa report [--case <id>] [--format md|json]
   tesseract-qa generate [--allow-breaking] | drift-check | version
 
@@ -301,14 +302,6 @@ const commandRecord = async (g: Globals): Promise<number> => {
 
 type PreflightOutput = ToolOutput<'memory.preflight'>;
 
-interface PreflightRecord {
-  readonly at: string;
-  readonly summary: PreflightOutput['summary'];
-  readonly screens: readonly { readonly screen: string; readonly status: string; readonly problems: readonly string[] }[];
-}
-
-const preflightFile = (root: string): string => path.join(root, '.tesseract', 'receipts', 'preflight.jsonl');
-
 const parseAge = (text: string | undefined): number => {
   if (text === undefined) return 12 * 3_600_000;
   const match = /^(\d+)(ms|s|m|h|d)?$/.exec(text.trim());
@@ -317,41 +310,45 @@ const parseAge = (text: string | undefined): number => {
   return Number(match[1]) * unit;
 };
 
-const toRecord = (at: string, output: PreflightOutput): PreflightRecord => ({
-  at,
-  summary: output.summary,
-  screens: output.screens.map((s) => ({
-    screen: s.screen,
-    status: s.status,
-    problems: [
-      ...s.facets.filter((f) => f.status === 'stale' || f.status === 'missing').map((f) => `${f.id} ${f.status}${f.detail !== undefined ? ` (${f.detail})` : ''}`),
-      ...s.fingerprintDiff,
-    ],
-  })),
-});
+const problemsOf = (screen: PreflightOutput['screens'][number]): readonly string[] => [
+  ...screen.facets.filter((f) => f.status === 'stale' || f.status === 'missing').map((f) => `${f.id} ${f.status}${f.detail !== undefined ? ` (${f.detail})` : ''}`),
+  ...screen.fingerprintDiff,
+  ...((screen as { detail?: string }).detail !== undefined ? [(screen as { detail?: string }).detail!] : []),
+];
 
-const renderPreflight = (record: PreflightRecord, format: string): string => {
-  const { ok, stale, missing, unchecked } = record.summary;
+export const renderPreflight = (at: string, output: PreflightOutput, format: string): string => {
+  const { ok, stale, missing, unchecked } = output.summary;
+  const counts = `${ok} facets ok, ${stale} stale, ${missing} missing${unchecked > 0 ? `, ${unchecked} unchecked` : ''}`;
   if (format === 'hook') {
-    const bad = record.screens.filter((s) => s.status !== 'ok' && s.status !== 'no-route');
-    const head = `Tesseract preflight (${record.at}): ${ok} facets ok, ${stale} stale, ${missing} missing${unchecked > 0 ? `, ${unchecked} unchecked` : ''} across ${record.screens.length} screens.`;
+    const bad = output.screens.filter((s) => s.status !== 'ok' && s.status !== 'no-route');
+    const head = `Tesseract preflight (${at}): ${counts} across ${output.screens.length} screens.`;
     if (bad.length === 0) return head;
-    return [head, ...bad.slice(0, 8).map((s) => `- ${s.screen}: ${s.status}${s.problems.length > 0 ? ` — ${s.problems.slice(0, 3).join('; ')}` : ''}`), 'Re-observe these screens before trusting their page objects (memory.preflight for details).'].join('\n');
+    return [
+      head,
+      ...bad.slice(0, 8).map((s) => {
+        const problems = problemsOf(s);
+        return `- ${s.screen}: ${s.status}${problems.length > 0 ? ` — ${problems.slice(0, 3).join('; ')}` : ''}`;
+      }),
+      'Re-observe these screens before trusting their page objects (memory.preflight for details).',
+    ].join('\n');
   }
   if (format === 'md') {
     return [
-      `### Tesseract preflight`,
+      '### Tesseract preflight',
       '',
-      `${ok} facets ok, ${stale} stale, ${missing} missing${unchecked > 0 ? `, ${unchecked} unchecked` : ''} (${record.at}).`,
+      `${counts} (${at}).`,
       '',
       '| Screen | Status | Problems |',
       '|---|---|---|',
-      ...record.screens.map((s) => `| ${s.screen} | ${s.status} | ${s.problems.length > 0 ? s.problems.map((p) => p.replace(/\|/g, '\\|')).join('<br>') : '—'} |`),
+      ...output.screens.map((s) => {
+        const problems = problemsOf(s);
+        return `| ${s.screen} | ${s.status} | ${problems.length > 0 ? problems.map((p) => p.replace(/\|/g, '\\|')).join('<br>') : '—'} |`;
+      }),
     ].join('\n');
   }
   return [
-    `preflight ${record.at}: ok ${ok}, stale ${stale}, missing ${missing}, unchecked ${unchecked}`,
-    ...record.screens.map((s) => `  ${s.screen.padEnd(28)} ${s.status.padEnd(12)} ${s.problems.join('; ')}`),
+    `preflight ${at}: ok ${ok}, stale ${stale}, missing ${missing}, unchecked ${unchecked}`,
+    ...output.screens.map((s) => `  ${s.screen.padEnd(28)} ${s.status.padEnd(12)} ${problemsOf(s).join('; ')}`),
   ].join('\n');
 };
 
@@ -368,21 +365,21 @@ const commandPreflight = async (g: Globals): Promise<number> => {
       return EXIT_OK;
     }
     if (hook) {
-      const previous = await readJsonl<PreflightRecord>(preflightFile(g.root));
-      const last = previous[previous.length - 1];
-      if (last !== undefined && Date.now() - Date.parse(last.at) < parseAge(str(flags['max-age']))) {
-        print(renderPreflight(last, 'hook'));
+      const last = await lastPreflightReceipt(workspace);
+      if (last !== null && Date.now() - Date.parse(last.at) < parseAge(str(flags['max-age']))) {
+        print(renderPreflight(last.at, last, 'hook'));
         return EXIT_OK;
       }
     }
+    const profile = str(flags.profile);
     const input = {
       ...(str(flags.screen) !== undefined ? { screen: str(flags.screen) } : {}),
-      ...(str(flags.profile) !== undefined ? { profile: str(flags.profile) } : {}),
+      ...(profile !== undefined ? { profile } : {}),
     };
     const output = await withRuntime(g, (runtime) => invokeOrThrow<PreflightOutput>(runtime, 'memory.preflight', input));
-    const record = toRecord(new Date().toISOString(), output);
-    await appendJsonl(preflightFile(g.root), record);
-    print(format === 'json' ? output : renderPreflight(record, format));
+    const at = new Date().toISOString();
+    await appendPreflightReceipt(workspace, output, { at, ...(profile !== undefined ? { profile } : {}) });
+    print(format === 'json' ? output : renderPreflight(at, output, format));
     if (failOn === 'missing' && output.summary.missing > 0) return EXIT_FAILED;
     if (failOn === 'stale' && (output.summary.missing > 0 || output.summary.stale > 0)) return EXIT_FAILED;
     return EXIT_OK;

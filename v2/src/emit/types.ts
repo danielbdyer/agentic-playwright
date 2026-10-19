@@ -46,6 +46,8 @@ export interface FlowRecordingStep {
   readonly screen: string;
   readonly value?: FlowValue;
   readonly url: string;
+  /** The recording saw this step navigate here; replay waits for it. */
+  readonly navigatesTo?: string;
 }
 
 /** The recording flow.record writes to .tesseract/flows/<name>.json, as a plain object. */
