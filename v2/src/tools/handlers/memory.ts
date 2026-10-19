@@ -15,7 +15,7 @@ import { enrichFacet, mintFacet, queryMemory, requireFacetId, routeUrlRelativeTo
 import { loadSnapshot, type SnapshotRecord } from '../../observe/index.js';
 import { loadProfile, resolveUrl, type Profile } from '../../workspace/profiles.js';
 import type { ToolContext, ToolHandler, ToolHandlers } from '../types.js';
-import { recalledResolution } from './support/page-state.js';
+import { recalledResolution, wasActedOn } from './support/page-state.js';
 import { regeneratePageObject, regenerationNote } from './support/page-objects.js';
 import { runPreflight } from './support/preflight.js';
 import { resolveCandidateOnPage } from './support/target.js';
@@ -134,7 +134,8 @@ const mint: ToolHandler<'memory.mint'> = async (input, ctx) => {
       snapshotId: record.snapshotId,
       ...(verified !== undefined ? { verified } : {}),
       provenance: {
-        instrument: input.decision !== undefined ? 'app.act' : 'app.observe',
+        // From the evidence, not from whether the optional decision was passed: app.act when app.act acted on this candidate.
+        instrument: wasActedOn(record.snapshotId, input.evidence.ref) ? 'app.act' : 'app.observe',
         session: ctx.session,
         ...(input.decision?.host?.model !== undefined ? { model: input.decision.host.model } : {}),
         ...(input.decision?.testCase !== undefined ? { testCase: input.decision.testCase } : {}),

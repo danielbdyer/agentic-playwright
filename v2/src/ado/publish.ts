@@ -28,6 +28,7 @@ import type { AdoClient, AdoRequest } from './client.js';
 import { automationPatch } from './automation.js';
 import { loadCases } from './cache.js';
 import { receiptsToPublishResults, specsFromReceipts } from './results.js';
+import { readEmitRecords } from '../run/emit-records.js';
 import { fetchTestPoints, fetchWorkItems } from './fetch.js';
 import { latestEntry, workspaceLedger, type PublishLedger, type PublishLedgerEntry } from './ledger.js';
 import {
@@ -415,7 +416,8 @@ export const publishReceipts = async (client: AdoClient, workspace: Workspace, o
     workspace,
     receipts.flatMap((receipt) => (receipt.testCase !== undefined ? [receipt.testCase] : [])),
   );
-  const results = receiptsToPublishResults(receipts, cases);
+  // Steps publish by the identifiers the spec ran (its emit records), error text through the PII gate.
+  const results = receiptsToPublishResults(receipts, cases, { emits: await readEmitRecords(workspace), pii: workspace.config.pii });
   if (results.length === 0) {
     throw new ToolError('invalid-input', 'nothing to publish: none of the run receipts names an Azure DevOps test case', { receipts: receipts.length });
   }

@@ -9,6 +9,7 @@ import { randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { ToolError } from '../../core/errors.js';
 import { relativePosix } from '../../core/fsio.js';
+import { redact } from '../../core/pii.js';
 import type { Handoff } from '../../contract/schemas.js';
 import { adoClientFromWorkspace, commentOnWorkItem, formatHandoffComment, loadCase } from '../../ado/index.js';
 import { locateSpec } from '../../emit/index.js';
@@ -64,21 +65,27 @@ export const handoffHandlers: Pick<ToolHandlers, 'handoff.raise'> = {
     }
 
     const stepIdentifier = input.stepIdentifier ?? (await cachedIdentifier(workspace, testCaseId, input.stepIndex));
+    // The agent's text often quotes the page; it is PII-gated before it is written to the repository or posted to ADO.
+    const gate = (text: string): string => redact(text, workspace.config.pii);
     const handoff: Handoff = {
       handoffId,
       testCaseId,
       stepIndex: input.stepIndex,
       ...(stepIdentifier !== undefined ? { stepIdentifier } : {}),
       blockage: input.blockage,
-      unresolvedIntent: input.unresolvedIntent,
-      attempted: [...input.attempted],
+      unresolvedIntent: gate(input.unresolvedIntent),
+      attempted: input.attempted.map(gate),
       evidence: {
         ...(input.evidence.snapshotId !== undefined ? { snapshotId: input.evidence.snapshotId } : {}),
         ...(screenshotPath !== undefined ? { screenshotPath } : {}),
       },
-      candidates: (input.candidates ?? []).map((candidate) => ({ ...candidate })),
-      nextMoves: [...input.nextMoves],
-      ...(input.proposedAssertion !== undefined ? { proposedAssertion: input.proposedAssertion } : {}),
+      candidates: (input.candidates ?? []).map((candidate) => ({
+        ...candidate,
+        name: gate(candidate.name),
+        ...(candidate.why !== undefined ? { why: gate(candidate.why) } : {}),
+      })),
+      nextMoves: input.nextMoves.map(gate),
+      ...(input.proposedAssertion !== undefined ? { proposedAssertion: gate(input.proposedAssertion) } : {}),
       raisedAt: ctx.now().toISOString(),
       status: 'open',
     };

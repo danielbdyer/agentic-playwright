@@ -207,12 +207,12 @@ describe('enrich', () => {
     expect(changes[0]).toMatch(/^locator added first \(verified\): page\.getByRole\('search'\)\.getByRole\('button', \{ name: 'Find'/);
   });
 
-  it('orders by health then ladder rank, so a css fallback stays below a healthy role-name', async () => {
+  it('places the enriched locator first (the contract), until it fails; the rest by health then ladder rank', async () => {
     await mintFacet(ws, buttonInput(), options);
     const css: LocatorSpec = { strategy: 'css', value: '#b3-Search' };
     const { facet } = await enrichFacet(ws, { facetId: 'policy-search:search-button', locator: css, evidence: { snapshotId: 'snap-2', ref: 'c2' } }, options);
-    expect(facet.locators.map((l) => l.strategy)).toEqual(['role-name', 'css']);
-    // An equal-rank verified locator inserted first wins the tie.
+    expect(facet.locators.map((l) => l.strategy)).toEqual(['css', 'role-name']);
+    // The latest enriched locator is the one placed first.
     const twin: LocatorSpec = { strategy: 'role-name', role: 'button', name: 'Search' };
     const after = await enrichFacet(ws, { facetId: 'policy-search:search-button', locator: twin, verified: verified(twin), evidence: { snapshotId: 'snap-3', ref: 'c2' } }, options);
     expect(after.facet.locators.map((l) => [l.strategy, l.scope?.landmark ?? null])).toEqual([['role-name', null], ['role-name', 'search'], ['css', null]]);
@@ -316,16 +316,19 @@ describe('the catalog file and the log', () => {
     expect(await readText(file)).toBe(before);
   });
 
-  it('records a human status edit in the YAML as a status event, once', async () => {
+  it('records a human status edit in the YAML as a status event, once, on the next write (reads never write)', async () => {
     await mintFacet(ws, mintInput(), options);
     const file = catalogFile(ws, 'policy-search');
     await fs.writeFile(file, (await readText(file)).replace('status: candidate', 'status: trusted'));
+    const minted = (await readEvents(ws, 'policy-search')).events.length;
     const loaded = await loadScreen(ws, 'policy-search', options);
     expect(loaded.catalog.facets[0]?.status).toBe('trusted');
+    expect((await readEvents(ws, 'policy-search')).events).toHaveLength(minted);
+    await setRoute(ws, 'policy-search', { url: 'PolicySearch' }, undefined, options);
     const { events } = await readEvents(ws, 'policy-search');
-    expect(events.at(-1)).toMatchObject({ kind: 'status', facetId: 'policy-search:policy-number-input', from: 'candidate', to: 'trusted', reason: 'human', by: 'human' });
-    await loadScreen(ws, 'policy-search', options);
-    expect((await readEvents(ws, 'policy-search')).events).toHaveLength(events.length);
+    expect(events.find((e) => e.kind === 'status')).toMatchObject({ kind: 'status', facetId: 'policy-search:policy-number-input', from: 'candidate', to: 'trusted', reason: 'human', by: 'human' });
+    await setRoute(ws, 'policy-search', { url: 'PolicySearch', title: 'Policy Search' }, undefined, options);
+    expect((await readEvents(ws, 'policy-search')).events.filter((e) => e.kind === 'status')).toHaveLength(1);
   });
 
   it('a human promotion sticks until new evidence says otherwise', async () => {

@@ -443,6 +443,7 @@
         "ambiguous",
         "assertion-like",
         "invalid-input",
+        "malformed-response",
         "not-enabled",
         "not-found",
         "not-visible",
@@ -1174,6 +1175,7 @@
       "errorFamilies": [
         "ambiguous",
         "invalid-input",
+        "malformed-response",
         "not-found",
         "stale-snapshot",
         "timeout",
@@ -1181,12 +1183,12 @@
         "unclassified"
       ],
       "annotations": {
-        "readOnly": true,
+        "readOnly": false,
         "destructive": false,
-        "idempotent": true,
+        "idempotent": false,
         "openWorld": true
       },
-      "descriptionHash": "sha256:2647d14953025774",
+      "descriptionHash": "sha256:6fa531ab84fc683b",
       "input": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -1654,6 +1656,7 @@
       "since": "2.0.0",
       "errorFamilies": [
         "invalid-input",
+        "malformed-response",
         "not-found",
         "timeout",
         "unclassified"
@@ -2063,7 +2066,7 @@
             "type": "string"
           },
           "auth": {
-            "description": "Default: storage-state when the profile has one, else none.",
+            "description": "Default: storage-state when the profile has one, else flow when it names a loginFlow, else none.",
             "type": "string",
             "enum": [
               "storage-state",
@@ -2317,6 +2320,7 @@
       "since": "2.0.0",
       "errorFamilies": [
         "invalid-input",
+        "malformed-response",
         "not-configured",
         "not-enabled",
         "not-found",
@@ -2604,6 +2608,7 @@
       "errorFamilies": [
         "conflict",
         "invalid-input",
+        "malformed-response",
         "not-found",
         "stale-snapshot",
         "unclassified"
@@ -3092,6 +3097,7 @@
       "errorFamilies": [
         "conflict",
         "invalid-input",
+        "malformed-response",
         "stale-snapshot",
         "unclassified"
       ],
@@ -3687,6 +3693,7 @@
       "since": "2.0.0",
       "errorFamilies": [
         "invalid-input",
+        "malformed-response",
         "not-configured",
         "not-found",
         "timeout",
@@ -4289,7 +4296,7 @@
         "idempotent": false,
         "openWorld": false
       },
-      "descriptionHash": "sha256:80b232c3c8ff325a",
+      "descriptionHash": "sha256:a7a2506d4e7c55e5",
       "input": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -5174,6 +5181,7 @@
             "maximum": 5
           },
           "pauseOnFailure": {
+            "description": "Hold the browser open at the first failure (retries are not attempted in this mode).",
             "type": "boolean"
           },
           "updateMemory": {

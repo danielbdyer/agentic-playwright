@@ -24,7 +24,7 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { ToolError, isToolError } from '../../../core/errors.js';
 import { readJson } from '../../../core/fsio.js';
-import { redactUrl } from '../../../core/pii.js';
+import { redact, redactUrl, redactUrlsIn } from '../../../core/pii.js';
 import { FlowRecordingSchema, type Facet, type PreflightEntry } from '../../../contract/schemas.js';
 import type { ToolInput, ToolOutput } from '../../../contract/tools.js';
 import type { PageHandle } from '../../../browser/types.js';
@@ -190,7 +190,7 @@ export const runPreflight = async (ctx: ToolContext, input: ToolInput<'memory.pr
       }
     } catch (error) {
       if (isToolError(error) && (error.family === 'not-configured' || error.family === 'invalid-input' || error.family === 'not-found')) throw error;
-      return { unreachable: messageOf(error) };
+      return { unreachable: redact(redactUrlsIn(messageOf(error), workspace.config.pii), workspace.config.pii) };
     }
     const page = session.handle.page;
     if (checkRedirect && !samePath(page.url(), url)) {

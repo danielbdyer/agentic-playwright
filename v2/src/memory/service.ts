@@ -6,9 +6,14 @@
  *   read catalog + evidence → reconcile human status edits → plan (pure)
  *   → fold → gate (promote / stale) → append evidence → save YAML
  *
- * Evidence is appended before the YAML is saved, so a crash between the two
- * leaves the log as the record. Reads take the same lock; they write only
- * when they find a human status edit to record.
+ * Evidence is appended before the YAML is saved, so a crash or a failed
+ * write between the two leaves the log as the record: each tool status event
+ * carries the hash of the YAML text its call read, and a file still holding
+ * exactly that text is not mistaken for a human edit.
+ *
+ * Reads take the same lock and never write: a human status edit they find is
+ * applied to what they return, and recorded as evidence by the next call
+ * that writes to the screen.
  *
  * Facets returned by this module have their locators ordered (best first)
  * with `health` ("successes/attempts" over the last 20 attempts) and
@@ -16,6 +21,7 @@
  */
 import { ToolError } from '../core/errors.js';
 import { relativePosix } from '../core/fsio.js';
+import { sha256Hex } from '../core/hash.js';
 import { renderLocator } from '../locator/locator.js';
 import { FacetSchema, type Facet, type ScoredFacet, type ScreenRoute } from '../contract/schemas.js';
 import type { Workspace } from '../workspace/workspace.js';
@@ -27,6 +33,7 @@ import {
   foldEvents,
   projectCatalog,
   reconcileHumanEdits,
+  restoreUnsavedStatuses,
   type StatsIndex,
 } from './derive.js';
 import { appendEvents, eventFactory, evidenceFile, evidencePointer, readEvents } from './evidence.js';
@@ -41,6 +48,7 @@ import {
   RESOLVE_OUTCOMES,
   type CatalogRoute,
   type DriftSignal,
+  type EventBody,
   type EventFactory,
   type EvidenceEvent,
   type GatingConfig,
@@ -64,6 +72,8 @@ export const gatingConfig = (ws: Workspace): GatingConfig => ({
 interface ScreenState {
   readonly screen: string;
   readonly file: ScreenFile;
+  /** sha256Hex of the catalog file text as read ('' when there is no file). */
+  readonly fileHash: string;
   /** Projected (ordered locators, health strings) and with pending reconciliation applied. */
   readonly catalog: ScreenCatalog;
   readonly stats: StatsIndex;
@@ -82,12 +92,15 @@ const openState = async (ws: Workspace, screen: string, makeEvent: EventFactory)
   const file = await readScreenFile(ws, screen);
   const { events, skipped } = await readEvents(ws, screen);
   const base = foldEvents(events);
-  const pending = reconcileHumanEdits(file.catalog, base, makeEvent);
+  const fileHash = sha256Hex(file.text ?? '');
+  const restored = restoreUnsavedStatuses(file.catalog, base, fileHash);
+  const pending = reconcileHumanEdits(restored, base, makeEvent);
   const stats = foldEvents(pending, base);
   return {
     screen,
     file,
-    catalog: projectCatalog(file.catalog, stats, ws.config.staleHealthFloor),
+    fileHash,
+    catalog: projectCatalog(restored, stats, ws.config.staleHealthFloor),
     stats,
     pending,
     warnings: [
@@ -97,6 +110,13 @@ const openState = async (ws: Workspace, screen: string, makeEvent: EventFactory)
   };
 };
 
+/** Tool status events carry the hash of the file text their call read (see restoreUnsavedStatuses). */
+const stampingFactory = (makeEvent: EventFactory, fileHash: string): EventFactory =>
+  (<B extends EventBody>(body: B) => stampStatus(makeEvent(body), fileHash)) as EventFactory;
+
+const stampStatus = <E extends EvidenceEvent>(event: E, fileHash: string): E =>
+  event.kind === 'status' && event.by === 'tool' && event.fileBefore === undefined ? { ...event, fileBefore: fileHash } : event;
+
 /** Gate, then append evidence (first), then save the YAML (last). */
 const commit = async (
   ws: Workspace,
@@ -105,9 +125,10 @@ const commit = async (
   events: readonly EvidenceEvent[],
   makeEvent: EventFactory,
 ): Promise<Committed> => {
-  const gated = applyGating(catalog, foldEvents(events, state.stats), gatingConfig(ws), makeEvent);
+  const planned = events.map((event) => stampStatus(event, state.fileHash));
+  const gated = applyGating(catalog, foldEvents(planned, state.stats), gatingConfig(ws), stampingFactory(makeEvent, state.fileHash));
   const projected = projectCatalog(gated.catalog, gated.stats, ws.config.staleHealthFloor);
-  await appendEvents(ws, state.screen, [...state.pending, ...events, ...gated.events]);
+  await appendEvents(ws, state.screen, [...state.pending, ...planned, ...gated.events]);
   const empty = !state.file.exists && projected.facets.length === 0 && projected.route === undefined;
   if (!empty) await writeScreenFile(ws, projected, state.file.text);
   return { catalog: projected, stats: gated.stats, changes: gated.changes };
@@ -137,15 +158,15 @@ const mutate = async <P extends Plan>(
     return { plan: planned, committed, state };
   });
 
-/** Read a screen inside its lock; records (and commits) human status edits if it finds any. */
+/**
+ * Read a screen inside its lock. Never writes: a human status edit is
+ * applied to the returned catalog and stats, and the next write to the
+ * screen appends its status event (openState finds it again then).
+ */
 const readState = async (ws: Workspace, screen: string, options: MemoryOptions): Promise<ScreenState> =>
   withFileLock(catalogFile(ws, screen), async () => {
     const now = instantOf(options);
-    const makeEvent = eventFactory(() => now);
-    const state = await openState(ws, screen, makeEvent);
-    if (state.pending.length === 0) return state;
-    const committed = await commit(ws, state, state.catalog, [], makeEvent);
-    return { ...state, catalog: committed.catalog, stats: committed.stats, pending: [] };
+    return openState(ws, screen, eventFactory(() => now));
   });
 
 /** Group facet ids (or things carrying them) by screen; malformed ids are returned separately. */
@@ -518,55 +539,71 @@ export interface TestRunResult extends ResolutionResult {
 const isOutcome = (value: string | undefined): value is ResolveOutcome =>
   value !== undefined && (RESOLVE_OUTCOMES as readonly string[]).includes(value);
 
+const idsOfRun = (input: TestRunInput): readonly string[] =>
+  unique([...input.facetIds, ...(input.failedFacet !== undefined ? [input.failedFacet] : [])]);
+
+/** One test's events on one screen: the test-run event and the resolutions it implies. */
+const testRunEvents = (
+  input: TestRunInput,
+  facets: readonly Facet[],
+  makeEvent: EventFactory,
+): { readonly events: readonly EvidenceEvent[]; readonly drift: readonly DriftSignal[] } => {
+  const known = idsOfRun(input).flatMap((id) => facets.filter((f) => f.id === id));
+  if (known.length === 0) return { events: [], drift: [] };
+  const failed = known.find((f) => f.id === input.failedFacet);
+  const runEvent = makeEvent({
+    kind: 'test-run',
+    facetIds: known.map((f) => f.id),
+    testCaseId: input.testCaseId,
+    runId: input.runId,
+    outcome: input.outcome,
+    ...(failed !== undefined ? { failedFacet: failed.id } : {}),
+    ...(input.failureFamily !== undefined ? { failureFamily: input.failureFamily } : {}),
+  });
+  const resolutionFor = (facet: Facet, outcome: ResolveOutcome): EvidenceEvent[] => {
+    const locator = bestLocator(facet);
+    return locator === undefined
+      ? []
+      : [makeEvent({ kind: 'resolved', facetId: facet.id, locatorKey: locatorKeyOf(locator), outcome, source: 'run', runId: input.runId })];
+  };
+  const family = input.failureFamily;
+  const resolved =
+    input.outcome === 'passed'
+      ? known.flatMap((facet) => resolutionFor(facet, 'ok'))
+      : failed !== undefined && isOutcome(family) && family !== 'ok'
+        ? resolutionFor(failed, family)
+        : [];
+  const failedLocator = failed !== undefined ? bestLocator(failed) : undefined;
+  return {
+    events: [runEvent, ...resolved],
+    drift: failed !== undefined && failedLocator !== undefined && isOutcome(family) ? driftOf(failed, family, renderLocator(bareLocator(failedLocator))) : [],
+  };
+};
+
 /**
- * Record one test run. A pass counts toward promotion for every facet the
- * test uses and is a successful resolution of each one's best locator; a
+ * Record the tests of one or more runs, each screen in one write, so gating
+ * sees a whole run at once. A pass counts toward promotion for every facet
+ * the test uses and is a successful resolution of each one's best locator; a
  * failure with a locator family is a failed resolution of the failing
  * facet's best locator and blocks its promotion until its locator changes.
+ * Tests of the same runId count as one run per facet (see foldEvent): a data
+ * row or project more is not a passing run more, and one failing receipt
+ * makes the run a failed one.
  */
-export const recordTestRun = async (ws: Workspace, input: TestRunInput, options: MemoryOptions = {}): Promise<TestRunResult> => {
-  const ids = unique([...input.facetIds, ...(input.failedFacet !== undefined ? [input.failedFacet] : [])]);
-  const { groups, malformed } = groupByScreen(ids, (id) => id);
+export const recordTestRuns = async (ws: Workspace, inputs: readonly TestRunInput[], options: MemoryOptions = {}): Promise<TestRunResult> => {
+  const { groups, malformed } = groupByScreen(unique(inputs.flatMap(idsOfRun)), (id) => id);
   const changes: StatusChange[] = [];
   const drift: DriftSignal[] = [];
   const unknown: string[] = [...malformed];
   for (const [screen, screenIds] of groups) {
     const { plan, committed } = await mutate(ws, screen, options, (state, makeEvent) => {
-      const facets = screenIds.map((id) => state.catalog.facets.find((f) => f.id === id));
-      const known = facets.filter((f): f is Facet => f !== undefined);
-      if (known.length === 0) return { catalog: state.catalog, events: [], unknown: screenIds, drift: [] };
-      const failed = known.find((f) => f.id === input.failedFacet);
-      const runEvent = makeEvent({
-        kind: 'test-run',
-        facetIds: known.map((f) => f.id),
-        testCaseId: input.testCaseId,
-        runId: input.runId,
-        outcome: input.outcome,
-        ...(failed !== undefined ? { failedFacet: failed.id } : {}),
-        ...(input.failureFamily !== undefined ? { failureFamily: input.failureFamily } : {}),
-      });
-      const resolutionFor = (facet: Facet, outcome: ResolveOutcome): EvidenceEvent[] => {
-        const locator = bestLocator(facet);
-        return locator === undefined
-          ? []
-          : [makeEvent({ kind: 'resolved', facetId: facet.id, locatorKey: locatorKeyOf(locator), outcome, source: 'run', runId: input.runId })];
-      };
-      const family = input.failureFamily;
-      const resolved =
-        input.outcome === 'passed'
-          ? known.flatMap((facet) => resolutionFor(facet, 'ok'))
-          : failed !== undefined && isOutcome(family) && family !== 'ok'
-            ? resolutionFor(failed, family)
-            : [];
-      const failedLocator = failed !== undefined ? bestLocator(failed) : undefined;
+      const facets = state.catalog.facets.filter((f) => screenIds.includes(f.id));
+      const perTest = inputs.map((input) => testRunEvents(input, facets, makeEvent));
       return {
         catalog: state.catalog,
-        events: [runEvent, ...resolved],
-        unknown: screenIds.filter((id) => !known.some((f) => f.id === id)),
-        drift:
-          failed !== undefined && failedLocator !== undefined && isOutcome(family)
-            ? driftOf(failed, family, renderLocator(bareLocator(failedLocator)))
-            : [],
+        events: perTest.flatMap((t) => t.events),
+        unknown: screenIds.filter((id) => !facets.some((f) => f.id === id)),
+        drift: perTest.flatMap((t) => t.drift),
       };
     });
     changes.push(...committed.changes);
@@ -577,10 +614,14 @@ export const recordTestRun = async (ws: Workspace, input: TestRunInput, options:
     changes,
     drift,
     unknown: unique(unknown),
-    promoted: changes.filter((c) => c.to === 'trusted').map((c) => c.facetId),
-    staled: changes.filter((c) => c.to === 'stale').map((c) => c.facetId),
+    promoted: unique(changes.filter((c) => c.to === 'trusted').map((c) => c.facetId)),
+    staled: unique(changes.filter((c) => c.to === 'stale').map((c) => c.facetId)),
   };
 };
+
+/** Record one test of a run (see recordTestRuns). */
+export const recordTestRun = (ws: Workspace, input: TestRunInput, options: MemoryOptions = {}): Promise<TestRunResult> =>
+  recordTestRuns(ws, [input], options);
 
 export interface AcceptanceInput {
   readonly testCaseId: string;

@@ -10,6 +10,14 @@ import { camelCase } from '../core/text.js';
 import type { Facet } from '../contract/schemas.js';
 import { parseFacetId } from './ids.js';
 
+/**
+ * The names page objects are emitted under come from emission's member table
+ * (emit/naming.ts); memory.mint freezes them into `facet.member` with this, so
+ * minting or retiring another facet never renames a member that existing specs
+ * call. memberNames / memberNameFor below only suggest a facet's preferred name.
+ */
+export { freezeMemberNames } from '../emit/naming.js';
+
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
 /** Names the generated class already uses or that break it. */

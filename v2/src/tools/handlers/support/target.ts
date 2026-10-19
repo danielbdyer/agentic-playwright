@@ -282,15 +282,35 @@ export const settleResolution = (
   return { spec, resolved: presentResolved(spec, verified, resolution.resolved.alternatives) };
 };
 
-/** Whether the target is a password input (its typed value must never reach a receipt). */
-export const isPasswordField = async (resolution: TargetResolution): Promise<boolean> => {
-  if (resolution.candidate?.inputType?.toLowerCase() === 'password') return true;
+/** secret: a password-like field (its value must never reach a receipt or an output); unknown: no element to tell by. */
+export type FieldSensitivity = 'secret' | 'plain' | 'unknown';
+
+/** autocomplete tokens that mark a field's value as a credential or card secret. */
+const SECRET_AUTOCOMPLETE = '(?:^|\\s)(?:current-password|new-password|one-time-code|cc-number|cc-csc|cc-exp(?:-month|-year)?)(?:\\s|$)';
+
+/**
+ * Whether the target is a password-like field, read from the elements its
+ * locator matches right now: call it when the action or assertion has just
+ * reached the element (a field rendered late is there by then). Never
+ * waits: no element matching is "unknown", which callers treat as secret
+ * where a value was typed or read. Any matching element that is a password
+ * input (or carries a credential autocomplete token) makes it secret.
+ */
+export const fieldSensitivity = async (resolution: TargetResolution): Promise<FieldSensitivity> => {
+  if (resolution.candidate?.inputType?.toLowerCase() === 'password') return 'secret';
   try {
-    return await resolution.locator
-      .filter({ visible: true })
-      .first()
-      .evaluate((element) => element instanceof HTMLInputElement && element.type.toLowerCase() === 'password', undefined, { timeout: 1_000 });
+    const verdicts = await resolution.locator.evaluateAll(
+      (elements, pattern) =>
+        elements.map(
+          (element) =>
+            element instanceof HTMLInputElement &&
+            (element.type.toLowerCase() === 'password' || new RegExp(pattern, 'i').test(element.getAttribute('autocomplete') ?? '')),
+        ),
+      SECRET_AUTOCOMPLETE,
+    );
+    if (verdicts.length === 0) return 'unknown';
+    return verdicts.some((secret) => secret) ? 'secret' : 'plain';
   } catch {
-    return false;
+    return 'unknown';
   }
 };

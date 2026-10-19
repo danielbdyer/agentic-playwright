@@ -3,12 +3,18 @@
  * emit records, the facets they reference, the cached cases) is loaded by
  * the caller and passed in.
  *
- * Steps: the k-th top-level test.step is the k-th entry of the spec's
- * ado-steps annotation (its ADO stepIdentifier); the emit record supplies
- * the ADO step index and the facets that step uses. Steps a failure or a
- * fixme kept from running are reported as skipped, so a published result
- * shows them as not executed rather than missing.
+ * Steps: each top-level test.step pairs with the emitted step of the same
+ * title, in order (a human's own step in a keep region pairs with none); the
+ * emit record supplies the ADO step index and the facets that step uses.
+ * Without a record, the k-th step is the k-th entry of the spec's ado-steps
+ * annotation. Steps a failure or a fixme kept from running are reported as
+ * skipped, so a published result shows them as not executed rather than
+ * missing.
+ *
+ * Receipts leave the run through the PII gate (gateReceipt): error text and
+ * the paused page's URL carry page content.
  */
+import { redact, redactUrl, type PiiMode } from '../core/pii.js';
 import type { Facet, RunReceipt, RunStep, TestCase } from '../contract/schemas.js';
 import { stripAnsi } from '../act/classify.js';
 import { classifyRunFailure } from './classify.js';
@@ -83,9 +89,31 @@ interface MappedStep {
   readonly index: number;
 }
 
-const mapSteps = (outcome: TestOutcome, record: EmitRecord | undefined, testCase: TestCase | undefined): readonly MappedStep[] => {
+/**
+ * With an emit record, report steps pair with the emitted steps by title, in
+ * order: the spec's test.step titles are the emitted ones (the generator
+ * owns each step's opener even in a kept unit), so a step whose title is not
+ * the next emitted one's is a human's own step in a keep region. It is left
+ * out (its error still fails the test) and takes no ADO step's place.
+ */
+const mapByTitle = (outcome: TestOutcome, emitted: readonly EmitRecordStep[]): readonly MappedStep[] =>
+  outcome.steps.reduce<{ readonly mapped: readonly MappedStep[]; readonly next: number }>(
+    (acc, ran) => {
+      const offset = emitted.slice(acc.next).findIndex((step) => step.title === ran.title);
+      if (offset < 0) return acc;
+      const step = emitted[acc.next + offset]!;
+      return { mapped: [...acc.mapped, { ran, emitted: step, index: step.index }], next: acc.next + offset + 1 };
+    },
+    { mapped: [], next: 0 },
+  ).mapped;
+
+/**
+ * Without a record (a spec written by hand or by another tool), or when no
+ * title matches (titles edited outside keep regions), the k-th step is the
+ * k-th ado-steps identifier.
+ */
+const mapByPosition = (outcome: TestOutcome, emitted: readonly EmitRecordStep[], testCase: TestCase | undefined): readonly MappedStep[] => {
   const identifiers = adoStepsOf(outcome);
-  const emitted = record?.steps ?? [];
   return outcome.steps.map((ran, k) => {
     const identifier = identifiers[k];
     const byIdentifier = identifier === undefined ? undefined : emitted.find((step) => step.stepIdentifier === identifier);
@@ -93,6 +121,12 @@ const mapSteps = (outcome: TestOutcome, record: EmitRecord | undefined, testCase
     const caseIndex = identifier === undefined ? undefined : testCase?.steps.find((s) => s.stepIdentifier === identifier)?.index;
     return { ran, emitted: step, index: step?.index ?? caseIndex ?? k + 1 };
   });
+};
+
+const mapSteps = (outcome: TestOutcome, record: EmitRecord | undefined, testCase: TestCase | undefined): readonly MappedStep[] => {
+  const emitted = record?.steps ?? [];
+  const byTitle = emitted.length > 0 ? mapByTitle(outcome, emitted) : [];
+  return byTitle.length > 0 || outcome.steps.length === 0 ? byTitle : mapByPosition(outcome, emitted, testCase);
 };
 
 const OUTCOME: Readonly<Record<string, RunReceipt['outcome']>> = {
@@ -172,6 +206,23 @@ export const receiptFor = (outcome: TestOutcome, ctx: ReceiptContext): RunReceip
       : {}),
     steps: [...ranSteps, ...notRun].sort((a, b) => a.index - b.index),
     ...(outcome.tracePath !== undefined ? { trace: toRelative(ctx.root, outcome.tracePath) } : {}),
+  };
+};
+
+/**
+ * A receipt as it may be written or returned: error messages and step errors
+ * (which quote what the page showed) redacted with the workspace's PII mode,
+ * and the paused page's URL without its query and fragment values. Ids,
+ * titles (ADO wording) and paths are left alone.
+ */
+export const gateReceipt = (receipt: RunReceipt, mode: PiiMode): RunReceipt => {
+  if (mode === 'off') return receipt;
+  const { error, paused } = receipt;
+  return {
+    ...receipt,
+    ...(error !== undefined ? { error: { ...error, message: redact(error.message, mode) } } : {}),
+    steps: receipt.steps.map((step) => (step.error === undefined ? step : { ...step, error: redact(step.error, mode) })),
+    ...(paused !== undefined ? { paused: { ...paused, ...(paused.url !== undefined ? { url: redactUrl(paused.url, mode) } : {}) } } : {}),
   };
 };
 

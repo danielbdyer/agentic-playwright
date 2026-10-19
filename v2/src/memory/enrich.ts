@@ -1,12 +1,12 @@
 /**
  * memory.enrich as a pure plan. Adds words (aliases), a new or repaired
- * locator (inserted first; ordering by health and ladder rank happens on
- * save, and the new locator wins ties), or a new display name (the old one
- * is kept as an alias so steps written in the old words still match), or
- * retires the facet. A new locator on a stale facet is a repair: the facet
- * goes back to candidate, because a repair is unproven until a run confirms
- * it. Nothing is overwritten silently; every change is an evidence event
- * and a line in `changes`.
+ * locator (placed first, and kept first until it fails: see derive.ts; a
+ * locator the facet already has is moved first), or a new display name (the
+ * old one is kept as an alias so steps written in the old words still
+ * match), or retires the facet. A new locator first on a stale facet is a
+ * repair: the facet goes back to candidate, because a repair is unproven
+ * until a run confirms it. Nothing is overwritten silently; every change is
+ * an evidence event and a line in `changes`.
  */
 import { ToolError } from '../core/errors.js';
 import type { PiiMode } from '../core/pii.js';
@@ -15,6 +15,7 @@ import { renderLocator } from '../locator/locator.js';
 import { bareLocator, locatorKeyOf } from './ids.js';
 import { cleanName, mergeAliases, ownerOfLocator } from './draft.js';
 import type { EventFactory, EvidenceEvent, ScreenCatalog, StatusChange } from './types.js';
+import { freezeMemberNames } from './member.js';
 
 export interface EnrichPlanInput {
   readonly facetId: string;
@@ -47,7 +48,10 @@ const replaceFacet = (catalog: ScreenCatalog, facet: Facet): ScreenCatalog => ({
   facets: catalog.facets.map((f) => (f.id === facet.id ? facet : f)),
 });
 
-export const planEnrich = (catalog: ScreenCatalog, input: EnrichPlanInput, ctx: EnrichContext): EnrichPlan => {
+export const planEnrich = (loaded: ScreenCatalog, input: EnrichPlanInput, ctx: EnrichContext): EnrichPlan => {
+  // Freeze page-object member names first, so retiring or renaming one facet can never shift
+  // another facet's member (and so silently change what an existing spec calls).
+  const catalog: ScreenCatalog = { ...loaded, facets: freezeMemberNames(loaded.facets).facets };
   const existing = catalog.facets.find((facet) => facet.id === input.facetId);
   if (existing === undefined) {
     throw new ToolError('not-found', `no facet ${input.facetId} in .tesseract/catalog/${catalog.screen}.yaml; mint it first with memory.mint`, {
@@ -91,8 +95,17 @@ export const planEnrich = (catalog: ScreenCatalog, input: EnrichPlanInput, ctx: 
   }
   const verified =
     locator !== undefined && input.verified !== undefined && input.verified.verified && locatorKeyOf(input.verified.locator) === key;
+  // A locator the facet already has, named again, is the repair: it goes first too.
+  const movedFirst = !isNew && key !== undefined && existing.locators.length > 0 && locatorKeyOf(existing.locators[0]!) !== key;
+  const locators =
+    isNew && locator !== undefined
+      ? [locator, ...existing.locators]
+      : movedFirst
+        ? [...existing.locators.filter((l) => locatorKeyOf(l) === key), ...existing.locators.filter((l) => locatorKeyOf(l) !== key)]
+        : existing.locators;
 
-  const repaired = isNew && existing.status === 'stale';
+  // A different locator first on a stale facet is a repair (unproven until a run confirms it).
+  const repaired = (isNew || movedFirst) && existing.status === 'stale';
   const retiring = input.retire === true;
   const status = retiring ? 'retired' : repaired ? 'candidate' : existing.status;
 
@@ -100,7 +113,7 @@ export const planEnrich = (catalog: ScreenCatalog, input: EnrichPlanInput, ctx: 
     ...existing,
     displayName,
     aliases: [...merged.aliases],
-    locators: isNew && locator !== undefined ? [locator, ...existing.locators] : existing.locators,
+    locators,
     status,
   };
 
@@ -110,6 +123,7 @@ export const planEnrich = (catalog: ScreenCatalog, input: EnrichPlanInput, ctx: 
     via: 'enrich',
     aliasesAdded: [...merged.added],
     ...(isNew && locator !== undefined && key !== undefined ? { locatorAdded: { key, locator, verified } } : {}),
+    ...(movedFirst && key !== undefined ? { locatorFirst: key } : {}),
     ...(renamed ? { displayName: { from: existing.displayName, to: displayName } } : {}),
     snapshotId: input.evidence.snapshotId,
     candidateRef: input.evidence.ref,
@@ -131,7 +145,8 @@ export const planEnrich = (catalog: ScreenCatalog, input: EnrichPlanInput, ctx: 
     ...(merged.added.length > 0 ? [`aliases added: ${merged.added.join(', ')}`] : []),
     ...merged.dropped.map((d) => `alias dropped: ${d}`),
     ...(isNew && locator !== undefined ? [`locator added first${verified ? ' (verified)' : ' (unverified)'}: ${renderLocator(locator)}`] : []),
-    ...(!isNew && locator !== undefined ? [`locator already known: ${renderLocator(locator)}${verified ? ' (verification recorded)' : ''}`] : []),
+    ...(movedFirst && locator !== undefined ? [`locator moved first${verified ? ' (verified)' : ''}: ${renderLocator(locator)}`] : []),
+    ...(!isNew && !movedFirst && locator !== undefined ? [`locator already known: ${renderLocator(locator)}${verified ? ' (verification recorded)' : ''}`] : []),
     ...statusChanges.map((change) => `status: ${change.from} → ${change.to} (${change.reason})`),
   ];
 

@@ -81,17 +81,57 @@ const memberLines = (facet: Facet, member: MemberInfo): readonly string[] => {
   return [...facetDoc(facet, member), signature, `  return ${expression};`, '}'];
 };
 
+/** Module-level function the select helpers call; a function, not a member, so it cannot collide with a facet's member name. */
+const PICK_OPTION = 'selectCustomOption';
+
 const helperLines = (facet: Facet, member: MemberInfo, helper: string): readonly string[] => {
   const params = [...member.params.map((p) => `${p}: string`), 'value: string'];
   const target = member.params.length === 0 ? `this.${member.name}` : `this.${member.name}(${member.params.join(', ')})`;
   return [
-    `/** select ${facet.id} — custom combobox: opens it, then picks the option by its accessible name */`,
+    `/** select ${facet.id} — custom dropdown: picks the option by its accessible name, as app.act did */`,
     `async ${helper}(${params.join(', ')}): Promise<void> {`,
-    `  await ${target}.click();`,
-    `  await this.page.getByRole('option', { name: value, exact: true }).click();`,
+    `  await ${PICK_OPTION}(${target}, value);`,
     '}',
   ];
 };
+
+/**
+ * The custom-dropdown choreography app.act verified (act.ts selectCustom),
+ * replayed by the emitted test: an option the dropdown already shows (an open
+ * listbox) is clicked directly; otherwise the dropdown is opened, the option
+ * is looked for in its popup (aria-controls / aria-owns, else the page), and
+ * when it does not appear the value is typed into the dropdown, or into
+ * whatever opening it focused, so a search dropdown renders it. Only
+ * Playwright API: no DOM types needed in the customer's tsconfig.
+ */
+const pickOptionLines: readonly string[] = [
+  '/**',
+  ' * Picks an option of a custom dropdown the way Tesseract verified it with app.act: clicks the option when',
+  ' * the dropdown already shows it; otherwise opens the dropdown and clicks the option in its popup, typing',
+  ' * the value first when the option does not appear (search dropdowns only render matching options).',
+  ' */',
+  `async function ${PICK_OPTION}(dropdown: Locator, value: string): Promise<void> {`,
+  "  const shown = dropdown.getByRole('option', { name: value, exact: true }).filter({ visible: true });",
+  '  if ((await shown.count()) === 1) {',
+  '    await shown.click();',
+  '    return;',
+  '  }',
+  '  await dropdown.click();',
+  '  const page = dropdown.page();',
+  "  const owned = await Promise.all(['aria-controls', 'aria-owns'].map((name) => dropdown.getAttribute(name, { timeout: 2_000 }).catch(() => null)));",
+  "  const ids = owned.join(' ').split(/\\s+/).filter((id) => id.length > 0);",
+  '  const counts = await Promise.all(ids.map((id) => page.locator(`[id=${JSON.stringify(id)}]`).count()));',
+  '  const popupId = ids.find((_id, index) => counts[index] === 1);',
+  '  const popup = popupId === undefined ? page.locator(\':root\') : page.locator(`[id=${JSON.stringify(popupId)}]`);',
+  "  const option = popup.getByRole('option', { name: value, exact: true }).filter({ visible: true });",
+  '  const appeared = await option.first().waitFor({ timeout: 1_500 }).then(() => true, () => false);',
+  '  if (!appeared) {',
+  '    const typed = await dropdown.fill(value, { timeout: 2_000 }).then(() => true, () => false);',
+  "    if (!typed) await page.locator('*:focus').fill(value, { timeout: 2_000 }).catch(() => undefined);",
+  '  }',
+  '  await option.click();',
+  '}',
+];
 
 /** goto() target: relative routes lose any leading slash so a baseURL with an app prefix (https://host/App/) is kept. */
 export const routeUrl = (route: EmitRoute): string => (/^[a-z][a-z0-9+.-]*:/i.test(route.url) ? route.url : route.url.replace(/^\/+/, ''));
@@ -166,7 +206,8 @@ export const renderPageObject = (
     return [main, ...helper];
   });
   const gotoBlock = route === null ? [] : overridden.has('goto') ? [overriddenNote('goto', `route ${screen}`)] : [gotoLines(screen, route, facets)];
-  const usesLocator = memberBlocks.some((block) => block.some((line) => line.endsWith('): Locator {')));
+  const picksOptions = [...table.values()].some((member) => member.selectHelper !== null && !overridden.has(member.selectHelper));
+  const usesLocator = picksOptions || memberBlocks.some((block) => block.some((line) => line.endsWith('): Locator {')));
   const ownsPage = overridesText === null;
   const typeImports = [...(usesLocator ? ['Locator'] : []), ...(ownsPage ? ['Page'] : [])];
   const constructorBlock = ownsPage ? [['readonly page: Page;'], ['constructor(page: Page) {', '  this.page = page;', '}']] : [];
@@ -182,6 +223,7 @@ export const renderPageObject = (
     `export class ${className}${ownsPage ? '' : ` extends ${overrideClass}`} {`,
     ...indent(1, classBody),
     '}',
+    ...(picksOptions ? ['', ...pickOptionLines] : []),
   ];
   const members = Object.fromEntries([...table.values()].map((member) => [member.facetId, member.name]));
   return { path: filePath, text: stampHash(toFileText(lines)), screen, className, members };

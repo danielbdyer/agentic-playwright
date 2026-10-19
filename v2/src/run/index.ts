@@ -5,20 +5,24 @@
  * unknown), feeds the outcomes to memory, and holds a failing browser open
  * for repair in place.
  *
- *   runSpecs(workspace, options)   test.run end to end
- *   releasePausedRuns()            let every paused run finish (called on shutdown)
+ *   runSpecs(workspace, options)   test.run end to end (options.owner: the runtime that starts it)
+ *   releasePausedRuns(owner?)      let paused runs finish (one owner's, or all)
+ *   stopRuns(owner?)               shutdown: release paused runs and stop in-flight ones (one owner's, or all)
  *   emit records                   what test.emit wrote, for run/review/publish
  */
 export {
+  DEFAULT_RUN_OWNER,
   DEFAULT_RUN_TIMEOUT_MS,
   RELEASE_GRACE_MS,
   RUN_RETENTION_MS,
+  activeRuns,
   pausedRunIds,
   pruneRunDirs,
   readRunReceipts,
   releasePausedRuns,
   runSpecs,
   selectSpecs,
+  stopRuns,
   type PausedRun,
   type RunSpecsOptions,
   type RunSpecsResult,
@@ -35,7 +39,7 @@ export {
   type EmitRecordStep,
 } from './emit-records.js';
 export { classifyRunFailure, facetNamedBy, familyOf, type FailureClass } from './classify.js';
-export { facetIdsOf, receiptFor, summarize, type ReceiptContext, type RunSummary } from './receipts.js';
+export { facetIdsOf, gateReceipt, receiptFor, summarize, type ReceiptContext, type RunSummary } from './receipts.js';
 export { parseProgress, parseReport, TestOutcomeSchema, type ParsedReport, type TestOutcome, type TestOutcomeStep } from './report.js';
 export {
   fileFilter,
@@ -60,6 +64,7 @@ export {
   repairFixtureSource,
   resolveRelativeImport,
   rewriteShadowImports,
+  shadowSpecifier,
   type RepairPlan,
   type PrepareRepairOptions,
 } from './repair.js';

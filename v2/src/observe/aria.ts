@@ -145,12 +145,13 @@ const scopeLocator = (page: Page, scope: ObserveScope): Locator => {
 
 /**
  * PII-gate snapshot text line by line, so a match never spans two entries.
- * Outside "off" mode the current value of text fields is masked as
- * "<value>": what a user typed is data, not a label.
+ * The current value of text fields is masked as "<value>" in every PII mode
+ * ("off" included): what a user typed is data, not a label, and it is never
+ * needed here; a password field renders its value in clear, and the text is
+ * saved with the snapshot and handed to the model.
  */
-export const redactAriaText = (text: string, pii: PiiMode): string => {
-  if (pii === 'off') return text;
-  return text
+export const redactAriaText = (text: string, pii: PiiMode): string =>
+  text
     .split('\n')
     .map((line) => {
       const parts = splitLine(line);
@@ -159,10 +160,9 @@ export const redactAriaText = (text: string, pii: PiiMode): string => {
         parts !== null && role !== null && VALUE_ROLES.has(role) && parts.after.startsWith(': ')
           ? `${parts.indent}- ${parts.rawKey}: <value>`
           : line;
-      return redact(masked, pii);
+      return pii === 'off' ? masked : redact(masked, pii);
     })
     .join('\n');
-};
 
 const utf8Bytes = (text: string): number => Buffer.byteLength(text, 'utf8');
 
@@ -195,21 +195,40 @@ export interface CaptureAriaOptions {
   readonly timeoutMs?: number;
 }
 
+export const DEFAULT_ARIA_TIMEOUT_MS = 5_000;
+
+/** Why a container's snapshot could not be taken, as one line (Playwright's message starts with what timed out). */
+const failureOf = (error: unknown, timeoutMs: number): string => {
+  const first = (error instanceof Error ? error.message : String(error)).split('\n')[0] ?? '';
+  return /timeout/i.test(first) ? `timeout after ${timeoutMs} ms` : first.replace(/^\s*locator\.ariaSnapshot:\s*/i, '').slice(0, 200);
+};
+
 /**
  * ARIA snapshot of the scope. Several containers can match a landmark role
  * or a block name (two navigation landmarks, a block used twice); each is
  * captured, up to five, and joined. Never throws: a scope that vanished
- * yields an empty capture.
+ * yields an empty capture. A container whose snapshot fails (a very large
+ * page times out) is not silently empty: the text says so in a YAML comment
+ * line and the capture is marked truncated.
  */
 export const captureAria = async (page: Page, scope: ObserveScope, options: CaptureAriaOptions): Promise<AriaCapture> => {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_ARIA_TIMEOUT_MS;
   const locator = scopeLocator(page, scope);
   const count = await locator.count().catch(() => 0);
   const parts: string[] = [];
+  let failed = false;
   for (let i = 0; i < Math.min(count, MAX_SCOPE_MATCHES); i += 1) {
-    const text = await locator.nth(i).ariaSnapshot({ timeout: options.timeoutMs ?? 5_000 }).catch(() => '');
+    const text = await locator
+      .nth(i)
+      .ariaSnapshot({ timeout: timeoutMs })
+      .catch((error: unknown) => {
+        failed = true;
+        return `# aria snapshot unavailable${count > 1 ? ` for match ${i + 1} of ${count}` : ''}: ${failureOf(error, timeoutMs)}`;
+      });
     if (text.length > 0) parts.push(text);
   }
-  return capAriaText(redactAriaText(parts.join('\n'), options.pii), options.maxBytes);
+  const capped = capAriaText(redactAriaText(parts.join('\n'), options.pii), options.maxBytes);
+  return failed ? { ...capped, truncated: true } : capped;
 };
 
 // ─── Parsing ───────────────────────────────────────────────────────────────

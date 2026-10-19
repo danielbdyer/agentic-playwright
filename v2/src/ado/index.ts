@@ -105,5 +105,5 @@ export {
   type SpecRef,
 } from './publish-plan.js';
 export { findRunByTitle, publishReceipts, publishResults, type PlannedRequest, type PublishedRun, type PublishOptions, type PublishReceiptsOptions } from './publish.js';
-export { outcomeOfReceipt, receiptsToPublishResults, specsFromReceipts } from './results.js';
+export { outcomeOfReceipt, receiptsToPublishResults, specsFromReceipts, type EmittedSteps, type PublishMapOptions } from './results.js';
 export { COMMENTS_API_VERSION, commentOnWorkItem, formatHandoffComment, type PostedComment } from './comments.js';

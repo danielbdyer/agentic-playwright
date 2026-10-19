@@ -7,7 +7,11 @@
  *     (mapped through the `ado-steps` annotation);
  *   - page object: each member, keyed by the facet id in its `/** facet <id>` doc
  *     comment (`route` for goto(), `select <id>` for a select helper);
- *   - flow: each `// step <n>` comment plus its statement, keyed `step-<n>`.
+ *   - flow: each `// step <n> — <action> <target>` comment plus its statement, keyed
+ *     `step <action> <target>` (a repeat of the same action on the same target gets
+ *     ` #2`, ` #3`, …), so re-recording a flow with steps inserted or removed does
+ *     not move kept code onto another action; a comment without a description
+ *     falls back to `step-<n>`.
  *
  * Keep grammar (line-based):
  *   // tesseract:keep-start [label]
@@ -23,7 +27,10 @@
  *   - A keep region that wraps whole units replaces them where they are
  *     generated now, byte for byte.
  *   - Any other keep region is anchored to the generated line above it and
- *     re-inserted after that line.
+ *     re-inserted after that line. When the unit it followed is gone, it
+ *     follows the closest earlier surviving unit at the bracket depth it had
+ *     (never past the test's or class's closing bracket); after a flow step
+ *     whose action or target changed, it is orphaned instead.
  *   - Kept code whose unit no longer exists is never dropped: it is appended,
  *     commented out, under `// tesseract:orphaned <key>` inside a keep region.
  *
@@ -38,7 +45,7 @@
  */
 import { ToolError } from '../core/errors.js';
 import { sha256Hex } from '../core/hash.js';
-import { canonicalLines, finishCanonical, indentOf, isBlank, lexLine, INITIAL_LEX_STATE, readQuoted } from './lex.js';
+import { canonicalLines, finishCanonical, indentOf, isBlank, lexLine, INITIAL_LEX_STATE, readQuoted, type LexState } from './lex.js';
 import { normalizeNewlines, toFileText } from './writer.js';
 
 // ─── Grammar ────────────────────────────────────────────────────────────────
@@ -48,7 +55,7 @@ const KEEP_START = /^\s*\/\/\s*tesseract:keep-start\b(.*)$/;
 const KEEP_END = /^\s*\/\/\s*tesseract:keep-end\b/;
 const KEEP_SHORTHAND = /^\s*\/\/\s*tesseract:keep\s*$/;
 const STEP_OPENER = /^\s*await\s+test\.step\s*\(/;
-const FLOW_STEP = /^\s*\/\/\s*step\s+(\d+)\b/;
+const FLOW_STEP = /^\s*\/\/\s*step\s+(\d+)\b(?:\s*[\u2014\u2013-]\s*(.*))?/;
 const DOC_OPENER = /^\s*\/\*\*/;
 const DOC_SUBJECT = /^(facet|route|select)\s+(\S+)/;
 const EXPECTED_LINE = /^\s*\/\/\s*Expected:/;
@@ -107,6 +114,12 @@ const lastNonBlank = (lines: readonly string[], from: number, to: number): numbe
   return offset === -1 ? from : to - offset;
 };
 
+/** `step <action> <target>` from a flow step comment (whitespace collapsed), else `step-<n>`. */
+const flowStepKey = (index: string, description: string | undefined): string => {
+  const text = (description ?? '').replace(/\s+/g, ' ').trim();
+  return text.length > 0 ? `step ${text}` : `step-${index}`;
+};
+
 interface Opener {
   readonly family: UnitFamily;
   readonly key: string;
@@ -133,7 +146,7 @@ const detectOpener = (lines: readonly string[], i: number, limit: number): Opene
   const line = lines[i]!;
   if (STEP_OPENER.test(line)) return { family: 'step', key: '', leadEnd: -1 };
   const flow = FLOW_STEP.exec(line);
-  if (flow !== null) return { family: 'flow-step', key: `step-${flow[1]!}`, leadEnd: i };
+  if (flow !== null) return { family: 'flow-step', key: flowStepKey(flow[1]!, flow[2]), leadEnd: i };
   if (DOC_OPENER.test(line)) {
     const subject = docSubject(lines, i, limit);
     if (subject !== null) return { family: 'member', key: subject.key, leadEnd: subject.end };
@@ -357,13 +370,30 @@ const splitLines = (text: string): readonly string[] => {
   return lines.length > 0 && lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines;
 };
 
+/** Flow steps that repeat an action on the same target are told apart by occurrence: `step click x`, `step click x #2`, … */
+const assignFlowKeys = (units: readonly RawUnit[]): ReadonlyMap<RawUnit, string> =>
+  units
+    .filter((unit) => unit.family === 'flow-step')
+    .reduce<{ readonly keys: ReadonlyMap<RawUnit, string>; readonly seen: ReadonlyMap<string, number> }>(
+      (acc, unit) => {
+        const count = (acc.seen.get(unit.key) ?? 0) + 1;
+        return {
+          keys: new Map([...acc.keys, [unit, count === 1 ? unit.key : `${unit.key} #${count}`]]),
+          seen: new Map([...acc.seen, [unit.key, count]]),
+        };
+      },
+      { keys: new Map(), seen: new Map() },
+    ).keys;
+
 const parseFile = (text: string, titleFor?: (stepIdentifier: string) => string | undefined): ParsedFile => {
   const raw = scanItems(splitLines(text));
   const allUnits = raw.flatMap((item) => (item.type === 'unit' ? [item.unit] : item.type === 'region' ? item.consumed : []));
   const stepKeys = assignStepKeys(allUnits, parseAdoSteps(text), titleFor);
+  const flowKeys = assignFlowKeys(allUnits);
   const keyed = (unit: RawUnit): Unit => {
     const { inRegion: _inRegion, ...rest } = unit;
-    return unit.family === 'step' ? { ...rest, key: stepKeys.get(unit) ?? 'step@?' } : rest;
+    if (unit.family === 'step') return { ...rest, key: stepKeys.get(unit) ?? 'step@?' };
+    return unit.family === 'flow-step' ? { ...rest, key: flowKeys.get(unit) ?? unit.key } : rest;
   };
   const items = raw.map((item): Item => {
     if (item.type === 'unit') return { type: 'unit', unit: keyed(item.unit) };
@@ -446,6 +476,10 @@ const priorForms = (unit: Unit, generated: Unit | undefined): readonly string[] 
     withoutRegions(unit.lines),
     ...(generated !== undefined && unit.family === 'step' && generated.family === 'step'
       ? [[...unit.lines.slice(0, unit.head), ...generated.lines.slice(generated.head, generated.lines.length - 1), unitCloser(unit)]]
+      : []),
+    // A flow step that moved (steps inserted or removed when re-recording): its written comment, today's statement.
+    ...(generated !== undefined && unit.family === 'flow-step' && generated.family === 'flow-step'
+      ? [[...unit.lines.slice(0, 1), ...generated.lines.slice(1)]]
       : []),
   ];
   return [...new Set(forms.map((form) => canonicalLines(form)))];
@@ -564,8 +598,27 @@ const dropOutsideRegions = (lines: readonly string[], pattern: RegExp): readonly
     { out: [], inside: false },
   ).out;
 
+interface Lexed {
+  readonly depth: number;
+  readonly state: LexState;
+}
+
+const LEX_START: Lexed = { depth: 0, state: INITIAL_LEX_STATE };
+
+const lexAll = (lines: readonly string[], from: Lexed): Lexed =>
+  lines.reduce<Lexed>((acc, line) => {
+    const lexed = lexLine(line, acc.state);
+    return { depth: acc.depth + lexed.depthDelta, state: lexed.state };
+  }, from);
+
+const depthAfter = (lines: readonly string[]): number => lexAll(lines, LEX_START).depth;
+
+const placementKey = (placement: Placement): string => `${placement.segment}\u0000${String(placement.after)}`;
+
 const mergeKeptUnit = (generated: Unit, kept: Unit): readonly string[] => {
   const prefix = kept.shorthand === null ? [] : [kept.shorthand];
+  // A kept flow step keeps its body; its `// step <n> — …` comment is renumbered to where the step is now.
+  if (generated.family === 'flow-step') return [...prefix, ...generated.lines.slice(0, 1), ...kept.lines.slice(1)];
   if (generated.family !== 'step') return [...prefix, ...kept.lines];
   const body = dropOutsideRegions(kept.lines.slice(kept.head, kept.lines.length - 1), EXPECTED_LINE);
   const delta = indentOf(generated.lines[0]!) - indentOf(kept.lines[0]!);
@@ -609,6 +662,11 @@ const splice = (generated: ParsedFile, existing: ParsedFile): Spliced => {
     return null;
   });
   const generatedSegments = segmentsOf(generated.items, (item) => (item.type === 'unit' ? item.unit.key : null));
+  const flowStepKeys = new Set(
+    existing.items.flatMap((item) =>
+      (item.type === 'unit' ? [item.unit] : item.type === 'region' ? item.region.consumed : []).filter((unit) => unit.family === 'flow-step').map((unit) => unit.key),
+    ),
+  );
   const unitOrder = existing.items.flatMap((item) =>
     item.type === 'unit' ? [item.unit.key] : item.type === 'region' ? item.region.consumed.map((unit) => unit.key) : [],
   );
@@ -656,6 +714,38 @@ const splice = (generated: ParsedFile, existing: ParsedFile): Spliced => {
     return at;
   };
 
+  /** Bracket depth before the region at `index`, counting the generator's lines only (frame lines and units, not keep regions). */
+  const existingDepthBefore = (index: number): number =>
+    depthAfter(existing.items.slice(0, index).flatMap((item) => (item.type === 'unit' ? item.unit.lines : item.type === 'region' ? [] : [item.text])));
+  /** Bracket depth of the generated text at every place a free region can go (built on first use: most merges never need it). */
+  let generatedDepthsCache: ReadonlyMap<string, number> | null = null;
+  const generatedDepthAt = (placement: Placement): number | undefined => {
+    if (generatedDepthsCache === null) {
+      const depths = new Map<string, number>([[placementKey({ segment: HEAD_SEGMENT, after: -1 }), 0]]);
+      let at = LEX_START;
+      let segment = HEAD_SEGMENT;
+      let frame = -1;
+      for (const item of generated.items) {
+        if (item.type === 'line' || item.type === 'hash') {
+          at = lexAll([item.text], at);
+          frame += 1;
+          depths.set(placementKey({ segment, after: frame }), at.depth);
+        } else if (item.type === 'region') {
+          at = lexAll(item.region.lines, at);
+        } else {
+          depths.set(placementKey({ segment, after: 'end' }), at.depth);
+          at = lexAll(item.unit.lines, at);
+          segment = item.unit.key;
+          frame = -1;
+          depths.set(placementKey({ segment, after: -1 }), at.depth);
+        }
+      }
+      depths.set(placementKey({ segment, after: 'end' }), at.depth);
+      generatedDepthsCache = depths;
+    }
+    return generatedDepthsCache.get(placementKey(placement));
+  };
+
   const placeFree = (index: number): Placement | null => {
     const segment = existingSegments[index]!.segment;
     if (segment === HEAD_SEGMENT || genKeys.has(segment)) {
@@ -667,9 +757,18 @@ const splice = (generated: ParsedFile, existing: ParsedFile): Spliced => {
       if (match !== undefined) return { segment, after: skipBlanks(segment, match.index, anchor.gap) };
       return { segment, after: segment === HEAD_SEGMENT ? headFallback() : -1 };
     }
+    // Its unit is gone. A flow step's key is its action and target, so a vanished one means that action changed
+    // or went away; code that ran after it must not move in front of whatever runs there now: orphan it.
+    if (flowStepKeys.has(segment)) return null;
+    // Otherwise follow the closest earlier unit that survives, at the bracket depth the region had (before the
+    // next unit, else directly after the survivor; the survivor's trailing frame lines may close the test or
+    // class). No such place: the region is orphaned rather than moved out of its block.
     const position = unitOrder.indexOf(segment);
     const survivor = [...unitOrder.slice(0, Math.max(position, 0))].reverse().find((key) => genKeys.has(key));
-    return survivor === undefined ? null : { segment: survivor, after: 'end' };
+    if (survivor === undefined) return null;
+    const depth = existingDepthBefore(index);
+    const options: readonly Placement[] = [{ segment: survivor, after: 'end' }, { segment: survivor, after: -1 }];
+    return options.find((option) => generatedDepthAt(option) === depth) ?? null;
   };
 
   const freeRegions = regions.filter(

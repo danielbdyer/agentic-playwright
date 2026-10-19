@@ -83,3 +83,42 @@ export const redactUrl = (url: string, mode: PiiMode): string => {
     return redact(url, mode);
   }
 };
+
+const ABSOLUTE_URL = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+/**
+ * redactUrl for a value that may also be a path relative to a base URL
+ * ("Detail?id=7#top" → "Detail?id=<redacted>#<redacted>"): query values and
+ * the fragment dropped, keys kept, then the PII rules.
+ */
+export const redactUrlLike = (value: string, mode: PiiMode): string => {
+  if (mode === 'off' || ABSOLUTE_URL.test(value)) return redactUrl(value, mode);
+  const hashAt = value.indexOf('#');
+  const beforeHash = hashAt >= 0 ? value.slice(0, hashAt) : value;
+  const queryAt = beforeHash.indexOf('?');
+  if (queryAt < 0 && hashAt < 0) return redact(value, mode);
+  const pathPart = queryAt >= 0 ? beforeHash.slice(0, queryAt) : beforeHash;
+  const keys = queryAt >= 0
+    ? beforeHash.slice(queryAt + 1).split('&').filter((pair) => pair.length > 0).map((pair) => pair.split('=')[0] ?? '')
+    : [];
+  const query = queryAt >= 0 ? `?${keys.map((k) => `${k}=<redacted>`).join('&')}` : '';
+  return redact(`${pathPart}${query}${hashAt >= 0 ? '#<redacted>' : ''}`, mode);
+};
+
+/** An http(s) URL inside free text, up to whitespace, a quote, or an angle bracket (an earlier <redacted> is kept inside). */
+const EMBEDDED_URL = /\bhttps?:\/\/(?:<redacted>|[^\s"'<>`])+/gi;
+const TRAILING_PUNCTUATION = /[.,;:!?)\]}]+$/;
+
+/**
+ * Run every http(s) URL inside a text (an error message, a log line) through
+ * redactUrl, so query values such as session tokens never reach a receipt.
+ * Sentence punctuation after a URL stays outside it. The rest of the text is
+ * left for redact().
+ */
+export const redactUrlsIn = (text: string, mode: PiiMode): string =>
+  mode === 'off'
+    ? text
+    : text.replace(EMBEDDED_URL, (match) => {
+        const tail = TRAILING_PUNCTUATION.exec(match)?.[0] ?? '';
+        return `${redactUrl(match.slice(0, match.length - tail.length), mode)}${tail}`;
+      });

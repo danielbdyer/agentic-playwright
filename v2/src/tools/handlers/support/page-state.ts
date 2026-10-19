@@ -8,7 +8,9 @@
  * - per candidate: the locator the ladder verified on the live page for a
  *   (snapshotId, ref), so memory.mint and memory.enrich can tell a verified
  *   locator from one the agent typed, after the page has been observed
- *   again and the ref registry has moved on. Bounded; oldest first out.
+ *   again and the ref registry has moved on. Bounded; oldest first out;
+ * - per candidate: whether app.act acted on it, which is what memory.mint's
+ *   provenance instrument records (app.act, else app.observe).
  */
 import type { Page } from '@playwright/test';
 import type { ResolvedLocator } from '../../../contract/schemas.js';
@@ -55,3 +57,22 @@ export const rememberResolution = (snapshotId: string, ref: string, resolved: Re
 };
 
 export const recalledResolution = (snapshotId: string, ref: string): ResolvedLocator | undefined => resolutions.get(keyOf(snapshotId, ref));
+
+// ─── Candidates acted on ───────────────────────────────────────────────────
+
+/** Candidates app.act performed an action on in this process (snapshotId, ref), oldest first out. */
+const acted = new Set<string>();
+
+/** Record that app.act acted on a cited candidate (memory.mint's provenance says app.act for it). */
+export const rememberActedOn = (snapshotId: string, ref: string): void => {
+  const key = keyOf(snapshotId, ref);
+  acted.delete(key);
+  acted.add(key);
+  while (acted.size > MAX_RESOLUTIONS) {
+    const oldest = acted.values().next().value;
+    if (oldest === undefined) break;
+    acted.delete(oldest);
+  }
+};
+
+export const wasActedOn = (snapshotId: string, ref: string): boolean => acted.has(keyOf(snapshotId, ref));

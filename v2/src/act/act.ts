@@ -34,10 +34,11 @@ const OPTIONS_APPEAR_MS = 1_500;
 const MIN_STEP_TIMEOUT_MS = 250;
 
 /**
- * How a `select` was carried out. The emitter needs this: a native
- * `<select>` is one `selectOption` call, a custom OutSystems dropdown is a
- * click on the combobox and a click on the option (with a fill in between
- * when the list only renders matches for typed text).
+ * How a `select` was carried out: a native `<select>` is one `selectOption`
+ * call; a custom OutSystems dropdown is a click on the combobox and a click on
+ * the option (with typing in between when the list only renders matches for
+ * typed text). Reported in app.act's output; the emitted page-object helper
+ * replays the same steps without needing this record.
  */
 export interface SelectPath {
   readonly via: 'native' | 'listbox' | 'combobox';

@@ -38,7 +38,7 @@ When `test.run` fails on a locator in an interactive session, run it again with 
 
 ## Recording instead of authoring
 
-For logins and long preconditions, have a QA walk the path once: `app.open {headed:true}` then `flow.record {name, pageId, stopOn:"manual"}`; they press Stop in the page. Every control touched becomes a candidate facet with the recording as provenance, and `flows/<name>.ts` is emitted for tests to call in `beforeEach`. Secrets typed into password fields become parameters supplied at run time (`TESSERACT_PARAM_<NAME>`), never stored. `flow.run {name}` replays it with no model in the loop.
+For logins and long preconditions, have a QA walk the path once: `app.open {headed:true}` then `flow.record {name, pageId, stopOn:"manual"}`; they press Stop in the page. Every control touched becomes a candidate facet with the recording as provenance, and `flows/<name>.ts` is emitted for tests to call in `beforeEach`. Secrets typed into password fields become parameters supplied at run time (`TESSERACT_PARAM_<NAME>`), never stored; so does any value the PII gate would redact (an email typed as the username), as a parameter without a default. URLs are recorded without their query strings. `flow.run {name}` replays it with no model in the loop.
 
 ## Rules that keep the output trustworthy
 
@@ -46,7 +46,7 @@ For logins and long preconditions, have a QA walk the path once: `app.open {head
 - Names come from the test author, locators from the page. A facet's aliases are the words people use in ADO; its locator is what the browser resolves.
 - Prefer role and accessible name, scoped by landmark; then label, placeholder, text, test id; css last. Never mint an OutSystems structural id (`b3-…`) as the only locator.
 - Values come from the test case: `@param` references bind to ADO parameters and data rows. Do not invent test data; a missing value is a handoff.
-- Never pass a secret as a literal. Use `value:"@password"` with `params`, or a recorded flow whose secrets come from `TESSERACT_PARAM_<NAME>`; receipts record `<secret>` in their place.
+- Never pass a secret as a literal. Use `value:"@password"` with `params`, or a recorded flow whose secrets come from `TESSERACT_PARAM_<NAME>`; receipts record `<secret>` in their place. Values that came from `params`, and anything typed into or read off a password field, also come back as `<secret>` in `app.assert`'s `observed` and `message`: `passed` still tells you whether the value matched.
 - One `test.step` per ADO step, titled with the ADO wording verbatim. Do not merge or reorder steps.
 - Candidate facets become trusted when a human accepts a test that uses them or after enough passing runs. Do not try to promote facets yourself.
 - Budgets: three attempts per step; if a whole case stalls, hand off the current step and move to the next case.
@@ -59,21 +59,21 @@ Contract 2.0.0-alpha.1. Generated from `src/contract/tools.ts`; do not edit by h
 | Tool | MCP name | Release | What it does | Error families | Nature |
 |---|---|---|---|---|---|
 | `app.open` | `app_open` | A | Open a page (or attach to a running browser over CDP) and wait for the app to hydrate. | invalid-input, not-configured, not-found, timeout, unavailable, unclassified | writes |
-| `app.observe` | `app_observe` | A | Snapshot the page the way its accessibility tree sees it: candidates with role, computed name, naming source, affordance, landmark, data-block. | invalid-input, not-found, timeout, unclassified | read-only, idempotent |
-| `app.act` | `app_act` | A | Perform one action (click, fill, select, check, press, hover, navigate) on a verified target so the next step sees real state. | invalid-input, not-found, ambiguous, not-visible, not-enabled, timeout, assertion-like, stale-snapshot, unavailable, unclassified | writes, acts on the app |
-| `app.assert` | `app_assert` | A | Check a web-first assertion (visible, text, value, url, count, …) and report what was observed. | invalid-input, not-found, ambiguous, timeout, stale-snapshot, unavailable, unclassified | read-only, idempotent |
+| `app.observe` | `app_observe` | A | Snapshot the page the way its accessibility tree sees it: candidates with role, computed name, naming source, affordance, landmark, data-block. | invalid-input, not-found, timeout, malformed-response, unclassified | read-only, idempotent |
+| `app.act` | `app_act` | A | Perform one action (click, fill, select, check, press, hover, navigate) on a verified target so the next step sees real state. | invalid-input, not-found, ambiguous, not-visible, not-enabled, timeout, assertion-like, stale-snapshot, unavailable, malformed-response, unclassified | writes, acts on the app |
+| `app.assert` | `app_assert` | A | Check a web-first assertion (visible, text, value, url, count, …) and report what was observed. | invalid-input, not-found, ambiguous, timeout, stale-snapshot, unavailable, malformed-response, unclassified | writes |
 | `memory.query` | `memory_query` | A | Find facets on a screen by the words a test author would use. | invalid-input, malformed-response, unclassified | read-only, idempotent |
-| `memory.mint` | `memory_mint` | A | Record a new facet (a named, role-bearing element of a screen) with provenance; it starts as a candidate. | invalid-input, conflict, stale-snapshot, unclassified | writes, idempotent |
+| `memory.mint` | `memory_mint` | A | Record a new facet (a named, role-bearing element of a screen) with provenance; it starts as a candidate. | invalid-input, conflict, stale-snapshot, malformed-response, unclassified | writes, idempotent |
 | `test.emit` | `test_emit` | A | Write a plain Playwright spec for the test case and regenerate the page objects it uses. | invalid-input, not-found, conflict, malformed-response, unclassified | writes, idempotent |
 | `test.run` | `test_run` | A | Run emitted specs with Playwright, classify failures against facets, and write run receipts. | invalid-input, not-configured, not-found, timeout, unavailable, malformed-response, unclassified | writes |
 | `ado.fetch` | `ado_fetch` | B | Read Azure DevOps test cases with steps, parameters, data rows, and shared steps expanded inline. | invalid-input, not-configured, not-found, rate-limited, unavailable, malformed-response, unclassified | read-only, idempotent |
 | `ado.publish` | `ado_publish` | B | Publish run results to Azure DevOps test points, with per-step outcomes, so the test plan shows green and red. | invalid-input, not-configured, not-found, rate-limited, unavailable, malformed-response, unclassified | writes, idempotent |
 | `handoff.raise` | `handoff_raise` | B | Ask a human, with everything they need, instead of guessing: writes the handoff file and comments on the ADO test case. | invalid-input, not-found, unavailable, unclassified | writes |
 | `review.record` | `review_record` | B | Record a human reviewer's accept / accept-with-edit / reject of an emitted test; acceptance promotes its facets to trusted. | invalid-input, not-found, malformed-response, unclassified | writes, human decision |
-| `memory.enrich` | `memory_enrich` | B | Add aliases or a better locator to an existing facet, with the evidence that justifies the change. | invalid-input, not-found, conflict, stale-snapshot, unclassified | writes, idempotent |
-| `memory.preflight` | `memory_preflight` | B | Check, on the live app, that a screen's facets and flows still resolve before trusting its page object. | invalid-input, not-found, not-configured, timeout, unavailable, unclassified | writes, idempotent |
+| `memory.enrich` | `memory_enrich` | B | Add aliases or a better locator to an existing facet, with the evidence that justifies the change. | invalid-input, not-found, conflict, stale-snapshot, malformed-response, unclassified | writes, idempotent |
+| `memory.preflight` | `memory_preflight` | B | Check, on the live app, that a screen's facets and flows still resolve before trusting its page object. | invalid-input, not-found, not-configured, timeout, unavailable, malformed-response, unclassified | writes, idempotent |
 | `flow.record` | `flow_record` | C | Record a path walked once (by a QA in a headed browser, or by your app.act calls) into facets and a deterministic flow. | invalid-input, not-configured, not-found, conflict, timeout, unavailable, malformed-response, unclassified | writes |
-| `flow.run` | `flow_run` | C | Execute a recorded deterministic flow (log in, seed a record, reach a screen) with no model in the loop. | invalid-input, not-found, not-configured, not-visible, not-enabled, timeout, unavailable, unclassified | writes, acts on the app |
+| `flow.run` | `flow_run` | C | Execute a recorded deterministic flow (log in, seed a record, reach a screen) with no model in the loop. | invalid-input, not-found, not-configured, not-visible, not-enabled, timeout, unavailable, malformed-response, unclassified | writes, acts on the app |
 <!-- tesseract:generated:tools:end -->
 
 Names are dotted here and on the CLI (`tesseract-qa app.open`); on the MCP wire the dot is an underscore (`app_open`), because several model APIs reject dots in tool names.

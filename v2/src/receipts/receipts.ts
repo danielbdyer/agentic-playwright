@@ -5,7 +5,7 @@
  * and token counts are recorded when the host reports them in `decision`.
  */
 import { appendJsonl } from '../core/fsio.js';
-import { redactDeep, type PiiMode } from '../core/pii.js';
+import { redact, redactUrlLike, redactUrlsIn, type PiiMode } from '../core/pii.js';
 import type { ErrorFamily } from '../core/errors.js';
 import type { Decision } from '../contract/schemas.js';
 
@@ -57,13 +57,59 @@ export const scrubSecrets = (value: unknown): unknown => {
   return value;
 };
 
+/** Fields that hold a URL (absolute, or relative to the profile base URL). */
+const URL_FIELDS = /^(url|finalUrl|startUrl|navigatesTo|href)$/;
+
+const isUrlField = (key: string | undefined, parent: Readonly<Record<string, unknown>> | undefined): boolean =>
+  key !== undefined && (URL_FIELDS.test(key) || (key === 'value' && parent?.action === 'navigate'));
+
+/** URL query values first (the whole value for a URL field, embedded http(s) URLs otherwise), then the PII rules. */
+const redactString = (text: string, pii: PiiMode, urlField: boolean): string =>
+  urlField ? redactUrlLike(text, pii) : redact(redactUrlsIn(text, pii), pii);
+
+const truncate = (text: string): string => (text.length > MAX_STRING ? `${text.slice(0, MAX_STRING)}…(${text.length} chars)` : text);
+
+/**
+ * One walk over a receipt field: secret-named fields replaced, every string
+ * redacted and only then truncated (a cut through a PII value would leave a
+ * fragment no rule matches), long arrays sampled, deep objects elided.
+ */
+const gate = (value: unknown, pii: PiiMode, depth: number, key?: string, parent?: Readonly<Record<string, unknown>>): unknown => {
+  if (typeof value === 'string') return truncate(redactString(value, pii, isUrlField(key, parent)));
+  if (Array.isArray(value)) {
+    if (depth >= MAX_DEPTH) return `[${value.length} items]`;
+    const head = value.slice(0, MAX_ARRAY).map((item) => gate(item, pii, depth + 1, key, parent));
+    return value.length > MAX_ARRAY ? [...head, `…(${value.length - MAX_ARRAY} more)`] : head;
+  }
+  if (value !== null && typeof value === 'object') {
+    if (depth >= MAX_DEPTH) return '{…}';
+    const record = value as Readonly<Record<string, unknown>>;
+    return Object.fromEntries(
+      Object.entries(record).map(([k, v]) => [k, SECRET_KEYS.test(k) ? '<secret>' : gate(v, pii, depth + 1, k, record)]),
+    );
+  }
+  return value;
+};
+
+/** Redact every string (URLs included) without summarizing; for the decision, which the host wrote for the record. */
+const redactAll = (value: unknown, pii: PiiMode): unknown => {
+  if (typeof value === 'string') return redactString(value, pii, false);
+  if (Array.isArray(value)) return value.map((item) => redactAll(item, pii));
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, redactAll(v, pii)]));
+  }
+  return value;
+};
+
 export const buildReceipt = (fields: AuthoringReceipt, pii: PiiMode): AuthoringReceipt => {
-  const { decision, ...rest } = fields;
+  const { decision, message, ...rest } = fields;
   return {
     ...rest,
-    input: redactDeep(summarize(scrubSecrets(fields.input)), pii),
-    output: fields.output === undefined ? undefined : redactDeep(summarize(scrubSecrets(fields.output)), pii),
-    ...(decision !== undefined ? { decision: redactDeep(decision, pii) } : {}),
+    input: gate(fields.input, pii, 0),
+    output: fields.output === undefined ? undefined : gate(fields.output, pii, 0),
+    // Error messages quote URLs and page text (Playwright's call log); they get the same gate, whole.
+    ...(message !== undefined ? { message: redactString(message, pii, false) } : {}),
+    ...(decision !== undefined ? { decision: redactAll(decision, pii) as AuthoringReceipt['decision'] } : {}),
   };
 };
 

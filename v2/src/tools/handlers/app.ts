@@ -10,11 +10,15 @@
  * Page-side failures of an action come back as outcome "failed" with an
  * error family; only bad input (an unknown page, a missing or stale target,
  * an unknown parameter) throws.
+ *
+ * Secrets: text that came from params, and anything typed into or read off a
+ * password-like field (decided on the element the action or assertion just
+ * reached), is "<secret>" in the receipt, the output and the evidence log.
  */
 import type { PageHandle } from '../../browser/types.js';
 import type { Hint, ResolvedLocator, SnapshotDelta } from '../../contract/schemas.js';
 import { ToolError, isToolError } from '../../core/errors.js';
-import { redactUrl } from '../../core/pii.js';
+import { redact, redactUrl } from '../../core/pii.js';
 import { countMatches, isPageAssertion, performAction, runAssertion, type ActionResult } from '../../act/index.js';
 import { locatorKeyOf, loadScreen, recordResolutions, type ResolveOutcome } from '../../memory/index.js';
 import { awaitHydration, diffSnapshots, settle, type SnapshotRecord } from '../../observe/index.js';
@@ -24,9 +28,9 @@ import { resolveUrl } from '../../workspace/profiles.js';
 import type { ToolContext, ToolHandler, ToolHandlers } from '../types.js';
 import { observeAndSave, visibleAlerts } from './support/observation.js';
 import { openApp } from './support/open.js';
-import { latestPageRecord, rememberResolution } from './support/page-state.js';
-import { paramNamesIn, substituteOptional } from './support/params.js';
-import { isPasswordField, resolveTarget, settleResolution, type TargetResolution } from './support/target.js';
+import { latestPageRecord, rememberActedOn, rememberResolution } from './support/page-state.js';
+import { SECRET_MARK, maskSecrets, paramNamesIn, paramValuesIn, substituteOptional } from './support/params.js';
+import { fieldSensitivity, resolveTarget, settleResolution, type TargetResolution } from './support/target.js';
 
 const HINT_LIMIT = 10;
 const SETTLE_BUDGET_MS = 3_000;
@@ -40,10 +44,12 @@ const isResolveOutcome = (value: string): value is ResolveOutcome => RESOLVE_OUT
 
 const open: ToolHandler<'app.open'> = async (input, ctx) => {
   const opened = await openApp(ctx, input);
+  const { pii } = ctx.workspace.config;
+  // Page text leaving the browser is PII-gated, as observe gates it (an SSO landing URL can carry a code and an email).
   return {
     pageId: opened.handle.pageId,
-    finalUrl: opened.finalUrl,
-    title: opened.title,
+    finalUrl: redactUrl(opened.finalUrl, pii),
+    title: redact(opened.title, pii),
     variant: opened.variant,
     hydration: opened.hydration,
     attached: opened.attached,
@@ -130,7 +136,11 @@ const knownFacetFor = async (ctx: ToolContext, handle: PageHandle, resolved: Res
   }
 };
 
-/** Append a resolution of the facet's best locator to the evidence log; never fails the call. */
+/**
+ * Append a resolution of the facet's best locator to the evidence log (a
+ * committed file); never fails the call. The detail is a Playwright message
+ * that can quote page text, so it is PII-gated; callers mask secrets first.
+ */
 const recordFacetUse = async (
   ctx: ToolContext,
   resolution: TargetResolution,
@@ -150,7 +160,7 @@ const recordFacetUse = async (
           outcome,
           source,
           ...(matches !== undefined ? { matches } : {}),
-          ...(detail !== undefined ? { detail } : {}),
+          ...(detail !== undefined ? { detail: redact(detail, ctx.workspace.config.pii) } : {}),
         },
       ],
       { now: ctx.now },
@@ -167,6 +177,7 @@ const act: ToolHandler<'app.act'> = async (input, ctx) => {
   await recorderReady(handle.page);
   const { value, used } = substituteOptional(input.value, input.params);
   if (used) ctx.markSensitive?.('value');
+  const paramSecrets = paramValuesIn(input.value, input.params);
 
   let resolution: TargetResolution | undefined;
   let actionValue = value;
@@ -175,7 +186,6 @@ const act: ToolHandler<'app.act'> = async (input, ctx) => {
     actionValue = navigationUrl(value.trim(), handle);
   } else if (input.target !== undefined) {
     resolution = await resolveTarget(ctx, handle, input.target, input.params);
-    if (input.action === 'fill' && value !== undefined && (await isPasswordField(resolution))) ctx.markSensitive?.('value');
   } else if (input.action !== 'press') {
     // press without a target sends the key to whatever has focus.
     throw new ToolError('invalid-input', `${input.action} needs a target: {facetId}, {snapshotId, ref}, or {locator}`, { action: input.action });
@@ -184,6 +194,13 @@ const act: ToolHandler<'app.act'> = async (input, ctx) => {
   const before = await baselineFor(ctx, handle);
   const timeoutMs = input.timeoutMs ?? (input.action === 'navigate' ? NAVIGATE_TIMEOUT_MS : undefined);
   const result: ActionResult = await performAction(handle.page, resolution?.locator ?? null, input.action, actionValue, timeoutMs !== undefined ? { timeoutMs } : {});
+  // Whether the typed text is a secret is read off the element the fill just reached (a password field can render
+  // after the target was resolved); a field that cannot be told apart any more counts as one.
+  const typedSecret =
+    !used && input.action === 'fill' && typeof value === 'string' && resolution !== undefined && (await fieldSensitivity(resolution)) !== 'plain';
+  if (typedSecret) ctx.markSensitive?.('value');
+  const secrets = [...paramSecrets, ...(typedSecret && typeof value === 'string' ? [value] : [])];
+  const failureMessage = result.outcome === 'failed' ? maskSecrets(result.message, secrets) : undefined;
 
   let postState: SnapshotDelta | undefined;
   if (result.outcome === 'succeeded') {
@@ -196,17 +213,20 @@ const act: ToolHandler<'app.act'> = async (input, ctx) => {
   let facetId: string | undefined;
   if (resolution !== undefined) {
     resolved = settleResolution(resolution, result.matches).resolved;
-    if (resolution.candidate !== undefined) rememberResolution(resolution.candidate.snapshotId, resolution.candidate.ref, resolved);
+    if (resolution.candidate !== undefined) {
+      rememberResolution(resolution.candidate.snapshotId, resolution.candidate.ref, resolved);
+      if (result.outcome === 'succeeded') rememberActedOn(resolution.candidate.snapshotId, resolution.candidate.ref);
+    }
     const outcome = result.outcome === 'succeeded' ? 'ok' : isResolveOutcome(result.family) ? result.family : undefined;
     if (outcome !== undefined) {
-      await recordFacetUse(ctx, resolution, outcome, 'act', result.matches?.visible, result.outcome === 'failed' ? result.message : undefined);
+      await recordFacetUse(ctx, resolution, outcome, 'act', result.matches?.visible, failureMessage);
     }
     facetId = resolution.facet?.id ?? (resolved.verified ? await knownFacetFor(ctx, handle, resolved) : undefined);
   }
 
   return {
     outcome: result.outcome,
-    ...(result.outcome === 'failed' ? { errorFamily: result.family, message: result.message } : {}),
+    ...(result.outcome === 'failed' ? { errorFamily: result.family, message: failureMessage ?? result.message } : {}),
     ...(resolved !== undefined ? { resolved } : {}),
     ...(facetId !== undefined ? { facetId } : {}),
     ...(result.outcome === 'succeeded' && result.select !== undefined
@@ -238,6 +258,9 @@ const assertionOutcome = (
   return 'ok';
 };
 
+/** Assertion kinds that read or compare a field's text, where a password's value could show. */
+const VALUE_READING: ReadonlySet<string> = new Set(['value', 'text', 'contains-text']);
+
 const assert: ToolHandler<'app.assert'> = async (input, ctx) => {
   const handle = ctx.browser.get(input.pageId);
   const pageLevel = isPageAssertion(input.assertion);
@@ -245,6 +268,7 @@ const assert: ToolHandler<'app.assert'> = async (input, ctx) => {
     throw new ToolError('invalid-input', `a ${input.assertion} assertion needs a target: {facetId}, {snapshotId, ref}, or {locator}`, { assertion: input.assertion });
   }
   const { value: expected } = substituteOptional(input.expected, input.params, 'expected');
+  const paramSecrets = paramValuesIn(input.expected, input.params);
   const resolution = pageLevel || input.target === undefined ? undefined : await resolveTarget(ctx, handle, input.target, input.params);
 
   let result: Awaited<ReturnType<typeof runAssertion>>;
@@ -252,10 +276,24 @@ const assert: ToolHandler<'app.assert'> = async (input, ctx) => {
     result = await runAssertion(handle.page, input.assertion, resolution?.locator ?? null, expected, input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {});
   } catch (error) {
     if (resolution !== undefined && isToolError(error) && error.family === 'ambiguous') {
-      await recordFacetUse(ctx, resolution, 'ambiguous', 'assert', undefined, error.message);
+      await recordFacetUse(ctx, resolution, 'ambiguous', 'assert', undefined, maskSecrets(error.message, paramSecrets));
     }
     throw error;
   }
+
+  // A value read off a password-like field is a secret, decided on the element the assertion just read (or, for a
+  // value assertion, when no element is left to tell by); so is any text that came from params.
+  const sensitivity = resolution !== undefined && VALUE_READING.has(input.assertion) && !handle.page.isClosed() ? await fieldSensitivity(resolution) : 'plain';
+  const secretField = sensitivity === 'secret' || (sensitivity === 'unknown' && input.assertion === 'value');
+  if (secretField && paramSecrets.length === 0 && input.expected !== undefined) ctx.markSensitive?.('expected');
+  const secrets = [
+    ...paramSecrets,
+    ...(secretField && typeof result.observed === 'string' ? [result.observed] : []),
+    ...(secretField && typeof expected === 'string' ? [expected] : []),
+  ];
+  const observed =
+    typeof result.observed !== 'string' ? result.observed : secretField && result.observed.length > 0 ? SECRET_MARK : maskSecrets(result.observed, secrets);
+  const message = result.message === undefined ? undefined : maskSecrets(result.message, secrets);
 
   let resolved: ResolvedLocator | undefined;
   if (resolution !== undefined) {
@@ -263,13 +301,13 @@ const assert: ToolHandler<'app.assert'> = async (input, ctx) => {
     resolved = settleResolution(resolution, counts).resolved;
     if (resolution.candidate !== undefined) rememberResolution(resolution.candidate.snapshotId, resolution.candidate.ref, resolved);
     const outcome = assertionOutcome(input.assertion, result.passed, counts);
-    if (outcome !== undefined) await recordFacetUse(ctx, resolution, outcome, 'assert', counts?.visible, outcome === 'ok' ? undefined : result.message);
+    if (outcome !== undefined) await recordFacetUse(ctx, resolution, outcome, 'assert', counts?.visible, outcome === 'ok' ? undefined : message);
   }
 
   return {
     passed: result.passed,
-    observed: result.observed,
-    ...(result.message !== undefined ? { message: result.message } : {}),
+    observed,
+    ...(message !== undefined ? { message } : {}),
     ...(resolved !== undefined ? { resolved } : {}),
   };
 };

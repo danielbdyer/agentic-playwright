@@ -74,7 +74,8 @@ describe('redactAriaText and capAriaText', () => {
   it('redacts line by line and masks typed values', () => {
     const text = '- row "Jane jane@x.com 555-123-4567"\n- textbox "Notes": secret words\n- \'textbox "Note: x"\': typed\n- button "Go"';
     expect(redactAriaText(text, 'standard')).toBe('- row "Jane <email> <phone>"\n- textbox "Notes": <value>\n- \'textbox "Note: x"\': <value>\n- button "Go"');
-    expect(redactAriaText(text, 'off')).toBe(text);
+    // Typed values are masked in every mode; 'off' only stops the PII rules on names.
+    expect(redactAriaText(text, 'off')).toBe('- row "Jane jane@x.com 555-123-4567"\n- textbox "Notes": <value>\n- \'textbox "Note: x"\': <value>\n- button "Go"');
   });
 
   it('caps on a line boundary, marker included in the budget', () => {

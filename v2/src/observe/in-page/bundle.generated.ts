@@ -2,7 +2,7 @@
 // Rebuild with `npm run build:inpage`; `node scripts/build-inpage.mjs --check` fails when this file is stale.
 /* eslint-disable */
 
-export const IN_PAGE_BUNDLE_HASH = 'sha256:c744c79273daf93d26297101ba43d331bf3e5e3591f5437e9b552987e8ad243d';
+export const IN_PAGE_BUNDLE_HASH = 'sha256:66bc73b28ce9d9f8969cadbe25bb67f2bdcbdc076f754073f8905391f07f77f2';
 
 export const IN_PAGE_BUNDLE: string = `"use strict";
 var __tesseractInPage = (() => {
@@ -1076,6 +1076,7 @@ var __tesseractInPage = (() => {
     setRegistry(options.snapshotId, refs);
     return {
       snapshotId: options.snapshotId,
+      url: location.href,
       nodes,
       scopeFound: roots.length > 0,
       stats: { elements, ownCursorOnly, cellsDropped, rowsDropped }

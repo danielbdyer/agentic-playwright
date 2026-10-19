@@ -641,6 +641,37 @@ A node whose row has no `decide` cell cannot be trusted with a write; a node who
 
 **The order.** Test data and release state first, because both unblock the pilot and neither is glamorous. The handoff node third, because it makes every node usable by people who are not the author. Delivery health last, once the receipts exist to compute it from.
 
+### 5.14 The implementation in this repository
+
+The design above is built as the npm workspace `v2/` (package `tesseract-qa`). It is self-contained: nothing in it imports `product/`, `workshop/`, or `dashboard/`; the v1 code it needed was lifted and corrected. `v2/README.md` is the operator's guide and `v2/PLAYBOOK.md` the agent's.
+
+| Component | Lines | What it is |
+|---|---|---|
+| `contract/`, `tools/`, `server/`, `cli/` | 5.6k | the single declaration of the sixteen tools, the shared runtime and receipts, MCP over stdio and Streamable HTTP, the CLI generated from the same declaration, the contract lock |
+| `observe/` | 3.2k | the reality study's walker rebuilt as a bundled in-page script (computed roles, accname ladder with naming source, affordance ladder, landmark, data-block, and row scope), hydration, variant, fingerprint, PII gate, the verified locator ladder |
+| `browser/`, `act/` | 1.5k | browser pool with CDP attach, actions with error families, web-first assertions |
+| `resolve/` | 3.3k | step classification, candidate ranking, the v1 pattern library corrected, the heuristic decider |
+| `memory/` | 2.8k | the facet catalog in YAML, append-only evidence, phrase scoring, health, candidate-to-trusted gating, preflight |
+| `emit/` | 3.0k | specs, page objects, and flows; keep regions, overrides, hand-edit detection |
+| `run/`, `flow/` | 3.7k | the Playwright runner with failure classification and repair in place; recorded flows |
+| `ado/` | 2.7k | fetch with shared-step expansion, publish to test points, comments |
+| `driver/`, `report/` | 3.7k | the batch author with heuristic and Anthropic deciders; the three numbers |
+
+About 32,000 lines of source, above the 22–27k target in §5.1, with 19,000 lines of tests. The overrun sits in `observe/`, `resolve/`, and `driver/`, where real pages kept adding cases; it is the first place to look when the build is pruned.
+
+**How it was verified.** 1,154 unit tests, most of the page-facing ones against real Chromium. An end-to-end suite drives the built server over stdio the way a host does: a QA's login is recorded (the password never reaches disk), ADO 10001 is authored step by step on an OutSystems-shaped fixture app, the emitted spec passes under plain `npx playwright test`, the review promotes its facets, the run is published to a mock Azure DevOps with per-step results, a handoff is commented on the case, and a drifting release is caught by preflight, classified as drift by the run, repaired in place over CDP, and run green. A second suite serves the tools over Streamable HTTP with a bearer token. An opt-in live test touches the public OutSystems UI website on the `study` route Productcatalog, read-only: with no model, the heuristic decider authors all three steps of a small case and the emitted spec passes against the live site. That contact found two defects the fixtures could not (an empty shell taken for a hydrated page, product cards that carry no role), and the HTTP suite found a third (the host allowlist used the requested port, not the bound one); each was fixed with a test. An adversarial review then read the package through four lenses (contract fidelity, algorithm correctness, security and data handling, robustness) and raised 46 findings; each was reproduced with a test that failed on the code as written before it was fixed, and none turned out to be a false alarm. The largest were a repaired locator that stayed behind the broken one, page-object member names that could shift under existing specs, secrets and personal data reaching receipts and recordings, and an HTTP mode with no shutdown, no session expiry, and no auth off loopback.
+
+**Where it departs from §5.2.**
+
+- On the MCP wire the dot in a tool name is an underscore (`app_open`), because several model APIs reject dots; documents and the CLI keep `app.open`.
+- Several tools gained inputs the loop needed: `params` and `decision` on the acting tools, `intent` and `audit` on `app.observe`, `force` and `flows` on `test.emit`, `pauseOnFailure` on `test.run`, an optional `screen` on `memory.query`. Error-family lists grew where a tool could honestly produce more.
+- An expanded shared step's `stepIdentifier` is `"<comprefId>;<childStepId>"`, the ids ADO uses, not a child index.
+- Route URLs are stored relative to the profile's base URL without a leading slash, because `goto('/X')` drops an OutSystems module path.
+- `flow.run` returns the final URL and title, not a full snapshot; observe after it when one is needed.
+- The batch driver ships with a deterministic heuristic decider, so a suite can be authored, emitted, and run with no model at all; a model decider is an option, not a requirement.
+
+**What is not yet true.** The acceptance number needs a reviewer who did not build v2, and none has reviewed these tests. No held-out route has been spent. Publishing's `actionPath` encoding and the automation-association fields follow Microsoft's documentation but have not met a real Azure DevOps organization. The Anthropic decider has run only against a stub, headed recording only in tests that cannot show a window, and the plugin's `npx tesseract-qa` commands assume the package is published to the team's registry.
+
 ## 6. v2 — measurement
 
 v1's workshop was twenty-eight thousand lines answering the question "is the product improving?" with probes, rungs, visitors, hypotheses, receipts, ratchets, trajectories, graduation gates, convergence machines, and theorem groups. It answered the question twice, on 2026-04-23 and 2026-04-24, with "yes." Five months later the first real page said no. v2's evaluation harness is small because the question is small: does a QA lead accept the tests, do they keep passing, and what did they cost.

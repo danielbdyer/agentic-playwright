@@ -86,10 +86,15 @@ export interface ParsedSteps {
   readonly warnings: readonly string[];
 }
 
+/** ADO marks rich-text (HTML) fields isformatted="true"; "false" is plain text, where "<Enter>" is text, not a tag. */
+const isPlainText = (field: XmlElement): boolean =>
+  Object.entries(field.attributes).some(([name, value]) => name.toLowerCase() === 'isformatted' && value.trim().toLowerCase() === 'false');
+
 const parameterizedText = (step: XmlElement, position: number): string => {
   const strings = childElements(step, 'parameterizedString');
   const field = strings[position];
-  return field === undefined ? '' : htmlToText(markupOf(field));
+  if (field === undefined) return '';
+  return isPlainText(field) ? textOf(field).replace(/\s+/g, ' ').trim() : htmlToText(markupOf(field));
 };
 
 interface Counter {

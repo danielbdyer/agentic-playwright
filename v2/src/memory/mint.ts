@@ -14,12 +14,17 @@
  * - A locator another facet already owns is a conflict (use memory.enrich).
  * - A verified locator is the facet's first resolution attempt: new facets
  *   start at 1/1.
+ * - Page-object member names are frozen: a new facet gets `member`, unique on
+ *   its screen, and facets of a catalog written before names were frozen get
+ *   the name they are emitted under today, so a later mint or retirement
+ *   cannot rename a member that existing specs call.
  */
 import { ToolError } from '../core/errors.js';
 import type { PiiMode } from '../core/pii.js';
 import type { Candidate, Facet, FacetDraft, FacetKind, FacetLocator, LocatorSpec, Provenance, ResolvedLocator } from '../contract/schemas.js';
 import { bareLocator, facetIdFrom, localIdFor, locatorKeyOf } from './ids.js';
 import { cleanName, deriveLocator, isEquivalentTarget, mergeAliases, ownerOfLocator, targetIdentity } from './draft.js';
+import { freezeMemberNames } from './member.js';
 import type { EventFactory, EvidenceEvent, MintProvenance, ScreenCatalog } from './types.js';
 
 /** A draft as the tool receives it; kind defaults to element. */
@@ -129,7 +134,9 @@ const remint = (catalog: ScreenCatalog, existing: Facet, input: MintPlanInput, c
   const locators = known ? existing.locators : chosen.verified ? [chosen.locator, ...existing.locators] : [...existing.locators, chosen.locator];
   // As with enrich: a new locator on a stale facet is a repair, unproven until a run confirms it.
   const repaired = !known && existing.status === 'stale';
-  const facet: Facet = { ...existing, aliases: [...merged.aliases], locators, status: repaired ? 'candidate' : existing.status };
+  const frozen = freezeMemberNames(catalog.facets).facets;
+  const base = frozen.find((f) => f.id === existing.id) ?? existing;
+  const facet: Facet = { ...base, aliases: [...merged.aliases], locators, status: repaired ? 'candidate' : existing.status };
   const enriched = ctx.makeEvent({
     kind: 'enriched',
     facetId: existing.id,
@@ -146,7 +153,7 @@ const remint = (catalog: ScreenCatalog, existing: Facet, input: MintPlanInput, c
     ? [ctx.makeEvent({ kind: 'status', facetId: existing.id, from: 'stale', to: 'candidate', reason: 'repaired', by: 'tool' })]
     : [];
   return {
-    catalog: replaceFacet(catalog, facet),
+    catalog: replaceFacet({ ...catalog, facets: frozen }, facet),
     facet,
     created: false,
     events: [enriched, ...resolved, ...status],
@@ -192,7 +199,7 @@ export const planMint = (catalog: ScreenCatalog, input: MintPlanInput, ctx: Mint
   });
   const role = input.draft.role ?? (input.candidate.role.length > 0 ? input.candidate.role : undefined);
   const tag = input.draft.tag ?? (input.candidate.tag.length > 0 ? input.candidate.tag : undefined);
-  const facet: Facet = {
+  const draftFacet: Facet = {
     id,
     screen: input.screen,
     kind,
@@ -209,11 +216,13 @@ export const planMint = (catalog: ScreenCatalog, input: MintPlanInput, ctx: Mint
     provenance,
     evidence: ctx.pointer(minted.eventId),
   };
+  const frozen = freezeMemberNames(catalog.facets, draftFacet);
+  const facet = frozen.added ?? draftFacet;
   const resolved = chosen.verified
     ? [ctx.makeEvent({ kind: 'resolved', facetId: id, locatorKey: key, outcome: 'ok', matches: 1, source: 'mint' })]
     : [];
   return {
-    catalog: replaceFacet(catalog, facet),
+    catalog: replaceFacet({ ...catalog, facets: frozen.facets }, facet),
     facet,
     created: true,
     events: [minted, ...resolved],

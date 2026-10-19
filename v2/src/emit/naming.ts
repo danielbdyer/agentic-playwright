@@ -136,24 +136,44 @@ const selectStyleOf = (facet: Facet, role: string | undefined): SelectStyle => {
   return 'none';
 };
 
+const hasFrozenMember = (facet: Facet): boolean => facet.member !== undefined && facet.member.trim().length > 0;
+
 const baseMemberName = (facet: Facet): string => {
-  if (facet.member !== undefined && facet.member.length > 0) return isIdentifier(facet.member) ? facet.member : camelCase(facet.member);
+  if (hasFrozenMember(facet)) {
+    const member = facet.member!.trim();
+    return isIdentifier(member) ? member : camelCase(member);
+  }
   const local = localId(facet.id);
   return facet.kind === 'row' ? rowMemberName(local) : camelCase(local);
 };
 
+/** Facets whose frozen `member` holds its name: every non-route facet that has one, retired ones included. */
+const holdsFrozenName = (facet: Facet): boolean => hasFrozenMember(facet) && facet.kind !== 'route';
+
 /**
- * Member names for one screen's facets, in catalog order. A name is
- * `facet.member` (frozen at mint) or derived from the local id; a later facet
- * whose name is taken gets a numeric suffix, so names of existing facets never
- * change when the catalog grows. Select helpers are named right after their
- * facet for the same reason.
+ * Member names for one screen's facets. A name is `facet.member`, frozen when
+ * the facet was minted (memory.mint writes it), or, for a catalog written
+ * before members were frozen, derived from the local id. Frozen names are
+ * claimed first, in catalog order, and a retired facet keeps its frozen name
+ * reserved, so minting or retiring another facet never renames a member and a
+ * new facet never takes a retired one's name. Derived names follow in catalog
+ * order (retired facets without a frozen name are skipped, as they always
+ * were), a taken name getting a numeric suffix; select helpers are named right
+ * after their facet.
  */
-export const memberTable = (facets: readonly Facet[]): ReadonlyMap<string, MemberInfo> =>
-  facets.filter(isMemberFacet).reduce<{ readonly table: ReadonlyMap<string, MemberInfo>; readonly taken: ReadonlySet<string> }>(
+export const memberTable = (facets: readonly Facet[]): ReadonlyMap<string, MemberInfo> => {
+  const frozen = facets.filter(holdsFrozenName).reduce<{ readonly names: ReadonlyMap<string, string>; readonly taken: ReadonlySet<string> }>(
+    (acc, facet) => {
+      if (acc.names.has(facet.id)) return acc;
+      const name = uniqueIdentifier(baseMemberName(facet), acc.taken, 'Element', MEMBER_RESERVED);
+      return { names: new Map([...acc.names, [facet.id, name]]), taken: new Set([...acc.taken, name]) };
+    },
+    { names: new Map(), taken: MEMBER_RESERVED },
+  );
+  return facets.filter(isMemberFacet).reduce<{ readonly table: ReadonlyMap<string, MemberInfo>; readonly taken: ReadonlySet<string> }>(
     (acc, facet) => {
       if (acc.table.has(facet.id)) return acc;
-      const name = uniqueIdentifier(baseMemberName(facet), acc.taken, 'Element', MEMBER_RESERVED);
+      const name = frozen.names.get(facet.id) ?? uniqueIdentifier(baseMemberName(facet), acc.taken, 'Element', MEMBER_RESERVED);
       const best = facet.locators[0]!;
       const raw = locatorParams(best);
       const ordered = facet.parameter !== undefined && raw.includes(facet.parameter)
@@ -179,8 +199,37 @@ export const memberTable = (facets: readonly Facet[]): ReadonlyMap<string, Membe
         taken: helper === null ? takenWithName : new Set([...takenWithName, helper]),
       };
     },
-    { table: new Map(), taken: MEMBER_RESERVED },
+    { table: new Map(), taken: frozen.taken },
   ).table;
+};
+
+/** Every identifier a screen's page object uses or reserves: members, select helpers, retired facets' frozen names. */
+const namesInUse = (facets: readonly Facet[]): ReadonlySet<string> => {
+  const table = memberTable(facets);
+  return new Set([
+    ...MEMBER_RESERVED,
+    ...[...table.values()].flatMap((member) => (member.selectHelper === null ? [member.name] : [member.name, member.selectHelper])),
+    ...facets.filter(holdsFrozenName).map(baseMemberName),
+  ]);
+};
+
+/**
+ * Freeze page-object member names (memory.mint calls this): every member
+ * facet without a frozen `member` gets the name it is emitted under today, and
+ * `added` (a facet new to the screen, if any) gets its derived name, made
+ * unique against every name the screen uses or reserves. From then on the
+ * names are data, so emission order no longer decides them.
+ */
+export const freezeMemberNames = (facets: readonly Facet[], added?: Facet): { readonly facets: readonly Facet[]; readonly added?: Facet } => {
+  const table = memberTable(facets);
+  const frozen = facets.map((facet) => {
+    const name = table.get(facet.id)?.name;
+    return hasFrozenMember(facet) || name === undefined ? facet : { ...facet, member: name };
+  });
+  if (added === undefined || added.kind === 'route') return { facets: frozen, ...(added !== undefined ? { added } : {}) };
+  const member = uniqueIdentifier(baseMemberName(added), namesInUse(frozen), 'Element', MEMBER_RESERVED);
+  return { facets: frozen, added: { ...added, member } };
+};
 
 export const pageClassName = (screen: string): string => `${pascalCase(screen)}Page`;
 

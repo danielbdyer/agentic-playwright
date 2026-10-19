@@ -6,7 +6,8 @@
  * Nothing in the customer's repository changes. The requested specs are
  * copied to .tesseract/tmp/repair-<id>/ as shadow specs whose
  * "@playwright/test" import is a generated repair fixture and whose relative
- * imports point at the original page objects and flows by absolute path. A
+ * imports point at the original page objects and flows (relative to the
+ * shadow copy, which loads under ESM on Windows too). A
  * generated config imports the customer's config and overrides only what
  * repair needs: the shadow testDir, one worker, no retries, no test timeout
  * (actions and navigations keep the test's time budget, so a missing element
@@ -73,19 +74,36 @@ export const resolveRelativeImport = async (fromFile: string, specifier: string)
 const IMPORT_SPECIFIER = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|\brequire\s*\(\s*)(['"])([^'"\n]+)\2/g;
 
 /**
- * Rewrite a spec's imports for its shadow copy: "@playwright/test" → the
- * repair fixture; relative specifiers → the absolute path of the file they
- * name in the original tree. Line count and everything else are unchanged.
+ * How the shadow file at `fromFile` names `target`: a './' or '../' path
+ * relative to its directory, in POSIX form. Node's ESM loader and
+ * Playwright's resolver both take those on every platform, where an absolute
+ * Windows path ('C:/…') reads as a URL with scheme 'c:' and fails to load.
+ * Only when no relative path exists (another drive) is the absolute path used.
  */
-export const rewriteShadowImports = async (source: string, originalFile: string, fixtureFile: string): Promise<string> => {
+export const shadowSpecifier = (fromFile: string, target: string): string => {
+  const relative = path.relative(path.dirname(fromFile), target);
+  if (relative.length === 0 || path.isAbsolute(relative)) return toPosix(target);
+  const posix = toPosix(relative);
+  return posix.startsWith('../') ? posix : `./${posix}`;
+};
+
+/**
+ * Rewrite a spec's imports for its shadow copy: "@playwright/test" → the
+ * repair fixture; relative specifiers → the file they name in the original
+ * tree. With `shadowFile` (where the copy is written), specifiers are
+ * relative to it; without, absolute paths. Line count and everything else
+ * are unchanged.
+ */
+export const rewriteShadowImports = async (source: string, originalFile: string, fixtureFile: string, shadowFile?: string): Promise<string> => {
+  const name = (target: string): string => (shadowFile === undefined ? toPosix(target) : shadowSpecifier(shadowFile, target));
   const matches = [...source.matchAll(IMPORT_SPECIFIER)];
   const replacements = await Promise.all(
     matches.map(async (match): Promise<string> => {
       const [whole, lead, q, specifier] = match as unknown as [string, string, string, string];
-      if (specifier === '@playwright/test') return `${lead}${q}${toPosix(fixtureFile)}${q}`;
+      if (specifier === '@playwright/test') return `${lead}${q}${name(fixtureFile)}${q}`;
       if (specifier.startsWith('./') || specifier.startsWith('../')) {
         const resolved = await resolveRelativeImport(originalFile, specifier);
-        return `${lead}${q}${toPosix(resolved ?? path.resolve(path.dirname(originalFile), specifier))}${q}`;
+        return `${lead}${q}${name(resolved ?? path.resolve(path.dirname(originalFile), specifier))}${q}`;
       }
       return whole;
     }),
@@ -415,7 +433,7 @@ export const prepareRepair = async (workspace: Workspace, options: PrepareRepair
     options.specs.map(async (original) => {
       const shadow = path.join(shadowDir, path.relative(workspace.paths.root, original));
       const source = (await readText(original)) ?? '';
-      await writeFileAtomic(shadow, await rewriteShadowImports(source, original, fixtureFile));
+      await writeFileAtomic(shadow, await rewriteShadowImports(source, original, fixtureFile, shadow));
       return [shadow, original] as const;
     }),
   );

@@ -7,7 +7,10 @@
  * Parameters. Every value typed into a field becomes a parameter named
  * after the facet's page-object member (camelCase): a secret one (password
  * fields, redacted names) has no default and is supplied at run time from
- * TESSERACT_PARAM_<NAME>; any other has the typed text as its default.
+ * TESSERACT_PARAM_<NAME>; so has a withheld one (a value the PII gate would
+ * redact, such as an email typed into a login field: data, not a literal to
+ * bake into every spec); any other has the typed text as its default. A
+ * select of a withheld option label is a parameter the same way.
  * Typing into the same field again right after (a correction, or a pause
  * mid-word) replaces the previous fill instead of adding a step.
  */
@@ -147,8 +150,12 @@ export interface StepInput {
   /** Page-object member of the facet; names the parameter of a fill. */
   readonly member?: string;
   readonly snapshotId?: string;
-  /** fill: the typed text, or a secret whose text never left the page. */
-  readonly fill?: { readonly value: string } | { readonly secret: true };
+  /**
+   * fill: the typed text, a secret whose text never left the page, or a
+   * withheld value (PII-shaped: a parameter without a default). select: only
+   * a withheld option label comes this way; others are a literal.
+   */
+  readonly fill?: { readonly value: string } | { readonly secret: true } | { readonly withheld: true };
   /** select: the option label; press: the key. */
   readonly literal?: string;
 }
@@ -175,7 +182,11 @@ const freshName = (params: readonly FlowParamSpec[], base: string): string => {
 };
 
 const paramFor = (fill: NonNullable<StepInput['fill']>): Omit<FlowParamSpec, 'name'> =>
-  'secret' in fill ? { secret: true } : { secret: false, default: fill.value };
+  'secret' in fill ? { secret: true } : 'withheld' in fill ? { secret: false } : { secret: false, default: fill.value };
+
+/** Whether an existing parameter can carry this fill's value: same secrecy and, for a typed value, the same default. */
+const carries = (param: FlowParamSpec, fill: NonNullable<StepInput['fill']>): boolean =>
+  'secret' in fill ? param.secret : 'withheld' in fill ? !param.secret && param.default === undefined : !param.secret && param.default === fill.value;
 
 const valueOfParam = (param: FlowParamSpec): FlowRecordingStepSpec['value'] =>
   param.secret ? { param: param.name, secret: true } : { param: param.name };
@@ -203,11 +214,12 @@ export const appendStep = (draft: RecordingDraft, input: StepInput): Appended =>
     ...(input.facetId !== undefined ? { facetId: input.facetId } : {}),
     ...(input.snapshotId !== undefined ? { snapshotId: input.snapshotId } : {}),
   };
-  if (input.action === 'fill' && input.fill !== undefined) {
+  if ((input.action === 'fill' || input.action === 'select') && input.fill !== undefined) {
     const fill = input.fill;
+    const action = input.action;
     const memberName = input.member ?? input.facetId?.split(':').pop() ?? 'value';
     const last = draft.steps[draft.steps.length - 1];
-    if (last !== undefined && last.action === 'fill' && last.facetId !== undefined && last.facetId === input.facetId && last.value !== undefined && 'param' in last.value) {
+    if (action === 'fill' && last !== undefined && last.action === 'fill' && last.facetId !== undefined && last.facetId === input.facetId && last.value !== undefined && 'param' in last.value) {
       const previous = paramNamed(draft.params, last.value.param);
       if (previous !== undefined && usesOf(draft.steps, previous.name) === 1) {
         const replaced: FlowParamSpec = { name: previous.name, ...paramFor(fill) };
@@ -222,11 +234,11 @@ export const appendStep = (draft: RecordingDraft, input: StepInput): Appended =>
       }
     }
     const reusable = draft.steps
-      .filter((step) => step.action === 'fill' && step.facetId !== undefined && step.facetId === input.facetId && step.value !== undefined && 'param' in step.value)
+      .filter((step) => step.action === action && step.facetId !== undefined && step.facetId === input.facetId && step.value !== undefined && 'param' in step.value)
       .map((step) => paramNamed(draft.params, (step.value as { readonly param: string }).param))
-      .find((p): p is FlowParamSpec => p !== undefined && ('secret' in fill ? p.secret : !p.secret && p.default === fill.value));
+      .find((p): p is FlowParamSpec => p !== undefined && carries(p, fill));
     const param: FlowParamSpec = reusable ?? { name: freshName(draft.params, memberName), ...paramFor(fill) };
-    const step: FlowRecordingStepSpec = { index: draft.steps.length + 1, action: 'fill', ...base, value: valueOfParam(param) };
+    const step: FlowRecordingStepSpec = { index: draft.steps.length + 1, action, ...base, value: valueOfParam(param) };
     return {
       draft: { steps: [...draft.steps, step], params: reusable === undefined ? [...draft.params, param] : draft.params },
       merged: false,

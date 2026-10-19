@@ -84,6 +84,8 @@ export interface WalkStats {
 
 export interface WalkResult {
   readonly snapshotId: string;
+  /** location.href when the walk ran: the document the nodes belong to. */
+  readonly url: string;
   readonly nodes: readonly WalkNode[];
   /** False when a scope was asked for and no matching container exists. */
   readonly scopeFound: boolean;
@@ -1222,6 +1224,7 @@ export const walk = (options: WalkOptions): WalkResult => {
   setRegistry(options.snapshotId, refs);
   return {
     snapshotId: options.snapshotId,
+    url: location.href,
     nodes,
     scopeFound: roots.length > 0,
     stats: { elements, ownCursorOnly, cellsDropped, rowsDropped },

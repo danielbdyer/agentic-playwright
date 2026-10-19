@@ -26,6 +26,9 @@ export const locatorParams = (spec: LocatorSpec): readonly string[] => {
   return [...new Set(texts.flatMap((t) => [...t.matchAll(PARAM_ANY)].map((m) => m[1]!)))];
 };
 
+/** `[attr="value"]`: a test id addressed by its attribute, independent of Playwright's testIdAttribute setting. */
+const attributeSelector = (attribute: string, value: string): string => `[${attribute}=${JSON.stringify(value)}]`;
+
 const defaultExact = (spec: LocatorSpec): boolean => spec.exact ?? (spec.strategy === 'role-name' || spec.strategy === 'text' || spec.strategy === 'label' || spec.strategy === 'placeholder');
 
 const applyScope = (root: Root, scope: LocatorScope | undefined, params?: Readonly<Record<string, string>>, page?: Page): Root => {
@@ -36,8 +39,9 @@ const applyScope = (root: Root, scope: LocatorScope | undefined, params?: Readon
       ? current.getByRole(scope.landmark as Parameters<Page['getByRole']>[0], { name: scope.landmarkName, exact: true })
       : current.getByRole(scope.landmark as Parameters<Page['getByRole']>[0]);
   }
+  // Every block of that name: a block that occurs several times must be counted, never picked by position.
   if (scope.dataBlock !== undefined) {
-    current = current.locator(`[data-block=${JSON.stringify(scope.dataBlock)}]`).first();
+    current = current.locator(`[data-block=${JSON.stringify(scope.dataBlock)}]`);
   }
   if (scope.rowText !== undefined) {
     const text = substituteParams(scope.rowText, params);
@@ -77,11 +81,10 @@ export const toPlaywrightLocator = (page: Page, spec: LocatorSpec, params?: Read
     case 'text':
       locator = root.getByText(value(), { exact });
       break;
-    case 'test-id': {
-      const attribute = spec.attribute ?? 'data-testid';
-      locator = attribute === 'data-testid' ? root.getByTestId(value()) : root.locator(`[${attribute}=${JSON.stringify(value())}]`);
+    case 'test-id':
+      // Always the attribute itself: getByTestId follows the runner's testIdAttribute, which the customer's config may change.
+      locator = root.locator(attributeSelector(spec.attribute ?? 'data-testid', value()));
       break;
-    }
     case 'css':
       locator = root.locator(value());
       break;
@@ -121,6 +124,20 @@ const renderText = (text: string, params: RenderOptions['params']): string => {
   return quote(substituteParams(text, params));
 };
 
+/**
+ * The code for attributeSelector(attribute, value): a literal when the value
+ * has no `{param}` (or params are substituted), else a template literal that
+ * builds the same selector from the method's parameters at run time.
+ */
+const renderAttributeSelector = (attribute: string, value: string, params: RenderOptions['params']): string => {
+  if (params !== undefined && params !== 'identifiers') return quote(attributeSelector(attribute, substituteParams(value, params)));
+  PARAM_ANY.lastIndex = 0;
+  if (!PARAM_ANY.test(value)) return quote(attributeSelector(attribute, value));
+  PARAM_ANY.lastIndex = 0;
+  const escapedAttribute = attribute.replace(/[`\\]/g, '\\$&').replace(/\$\{/g, '\\${');
+  return `\`[${escapedAttribute}=\${JSON.stringify(${renderText(value, params)})}]\``;
+};
+
 const renderScope = (root: string, scope: LocatorScope | undefined, params: RenderOptions['params']): string => {
   if (scope === undefined) return root;
   let expr = root;
@@ -130,7 +147,7 @@ const renderScope = (root: string, scope: LocatorScope | undefined, params: Rend
       : `.getByRole(${quote(scope.landmark)})`;
   }
   if (scope.dataBlock !== undefined) {
-    expr += `.locator(${quote(`[data-block=${JSON.stringify(scope.dataBlock)}]`)}).first()`;
+    expr += `.locator(${quote(`[data-block=${JSON.stringify(scope.dataBlock)}]`)})`;
   }
   if (scope.rowText !== undefined) {
     expr += scope.rowExact === true
@@ -163,13 +180,9 @@ export const renderLocator = (spec: LocatorSpec, options: RenderOptions = {}): s
     case 'text':
       expr = `${base}.getByText(${v()}${exactOpt(exact)})`;
       break;
-    case 'test-id': {
-      const attribute = spec.attribute ?? 'data-testid';
-      expr = attribute === 'data-testid'
-        ? `${base}.getByTestId(${v()})`
-        : `${base}.locator(${quote(`[${attribute}=${JSON.stringify(spec.value ?? '')}]`)})`;
+    case 'test-id':
+      expr = `${base}.locator(${renderAttributeSelector(spec.attribute ?? 'data-testid', spec.value ?? '', params)})`;
       break;
-    }
     case 'css':
       expr = `${base}.locator(${v()})`;
       break;

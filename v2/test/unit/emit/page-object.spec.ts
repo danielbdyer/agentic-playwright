@@ -101,13 +101,16 @@ describe('renderPageObject', () => {
     const text = render([region]).text;
     expect(text).toContain(
       [
-        '  /** select policy-search:region — custom combobox: opens it, then picks the option by its accessible name */',
+        '  /** select policy-search:region — custom dropdown: picks the option by its accessible name, as app.act did */',
         '  async selectRegion(value: string): Promise<void> {',
-        '    await this.region.click();',
-        "    await this.page.getByRole('option', { name: value, exact: true }).click();",
+        '    await selectCustomOption(this.region, value);',
         '  }',
       ].join('\n'),
     );
+    // The choreography itself (open only when needed, type to filter, pick in the popup) is one module-level
+    // function after the class; test/unit/emit/select-helper.spec.ts drives it in Chromium.
+    expect(text).toContain('}\n\n/**\n * Picks an option of a custom dropdown');
+    expect(text).toContain('async function selectCustomOption(dropdown: Locator, value: string): Promise<void> {');
   });
 
   it('names members from facet.member, then the local id; collisions and reserved names get suffixes', () => {

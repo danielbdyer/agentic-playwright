@@ -28,7 +28,7 @@ import {
 import { DEFAULT_CONFIG } from '../workspace/workspace.js';
 import { inPage } from './in-page/runtime.js';
 import type { NodeCategory, PageSignals, VariantSignals, WalkNode, WalkResult, WalkScope, WalkStats } from './in-page/walker.js';
-import { captureAria, capAriaText, nameAgreement, parseAriaSnapshot, type NameAgreement, type ObserveScope } from './aria.js';
+import { captureAria, capAriaText, nameAgreement, parseAriaSnapshot, type AriaCapture, type NameAgreement, type ObserveScope } from './aria.js';
 import { buildFingerprint, fingerprintBasis, type FingerprintBasis } from './fingerprint.js';
 import { classifyVariant, type VariantVerdict } from './variant.js';
 
@@ -81,18 +81,33 @@ export interface ObserveOptions {
   readonly screenshotDir?: string;
   /** Add testability findings to the snapshot. */
   readonly audit?: boolean;
+  /** Budget for each container's ARIA snapshot (default 5000 ms); one that runs out is reported in the text and as truncated. */
+  readonly ariaTimeoutMs?: number;
   readonly now?: () => Date;
 }
 
 export interface ObserveResult {
   readonly snapshot: Snapshot;
   readonly record: SnapshotRecord;
+  /**
+   * The observed document's address as the page reported it, not PII-gated:
+   * for deriving a route (query and fragment dropped). Never write it as is.
+   */
+  readonly address: string;
   /** The PNG bytes when includeScreenshot was set (also written to disk when screenshotDir was given). */
   readonly screenshot?: Buffer;
 }
 
 /** The record keeps more ARIA text than the agent's copy; a multiple of the agent's cap bounds file size. */
 const RECORD_ARIA_FACTOR = 8;
+
+/** Observations of one call when the page's address moves under it (the second is the retry). */
+const OBSERVE_ATTEMPTS = 2;
+
+const withoutFragment = (url: string): string => {
+  const hash = url.indexOf('#');
+  return hash < 0 ? url : url.slice(0, hash);
+};
 
 // ─── Scope ─────────────────────────────────────────────────────────────────
 
@@ -336,19 +351,56 @@ export const observePage = async (page: Page, options: ObserveOptions): Promise<
     const walked = await inPage(page, 'walk', { snapshotId, ...(walkScope(scope) !== undefined ? { scope: walkScope(scope) } : {}) });
     return { walked, signals: await inPage(page, 'signals') };
   };
-  let scanned: { readonly walked: WalkResult; readonly signals: PageSignals };
-  try {
-    scanned = await scan().catch(async (error: unknown) => {
-      // A click that navigates can destroy the document mid-walk; observe the new one once it has parsed.
-      if (page.isClosed() || !/Execution context was destroyed|frame was detached|Cannot find context/i.test(String(error))) throw error;
-      await page.waitForLoadState('domcontentloaded', { timeout: 5_000 }).catch(() => undefined);
-      return scan();
+  const scanSettled = async (): Promise<{ readonly walked: WalkResult; readonly signals: PageSignals }> => {
+    try {
+      return await scan().catch(async (error: unknown) => {
+        // A click that navigates can destroy the document mid-walk; observe the new one once it has parsed.
+        if (page.isClosed() || !/Execution context was destroyed|frame was detached|Cannot find context/i.test(String(error))) throw error;
+        await page.waitForLoadState('domcontentloaded', { timeout: 5_000 }).catch(() => undefined);
+        return scan();
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error);
+      throw new ToolError(/Timeout/i.test(message) ? 'timeout' : 'unclassified', `observing the page failed: ${message}`);
+    }
+  };
+
+  /** The fragment does not count: a hash change does not change the document's screen. */
+  const sameAddress = (urls: readonly string[]): boolean => new Set(urls.map(withoutFragment)).size === 1;
+
+  /**
+   * One observation: walk, signals, ARIA, then the address again. A client-side
+   * route change (pushState: no document is destroyed) can land between any
+   * two of them; the walk, the signals and the read after the ARIA capture
+   * must all be of one address, else the record would hold one screen's
+   * candidates under another's URL. Observed once more; then it is a timeout.
+   */
+  const observeOnce = async (): Promise<{ readonly walked: WalkResult; readonly signals: PageSignals; readonly aria: AriaCapture; readonly urls: readonly string[] }> => {
+    const { walked, signals } = await scanSettled();
+    if (!walked.scopeFound) {
+      // A scope missing from a page that was moving is looked for again on the page it moved to.
+      if (sameAddress([walked.url, signals.url])) throw describeScopeMiss(scope, signals);
+      return { walked, signals, aria: { text: '', truncated: false, bytes: 0 }, urls: [walked.url, signals.url] };
+    }
+    const aria = await captureAria(page, scope, {
+      maxBytes: maxAriaBytes * RECORD_ARIA_FACTOR,
+      pii,
+      ...(options.ariaTimeoutMs !== undefined ? { timeoutMs: options.ariaTimeoutMs } : {}),
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error);
-    throw new ToolError(/Timeout/i.test(message) ? 'timeout' : 'unclassified', `observing the page failed: ${message}`);
+    const after = page.isClosed() ? '' : await page.evaluate('location.href').then(String, () => '');
+    return { walked, signals, aria, urls: [walked.url, signals.url, after] };
+  };
+  let observed = await observeOnce();
+  for (let attempt = 1; !sameAddress(observed.urls); attempt += 1) {
+    if (attempt >= OBSERVE_ATTEMPTS) {
+      const seen = [...new Set(observed.urls.filter((url) => url.length > 0).map((url) => redactUrl(url, pii)))];
+      throw new ToolError('timeout', `the page kept navigating while it was observed (${seen.join(' → ')}); wait for it to settle (app.assert url) and observe again`, {
+        urls: seen,
+      });
+    }
+    observed = await observeOnce();
   }
-  const { walked, signals } = scanned;
+  const { walked, signals, aria: ariaFull } = observed;
   if (!walked.scopeFound) throw describeScopeMiss(scope, signals);
 
   const all = walked.nodes.map((node) => toCandidate(node, pii));
@@ -356,11 +408,11 @@ export const observePage = async (page: Page, options: ObserveOptions): Promise<
   const alerts = all.filter((c) => categories[c.ref] === 'message' && c.name.length > 0).map((c) => c.name);
   const capped = capCandidates(all, categories, maxCandidates);
 
-  const ariaFull = await captureAria(page, scope, { maxBytes: maxAriaBytes * RECORD_ARIA_FACTOR, pii });
   const ariaForAgent = capAriaText(ariaFull.text, maxAriaBytes);
   const agreement = nameAgreement(parseAriaSnapshot(ariaFull.text), all);
 
-  const pageUrl = page.url();
+  // The address of the document the walk saw (the read-backs agreed with it).
+  const pageUrl = walked.url;
   const fingerprint = buildFingerprint(signals.fingerprint, pageUrl, pii);
   const verdict = classifyVariant(signals.variant);
   const url = redactUrl(pageUrl, pii);
@@ -390,7 +442,8 @@ export const observePage = async (page: Page, options: ObserveOptions): Promise<
     candidates: [...capped],
     totalCandidates: all.length,
     aria: ariaForAgent.text,
-    truncated: capped.length < all.length || ariaForAgent.truncated,
+    // An ARIA capture that failed (ariaFull) is cut as surely as one over the cap.
+    truncated: capped.length < all.length || ariaForAgent.truncated || ariaFull.truncated,
     ...(screenshotPath !== undefined ? { screenshotPath } : {}),
     ...(options.audit === true ? { audit: [...audit(all, { landmarks: fingerprint.landmarks })] } : {}),
   };
@@ -417,7 +470,7 @@ export const observePage = async (page: Page, options: ObserveOptions): Promise<
     pii,
     ...(screenshotPath !== undefined ? { screenshotPath } : {}),
   };
-  return { snapshot, record, ...(screenshot !== undefined ? { screenshot } : {}) };
+  return { snapshot, record, address: pageUrl, ...(screenshot !== undefined ? { screenshot } : {}) };
 };
 
 /** The OutSystems variant of the current page (for app.open), without a full observation. */

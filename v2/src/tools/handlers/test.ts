@@ -21,6 +21,7 @@ import type { Workspace } from '../../workspace/workspace.js';
 import type { ToolHandlers } from '../types.js';
 import { adoText, loadEmitCatalogs, normalizeSteps, screensUsed, validateSteps } from './emit-targets.js';
 import { findHandoff } from './handoff-store.js';
+import { withPageObjects } from './support/page-objects.js';
 
 const isFullCase = (value: TestCase | { readonly id: string }): value is TestCase => 'steps' in value && Array.isArray((value as TestCase).steps);
 
@@ -87,20 +88,22 @@ export const testHandlers: Pick<ToolHandlers, 'test.emit' | 'test.run'> = {
       input.steps,
     );
     const screens = screensUsed(normalized.steps, flowUses.map((use) => use.recording));
-    const catalogs = await loadEmitCatalogs(workspace, screens, normalized.planned, ctx.now);
-
-    const result = await emitTest(
-      workspace,
-      {
-        testCase,
-        steps: normalized.steps,
-        catalogs,
-        handoffs,
-        flows: flowUses,
-        ...(input.area !== undefined ? { area: input.area } : {}),
-        ...(input.tags !== undefined ? { tags: input.tags } : {}),
-      },
-      { dryRun, ...(input.force === true ? { force: true } : {}) },
+    // The page objects are written in their screens' queue, rendered from the catalogs as they are then (a
+    // regeneration started by a parallel memory.mint must not write an older page object after this one).
+    const result = await withPageObjects(workspace, screens, async () =>
+      emitTest(
+        workspace,
+        {
+          testCase,
+          steps: normalized.steps,
+          catalogs: await loadEmitCatalogs(workspace, screens, normalized.planned, ctx.now),
+          handoffs,
+          flows: flowUses,
+          ...(input.area !== undefined ? { area: input.area } : {}),
+          ...(input.tags !== undefined ? { tags: input.tags } : {}),
+        },
+        { dryRun, ...(input.force === true ? { force: true } : {}) },
+      ),
     );
 
     const facets = [...new Set([...result.spec.facetsUsed, ...result.flowFiles.flatMap((flow) => flow.facetsUsed)])];
@@ -137,6 +140,8 @@ export const testHandlers: Pick<ToolHandlers, 'test.emit' | 'test.run'> = {
     const profileName = input.profile ?? (ctx.env.TESSERACT_PROFILE !== undefined && ctx.env.TESSERACT_PROFILE.length > 0 ? ctx.env.TESSERACT_PROFILE : undefined);
     const profile = await loadProfile(workspace, profileName, ctx.env);
     const result = await runSpecs(workspace, {
+      // Runs belong to the session that started them: one HTTP session cannot release another's paused run.
+      owner: ctx.session,
       ...(input.specPaths !== undefined ? { specPaths: input.specPaths } : {}),
       ...(input.grep !== undefined ? { grep: input.grep } : {}),
       profile,

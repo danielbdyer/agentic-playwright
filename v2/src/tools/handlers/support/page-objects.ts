@@ -19,30 +19,40 @@ export type Regeneration =
   | { readonly status: 'skipped'; readonly path: string; readonly reason: string };
 
 /**
- * Regenerations of one page object run one at a time, each rendering the
- * catalog as it is when its turn comes: concurrent mints (an agent minting
- * several facets at once) then end with a file that has all of them, never
- * one rendered from an older catalog and written last.
+ * Every write of a page object (memory's regeneration, test.emit, flow.record)
+ * runs in its screen's queue, one at a time, each loading and rendering the
+ * catalog when its turn comes: concurrent mints and emits then end with a
+ * file rendered from the latest catalog, never one rendered from an older
+ * catalog and written last.
  */
 const queues = new Map<string, Promise<unknown>>();
 
-const serialized = <T>(key: string, task: () => Promise<T>): Promise<T> => {
-  const previous = queues.get(key) ?? Promise.resolve();
-  const run = previous.then(task, task);
+const keyOf = (workspace: Workspace, screen: string): string => `${workspace.paths.root}\u0000${screen}`;
+
+/**
+ * Run `task` once every earlier task queued on any of these screens has
+ * settled, and hold those screens until it settles. The tails are taken and
+ * replaced synchronously, so tasks wait only on tasks queued before them
+ * (no cycle, whatever the screens' order).
+ */
+export const withPageObjects = <T>(workspace: Workspace, screens: readonly string[], task: () => Promise<T>): Promise<T> => {
+  const keys = [...new Set(screens.map((screen) => keyOf(workspace, screen)))];
+  const previous = Promise.all(keys.map((key) => queues.get(key) ?? Promise.resolve()));
+  const run = previous.then(task);
   const settled = run.then(
     () => undefined,
     () => undefined,
   );
-  queues.set(key, settled);
+  for (const key of keys) queues.set(key, settled);
   void settled.then(() => {
-    if (queues.get(key) === settled) queues.delete(key);
+    for (const key of keys) if (queues.get(key) === settled) queues.delete(key);
   });
   return run;
 };
 
 /** Regenerate pages/<screen>.page.ts from the catalog when it exists. Never throws for emission problems; reports them. */
 export const regeneratePageObject = (workspace: Workspace, screen: string, now?: () => Date): Promise<Regeneration> =>
-  serialized(`${workspace.paths.root}\u0000${screen}`, () => regenerate(workspace, screen, now));
+  withPageObjects(workspace, [screen], () => regenerate(workspace, screen, now));
 
 const regenerate = async (workspace: Workspace, screen: string, now?: () => Date): Promise<Regeneration> => {
   const layout = layoutOf(workspace);

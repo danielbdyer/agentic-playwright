@@ -259,11 +259,14 @@ describe('test, ado, handoff and review handlers over a real app, a mock ADO and
     expect([okAfter, totalAfter]).toEqual([okBefore! + 1, totalBefore! + 1]);
   }, 120_000);
 
-  it('review.record promotes the facets of an accepted test, and a large edit does not count', async () => {
+  it('review.record promotes on accept and accept-with-edit (not after a locator edit); a large edit does not count as accepted', async () => {
     const records = await readEmitRecords(ws.workspace);
     const loginFacets = records.find((r) => r.testCaseId === '20001')!.facets;
-    const rejectedEdit = await invoke('review.record', { testCaseId: '20002', decision: 'accept-with-edit', reviewer: 'qa.lead', changedLines: 12 }, ctx);
-    expect(rejectedEdit).toMatchObject({ countsAsAccepted: false, facetsPromoted: [], spec: 'tests/policy-search/20002-search-for-a-policy.spec.ts' });
+    const fixedLocator = await invoke('review.record', { testCaseId: '20002', decision: 'accept-with-edit', reviewer: 'qa.lead', changedLines: 2, locatorEdited: true }, ctx);
+    expect(fixedLocator).toMatchObject({ countsAsAccepted: true, facetsPromoted: [] });
+    const largeEdit = await invoke('review.record', { testCaseId: '20002', decision: 'accept-with-edit', reviewer: 'qa.lead', changedLines: 12 }, ctx);
+    expect(largeEdit).toMatchObject({ countsAsAccepted: false, spec: 'tests/policy-search/20002-search-for-a-policy.spec.ts' });
+    expect(largeEdit.facetsPromoted.length).toBeGreaterThan(0);
 
     const accepted = await invoke('review.record', { testCaseId: '20001', decision: 'accept', reviewer: 'qa.lead', note: 'reads like the case' }, ctx);
     expect(accepted.countsAsAccepted).toBe(true);
@@ -278,6 +281,7 @@ describe('test, ado, handoff and review handlers over a real app, a mock ADO and
     await expect(invoke('review.record', { testCaseId: '20003', decision: 'accept', reviewer: 'qa.lead' }, ctx)).rejects.toMatchObject({ family: 'not-found' });
     const lines = await readLines(ws.workspace.paths.reviewReceipts);
     expect(lines.map((l) => [l.testCaseId, l.decision, l.countsAsAccepted])).toEqual([
+      ['20002', 'accept-with-edit', true],
       ['20002', 'accept-with-edit', false],
       ['20001', 'accept', true],
       ['20002', 'accept-with-edit', true],

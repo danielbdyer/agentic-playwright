@@ -9,6 +9,7 @@
 import type { Page } from '@playwright/test';
 import type { FacetLocator, FlowParamSpec, FlowRecordingSpec, FlowRecordingStepSpec } from '../contract/schemas.js';
 import { ToolError, isToolError, type ErrorFamily } from '../core/errors.js';
+import { redact, redactUrl, type PiiMode } from '../core/pii.js';
 import { performAction, type ActionResult } from '../act/index.js';
 import { paramEnvName } from '../emit/index.js';
 import { locatorParams, toPlaywrightLocator } from '../locator/locator.js';
@@ -112,7 +113,8 @@ const stepValue = (step: FlowRecordingStepSpec, params: Readonly<Record<string, 
   return value;
 };
 
-const resolution = (facetId: string, locator: FacetLocator, result: ActionResult): ResolutionReport | undefined => {
+/** A resolution report for the evidence log (a committed file): the detail quotes Playwright, which quotes page text, so it is PII-gated. */
+const resolution = (facetId: string, locator: FacetLocator, result: ActionResult, pii: PiiMode): ResolutionReport | undefined => {
   if (result.outcome === 'succeeded') {
     return { facetId, locator: bareLocator(locator), outcome: 'ok', ...(result.matches !== undefined ? { matches: result.matches.visible } : {}), source: 'flow' };
   }
@@ -123,7 +125,7 @@ const resolution = (facetId: string, locator: FacetLocator, result: ActionResult
     outcome: result.family as ResolveOutcome,
     ...(result.matches !== undefined ? { matches: result.matches.total } : {}),
     source: 'flow',
-    detail: result.message.slice(0, 200),
+    detail: redact(result.message, pii).slice(0, 200),
   };
 };
 
@@ -170,7 +172,7 @@ const facetStep = async (options: RunFlowOptions, step: FlowRecordingStepSpec, f
   const result = await performAction(page, target, step.action as Exclude<FlowRecordingStepSpec['action'], 'navigate'>, actionValue, {
     timeoutMs: options.stepTimeoutMs ?? DEFAULT_STEP_TIMEOUT_MS,
   });
-  const report = resolution(facet.id, locator, result);
+  const report = resolution(facet.id, locator, result, workspace.config.pii);
   if (result.outcome === 'failed') {
     return failure(result.family, `step ${step.index} (${step.action} ${facet.id}): ${result.message}`, report);
   }
@@ -240,7 +242,7 @@ export const runFlow = async (options: RunFlowOptions): Promise<FlowRunResult> =
         .waitForURL((url) => url.pathname.endsWith(path), { timeout: options.stepTimeoutMs ?? DEFAULT_STEP_TIMEOUT_MS })
         .then(() => true, () => false);
       if (!arrived) {
-        const message = `step ${step.index}: expected to navigate to ${path} but stayed on ${page.url()}`;
+        const message = `step ${step.index}: expected to navigate to ${path} but stayed on ${redactUrl(page.url(), workspace.config.pii)}`;
         results.push({ ...base, outcome: 'failed', errorFamily: 'timeout', message });
         failed = { step, family: 'timeout', message };
         break;

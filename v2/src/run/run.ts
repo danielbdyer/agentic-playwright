@@ -4,7 +4,7 @@
  * memory (passes count toward promotion, a drifted locator counts against
  * its facet's health).
  */
-import { promises as fs } from 'node:fs';
+import { promises as fs, rmSync } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 import { ToolError } from '../core/errors.js';
@@ -12,13 +12,13 @@ import { appendJsonl, exists, readJson, readJsonl, readText, relativePosix } fro
 import { newId } from '../core/hash.js';
 import { RunReceiptSchema, type Facet, type RunReceipt, type TestCase } from '../contract/schemas.js';
 import { loadCases } from '../ado/cache.js';
-import { facetsByIds, recordTestRun } from '../memory/index.js';
+import { facetsByIds, recordTestRuns, type TestRunInput } from '../memory/index.js';
 import type { Profile } from '../workspace/profiles.js';
 import { resolveInside, type Workspace } from '../workspace/workspace.js';
 import { latestEmitBySpec, readEmitRecords, type EmitRecord } from './emit-records.js';
 import { fileFilter, findCustomerConfig, specsUnder, resolvePlaywrightCli, startPlaywright, stopPlaywright, writeMinimalConfig, type ChildRun } from './playwright.js';
 import { cleanupRepair, prepareRepair, type RepairPlan } from './repair.js';
-import { facetIdsOf, receiptFor, summarize, type ReceiptContext, type RunSummary } from './receipts.js';
+import { facetIdsOf, gateReceipt, receiptFor, summarize, type ReceiptContext, type RunSummary } from './receipts.js';
 import { parseProgress, parseReport, type TestOutcome } from './report.js';
 
 export const DEFAULT_RUN_TIMEOUT_MS = 10 * 60 * 1000;
@@ -26,6 +26,12 @@ export const DEFAULT_RUN_TIMEOUT_MS = 10 * 60 * 1000;
 export const RELEASE_GRACE_MS = 10_000;
 
 export interface RunSpecsOptions {
+  /**
+   * The runtime (MCP session) starting the run; default DEFAULT_RUN_OWNER.
+   * A run belongs to its owner: runSpecs releases only the owner's paused
+   * runs before it starts, and stopRuns(owner) stops only the owner's runs.
+   */
+  readonly owner?: string;
   /** Workspace-relative (or absolute, inside the workspace) spec paths; default every *.spec.ts under the tests directory. */
   readonly specPaths?: readonly string[];
   readonly grep?: string;
@@ -63,42 +69,131 @@ export interface RunSpecsResult {
   readonly paused?: PausedRun;
   readonly promoted: readonly string[];
   readonly staled: readonly string[];
+  /** What the run did not do as asked (e.g. retries with pauseOnFailure); also logged. */
+  readonly warnings?: readonly string[];
 }
 
-// ─── Paused runs ───────────────────────────────────────────────────────────
+// ─── Runs in flight and paused ─────────────────────────────────────────────
 
-interface HeldRun {
-  readonly plan: RepairPlan;
+/** The owner of runs started without one (a single-runtime process: the stdio server, the CLI). */
+export const DEFAULT_RUN_OWNER = 'default';
+
+/**
+ * running: runSpecs is waiting on it; paused: held open for repair in place
+ * after runSpecs returned; stopping: being released or stopped (it stays
+ * tracked, for the exit hook, until it exits).
+ */
+type RunState = 'running' | 'paused' | 'stopping';
+
+interface TrackedRun {
+  readonly runId: string;
+  readonly owner: string;
   readonly run: ChildRun;
+  readonly plan: RepairPlan | null;
+  readonly state: RunState;
 }
 
-const held = new Map<string, HeldRun>();
+/** Every Playwright child this process started and has not seen exit, by runId. */
+const tracked = new Map<string, TrackedRun>();
+/** Runs stopRuns ended while runSpecs was waiting on them: runSpecs reports them as stopped. */
+const stoppedRuns = new Set<string>();
 
-const release = async (entry: HeldRun): Promise<void> => {
-  try {
-    await fs.mkdir(path.dirname(entry.plan.resumeFile), { recursive: true });
-    await fs.writeFile(entry.plan.resumeFile, new Date().toISOString());
-  } catch {
-    // the kill below still ends it
+const setState = (runId: string, state: RunState): void => {
+  const entry = tracked.get(runId);
+  if (entry !== undefined) tracked.set(runId, { ...entry, state });
+};
+
+const ownedBy = (owner: string | undefined) => (entry: TrackedRun): boolean => owner === undefined || entry.owner === owner;
+
+/** Last resort: when the process exits with runs still tracked, kill their process groups (browsers included) and drop their repair files. */
+const onProcessExit = (): void => {
+  for (const entry of tracked.values()) {
+    entry.run.killGroup('SIGKILL');
+    if (entry.plan !== null) {
+      for (const target of [entry.plan.dir, entry.plan.repairFile, entry.plan.resumeFile]) {
+        try {
+          rmSync(target, { recursive: true, force: true });
+        } catch {
+          // best effort while exiting
+        }
+      }
+    }
+  }
+};
+
+let exitHookInstalled = false;
+
+const track = (entry: TrackedRun): void => {
+  if (!exitHookInstalled) {
+    exitHookInstalled = true;
+    process.on('exit', onProcessExit);
+  }
+  tracked.set(entry.runId, entry);
+  void entry.run.exited.then(() => {
+    const current = tracked.get(entry.runId);
+    if (current?.run !== entry.run) return;
+    tracked.delete(entry.runId);
+    // A paused run that ends on its own (its hold expired) leaves nobody to clean up after it.
+    if (current.state === 'paused' && current.plan !== null) void cleanupRepair(current.plan).catch(() => undefined);
+  });
+};
+
+const release = async (entry: TrackedRun): Promise<void> => {
+  if (entry.plan !== null) {
+    try {
+      await fs.mkdir(path.dirname(entry.plan.resumeFile), { recursive: true });
+      await fs.writeFile(entry.plan.resumeFile, new Date().toISOString());
+    } catch {
+      // the kill below still ends it
+    }
   }
   const timer = new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), RELEASE_GRACE_MS).unref());
   if ((await Promise.race([entry.run.exited, timer])) === 'timeout') await stopPlaywright(entry.run);
-  await cleanupRepair(entry.plan).catch(() => undefined);
+  if (entry.plan !== null) await cleanupRepair(entry.plan).catch(() => undefined);
 };
 
 /**
- * Let every paused run go on: write its resume file, wait for it to exit
- * (killing it after 10 s). Every runSpecs call does this first; the server
- * calls it on shutdown.
+ * Let paused runs go on: write each one's resume file, wait for it to exit
+ * (killing it after 10 s). With an owner, only that owner's paused runs;
+ * without one, every paused run. runSpecs does this for its own owner first.
  */
-export const releasePausedRuns = async (): Promise<void> => {
-  const entries = [...held.entries()];
-  held.clear();
-  await Promise.all(entries.map(([, entry]) => release(entry)));
+export const releasePausedRuns = async (owner?: string): Promise<void> => {
+  const entries = [...tracked.values()].filter((entry) => entry.state === 'paused' && ownedBy(owner)(entry));
+  entries.forEach((entry) => setState(entry.runId, 'stopping'));
+  await Promise.all(entries.map(release));
 };
 
-/** Repair ids of runs currently paused (for diagnostics and tests). */
-export const pausedRunIds = (): readonly string[] => [...held.keys()];
+/**
+ * Shutdown: stop an owner's runs (every owner's without one). Paused runs are
+ * released as above; runs still executing are killed with their process
+ * group (browsers included), their repair files removed, and the runSpecs
+ * call waiting on them fails with `unavailable`. A runtime's close hook calls
+ * this with its own owner.
+ */
+export const stopRuns = async (owner?: string): Promise<void> => {
+  const running = [...tracked.values()].filter((entry) => entry.state === 'running' && ownedBy(owner)(entry));
+  running.forEach((entry) => {
+    stoppedRuns.add(entry.runId);
+    setState(entry.runId, 'stopping');
+  });
+  await Promise.all([
+    releasePausedRuns(owner),
+    ...running.map(async (entry) => {
+      await stopPlaywright(entry.run);
+      if (entry.plan !== null) await cleanupRepair(entry.plan).catch(() => undefined);
+    }),
+  ]);
+};
+
+/** Repair ids of runs currently paused (one owner's, or all; for diagnostics and tests). */
+export const pausedRunIds = (owner?: string): readonly string[] =>
+  [...tracked.values()].filter((entry) => entry.state === 'paused' && ownedBy(owner)(entry)).flatMap((entry) => (entry.plan !== null ? [entry.plan.repairId] : []));
+
+/** Runs this process started that have not exited (one owner's, or all; for diagnostics and tests). */
+export const activeRuns = (owner?: string): readonly { readonly runId: string; readonly owner: string; readonly state: RunState; readonly pid?: number }[] =>
+  [...tracked.values()]
+    .filter(ownedBy(owner))
+    .map((entry) => ({ runId: entry.runId, owner: entry.owner, state: entry.state, ...(entry.run.child.pid !== undefined ? { pid: entry.run.child.pid } : {}) }));
 
 /** Run directories (reports, traces) older than this are removed when a new run starts. */
 export const RUN_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -253,46 +348,54 @@ const recordMemory = async (
   now: () => Date,
   log: (message: string) => void,
 ): Promise<{ readonly promoted: readonly string[]; readonly staled: readonly string[] }> => {
-  const promoted = new Set<string>();
-  const staled = new Set<string>();
-  for (const receipt of receipts) {
+  const inputs = receipts.flatMap((receipt): readonly TestRunInput[] => {
     const record = records.get(receipt.spec);
     const failed = receipt.outcome === 'failed' || receipt.outcome === 'timedOut';
-    if (record === undefined || record.facets.length === 0 || !(receipt.outcome === 'passed' || failed)) continue;
-    try {
-      const result = await recordTestRun(
-        workspace,
-        {
-          runId,
-          testCaseId: receipt.testCase ?? record.testCaseId,
-          facetIds: record.facets,
-          outcome: failed ? 'failed' : 'passed',
-          ...(receipt.error?.facet !== undefined ? { failedFacet: receipt.error.facet } : {}),
-          ...(receipt.error !== undefined ? { failureFamily: receipt.error.family } : {}),
-        },
-        { now },
-      );
-      result.promoted.forEach((id) => promoted.add(id));
-      result.staled.forEach((id) => staled.add(id));
-    } catch (error) {
-      log(`could not record run evidence for ${receipt.spec}: ${(error as Error).message}`);
-    }
+    if (record === undefined || record.facets.length === 0 || !(receipt.outcome === 'passed' || failed)) return [];
+    return [
+      {
+        runId,
+        testCaseId: receipt.testCase ?? record.testCaseId,
+        facetIds: record.facets,
+        outcome: failed ? 'failed' : 'passed',
+        ...(receipt.error?.facet !== undefined ? { failedFacet: receipt.error.facet } : {}),
+        ...(receipt.error !== undefined ? { failureFamily: receipt.error.family } : {}),
+      },
+    ];
+  });
+  if (inputs.length === 0) return { promoted: [], staled: [] };
+  try {
+    // One write per screen for the whole run, so gating sees the run as one: a
+    // data-driven case's rows (or a config's projects) are one run, not several.
+    const result = await recordTestRuns(workspace, inputs, { now });
+    return { promoted: result.promoted, staled: result.staled };
+  } catch (error) {
+    log(`could not record run evidence for ${runId}: ${(error as Error).message}`);
+    return { promoted: [], staled: [] };
   }
-  return { promoted: [...promoted], staled: [...staled] };
 };
 
 const tail = (text: string, lines = 30): string => text.split('\n').slice(-lines).join('\n').trim();
 
+const stoppedError = (runId: string): ToolError =>
+  new ToolError('unavailable', 'the test run was stopped before it finished (the server or session is shutting down)', { runId });
+
 /**
- * Run specs with Playwright and turn the report into receipts. Releases any
- * paused run first. With pauseOnFailure, returns as soon as the first failing
- * test holds its browser (the run stays alive until released).
+ * Run specs with Playwright and turn the report into receipts. Releases the
+ * owner's paused run first. With pauseOnFailure, returns as soon as the
+ * first failing test holds its browser (the run stays alive until released).
+ * Receipts are written and returned through the workspace's PII gate.
  */
 export const runSpecs = async (workspace: Workspace, options: RunSpecsOptions = {}): Promise<RunSpecsResult> => {
-  await releasePausedRuns();
+  const owner = options.owner ?? DEFAULT_RUN_OWNER;
+  await releasePausedRuns(owner);
   const now = options.now ?? (() => new Date());
   const log = options.log ?? (() => undefined);
   const runId = newId('run', now());
+  const warnings =
+    options.pauseOnFailure === true && options.retries !== undefined && options.retries > 0
+      ? [`retries (${options.retries}) were not attempted: with pauseOnFailure the first failure pauses for repair instead of retrying`]
+      : [];
   const specs = await selectSpecs(workspace, options.specPaths);
   const cli = resolvePlaywrightCli(workspace);
   const customerConfig = await findCustomerConfig(workspace);
@@ -327,10 +430,16 @@ export const runSpecs = async (workspace: Workspace, options: RunSpecsOptions = 
   ];
   await fs.mkdir(runDir, { recursive: true });
   log(`test.run ${runId}: ${specs.length} spec(s) with ${relativePosix(workspace.paths.root, configFile)} (${cli.source} Playwright)`);
+  warnings.forEach((warning) => log(`test.run ${runId}: ${warning}`));
   const run = startPlaywright(cli.cli, args, workspace.paths.root, { ...env, PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile });
+  track({ runId, owner, run, plan, state: 'running' });
 
   const waited = await waitForRun(run, deadline, plan?.repairFile ?? null);
   const at = now().toISOString();
+  if (stoppedRuns.delete(runId)) {
+    if (plan !== null) await cleanupRepair(plan).catch(() => undefined);
+    throw stoppedError(runId);
+  }
 
   if (waited.kind === 'timeout') {
     await stopPlaywright(run);
@@ -351,15 +460,10 @@ export const runSpecs = async (workspace: Workspace, options: RunSpecsOptions = 
       throw new ToolError('malformed-response', 'the paused test wrote an unreadable repair file');
     }
     pausedRecord = parsed.data;
-    held.set(plan.repairId, { plan, run });
-    void run.exited.then(() => {
-      // A run that ends on its own (hold expired) stops being held.
-      if (held.get(plan.repairId)?.run === run) {
-        held.delete(plan.repairId);
-        void cleanupRepair(plan).catch(() => undefined);
-      }
-    });
     outcomes = parseProgress((await readText(plan.progressFile)) ?? '');
+    if (stoppedRuns.delete(runId)) throw stoppedError(runId);
+    // Held for repair in place until its owner's next run or stopRuns releases it (see track for a hold that expires).
+    setState(runId, 'paused');
   } else {
     const text = await readText(reportFile);
     if (text === null) {
@@ -405,8 +509,11 @@ export const runSpecs = async (workspace: Workspace, options: RunSpecsOptions = 
             ...(pausedRecord.failingStep !== undefined ? { failingStep: pausedRecord.failingStep } : {}),
           },
         };
-  const receipts: readonly RunReceipt[] = [...finished, ...(pausedReceipt === null ? [] : [pausedReceipt])];
+  const receipts: readonly RunReceipt[] = [...finished, ...(pausedReceipt === null ? [] : [pausedReceipt])].map((receipt) =>
+    gateReceipt(receipt, workspace.config.pii),
+  );
 
+  const pausedOut = receipts.find((receipt) => receipt.paused !== undefined)?.paused;
   const memory =
     options.updateMemory === false ? { promoted: [], staled: [] } : await recordMemory(workspace, runId, receipts, loaded.records, now, log);
   for (const receipt of receipts) await appendJsonl(workspace.paths.runReceipts, receipt);
@@ -416,9 +523,10 @@ export const runSpecs = async (workspace: Workspace, options: RunSpecsOptions = 
     receipts,
     summary: summarize(receipts),
     ...(reportPath !== undefined ? { reportPath } : {}),
-    ...(pausedReceipt?.paused !== undefined ? { paused: pausedReceipt.paused } : {}),
+    ...(pausedOut !== undefined ? { paused: pausedOut } : {}),
     promoted: memory.promoted,
     staled: memory.staled,
+    ...(warnings.length > 0 ? { warnings } : {}),
   };
 };
 

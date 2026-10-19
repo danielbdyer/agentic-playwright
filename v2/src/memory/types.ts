@@ -91,6 +91,8 @@ export const EnrichedEventSchema = z.object({
   via: z.enum(['mint', 'enrich']),
   aliasesAdded: z.array(z.string()),
   locatorAdded: z.object({ key: z.string(), locator: LocatorSchema, verified: z.boolean() }).optional(),
+  /** Key of a locator the facet already had that memory.enrich named, moving it first (a repair onto a known fallback). */
+  locatorFirst: z.string().optional(),
   displayName: z.object({ from: z.string(), to: z.string() }).optional(),
   snapshotId: z.string(),
   candidateRef: z.string(),
@@ -137,6 +139,13 @@ export const StatusEventSchema = z.object({
   to: FacetStatusSchema,
   reason: StatusReasonSchema,
   by: z.enum(['tool', 'human']),
+  /**
+   * Tool changes only: sha256 of the catalog YAML text the committing call
+   * read. The YAML is written after the event is appended; if that write
+   * fails, the file still has exactly this text, which tells the next read
+   * the file's status is not a human edit (see restoreUnsavedStatuses).
+   */
+  fileBefore: z.string().optional(),
 });
 
 export const RouteEventSchema = z.object({

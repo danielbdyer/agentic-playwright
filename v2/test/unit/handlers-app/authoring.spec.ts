@@ -113,7 +113,10 @@ describe('app.* and memory.* handlers on the fixture app', () => {
       expected: '@policyNumber', params: { policyNumber: 'POL-001' },
     });
     expect(row.passed).toBe(true);
-    expect(row.observed).toContain('POL-001');
+    // Values that came in through params are masked in what the tool reports (secrets travel that way).
+    expect(row.observed).toContain('<secret>');
+    expect(row.observed).toContain('Ada Lovelace');
+    expect(String(row.observed)).not.toContain('POL-001');
     expect(row.resolved?.verified).toBe(true);
 
     const missing = await h.call('app.assert', {

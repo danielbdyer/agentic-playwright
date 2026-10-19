@@ -192,7 +192,15 @@ export const createBrowserPool = (options: BrowserPoolOptions): BrowserPool => {
 
   const launch = async (headless: boolean): Promise<Launched> => {
     log(`launching chromium (${headless ? 'headless' : 'headed'})`);
-    const browser = await chromium.launch({ headless, args: [...(options.launchArgs ?? [])] });
+    // The server owns shutdown (it closes sessions, releases paused runs, then browsers); Playwright's
+    // own signal handlers would race it and exit first.
+    const browser = await chromium.launch({
+      headless,
+      args: [...(options.launchArgs ?? [])],
+      handleSIGINT: false,
+      handleSIGTERM: false,
+      handleSIGHUP: false,
+    });
     const userAgent = await defaultUserAgent(browser);
     return { browser, userAgent: `${userAgent} ${options.userAgentSuffix}`.trim() };
   };

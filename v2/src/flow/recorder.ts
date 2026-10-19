@@ -33,6 +33,7 @@ import { randomBytes } from 'node:crypto';
 import type { Frame, Page } from '@playwright/test';
 import type { Candidate, FlowRecordingSpec, ResolvedLocator } from '../contract/schemas.js';
 import { ToolError, isToolError } from '../core/errors.js';
+import { containsPii, redact } from '../core/pii.js';
 import { slugify } from '../core/text.js';
 import { memberTable } from '../emit/index.js';
 import {
@@ -66,7 +67,7 @@ import {
   type RecorderConfig,
 } from './events.js';
 import { RECORDER_BINDING, RECORDER_SCRIPT, recorderCall } from './in-page.js';
-import { EMPTY_DRAFT, appendStep, assertFlowName, isWebUrl, markNavigation, relativeToBase, routeUrlOf, samePath, type RecordingDraft, type StepInput } from './recording.js';
+import { EMPTY_DRAFT, appendStep, assertFlowName, isWebUrl, markNavigation, routeUrlOf, samePath, type RecordingDraft, type StepInput } from './recording.js';
 
 export type StopOn = 'manual' | 'urlChange' | 'steps';
 export type StopReason = 'manual' | 'urlChange' | 'steps' | 'timeout' | 'closed';
@@ -310,6 +311,14 @@ export const startRecording = (options: RecordOptions): RecordingSession => {
   const startUrl = page.url();
   const start = { url: startUrl, ...(options.screen !== undefined ? { screen: options.screen } : {}) };
   const screenOf = (url: string): string => screenFor(url, baseURL, start);
+  /**
+   * A URL as the recording keeps it: relative to baseURL, without query or
+   * fragment (a landing URL can carry a session token or an email; replay
+   * opens screens by their routes, which have none either).
+   */
+  const recordedUrl = (url: string): string => routeUrlOf(url, baseURL);
+  /** A typed value or option label the PII gate would redact: data, recorded as a parameter without a default. */
+  const withheld = (value: string): boolean => containsPii(value, pii);
 
   // Session state. Mutated only by the sequential event processor and the stop handlers.
   let draft: RecordingDraft = EMPTY_DRAFT;
@@ -378,9 +387,9 @@ export const startRecording = (options: RecordOptions): RecordingSession => {
   /** Observe and save (the caller decides whether the registry is kept). */
   const takeSnapshot = async (): Promise<SnapshotRecord | null> => {
     if (page.isClosed()) return null;
-    const url = page.url();
     try {
-      const { record } = await observePage(page, {
+      // The address of the document observed (a route change during the call is not mixed into the record).
+      const { record, address: url } = await observePage(page, {
         pageId,
         maxCandidates: workspace.config.observe.maxCandidates,
         maxAriaBytes: workspace.config.observe.maxAriaBytes,
@@ -520,7 +529,7 @@ export const startRecording = (options: RecordOptions): RecordingSession => {
     if (capReached()) return;
     if (options.stopOn === 'urlChange' && !samePath(event.url, startUrl)) return;
     const screen = screenOf(event.url);
-    const url = relativeToBase(event.url, baseURL);
+    const url = recordedUrl(event.url);
     const needsFacet = event.action !== 'press' || event.descriptor !== null;
     const facet = needsFacet ? await facetFor(event, screen).catch((error: unknown) => {
       warnings.push(`step ${event.action} at ${url}: ${error instanceof Error ? error.message : String(error)}`);
@@ -528,7 +537,7 @@ export const startRecording = (options: RecordOptions): RecordingSession => {
     }) : null;
     if (needsFacet && facet === null) {
       if (event.action !== 'press') {
-        warnings.push(`a ${event.action} on ${event.descriptor?.name ?? 'an element'} could not be given a facet; it was left out`);
+        warnings.push(`a ${event.action} on ${event.descriptor !== null ? redact(event.descriptor.name, pii) : 'an element'} could not be given a facet; it was left out`);
         return;
       }
     }
@@ -544,13 +553,20 @@ export const startRecording = (options: RecordOptions): RecordingSession => {
           ...base,
           ...withSnapshot,
           ...(member !== undefined ? { member } : {}),
-          fill: event.secret === true ? { secret: true } : { value: event.value ?? '' },
+          fill: event.secret === true ? { secret: true } : withheld(event.value ?? '') ? { withheld: true } : { value: event.value ?? '' },
         });
         break;
       }
-      case 'select':
-        append({ action: 'select', ...base, ...withSnapshot, literal: event.value ?? '' });
+      case 'select': {
+        const label = event.value ?? '';
+        if (!withheld(label)) {
+          append({ action: 'select', ...base, ...withSnapshot, literal: label });
+          break;
+        }
+        const member = facet === null ? undefined : await memberOf(facet.id, facetScreen);
+        append({ action: 'select', ...base, ...withSnapshot, ...(member !== undefined ? { member } : {}), fill: { withheld: true } });
         break;
+      }
       case 'press':
         append({ action: 'press', ...base, ...withSnapshot, literal: event.key ?? 'Enter' });
         break;
@@ -565,7 +581,7 @@ export const startRecording = (options: RecordOptions): RecordingSession => {
 
   const processNavigation = async (url: string): Promise<void> => {
     if (capReached()) return;
-    append({ action: 'navigate', screen: screenOf(url), url: relativeToBase(url, baseURL) });
+    append({ action: 'navigate', screen: screenOf(url), url: recordedUrl(url) });
     await afterStep();
   };
 
@@ -596,7 +612,7 @@ export const startRecording = (options: RecordOptions): RecordingSession => {
     lastUrl = url;
     const causedByAction = Date.now() - lastActionAt <= NAVIGATION_GRACE_MS;
     // Queued behind the action that caused it, so the mark lands on that step.
-    if (causedByAction) enqueue(async () => { draft = markNavigation(draft, relativeToBase(url, baseURL)); });
+    if (causedByAction) enqueue(async () => { draft = markNavigation(draft, recordedUrl(url)); });
     if (options.stopOn === 'urlChange') {
       if (!samePath(url, startUrl)) setTimeout(() => requestStop('urlChange'), URL_CHANGE_GRACE_MS).unref();
       return;
@@ -646,7 +662,7 @@ export const startRecording = (options: RecordOptions): RecordingSession => {
         append({
           action: 'navigate',
           screen: screenOf(startUrl),
-          url: relativeToBase(startUrl, baseURL),
+          url: recordedUrl(startUrl),
           ...(first !== null ? { snapshotId: first.snapshotId } : {}),
         }, false);
       }
@@ -662,7 +678,7 @@ export const startRecording = (options: RecordOptions): RecordingSession => {
       await routes(screens);
       const recording: FlowRecordingSpec = {
         name,
-        ...(isWebUrl(startUrl) ? { startUrl: relativeToBase(startUrl, baseURL) } : {}),
+        ...(isWebUrl(startUrl) ? { startUrl: recordedUrl(startUrl) } : {}),
         recordedAt: now().toISOString(),
         ...(options.session !== undefined ? { session: options.session } : {}),
         steps: [...draft.steps],

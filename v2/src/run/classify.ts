@@ -117,10 +117,17 @@ const appearsIn = (text: string, expression: string): boolean => {
   return fold(0, 0);
 };
 
+/** How much of an expression is literal text (wildcards match anything, so they say nothing). */
+const specificity = (expression: string): number => expression.split(WILDCARD).join('').length;
+
 /**
- * The facet whose locator the error text names: the step's facets first,
- * then any other facet the test uses (a failure in a beforeEach flow has no
- * step); a full-expression match before an unscoped one.
+ * The facet whose locator the error text names. Expressions are matched as
+ * substrings, so a page-level `getByRole('button', { name: 'Save' })` also
+ * appears inside a dialog's `getByRole('dialog').getByRole('button', …)`:
+ * the most specific (longest) match wins. Among equally specific matches,
+ * the step's facets come first, then any other facet the test uses (a
+ * failure in a beforeEach flow has no step); a full-expression match before
+ * an unscoped one.
  */
 export const facetNamedBy = (
   raw: string,
@@ -129,17 +136,17 @@ export const facetNamedBy = (
   params: Readonly<Record<string, string>> = {},
 ): string | undefined => {
   const text = squash(stripAnsi(raw));
-  const pools = [stepFacets, otherFacets.filter((facet) => !stepFacets.some((s) => s.id === facet.id))];
+  const ranked = [...stepFacets, ...otherFacets.filter((facet) => !stepFacets.some((s) => s.id === facet.id))];
   for (const exact of [true, false]) {
-    for (const pool of pools) {
-      const hit = pool.find((facet) =>
-        facet.locators.some((locator) => {
-          const [full, ...rest] = expressionsOf(locator, params);
-          return (exact ? [full!] : rest).some((expression) => appearsIn(text, expression));
-        }),
-      );
-      if (hit !== undefined) return hit.id;
-    }
+    const hits = ranked.flatMap((facet, order) => {
+      const lengths = facet.locators.flatMap((locator) => {
+        const [full, ...rest] = expressionsOf(locator, params);
+        return (exact ? [full!] : rest).filter((expression) => appearsIn(text, expression)).map(specificity);
+      });
+      return lengths.length === 0 ? [] : [{ id: facet.id, length: Math.max(...lengths), order }];
+    });
+    const best = [...hits].sort((a, b) => b.length - a.length || a.order - b.order)[0];
+    if (best !== undefined) return best.id;
   }
   return undefined;
 };

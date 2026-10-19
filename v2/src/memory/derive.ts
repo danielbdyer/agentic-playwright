@@ -7,6 +7,16 @@
  * Health is per locator over a sliding window of the last 20 attempts: the
  * window is the aging mechanism, so old successes cannot hide new failures.
  * A locator with no attempts counts as healthy (1.0) — it has not failed.
+ *
+ * A locator memory.enrich adds is pinned first (the contract's "placed
+ * first"): it is the one the page object emits and the next run exercises,
+ * even while the locator it replaces is still above the health floor. The
+ * pin lasts until that locator records a failure of its own; then ordering
+ * by health and ladder rank takes over again.
+ *
+ * One test.run is one run: however many receipts it has for a facet (data
+ * rows, projects), it counts at most one pass and one failure, and it is a
+ * pass only when every one of them passed.
  */
 import { ToolError } from '../core/errors.js';
 import type { Facet, FacetLocator, FacetStatus, LocatorSpec, LocatorStrategy } from '../contract/schemas.js';
@@ -40,6 +50,29 @@ export interface FacetStats {
   readonly lastVerifiedAt?: string;
   readonly runs: number;
   readonly passes: number;
+  /** Key of the locator memory.enrich last added, kept first until it fails (see orderLocators). */
+  readonly pinnedLocator?: string;
+  /** How the latest test.run counted for this facet, so its other receipts do not count again. */
+  readonly lastRun?: RunCount;
+  /**
+   * Set by a tool status event the catalog YAML may not show yet: the status
+   * the file had (`from` of the first such event) and the hash of the file
+   * text that commit read. Cleared by a human status event.
+   */
+  readonly unsaved?: UnsavedStatus;
+}
+
+export interface RunCount {
+  readonly runId: string;
+  /** Every receipt of the run that used the facet passed (so far). */
+  readonly passed: boolean;
+  /** A failure of the run was counted against the facet. */
+  readonly against: boolean;
+}
+
+export interface UnsavedStatus {
+  readonly from: FacetStatus;
+  readonly fileBefore: string;
 }
 
 export type StatsIndex = Readonly<Record<string, FacetStats>>;
@@ -89,12 +122,63 @@ const foldResolved = (index: StatsIndex, event: Extract<EvidenceEvent, { kind: '
   // preflight misses count against health only once preflight has seen the
   // facet resolve at least once.
   if (event.source === 'preflight' && !ok && !stats.seenByPreflight) return index;
+  // The pinned locator keeps its place until it fails itself.
+  const { pinnedLocator, ...rest } = stats;
+  const unpinned = !ok && pinnedLocator === event.locatorKey;
   return put(index, {
-    ...stats,
+    ...(unpinned ? rest : stats),
     locators: { ...stats.locators, [event.locatorKey]: pushOutcome(stats.locators[event.locatorKey], ok) },
     seenByPreflight: stats.seenByPreflight || (event.source === 'preflight' && ok),
     ...(ok ? { lastVerifiedAt: event.at } : {}),
   });
+};
+
+/**
+ * One facet's share of a test-run event. The first receipt of a run counts
+ * the run; later receipts of the same run only make it worse: a failure turns
+ * a counted pass into a failed run, and the first failure against the facet
+ * counts once.
+ */
+const foldTestRun = (stats: FacetStats, event: Extract<EvidenceEvent, { kind: 'test-run' }>): FacetStats => {
+  const passed = event.outcome === 'passed';
+  const against = !passed && stats.facetId === event.failedFacet && failureCountsAgainstFacet(event.failureFamily);
+  const prior = stats.lastRun;
+  if (prior === undefined || prior.runId !== event.runId) {
+    return {
+      ...stats,
+      runs: stats.runs + 1,
+      passes: stats.passes + (passed ? 1 : 0),
+      passesSinceChange: stats.passesSinceChange + (passed ? 1 : 0),
+      failuresSinceChange: stats.failuresSinceChange + (against ? 1 : 0),
+      lastRun: { runId: event.runId, passed, against },
+    };
+  }
+  const undoPass = prior.passed && !passed;
+  const addFailure = against && !prior.against;
+  return {
+    ...stats,
+    passes: stats.passes - (undoPass ? 1 : 0),
+    passesSinceChange: Math.max(0, stats.passesSinceChange - (undoPass ? 1 : 0)),
+    failuresSinceChange: stats.failuresSinceChange + (addFailure ? 1 : 0),
+    lastRun: { runId: event.runId, passed: prior.passed && passed, against: prior.against || against },
+  };
+};
+
+const foldStatus = (index: StatsIndex, event: Extract<EvidenceEvent, { kind: 'status' }>): StatsIndex => {
+  const { unsaved, ...stats } = resetSinceChange(statsOf(index, event.facetId));
+  // A human status edit is a fresh start: the human looked, so the health
+  // window that led to the old status no longer speaks for the facet. It was
+  // read from the file, so the file shows it.
+  if (event.by === 'human') return put(index, { ...stats, lastStatus: event.to, locators: {} });
+  // A tool status change the file may not show yet: remember what the file
+  // said before it (the earliest such status, while the file text is the same).
+  const pending: UnsavedStatus | undefined =
+    event.fileBefore === undefined
+      ? undefined
+      : unsaved !== undefined && unsaved.fileBefore === event.fileBefore
+        ? unsaved
+        : { from: event.from, fileBefore: event.fileBefore };
+  return put(index, { ...stats, lastStatus: event.to, ...(pending !== undefined ? { unsaved: pending } : {}) });
 };
 
 /** One step of the fold. Unknown facets start from empty stats. */
@@ -105,27 +189,19 @@ export const foldEvent = (index: StatsIndex, event: EvidenceEvent): StatsIndex =
       return put(index, { ...emptyStats(event.facetId), mintedEventId: event.eventId, lastStatus: 'candidate' });
     case 'enriched': {
       const stats = statsOf(index, event.facetId);
-      return put(index, event.locatorAdded !== undefined ? resetSinceChange(stats) : stats);
+      const first = event.locatorAdded?.key ?? event.locatorFirst;
+      if (first === undefined) return put(index, stats);
+      // memory.enrich places its locator first, new or known (a re-mint's new locator only joins the facet).
+      return put(index, { ...resetSinceChange(stats), ...(event.via === 'enrich' ? { pinnedLocator: first } : {}) });
     }
     case 'resolved':
       return foldResolved(index, event);
     case 'test-run':
-      return event.facetIds.reduce((acc, facetId) => {
-        const stats = statsOf(acc, facetId);
-        if (event.outcome === 'passed') {
-          return put(acc, { ...stats, runs: stats.runs + 1, passes: stats.passes + 1, passesSinceChange: stats.passesSinceChange + 1 });
-        }
-        const against = facetId === event.failedFacet && failureCountsAgainstFacet(event.failureFamily);
-        return put(acc, { ...stats, runs: stats.runs + 1, failuresSinceChange: stats.failuresSinceChange + (against ? 1 : 0) });
-      }, index);
+      return event.facetIds.reduce((acc, facetId) => put(acc, foldTestRun(statsOf(acc, facetId), event)), index);
     case 'accepted':
       return event.facetIds.reduce((acc, facetId) => put(acc, { ...statsOf(acc, facetId), acceptedSinceChange: true }), index);
-    case 'status': {
-      const stats = resetSinceChange(statsOf(index, event.facetId));
-      // A human status edit is a fresh start: the human looked, so the health
-      // window that led to the old status no longer speaks for the facet.
-      return put(index, { ...stats, lastStatus: event.to, ...(event.by === 'human' ? { locators: {} } : {}) });
-    }
+    case 'status':
+      return foldStatus(index, event);
     case 'route':
       return index;
     case 'id-migration': {
@@ -203,14 +279,25 @@ export const ladderRank = (strategy: LocatorStrategy): number => {
 };
 
 /**
- * Healthy locators (rate ≥ floor) first, then by ladder rank; a stable sort,
- * so among equals the existing order wins — which is how a freshly enriched
- * locator, inserted at the front, takes precedence over an equal one.
+ * The pinned locator (the one memory.enrich last added, until it fails)
+ * first; then healthy locators (rate ≥ floor), then by ladder rank; a stable
+ * sort, so among equals the existing order wins.
  */
-export const orderLocators = <L extends LocatorSpec>(locators: readonly L[], rateOf: (locator: L) => number, floor: number): L[] =>
+export const orderLocators = <L extends LocatorSpec>(
+  locators: readonly L[],
+  rateOf: (locator: L) => number,
+  floor: number,
+  pinnedKey?: string,
+): L[] =>
   locators
-    .map((locator, index) => ({ locator, index, healthy: rateOf(locator) >= floor ? 0 : 1, rank: ladderRank(locator.strategy) }))
-    .sort((a, b) => a.healthy - b.healthy || a.rank - b.rank || a.index - b.index)
+    .map((locator, index) => ({
+      locator,
+      index,
+      pinned: pinnedKey !== undefined && locatorKeyOf(locator) === pinnedKey ? 0 : 1,
+      healthy: rateOf(locator) >= floor ? 0 : 1,
+      rank: ladderRank(locator.strategy),
+    }))
+    .sort((a, b) => a.pinned - b.pinned || a.healthy - b.healthy || a.rank - b.rank || a.index - b.index)
     .map((entry) => entry.locator);
 
 /** The locator a page object emits: the first of an ordered facet. Facets this module returns are already ordered. */
@@ -222,7 +309,7 @@ export const bestLocator = (facet: Pick<Facet, 'locators'>): FacetLocator | unde
  */
 export const projectFacet = (facet: Facet, stats: FacetStats | undefined, floor: number): Facet => {
   const withHealth = facet.locators.map((locator) => ({ ...locator, health: healthString(locatorHealth(stats, locator)) }));
-  return { ...facet, locators: orderLocators(withHealth, (locator) => locatorHealth(stats, locator).rate, floor) };
+  return { ...facet, locators: orderLocators(withHealth, (locator) => locatorHealth(stats, locator).rate, floor, stats?.pinnedLocator) };
 };
 
 export const projectCatalog = (catalog: ScreenCatalog, stats: StatsIndex, floor: number): ScreenCatalog => ({
@@ -243,7 +330,8 @@ export interface Transition {
  * since its locator last changed. Any live facet whose best locator falls
  * below the health floor (with enough attempts to mean it) becomes stale.
  * Retired is a human decision and is never left automatically; stale is left
- * only by a repair (enrich with a new locator) or a human edit.
+ * only by a repair (enrich with a new locator, or one moved first) or a human
+ * edit.
  */
 export const nextStatus = (facet: Facet, stats: FacetStats | undefined, config: GatingConfig): Transition | null => {
   if (facet.status === 'retired') return null;
@@ -284,9 +372,32 @@ export const applyGating = (catalog: ScreenCatalog, stats: StatsIndex, config: G
   );
 
 /**
+ * Statuses the log recorded but the catalog file never received: a commit
+ * appends its status events, then writes the YAML, and that write can fail
+ * (a rename refused while an editor holds the file, a full disk). A facet
+ * whose file status is still the one the tool changed it from, in a file
+ * whose text is exactly what that commit read, was not edited by a human:
+ * the log wins. `fileHash` is sha256Hex of the file text as read ('' when
+ * there is no file).
+ */
+export const restoreUnsavedStatuses = (catalog: ScreenCatalog, stats: StatsIndex, fileHash: string): ScreenCatalog => ({
+  ...catalog,
+  facets: catalog.facets.map((facet) => {
+    const s = stats[facet.id];
+    const unsaved = s?.unsaved;
+    const logged = s?.lastStatus;
+    return unsaved !== undefined && logged !== undefined && unsaved.fileBefore === fileHash && facet.status === unsaved.from && logged !== facet.status
+      ? { ...facet, status: logged }
+      : facet;
+  }),
+});
+
+/**
  * Human status edits in the YAML, as status events: when a facet's status in
  * the file differs from the last status the log recorded (candidate for a
- * facet the log has never seen), the file wins and the log records it.
+ * facet the log has never seen), the file wins and the log records it. Run
+ * restoreUnsavedStatuses first, so a write that never landed is not taken
+ * for an edit.
  */
 export const reconcileHumanEdits = (catalog: ScreenCatalog, stats: StatsIndex, makeEvent: EventFactory): readonly StatusEvent[] =>
   catalog.facets.flatMap((facet) => {

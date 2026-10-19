@@ -2,9 +2,10 @@
  * memory.query scoring. score = status weight × phrase score × locator health.
  *
  * The phrase score is weighted token overlap between the step's words (minus
- * action verbs) and each of the facet's names (display name, aliases, and the
- * local id read as words), with tokens weighted by smoothed IDF within the
- * screen — log((N+1)/(df+1)) + 1, lifted from v1 `shingles.ts` — so the words
+ * action verbs, except a verb that names an element on the screen, such as a
+ * "Submit" or "Clear" button) and each of the facet's names (display name,
+ * aliases, and the local id read as words), with tokens weighted by smoothed
+ * IDF within the screen — log((N+1)/(df+1)) + 1, lifted from v1 `shingles.ts` — so the words
  * every facet on "Policy Search" shares ("policy", "search") stop matching
  * everything. Role cues ("button", "field", "results") and navigation verbs
  * adjust it; a landmark hint scopes it. Prototyped against the §5.3 example;
@@ -120,7 +121,12 @@ export const scoreFacets = (options: QueryOptions, facets: readonly Facet[], hea
   const live = facets.filter((facet) => facet.status !== 'retired' && (options.kind === undefined || facet.kind === options.kind));
   const weight = idfWeights(live);
   const all = tokenize(options.phrase);
-  const query = all.filter((token) => !ACTION_VERBS.has(token));
+  // Action verbs are the step's verb, not its target — unless an element on the
+  // screen is named with the word ("Click Submit", "Press Clear"). A phrase that
+  // is nothing but verbs keeps them all.
+  const named = new Set(live.flatMap((facet) => namesOf(facet).flatMap((name) => tokenize(name))));
+  const targetWords = all.filter((token) => !ACTION_VERBS.has(token) || named.has(token));
+  const query = targetWords.length > 0 ? targetWords : all;
   const cues = all.flatMap((token) => ROLE_CUES.get(token) ?? []);
   const hasCues = all.some((token) => ROLE_CUES.has(token));
   const navigation = NAVIGATION.test(options.phrase);

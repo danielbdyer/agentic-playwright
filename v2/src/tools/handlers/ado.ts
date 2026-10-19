@@ -73,7 +73,10 @@ export const adoHandlers: Pick<ToolHandlers, 'ado.fetch' | 'ado.publish'> = {
       ]),
     ];
     const cases = await loadCases(workspace, caseIds);
-    const results: readonly PublishResult[] = input.fromRunId !== undefined ? receiptsToPublishResults(receipts, cases) : (input.results ?? []);
+    // Steps publish by the ADO step identifiers of the spec as it was emitted when it ran, PII-gated.
+    const results: readonly PublishResult[] = input.fromRunId !== undefined
+      ? receiptsToPublishResults(receipts, cases, { emits: await readEmitRecords(workspace), pii: workspace.config.pii })
+      : (input.results ?? []);
     if (results.length === 0) {
       throw new ToolError(
         'invalid-input',

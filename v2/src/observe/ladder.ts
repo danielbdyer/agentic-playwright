@@ -21,7 +21,7 @@ import { containsPii } from '../core/pii.js';
 import type { Candidate, LocatorScope, LocatorSpec, ResolvedLocator } from '../contract/schemas.js';
 import { renderLocator, toPlaywrightLocator } from '../locator/locator.js';
 import { inElement, inElements, inPage } from './in-page/runtime.js';
-import type { RefDescription } from './in-page/walker.js';
+import type { RefDescription, RefStatus } from './in-page/walker.js';
 
 export type { RefDescription } from './in-page/walker.js';
 
@@ -161,6 +161,22 @@ export const countMatches = async (page: Page, spec: LocatorSpec, params?: Reado
   return { total, visible };
 };
 
+type StaleStatus = Exclude<RefStatus, 'unknown-ref'>;
+
+const staleSnapshot = (snapshotId: string, ref: string, status: StaleStatus): ToolError => {
+  const why =
+    status === 'detached'
+      ? `candidate ${ref} is no longer in the page`
+      : status === 'no-registry'
+        ? 'the page has navigated or reloaded since that snapshot'
+        : 'the page was observed again since that snapshot';
+  return new ToolError('stale-snapshot', `snapshot ${snapshotId} is stale: ${why}. Observe the page again and use the new refs.`, {
+    snapshotId,
+    ref,
+    status,
+  });
+};
+
 /** The raw description of a candidate on the live page. Stale or detached → ToolError('stale-snapshot'). */
 export const describeCandidate = async (page: Page, snapshotId: string, ref: string): Promise<RefDescription> => {
   const desc = await inPage(page, 'describeRef', snapshotId, ref);
@@ -169,17 +185,20 @@ export const describeCandidate = async (page: Page, snapshotId: string, ref: str
   if (status === 'unknown-ref') {
     throw new ToolError('not-found', `snapshot ${snapshotId} has no candidate ${ref}`, { snapshotId, ref });
   }
-  const why =
-    status === 'detached'
-      ? `candidate ${ref} is no longer in the page`
-      : status === 'no-registry'
-        ? 'the page has navigated or reloaded since that snapshot'
-        : 'the page was observed again since that snapshot';
-  throw new ToolError('stale-snapshot', `snapshot ${snapshotId} is stale: ${why}. Observe the page again and use the new refs.`, {
-    snapshotId,
-    ref,
-    status,
-  });
+  throw staleSnapshot(snapshotId, ref, status);
+};
+
+/**
+ * Throws stale-snapshot when the snapshot no longer describes the page: it
+ * navigated, reloaded or was observed again while the ladder ran (every rung
+ * was then counted on another document, where the candidate's ref cannot
+ * match). A page torn down mid-navigation counts as navigated.
+ */
+const assertStillCurrent = async (page: Page, snapshotId: string, ref: string): Promise<void> => {
+  if (page.isClosed()) throw new ToolError('unavailable', 'the page closed while resolving the locator');
+  const status = await inPage(page, 'refStatus', snapshotId, ref).catch(() => 'no-registry' as const);
+  if (status === 'ok' || status === 'unknown-ref') return;
+  throw staleSnapshot(snapshotId, ref, status);
 };
 
 interface Attempt {
@@ -272,7 +291,9 @@ export const resolveCandidateLocator = async (page: Page, snapshotId: string, re
   };
   const chosen = (await firstUnique(generateRungs(desc))) ?? (await firstUnique(fallbackRungs(desc)));
   if (chosen !== null) return resolved(chosen, true, rejected);
-  // Nothing unique: the attempt where the target is among the fewest matches, addressed by position.
+  // Nothing unique. If the page moved on meanwhile, the counts describe another document: say so.
+  await assertStillCurrent(page, snapshotId, ref);
+  // The attempt where the target is among the fewest matches, addressed by position.
   const best = rejected
     .filter((attempt) => attempt.index !== null && attempt.index >= 0)
     .sort((a, b) => a.total - b.total)[0];

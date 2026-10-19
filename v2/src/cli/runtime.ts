@@ -3,7 +3,7 @@ import { loadWorkspace } from '../workspace/workspace.js';
 import { createBrowserPool } from '../browser/pool.js';
 import { createRuntime, type Runtime } from '../tools/runtime.js';
 import { createHandlers } from '../tools/handlers/index.js';
-import { releasePausedRuns } from '../run/index.js';
+import { stopRuns } from '../run/index.js';
 
 export interface CliRuntimeOptions {
   readonly root: string;
@@ -36,6 +36,7 @@ export const createCliRuntime = async (options: CliRuntimeOptions): Promise<Runt
     handlers: createHandlers(),
     env,
     log,
-    closeHooks: [releasePausedRuns],
+    // The process's only runtime: closing it stops every test run this process started (paused ones released).
+    closeHooks: [() => stopRuns()],
   });
 };

@@ -12,14 +12,17 @@ import type { Page } from '@playwright/test';
 import { ToolError, isToolError, type ErrorFamily } from '../../../core/errors.js';
 import { exists } from '../../../core/fsio.js';
 import type { Hydration, Variant } from '../../../contract/schemas.js';
-import type { PageHandle } from '../../../browser/types.js';
+import type { OpenPageOptions, PageHandle } from '../../../browser/types.js';
 import { awaitHydration, pageVariant, settle } from '../../../observe/index.js';
-import { loadProfile, resolveUrl, type Profile } from '../../../workspace/profiles.js';
+import { loadProfile, profilePath, resolveUrl, type Profile } from '../../../workspace/profiles.js';
 import { resolveInside, type Workspace } from '../../../workspace/workspace.js';
 import type { ToolOutput } from '../../../contract/tools.js';
 import type { ToolContext } from '../../types.js';
 
 export type AuthMode = 'storage-state' | 'flow' | 'none';
+
+/** The name loadProfile gives its $TESSERACT_BASE_URL stand-in when no profile is named. */
+const ENV_STAND_IN = 'env';
 
 export interface OpenRequest {
   readonly url?: string;
@@ -37,6 +40,7 @@ export interface Opened {
   readonly variant: Variant;
   readonly hydration: Hydration;
   readonly attached: boolean;
+  /** The profile's name when other tools can load it by that name (never the $TESSERACT_BASE_URL stand-in). */
   readonly profile?: string;
   /** True when this call created the page (the caller owns closing it). */
   readonly created: boolean;
@@ -169,21 +173,52 @@ const variantOf = async (page: Page): Promise<Variant> => {
   return 'unknown';
 };
 
+/**
+ * The profile name other tools accept back: a profile loaded from
+ * .tesseract/profiles/<name>.json. loadProfile's $TESSERACT_BASE_URL
+ * stand-in (named "env", with no file behind it) has no name to report.
+ */
+const loadableName = async (workspace: Workspace, profile: Profile | null): Promise<string | undefined> => {
+  if (profile === null) return undefined;
+  if (profile.name !== ENV_STAND_IN) return profile.name;
+  return (await exists(profilePath(workspace, profile.name))) ? profile.name : undefined;
+};
+
 const describe = async (
+  workspace: Workspace,
   handle: PageHandle,
   hydration: Hydration,
   profile: Profile | null,
   created: boolean,
-): Promise<Opened> => ({
-  handle,
-  finalUrl: handle.page.url(),
-  title: await handle.page.title().catch(() => ''),
-  variant: await variantOf(handle.page),
-  hydration,
-  attached: handle.attached,
-  ...(profile !== null ? { profile: profile.name } : {}),
-  created,
-});
+): Promise<Opened> => {
+  const name = await loadableName(workspace, profile);
+  return {
+    handle,
+    finalUrl: handle.page.url(),
+    title: await handle.page.title().catch(() => ''),
+    variant: await variantOf(handle.page),
+    hydration,
+    attached: handle.attached,
+    ...(name !== undefined ? { profile: name } : {}),
+    created,
+  };
+};
+
+/**
+ * Attach to a browser someone else owns. A urlContains that matches no tab
+ * is not-found with how many tabs are open, never their URLs: a QA's own
+ * Chrome holds tabs that are none of this tool's business.
+ */
+const attachTo = async (ctx: ToolContext, request: OpenPageOptions): Promise<PageHandle> => {
+  try {
+    return await ctx.browser.open(request);
+  } catch (error) {
+    if (!isToolError(error) || !Array.isArray(error.detail?.urls)) throw error;
+    const { urls, ...rest } = error.detail;
+    const count = (urls as readonly unknown[]).length;
+    throw new ToolError(error.family, `${error.message} (${count} tab${count === 1 ? '' : 's'} open)`, { ...rest, openPages: count });
+  }
+};
 
 const hydrate = (ctx: ToolContext, page: Page): Promise<Hydration> =>
   awaitHydration(page, { budgetMs: ctx.workspace.config.observe.hydrationBudgetMs });
@@ -203,9 +238,9 @@ export const openApp = async (ctx: ToolContext, request: OpenRequest): Promise<O
     // Joining someone else's browser: a missing $TESSERACT_PROFILE should not stop a repair.
     const profile = request.profile !== undefined ? await loadProfile(workspace, request.profile, env) : await loadProfile(workspace, undefined, env).catch(() => null);
     const url = request.url !== undefined ? resolveUrl(request.url, profile) : undefined;
-    const handle = await ctx.browser.open({ attach: request.attach, profile, ...(url !== undefined ? { url } : {}) });
+    const handle = await attachTo(ctx, { attach: request.attach, profile, ...(url !== undefined ? { url } : {}) });
     const hydration: Hydration = url !== undefined ? await hydrate(ctx, handle.page) : { settled: true, elapsedMs: 0, reason: 'attached' };
-    return describe(handle, hydration, profile, false);
+    return describe(workspace, handle, hydration, profile, false);
   }
 
   if (request.pageId !== undefined) {
@@ -218,9 +253,9 @@ export const openApp = async (ctx: ToolContext, request: OpenRequest): Promise<O
     const flow = request.auth === 'flow' ? await requireLoginFlow(workspace, profile) : undefined;
     const navigated = await ctx.browser.navigate(existing.pageId, url);
     // The page's own profile is named for flow.run unless it is the unnamed $TESSERACT_BASE_URL stand-in.
-    const flowProfile = profileName ?? (profile !== null && profile.name !== 'env' ? profile.name : undefined);
+    const flowProfile = profileName ?? (await loadableName(workspace, profile));
     const handle = flow !== undefined ? await runLoginFlow(ctx, navigated, flow, flowProfile, request.url !== undefined ? url : undefined) : navigated;
-    return describe(handle, await hydrate(ctx, handle.page), profile, false);
+    return describe(workspace, handle, await hydrate(ctx, handle.page), profile, false);
   }
 
   const profile = await loadProfile(workspace, request.profile, env);
@@ -243,5 +278,5 @@ export const openApp = async (ctx: ToolContext, request: OpenRequest): Promise<O
     throw error;
   }
   if (handle.pageId !== opened.pageId) await ctx.browser.close(opened.pageId).catch(() => undefined);
-  return describe(handle, await hydrate(ctx, handle.page), profile, true);
+  return describe(workspace, handle, await hydrate(ctx, handle.page), profile, true);
 };

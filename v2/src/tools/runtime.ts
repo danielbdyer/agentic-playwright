@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { ToolError, toToolError, type ErrorFamily } from '../core/errors.js';
 import { newId } from '../core/hash.js';
 import { appendAuthoringReceipt } from '../receipts/receipts.js';
+import { pruneSnapshots } from '../observe/store.js';
 import { findTool, type ToolInput, type ToolName, type ToolOutput } from '../contract/tools.js';
 import type { Decision } from '../contract/schemas.js';
 import type { Workspace } from '../workspace/workspace.js';
@@ -65,12 +66,35 @@ const testCaseOf = (input: unknown, decision: Decision | undefined): string | un
   return undefined;
 };
 
+/** HTTP sessions each start a runtime; prune a snapshots directory at most this often per process. */
+const PRUNE_INTERVAL_MS = 60 * 60 * 1000;
+const lastPruned = new Map<string, number>();
+
+/**
+ * Delete snapshot records and screenshots older than the workspace's
+ * snapshotRetentionDays (never younger, so cited snapshotIds stay valid).
+ * Runs when a runtime starts; never fails the runtime.
+ */
+const pruneOnStart = async (workspace: Workspace, now: () => Date, log: (message: string) => void): Promise<void> => {
+  const at = now().getTime();
+  const last = lastPruned.get(workspace.paths.snapshots);
+  if (last !== undefined && at >= last && at - last < PRUNE_INTERVAL_MS) return;
+  lastPruned.set(workspace.paths.snapshots, at);
+  try {
+    const removed = await pruneSnapshots(workspace, new Date(at));
+    if (removed.length > 0) log(`pruned ${removed.length} snapshot files older than ${workspace.config.snapshotRetentionDays} days`);
+  } catch (error) {
+    log(`snapshot pruning failed: ${(error as Error).message}`);
+  }
+};
+
 export const createRuntime = (options: RuntimeOptions): Runtime => {
   const env = options.env ?? process.env;
   const now = options.now ?? (() => new Date());
   const session = options.session ?? newId('s', now());
   const log = options.log ?? ((message: string) => process.stderr.write(`[tesseract-qa] ${message}\n`));
   const { workspace, handlers } = options;
+  const pruned = pruneOnStart(workspace, now, log);
 
   const invoke = async (name: string, rawInput: unknown): Promise<InvokeResult> => {
     const started = Date.now();
@@ -169,6 +193,7 @@ export const createRuntime = (options: RuntimeOptions): Runtime => {
       }
     }
     await options.browser.closeAll();
+    await pruned;
   };
 
   return { ctx, invoke, close };

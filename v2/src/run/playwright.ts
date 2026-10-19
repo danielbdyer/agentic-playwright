@@ -108,6 +108,13 @@ export interface ChildRun {
   readonly done: () => boolean;
   /** Kill the process group (Playwright's workers and browsers with it). */
   readonly kill: (signal?: NodeJS.Signals) => void;
+  /**
+   * Signal whatever is left of the process group, also after the runner
+   * itself exited: Playwright's workers ignore SIGTERM (the runner stops them
+   * gracefully), so a runner that exits on SIGTERM can leave a worker, and
+   * its browser, running on as orphans.
+   */
+  readonly killGroup: (signal: NodeJS.Signals) => void;
 }
 
 const TAIL_BYTES = 16 * 1024;
@@ -148,14 +155,29 @@ export const startPlaywright = (cli: string, args: readonly string[], cwd: strin
       }
     }
   };
-  return { child, exited, output: () => tail, done: () => finished, kill };
+  const killGroup = (signal: NodeJS.Signals): void => {
+    if (child.pid === undefined) return;
+    try {
+      if (posix) process.kill(-child.pid, signal);
+      else if (!finished) child.kill(signal);
+    } catch {
+      // nothing left in the group
+    }
+  };
+  return { child, exited, output: () => tail, done: () => finished, kill, killGroup };
 };
 
-/** Stop a child: SIGTERM, then SIGKILL after `graceMs`. Resolves when it has exited. */
+/**
+ * Stop a child: SIGTERM, then SIGKILL after `graceMs`, and SIGKILL to the
+ * rest of its process group once the runner is gone (orphaned workers and
+ * browsers). Resolves when the runner has exited.
+ */
 export const stopPlaywright = async (run: ChildRun, graceMs = 3000): Promise<void> => {
-  if (run.done()) return;
-  run.kill('SIGTERM');
-  const timer = new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), graceMs).unref());
-  if ((await Promise.race([run.exited, timer])) === 'timeout') run.kill('SIGKILL');
-  await Promise.race([run.exited, new Promise((resolve) => setTimeout(resolve, graceMs).unref())]);
+  if (!run.done()) {
+    run.kill('SIGTERM');
+    const timer = new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), graceMs).unref());
+    if ((await Promise.race([run.exited, timer])) === 'timeout') run.kill('SIGKILL');
+    await Promise.race([run.exited, new Promise((resolve) => setTimeout(resolve, graceMs).unref())]);
+  }
+  run.killGroup('SIGKILL');
 };

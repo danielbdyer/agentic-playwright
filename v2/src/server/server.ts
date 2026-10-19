@@ -27,13 +27,32 @@ export const SERVER_INSTRUCTIONS = [
 
 const asText = (value: unknown): string => JSON.stringify(value);
 
-const screenshotContent = async (output: unknown, root: string): Promise<CallToolResult['content']> => {
-  if (output === null || typeof output !== 'object') return [];
+/** Hosts reject oversized images (the Claude API: 8000 px a side; most hosts a few MB per request). */
+export const MAX_INLINE_IMAGE_BYTES = 1024 * 1024;
+export const MAX_INLINE_IMAGE_SIDE = 8000;
+
+/** Width and height from a PNG's IHDR chunk, or null when the bytes are not a PNG. */
+const pngSize = (data: Buffer): { readonly width: number; readonly height: number } | null =>
+  data.length >= 24 && data.readUInt32BE(0) === 0x89504e47 && data.toString('ascii', 12, 16) === 'IHDR'
+    ? { width: data.readUInt32BE(16), height: data.readUInt32BE(20) }
+    : null;
+
+/**
+ * Only app.observe's viewport screenshot is attached as an image, and only
+ * when it fits host limits. Every other screenshot (handoff.raise's full
+ * page) stays on disk; its path is in the result for a human or a later read.
+ */
+const screenshotContent = async (tool: string, output: unknown, root: string): Promise<CallToolResult['content']> => {
+  if (tool !== 'app.observe' || output === null || typeof output !== 'object') return [];
   const record = output as Record<string, unknown>;
   const shot = typeof record.screenshotPath === 'string' ? record.screenshotPath : undefined;
   if (shot === undefined) return [];
   try {
-    const data = await fs.readFile(path.resolve(root, shot));
+    const file = path.resolve(root, shot);
+    if ((await fs.stat(file)).size > MAX_INLINE_IMAGE_BYTES) return [];
+    const data = await fs.readFile(file);
+    const size = pngSize(data);
+    if (size === null || size.width > MAX_INLINE_IMAGE_SIDE || size.height > MAX_INLINE_IMAGE_SIDE) return [];
     return [{ type: 'image', data: data.toString('base64'), mimeType: 'image/png' }];
   } catch {
     return [];
@@ -50,7 +69,7 @@ const toolResult = async (runtime: Runtime, declaration: ToolDeclaration, args: 
   }
   // Parse through the declared schema so keys outside the contract never leak to the host.
   const output = declaration.output.parse(result.output) as Record<string, unknown>;
-  const images = await screenshotContent(output, runtime.ctx.workspace.paths.root);
+  const images = await screenshotContent(declaration.name, output, runtime.ctx.workspace.paths.root);
   return {
     content: [{ type: 'text', text: asText(output) }, ...images],
     structuredContent: output,

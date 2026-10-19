@@ -3,6 +3,11 @@
  * receipts are the acceptance number (vision §6.1); an accepted test also
  * promotes the candidate facets it uses to trusted, which is how a human's
  * review becomes memory.
+ *
+ * Two rules, kept apart: whether the verdict counts toward the acceptance
+ * number (countsAsAccepted: small edits only), and whether it promotes the
+ * test's facets (accept and accept-with-edit, unless the reviewer had to
+ * fix a locator: then the locator memory held was not the one that works).
  */
 import { ToolError } from '../../core/errors.js';
 import { appendJsonl } from '../../core/fsio.js';
@@ -23,6 +28,14 @@ export const countsAsAccepted = (decision: AcceptanceReceipt['decision'], change
   decision === 'accept' ||
   (decision === 'accept-with-edit' && ((changedLines !== undefined && changedLines <= SMALL_EDIT_LINES) || locatorEdited === true));
 
+/**
+ * accept and accept-with-edit promote the test's candidate facets to
+ * trusted, whatever the size of the edit; a locator the reviewer had to
+ * edit (locatorEdited) promotes nothing; reject never promotes.
+ */
+export const promotesFacets = (decision: AcceptanceReceipt['decision'], locatorEdited: boolean | undefined): boolean =>
+  decision === 'accept' || (decision === 'accept-with-edit' && locatorEdited !== true);
+
 export const reviewHandlers: Pick<ToolHandlers, 'review.record'> = {
   'review.record': async (input, ctx) => {
     const { workspace } = ctx;
@@ -31,9 +44,16 @@ export const reviewHandlers: Pick<ToolHandlers, 'review.record'> = {
       throw new ToolError('not-found', `test case ${input.testCaseId} has never been emitted; there is no test to review`, { testCaseId: input.testCaseId });
     }
     const counts = countsAsAccepted(input.decision, input.changedLines, input.locatorEdited);
+    // recordAcceptance promotes when told the verdict counts; here that is the promotion rule, not the acceptance number's.
     const { promoted } = await recordAcceptance(
       workspace,
-      { testCaseId: input.testCaseId, facetIds: record.facets, reviewer: input.reviewer, decision: input.decision, countsAsAccepted: counts },
+      {
+        testCaseId: input.testCaseId,
+        facetIds: record.facets,
+        reviewer: input.reviewer,
+        decision: input.decision,
+        countsAsAccepted: promotesFacets(input.decision, input.locatorEdited),
+      },
       { now: ctx.now },
     );
     const receipt: AcceptanceReceipt = {

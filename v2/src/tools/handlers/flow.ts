@@ -17,6 +17,7 @@
 import type { PageHandle } from '../../browser/types.js';
 import { ToolError } from '../../core/errors.js';
 import { exists } from '../../core/fsio.js';
+import { redact, redactUrl } from '../../core/pii.js';
 import { awaitHydration } from '../../observe/index.js';
 import { loadProfile, resolveUrl, type Profile } from '../../workspace/profiles.js';
 import { resolveInside } from '../../workspace/workspace.js';
@@ -30,8 +31,10 @@ import {
   requireBaseUrl,
   resolveFlowParams,
   runFlow,
+  screensOf,
 } from '../../flow/index.js';
 import type { ToolContext, ToolHandler, ToolHandlers } from '../types.js';
+import { withPageObjects } from './support/page-objects.js';
 
 const profileOf = async (ctx: ToolContext, requested: string | undefined, handle: PageHandle | null): Promise<Profile | null> => {
   if (requested !== undefined) return loadProfile(ctx.workspace, requested, ctx.env);
@@ -102,7 +105,9 @@ const record: ToolHandler<'flow.record'> = async (input, ctx) => {
         ...(recorded.warnings.length > 0 ? { warnings: recorded.warnings } : {}),
       });
     }
-    const persisted = await persistFlow(ctx.workspace, recorded.recording, { now: ctx.now });
+    // Every screen the flow's page objects could be written for: the steps' and their facets' (ids are screen:name).
+    const screens = screensOf(recorded.recording, (facetId) => facetId.split(':')[0]);
+    const persisted = await withPageObjects(ctx.workspace, screens, () => persistFlow(ctx.workspace, recorded.recording, { now: ctx.now }));
     return {
       flowPath: persisted.flowPath,
       recordingPath: persisted.recordingPath,
@@ -157,6 +162,7 @@ const run: ToolHandler<'flow.run'> = async (input, ctx) => {
     if (startUrl !== null) await hydrate(ctx, handle);
   }
 
+  const { pii } = ctx.workspace.config;
   const result = await runFlow({
     workspace: ctx.workspace,
     page: handle.page,
@@ -171,9 +177,10 @@ const run: ToolHandler<'flow.run'> = async (input, ctx) => {
     outcome: result.outcome,
     ...(result.failedStep !== undefined ? { failedStep: result.failedStep } : {}),
     ...(result.errorFamily !== undefined ? { errorFamily: result.errorFamily } : {}),
-    ...(result.message !== undefined ? { message: result.message } : {}),
-    finalUrl: result.finalUrl,
-    title: result.title,
+    ...(result.message !== undefined ? { message: redact(result.message, pii) } : {}),
+    // Page text leaving the browser is PII-gated, as observe gates it.
+    finalUrl: result.finalUrl.length > 0 ? redactUrl(result.finalUrl, pii) : '',
+    title: redact(result.title, pii),
     durationMs: Date.now() - started,
   };
 };

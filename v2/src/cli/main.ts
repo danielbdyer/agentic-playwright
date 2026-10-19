@@ -10,6 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { TOOLS, CONTRACT_VERSION, findTool, wireName, type ToolDeclaration, type ToolOutput } from '../contract/tools.js';
 import { ToolError, isToolError } from '../core/errors.js';
 import { exists, writeFileAtomic } from '../core/fsio.js';
+import { newId } from '../core/hash.js';
 import { appendPreflightReceipt, lastPreflightReceipt } from '../tools/handlers/memory.js';
 import { packageRoot, packageVersion } from '../core/package-root.js';
 import { loadWorkspace } from '../workspace/workspace.js';
@@ -109,7 +110,7 @@ export const invokeOrThrow = async <O>(runtime: Runtime, name: string, input: un
 const USAGE = `tesseract-qa ${CONTRACT_VERSION} — QA authoring toolbox for agents (MCP server and CLI)
 
 Usage:
-  tesseract-qa serve [--http <port>] [--host <host>] [--token-env <NAME>] [--root <dir>] [--headed]
+  tesseract-qa serve [--http <port>] [--host <host>] [--token-env <NAME>] [--idle-timeout 30m] [--root <dir>] [--headed]
   tesseract-qa <tool> [--<field> <value> ...] [--json '<object>'] [--input <file|->]
   tesseract-qa call <tool> ['<json>' | @file.json | -]
   tesseract-qa tools [--json]
@@ -141,27 +142,38 @@ const commandServe = async (g: Globals): Promise<number> => {
   if (tokenEnv !== undefined && (token === undefined || token.length < 16)) {
     throw new ToolError('not-configured', `--token-env ${tokenEnv} must name an environment variable holding a token of at least 16 characters`);
   }
-  const { serveHttp } = await import('../server/transports.js');
+  const idle = str(flags['idle-timeout']);
+  const idleTimeoutMs = idle === undefined ? undefined : parseAge(idle, '--idle-timeout');
+  const { serveHttp, closeOnSignals } = await import('../server/transports.js');
   const { createBrowserPool } = await import('../browser/pool.js');
   const { createRuntime } = await import('../tools/runtime.js');
   const { createHandlers } = await import('../tools/handlers/index.js');
-  const { releasePausedRuns } = await import('../run/index.js');
+  const { stopRuns } = await import('../run/index.js');
   const ws = await loadWorkspace(g.root);
-  await serveHttp({
+  const handle = await serveHttp({
     port,
     host: str(flags.host) ?? '127.0.0.1',
     ...(token !== undefined ? { token } : {}),
+    ...(idleTimeoutMs !== undefined ? { idleTimeoutMs } : {}),
     log: defaultLog,
-    createRuntime: () =>
-      createRuntime({
+    createRuntime: () => {
+      // One runtime per MCP session; closing it stops only the test runs this session started.
+      const session = newId('s', new Date());
+      return createRuntime({
         workspace: ws,
         browser: createBrowserPool({ userAgentSuffix: ws.config.userAgentSuffix, headless: !g.headed, root: ws.paths.root, log: defaultLog }),
         handlers: createHandlers(),
+        session,
         log: defaultLog,
-        closeHooks: [releasePausedRuns],
-      }),
+        closeHooks: [() => stopRuns(session)],
+      });
+    },
   });
-  await new Promise<never>(() => undefined);
+  // Runs until a signal: close every session (its runs stopped or released, browsers closed), then every remaining run, then exit.
+  await closeOnSignals(async () => {
+    await handle.close();
+    await stopRuns();
+  }, { log: defaultLog });
   return EXIT_OK;
 };
 
@@ -218,7 +230,8 @@ const commandCall = async (g: Globals): Promise<number> => {
   return runTool(g, declaration, input);
 };
 
-const GITIGNORE_LINES = ['.tesseract/snapshots/', '.tesseract/tmp/', '.tesseract/repair/', 'test-results/', 'playwright-report/'];
+/** Never committed: observations, scratch, repair shadows, Playwright output, and saved sessions (storage-state cookies). */
+const GITIGNORE_LINES = ['.tesseract/snapshots/', '.tesseract/tmp/', '.tesseract/repair/', '.tesseract/auth/', 'test-results/', 'playwright-report/'];
 const GITATTRIBUTES_LINES = ['.tesseract/evidence/*.jsonl merge=union', '.tesseract/receipts/*.jsonl merge=union'];
 
 const appendMissingLines = async (file: string, lines: readonly string[], header: string): Promise<boolean> => {
@@ -302,10 +315,10 @@ const commandRecord = async (g: Globals): Promise<number> => {
 
 type PreflightOutput = ToolOutput<'memory.preflight'>;
 
-const parseAge = (text: string | undefined): number => {
+const parseAge = (text: string | undefined, flag = '--max-age'): number => {
   if (text === undefined) return 12 * 3_600_000;
   const match = /^(\d+)(ms|s|m|h|d)?$/.exec(text.trim());
-  if (match === null) throw new ToolError('invalid-input', `--max-age must look like 30m, 12h, or 2d; got ${text}`);
+  if (match === null) throw new ToolError('invalid-input', `${flag} must look like 30m, 12h, or 2d; got ${text}`);
   const unit = { ms: 1, s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }[(match[2] ?? 'ms') as 'ms' | 's' | 'm' | 'h' | 'd'];
   return Number(match[1]) * unit;
 };
