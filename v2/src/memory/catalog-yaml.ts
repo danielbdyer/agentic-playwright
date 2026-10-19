@@ -9,68 +9,29 @@
  * stripped, duplicate keys are errors, a bare `testCase: 10001` is read as
  * the string it is, unknown keys become warnings, and any failure is a
  * ToolError('malformed-response') naming the file and line.
+ *
+ * The stored shapes are the contract's schemas (FacetSchema,
+ * FacetLocatorSchema, ScreenRouteSchema, ProvenanceSchema), and the known
+ * keys and non-string fields are read off them, so an additive contract
+ * change (a new optional locator field) round-trips without touching this
+ * file: known fields keep their fixed order, new ones follow alphabetically.
  */
 import YAML, { LineCounter, isNode, type Document } from 'yaml';
 import { z } from 'zod';
 import { ToolError } from '../core/errors.js';
 import {
-  AffordanceSchema,
-  FacetKindSchema,
+  FacetLocatorSchema,
   FacetSchema,
-  FacetStatusSchema,
-  LandmarkRoleSchema,
-  LocatorStrategySchema,
-  NamingSourceSchema,
+  LocatorScopeSchema,
   ProvenanceSchema,
-  VariantSchema,
+  ScreenRouteSchema,
   type Facet,
   type FacetLocator,
 } from '../contract/schemas.js';
 import { isSlug, parseFacetId } from './ids.js';
 import type { CatalogRoute, RouteSummary, ScreenCatalog } from './types.js';
 
-// ─── Stored shapes ─────────────────────────────────────────────────────────
-
-const LocatorScopeStored = z.object({
-  landmark: LandmarkRoleSchema.optional(),
-  landmarkName: z.string().optional(),
-  dataBlock: z.string().optional(),
-  rowText: z.string().optional(),
-});
-
-const LocatorStored = z.object({
-  strategy: LocatorStrategySchema,
-  role: z.string().optional(),
-  name: z.string().optional(),
-  exact: z.boolean().optional(),
-  value: z.string().optional(),
-  attribute: z.string().optional(),
-  scope: LocatorScopeStored.optional(),
-  nth: z.number().int().min(0).optional(),
-  // Projections: accepted on load and ignored (health is rewritten from evidence on save).
-  expression: z.string().optional(),
-  health: z.string().optional(),
-  note: z.string().optional(),
-});
-
-const FacetStored = z.object({
-  id: z.string(),
-  screen: z.string().optional(),
-  kind: FacetKindSchema,
-  displayName: z.string(),
-  aliases: z.array(z.string()).default([]),
-  role: z.string().optional(),
-  tag: z.string().optional(),
-  namingSource: NamingSourceSchema.optional(),
-  affordance: AffordanceSchema.optional(),
-  scope: z.object({ landmark: LandmarkRoleSchema.optional(), dataBlock: z.string().optional() }).optional(),
-  locators: z.array(LocatorStored).default([]),
-  parameter: z.string().optional(),
-  member: z.string().optional(),
-  status: FacetStatusSchema,
-  provenance: ProvenanceSchema,
-  evidence: z.string().optional(),
-});
+// ─── Stored shapes (the contract's, plus the route summary) ────────────────
 
 const SummaryStored = z.object({
   landmarks: z.array(z.string()).default([]),
@@ -78,12 +39,13 @@ const SummaryStored = z.object({
   dataBlocks: z.number().int().min(0).default(0),
 });
 
-const RouteStored = z.object({
-  url: z.string(),
-  variant: VariantSchema.optional(),
-  title: z.string().optional(),
-  fingerprint: z.string().optional(),
-  summary: SummaryStored.optional(),
+const RouteStored = ScreenRouteSchema.extend({ summary: SummaryStored.optional() });
+
+const FacetStored = FacetSchema.extend({
+  // The file's screen is the facets' screen; a per-facet copy is accepted and ignored.
+  screen: z.string().optional(),
+  aliases: z.array(z.string()).default([]),
+  locators: z.array(FacetLocatorSchema).default([]),
 });
 
 const CatalogStored = z.object({
@@ -92,17 +54,49 @@ const CatalogStored = z.object({
   facets: z.array(FacetStored).default([]),
 });
 
-/** Keys each level knows; anything else is reported, not silently dropped. */
-const KNOWN_KEYS = {
-  catalog: ['screen', 'route', 'facets'],
-  route: ['url', 'variant', 'title', 'fingerprint', 'summary'],
-  summary: ['landmarks', 'interactiveRoles', 'dataBlocks'],
-  facet: ['id', 'screen', 'kind', 'displayName', 'aliases', 'role', 'tag', 'namingSource', 'affordance', 'scope', 'locators', 'parameter', 'member', 'status', 'provenance', 'evidence'],
-  facetScope: ['landmark', 'dataBlock'],
-  locator: ['strategy', 'role', 'name', 'exact', 'value', 'attribute', 'scope', 'nth', 'expression', 'health', 'note'],
-  locatorScope: ['landmark', 'landmarkName', 'dataBlock', 'rowText'],
-  provenance: ['mintedAt', 'instrument', 'session', 'model', 'testCase', 'snapshotId', 'candidateRef', 'flow'],
-} as const;
+type AnySchema = z.ZodType;
+
+const unwrap = (schema: AnySchema): AnySchema => {
+  let current = schema;
+  while (current instanceof z.ZodOptional || current instanceof z.ZodDefault || current instanceof z.ZodNullable) current = current.unwrap() as AnySchema;
+  return current;
+};
+
+const shapeOf = (schema: AnySchema): Readonly<Record<string, AnySchema>> => {
+  const inner = unwrap(schema);
+  return inner instanceof z.ZodObject ? (inner.shape as Record<string, AnySchema>) : {};
+};
+
+const keysOf = (schema: AnySchema): readonly string[] => Object.keys(shapeOf(schema));
+
+const FACET_SCOPE = FacetSchema.shape.scope;
+
+/** Every object shape in the file, for unknown-key reporting and scalar typing. */
+const SHAPES: readonly AnySchema[] = [CatalogStored, RouteStored, SummaryStored, FacetStored, FACET_SCOPE, FacetLocatorSchema, LocatorScopeSchema, ProvenanceSchema];
+
+/** Keys whose values are numbers or booleans; every other scalar in the file is read as a string. */
+const TYPED_KEYS: ReadonlySet<string> = new Set(
+  SHAPES.flatMap((shape) =>
+    Object.entries(shapeOf(shape))
+      .filter(([, field]) => {
+        const inner = unwrap(field);
+        return inner instanceof z.ZodNumber || inner instanceof z.ZodBoolean;
+      })
+      .map(([key]) => key),
+  ),
+);
+
+/** Keys holding a record of numbers (e.g. interactiveRoles), whose values keep their type. */
+const NUMBER_RECORD_KEYS: ReadonlySet<string> = new Set(
+  SHAPES.flatMap((shape) =>
+    Object.entries(shapeOf(shape))
+      .filter(([, field]) => {
+        const inner = unwrap(field);
+        return inner instanceof z.ZodRecord && unwrap(inner.def.valueType as AnySchema) instanceof z.ZodNumber;
+      })
+      .map(([key]) => key),
+  ),
+);
 
 // ─── Reading ───────────────────────────────────────────────────────────────
 
@@ -114,48 +108,47 @@ export interface ParsedCatalog {
 type Raw = Record<string, unknown>;
 const isRecord = (value: unknown): value is Raw => value !== null && typeof value === 'object' && !Array.isArray(value);
 
-/** Keys whose values are not strings; every other scalar in the file is read as a string. */
-const NON_STRING_KEYS = new Set(['exact', 'nth', 'dataBlocks']);
-
 /**
- * Scalars to strings (YAML reads `10001` as a number and `yes` stays a
- * string, but a human may type `testCase: 10001` or `name: 2024`), and null
+ * Scalars to strings where the schema wants strings (YAML reads `10001` as a
+ * number, and a human may type `testCase: 10001` or `name: 2024`), and null
  * (`role:` with nothing after it) to absent.
  */
-const normalizeScalars = (value: unknown, key: string | undefined, insideCounts: boolean): unknown => {
+const normalizeScalars = (value: unknown, key: string | undefined, insideNumberRecord: boolean): unknown => {
   if (Array.isArray(value)) return value.map((item) => normalizeScalars(item, undefined, false));
   if (isRecord(value)) {
     return Object.fromEntries(
       Object.entries(value)
         .filter(([, v]) => v !== null && v !== undefined)
-        .map(([k, v]) => [k, normalizeScalars(v, k, key === 'interactiveRoles')]),
+        .map(([k, v]) => [k, normalizeScalars(v, k, key !== undefined && NUMBER_RECORD_KEYS.has(key))]),
     );
   }
-  if (insideCounts || (key !== undefined && NON_STRING_KEYS.has(key))) return value;
+  if (insideNumberRecord || (key !== undefined && TYPED_KEYS.has(key))) return value;
   return typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint' ? String(value) : value;
 };
 
-const unknownKeys = (raw: unknown, known: readonly string[], where: string): string[] =>
-  isRecord(raw) ? Object.keys(raw).filter((key) => !known.includes(key)).map((key) => `${where}.${key}`) : [];
+const unknownKeys = (raw: unknown, schema: AnySchema, where: string): string[] => {
+  const known = keysOf(schema);
+  return isRecord(raw) ? Object.keys(raw).filter((key) => !known.includes(key)).map((key) => (where.length > 0 ? `${where}.${key}` : key)) : [];
+};
 
 const collectUnknownKeys = (raw: Raw): string[] => {
   const facets = Array.isArray(raw.facets) ? raw.facets : [];
   const route = raw.route;
   return [
-    ...unknownKeys(raw, KNOWN_KEYS.catalog, '(root)').map((key) => key.replace('(root).', '')),
-    ...unknownKeys(route, KNOWN_KEYS.route, 'route'),
-    ...(isRecord(route) ? unknownKeys(route.summary, KNOWN_KEYS.summary, 'route.summary') : []),
+    ...unknownKeys(raw, CatalogStored, ''),
+    ...unknownKeys(route, RouteStored, 'route'),
+    ...(isRecord(route) ? unknownKeys(route.summary, SummaryStored, 'route.summary') : []),
     ...facets.flatMap((facet: unknown, i: number) => {
       if (!isRecord(facet)) return [];
       const where = `facets[${i}]`;
       const locators = Array.isArray(facet.locators) ? facet.locators : [];
       return [
-        ...unknownKeys(facet, KNOWN_KEYS.facet, where),
-        ...unknownKeys(facet.scope, KNOWN_KEYS.facetScope, `${where}.scope`),
-        ...unknownKeys(facet.provenance, KNOWN_KEYS.provenance, `${where}.provenance`),
+        ...unknownKeys(facet, FacetStored, where),
+        ...unknownKeys(facet.scope, FACET_SCOPE, `${where}.scope`),
+        ...unknownKeys(facet.provenance, ProvenanceSchema, `${where}.provenance`),
         ...locators.flatMap((locator: unknown, j: number) => [
-          ...unknownKeys(locator, KNOWN_KEYS.locator, `${where}.locators[${j}]`),
-          ...(isRecord(locator) ? unknownKeys(locator.scope, KNOWN_KEYS.locatorScope, `${where}.locators[${j}].scope`) : []),
+          ...unknownKeys(locator, FacetLocatorSchema, `${where}.locators[${j}]`),
+          ...(isRecord(locator) ? unknownKeys(locator.scope, LocatorScopeSchema, `${where}.locators[${j}].scope`) : []),
         ]),
       ];
     }),
@@ -177,10 +170,13 @@ const malformed = (file: string, line: number | undefined, message: string): Too
 const pathText = (path: readonly PropertyKey[]): string =>
   path.map((part, i) => (typeof part === 'number' ? `[${part}]` : `${i === 0 ? '' : '.'}${String(part)}`)).join('') || '(root)';
 
-const stripLocatorProjections = (locator: z.infer<typeof LocatorStored>): FacetLocator => {
+/** `expression` and `health` are projections: accepted on load and dropped (health is rewritten from evidence on save). */
+const stripProjections = (locator: FacetLocator): FacetLocator => {
   const { expression: _expression, health: _health, ...rest } = locator;
   return rest;
 };
+
+const byId = (a: Facet, b: Facet): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 /**
  * Parse catalog text. `file` is used in messages only; `screen` is the screen
@@ -212,124 +208,82 @@ export const parseCatalogYaml = (text: string, file: string, screen: string): Pa
   const warnings = collectUnknownKeys(raw).map((key) => `${file}: unknown key ${key} is ignored and will be dropped on the next save`);
   const seen = new Set<string>();
   const facets = data.facets.map((stored, i): Facet => {
-    const where = ['facets', i];
+    const at = lineOf(doc, counter, ['facets', i, 'id']);
     const id = parseFacetId(stored.id);
-    if (id === null || id.screen !== screen || !isSlug(id.local)) {
-      throw malformed(file, lineOf(doc, counter, [...where, 'id']), `facet id "${stored.id}" must be "${screen}:<kebab-case-name>"`);
-    }
-    if (seen.has(stored.id)) throw malformed(file, lineOf(doc, counter, [...where, 'id']), `duplicate facet id "${stored.id}"`);
+    if (id === null || id.screen !== screen || !isSlug(id.local)) throw malformed(file, at, `facet id "${stored.id}" must be "${screen}:<kebab-case-name>"`);
+    if (seen.has(stored.id)) throw malformed(file, at, `duplicate facet id "${stored.id}"`);
     seen.add(stored.id);
     if (stored.screen !== undefined && stored.screen !== screen) {
       warnings.push(`${file}: facet ${stored.id} says screen "${stored.screen}"; the file's screen "${screen}" wins`);
     }
-    const { screen: _screen, locators, ...rest } = stored;
-    const facet: Facet = { ...rest, screen, locators: locators.map(stripLocatorProjections) };
-    // Belt and braces: whatever this file accepts must be a contract Facet.
-    const checked = FacetSchema.safeParse(facet);
-    if (!checked.success) throw malformed(file, lineOf(doc, counter, where), `facet ${stored.id}: ${checked.error.issues[0]?.message ?? 'invalid'}`);
-    return facet;
+    return { ...stored, screen, locators: stored.locators.map(stripProjections) };
   });
 
   const route: CatalogRoute | undefined = data.route;
-  return {
-    catalog: { screen, ...(route !== undefined ? { route } : {}), facets: [...facets].sort(byId) },
-    warnings,
-  };
+  return { catalog: { screen, ...(route !== undefined ? { route } : {}), facets: [...facets].sort(byId) }, warnings };
 };
-
-const byId = (a: Facet, b: Facet): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 // ─── Writing ───────────────────────────────────────────────────────────────
 
-/** Build an object with keys in the given order, dropping undefined values. */
-const ordered = (entries: ReadonlyArray<readonly [string, unknown]>): Raw =>
-  Object.fromEntries(entries.filter(([, value]) => value !== undefined));
+/** Fixed key order per level; keys the contract adds later follow, alphabetically. */
+const ORDER = {
+  catalog: ['screen', 'route', 'facets'],
+  route: ['url', 'variant', 'title', 'fingerprint', 'summary'],
+  summary: ['landmarks', 'interactiveRoles', 'dataBlocks'],
+  facet: ['id', 'kind', 'displayName', 'aliases', 'role', 'tag', 'namingSource', 'affordance', 'scope', 'locators', 'parameter', 'member', 'status', 'provenance', 'evidence'],
+  facetScope: ['landmark', 'dataBlock'],
+  locator: ['strategy', 'role', 'name', 'exact', 'value', 'attribute', 'scope', 'visibleOnly', 'nth', 'health', 'note'],
+  locatorScope: ['landmark', 'landmarkName', 'dataBlock', 'rowText'],
+  provenance: ['mintedAt', 'instrument', 'session', 'model', 'testCase', 'snapshotId', 'candidateRef', 'flow'],
+} as const;
 
-const sortedRecord = (record: Readonly<Record<string, number>>): Raw =>
-  Object.fromEntries(Object.entries(record).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+const compareKeys = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
-const orUndefined = <T extends object>(value: T | undefined): T | undefined =>
-  value !== undefined && Object.values(value).some((v) => v !== undefined) ? value : undefined;
-
-const summaryOut = (summary: RouteSummary | undefined): Raw | undefined =>
-  summary === undefined
-    ? undefined
-    : ordered([
-        ['landmarks', [...summary.landmarks]],
-        ['interactiveRoles', sortedRecord(summary.interactiveRoles)],
-        ['dataBlocks', summary.dataBlocks],
-      ]);
-
-const routeOut = (route: CatalogRoute | undefined): Raw | undefined =>
-  route === undefined
-    ? undefined
-    : ordered([
-        ['url', route.url],
-        ['variant', route.variant],
-        ['title', route.title],
-        ['fingerprint', route.fingerprint],
-        ['summary', summaryOut(route.summary)],
-      ]);
-
-const locatorOut = (locator: FacetLocator): Raw => {
-  const scope = orUndefined(locator.scope);
-  return ordered([
-    ['strategy', locator.strategy],
-    ['role', locator.role],
-    ['name', locator.name],
-    ['exact', locator.exact],
-    ['value', locator.value],
-    ['attribute', locator.attribute],
-    [
-      'scope',
-      scope === undefined
-        ? undefined
-        : ordered([
-            ['landmark', scope.landmark],
-            ['landmarkName', scope.landmarkName],
-            ['dataBlock', scope.dataBlock],
-            ['rowText', scope.rowText],
-          ]),
-    ],
-    ['nth', locator.nth],
-    ['health', locator.health],
-    ['note', locator.note],
-  ]);
+/**
+ * The object's defined entries in `order`, then any others alphabetically;
+ * `nested` maps a key to the writer for its (object) value.
+ */
+const ordered = (
+  value: object,
+  order: readonly string[],
+  nested: Readonly<Record<string, (v: unknown) => unknown>> = {},
+  omit: readonly string[] = [],
+): Raw => {
+  const entries = Object.entries(value).filter(([key, v]) => v !== undefined && !omit.includes(key));
+  const rank = (key: string): number => (order.includes(key) ? order.indexOf(key) : order.length);
+  return Object.fromEntries(
+    entries
+      .sort(([a], [b]) => rank(a) - rank(b) || compareKeys(a, b))
+      .map(([key, v]) => [key, nested[key] !== undefined ? nested[key](v) : v]),
+  );
 };
 
-const facetOut = (facet: Facet): Raw => {
-  const scope = orUndefined(facet.scope);
-  const p = facet.provenance;
-  return ordered([
-    ['id', facet.id],
-    ['kind', facet.kind],
-    ['displayName', facet.displayName],
-    ['aliases', [...facet.aliases]],
-    ['role', facet.role],
-    ['tag', facet.tag],
-    ['namingSource', facet.namingSource],
-    ['affordance', facet.affordance],
-    ['scope', scope === undefined ? undefined : ordered([['landmark', scope.landmark], ['dataBlock', scope.dataBlock]])],
-    ['locators', facet.locators.map(locatorOut)],
-    ['parameter', facet.parameter],
-    ['member', facet.member],
-    ['status', facet.status],
-    [
-      'provenance',
-      ordered([
-        ['mintedAt', p.mintedAt],
-        ['instrument', p.instrument],
-        ['session', p.session],
-        ['model', p.model],
-        ['testCase', p.testCase],
-        ['snapshotId', p.snapshotId],
-        ['candidateRef', p.candidateRef],
-        ['flow', p.flow],
-      ]),
-    ],
-    ['evidence', facet.evidence],
-  ]);
-};
+const isEmptyObject = (value: unknown): boolean => isRecord(value) && Object.values(value).every((v) => v === undefined);
+
+const sortedRecord = (record: unknown): Raw =>
+  Object.fromEntries(Object.entries(record as Record<string, unknown>).sort(([a], [b]) => compareKeys(a, b)));
+
+const summaryOut = (summary: unknown): Raw =>
+  ordered(summary as RouteSummary, ORDER.summary, { landmarks: (v) => [...(v as string[])], interactiveRoles: sortedRecord });
+
+const routeOut = (route: CatalogRoute): Raw => ordered(route, ORDER.route, { summary: summaryOut });
+
+const locatorOut = (locator: FacetLocator): Raw =>
+  ordered(locator, ORDER.locator, { scope: (v) => ordered(v as object, ORDER.locatorScope) }, isEmptyObject(locator.scope) ? ['scope', 'expression'] : ['expression']);
+
+const facetOut = (facet: Facet): Raw =>
+  ordered(
+    facet,
+    ORDER.facet,
+    {
+      aliases: (v) => [...(v as string[])],
+      scope: (v) => ordered(v as object, ORDER.facetScope),
+      locators: (v) => (v as FacetLocator[]).map(locatorOut),
+      provenance: (v) => ordered(v as object, ORDER.provenance),
+    },
+    // screen is the file's; an empty scope says nothing.
+    isEmptyObject(facet.scope) ? ['screen', 'scope'] : ['screen'],
+  );
 
 const header = (screen: string): string =>
   `# Facet catalog for screen "${screen}", maintained by tesseract-qa.\n` +
@@ -341,10 +295,10 @@ const header = (screen: string): string =>
  * function only fixes the layout.
  */
 export const serializeCatalog = (catalog: ScreenCatalog): string => {
-  const body = ordered([
-    ['screen', catalog.screen],
-    ['route', routeOut(catalog.route)],
-    ['facets', [...catalog.facets].sort(byId).map(facetOut)],
-  ]);
+  const body = ordered(
+    { screen: catalog.screen, route: catalog.route, facets: [...catalog.facets].sort(byId) },
+    ORDER.catalog,
+    { route: (v) => routeOut(v as CatalogRoute), facets: (v) => (v as Facet[]).map(facetOut) },
+  );
   return header(catalog.screen) + YAML.stringify(body, { lineWidth: 0, minContentWidth: 0, indent: 2 });
 };

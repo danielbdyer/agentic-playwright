@@ -94,7 +94,7 @@ export const appOpen = declare({
     attached: z.boolean(),
     profile: z.string().optional(),
   }),
-  errorFamilies: ['invalid-input', 'not-configured', 'timeout', 'unavailable', 'unclassified'],
+  errorFamilies: ['invalid-input', 'not-configured', 'not-found', 'timeout', 'unavailable', 'unclassified'],
   readOnly: false,
   destructive: false,
   idempotent: false,
@@ -156,10 +156,14 @@ export const appAct = declare({
     message: z.string().optional(),
     resolved: ResolvedLocatorSchema.optional(),
     facetId: z.string().optional(),
+    select: z
+      .object({ via: z.enum(['native', 'listbox', 'combobox']), typed: z.boolean().optional() })
+      .optional()
+      .describe('How a select was carried out: a native <select>, or a custom OutSystems dropdown opened and clicked.'),
     postState: SnapshotDeltaSchema.optional(),
     durationMs: z.number(),
   }),
-  errorFamilies: ['invalid-input', 'not-found', 'ambiguous', 'not-visible', 'not-enabled', 'timeout', 'stale-snapshot', 'unclassified'],
+  errorFamilies: ['invalid-input', 'not-found', 'ambiguous', 'not-visible', 'not-enabled', 'timeout', 'assertion-like', 'stale-snapshot', 'unavailable', 'unclassified'],
   readOnly: false,
   destructive: true,
   idempotent: false,
@@ -190,7 +194,7 @@ export const appAssert = declare({
     message: z.string().optional(),
     resolved: ResolvedLocatorSchema.optional(),
   }),
-  errorFamilies: ['invalid-input', 'not-found', 'ambiguous', 'timeout', 'stale-snapshot', 'unclassified'],
+  errorFamilies: ['invalid-input', 'not-found', 'ambiguous', 'timeout', 'stale-snapshot', 'unavailable', 'unclassified'],
   readOnly: true,
   destructive: false,
   idempotent: true,
@@ -268,6 +272,7 @@ export const testEmit = declare({
     area: z.string().optional().describe('Subfolder under tests/; defaults to the first screen.'),
     tags: z.array(z.string()).optional(),
     dryRun: z.boolean().optional().describe('Return the diff without writing.'),
+    force: z.boolean().optional().describe('Regenerate over hand edits made outside tesseract:keep regions (kept code is preserved or orphaned, never dropped).'),
     decision,
   }),
   output: z.object({
@@ -278,6 +283,9 @@ export const testEmit = declare({
     facetsUsed: z.array(z.string()),
     diff: z.string(),
     written: z.boolean(),
+    orphaned: z
+      .array(z.object({ path: z.string(), keys: z.array(z.string()) }))
+      .describe('Kept code whose anchor disappeared; appended as commented blocks for a human to place.'),
   }),
   errorFamilies: ['invalid-input', 'not-found', 'conflict', 'malformed-response', 'unclassified'],
   readOnly: false,
@@ -357,7 +365,7 @@ export const adoFetch = declare({
   since: '2.0.0',
 });
 
-const PublishOutcomeSchema = z.enum(['Passed', 'Failed', 'Blocked', 'NotExecuted', 'Inconclusive', 'Aborted']);
+const PublishOutcomeSchema = z.enum(['Passed', 'Failed', 'Blocked', 'NotExecuted', 'Inconclusive', 'Aborted', 'Timeout']);
 
 export const adoPublish = declare({
   name: 'ado.publish',
@@ -382,8 +390,11 @@ export const adoPublish = declare({
           errorMessage: z.string().optional(),
           failureType: FailureTypeSchema.optional(),
           traceRef: z.string().optional(),
-          dataRow: z.number().int().optional(),
-          steps: z.array(z.object({ stepIdentifier: z.string(), outcome: PublishOutcomeSchema })).optional(),
+          comment: z.string().optional(),
+          dataRow: z.number().int().min(0).optional().describe('0-based index into the case\'s dataRows; published as iteration dataRow + 1.'),
+          steps: z
+            .array(z.object({ stepIdentifier: z.string(), outcome: PublishOutcomeSchema, durationMs: z.number().optional(), errorMessage: z.string().optional() }))
+            .optional(),
         }),
       )
       .optional(),

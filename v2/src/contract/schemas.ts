@@ -26,6 +26,7 @@ export const LocatorScopeSchema = z
     landmarkName: z.string().optional().describe('Accessible name of the landmark when several share a role.'),
     dataBlock: z.string().optional().describe('Scope to the OutSystems block container with this data-block value.'),
     rowText: z.string().optional().describe('Scope to the table/grid row containing this text.'),
+    rowExact: z.boolean().optional().describe('Match rowText against a whole cell (exact) instead of a substring of the row, so "POL-30" does not match "POL-300".'),
   })
   .describe('Containers the locator is scoped by, outermost first: landmark, then data-block, then row.');
 
@@ -38,6 +39,7 @@ export const LocatorSchema = z
     value: z.string().optional().describe('The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like "{policyNumber}".'),
     attribute: z.string().optional().describe('For test-id: the attribute carrying the id, e.g. "os-test-id" or "data-testid" (default).'),
     scope: LocatorScopeSchema.optional(),
+    visibleOnly: z.boolean().optional().describe('Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).'),
     nth: z.number().int().min(0).optional().describe('Zero-based index when the ladder could not find a unique locator. Fragile; avoid.'),
     expression: z.string().optional().describe('Derived Playwright expression for display; ignored on input.'),
   })
@@ -85,6 +87,7 @@ export const CandidateSchema = z.object({
   dataBlock: z.string().optional().describe('Nearest OutSystems data-block ancestor.'),
   rowText: z.string().optional().describe('Text of the enclosing table/grid row, when inside one (PII-gated, truncated).'),
   testId: z.string().optional().describe('os-test-id or data-testid, when present.'),
+  testIdAttribute: z.string().optional().describe('Which attribute carried testId: "os-test-id" or "data-testid".'),
   id: z.string().optional(),
   idKind: z.enum(['designer', 'structural', 'plain']).optional().describe('structural ids (b3-…) are fragile; designer ids end with the widget Name.'),
   placeholder: z.string().optional(),
@@ -106,6 +109,7 @@ export const PageFingerprintSchema = z.object({
   rolelessInteractive: z.number().int(),
   placeholderOnlyInputs: z.number().int(),
   dataBlocks: z.number().int(),
+  dataBlockNames: z.array(z.string()).optional().describe('Distinct OutSystems block names on the page (part of the structural hash).'),
   runtimeGlobal: z.string().nullable(),
 });
 
@@ -250,6 +254,40 @@ export const ScreenRouteSchema = z.object({
   variant: VariantSchema.optional(),
   fingerprint: z.string().optional(),
   title: z.string().optional(),
+  landmarks: z.array(z.string()).optional().describe('Landmarks seen on the screen; goto() waits for main when present.'),
+});
+
+// ─── Recorded flows ────────────────────────────────────────────────────────
+
+export const FlowParamSchema = z.object({
+  name: z.string(),
+  secret: z.boolean().describe('Secret parameters are never written; tests read them from TESSERACT_PARAM_<NAME>.'),
+  default: z.string().optional(),
+});
+
+export const FlowValueSchema = z.union([
+  z.object({ literal: z.string() }),
+  z.object({ param: z.string(), secret: z.boolean().optional() }),
+]);
+
+export const FlowRecordingStepSchema = z.object({
+  index: z.number().int().min(1),
+  action: z.enum(['navigate', 'click', 'fill', 'select', 'check', 'uncheck', 'press', 'hover']),
+  facetId: z.string().optional(),
+  screen: z.string(),
+  value: FlowValueSchema.optional(),
+  url: z.string(),
+  snapshotId: z.string().optional(),
+});
+
+/** .tesseract/flows/<name>.json, written by flow.record and read by flow.run and emission. */
+export const FlowRecordingSchema = z.object({
+  name: z.string(),
+  startUrl: z.string().optional().describe('Relative to the profile baseURL when possible.'),
+  recordedAt: z.string().optional(),
+  session: z.string().optional(),
+  steps: z.array(FlowRecordingStepSchema),
+  params: z.array(FlowParamSchema),
 });
 
 export const PreflightEntrySchema = z.object({
@@ -280,6 +318,7 @@ export const AssertionSpecSchema = z.object({
   kind: AssertionKindSchema,
   target: StepTargetSchema.optional().describe('Omitted for url and title assertions.'),
   expected: z.union([z.string(), z.number()]).optional().describe('Literal, or "@param" for an ADO parameter.'),
+  rowValue: z.string().optional().describe('For a row facet target: the value that selects the row (literal or "@param").'),
 });
 
 export const ResolvedStepSchema = z.object({
@@ -291,6 +330,7 @@ export const ResolvedStepSchema = z.object({
   target: StepTargetSchema.optional(),
   value: z.string().optional().describe('Literal value, or "@param" for an ADO parameter.'),
   key: z.string().optional().describe('Key for press, e.g. "Enter".'),
+  rowValue: z.string().optional().describe('For a row facet target: the value that selects the row (literal or "@param").'),
   screen: z.string().optional().describe('Screen the step acts on; required for navigate when the target is a route.'),
   assertions: z.array(AssertionSpecSchema).optional(),
   handoffId: z.string().optional().describe('Set when the step is unresolved; emitted as test.fixme with the reason inline.'),
@@ -338,7 +378,7 @@ export const RunReceiptSchema = z.object({
   testCase: z.string().optional(),
   title: z.string(),
   spec: z.string(),
-  dataRow: z.number().int().optional(),
+  dataRow: z.number().int().min(0).optional().describe('0-based index into TestCase.dataRows for data-driven cases.'),
   outcome: z.enum(['passed', 'failed', 'skipped', 'timedOut', 'interrupted', 'flaky']),
   durationMs: z.number(),
   retries: z.number().int(),
@@ -426,3 +466,7 @@ export type RunStep = z.infer<typeof RunStepSchema>;
 export type RunReceipt = z.infer<typeof RunReceiptSchema>;
 export type AcceptanceReceipt = z.infer<typeof AcceptanceReceiptSchema>;
 export type Decision = z.infer<typeof DecisionSchema>;
+export type FlowParamSpec = z.infer<typeof FlowParamSchema>;
+export type FlowValueSpec = z.infer<typeof FlowValueSchema>;
+export type FlowRecordingStepSpec = z.infer<typeof FlowRecordingStepSchema>;
+export type FlowRecordingSpec = z.infer<typeof FlowRecordingSchema>;

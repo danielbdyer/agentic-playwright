@@ -56,6 +56,7 @@ export const buildFingerprint = (inputs: FingerprintInputs, url: string, pii: Pi
   rolelessInteractive: inputs.rolelessInteractive,
   placeholderOnlyInputs: inputs.placeholderOnlyInputs,
   dataBlocks: inputs.dataBlocks,
+  dataBlockNames: [...sortedUnique(inputs.dataBlockNames)],
   runtimeGlobal: inputs.runtimeGlobal,
 });
 
@@ -85,7 +86,11 @@ export const diffFingerprints = (
   const structural = [
     ...setDiff('landmarks', a.landmarks, b.landmarks),
     ...setDiff('interactive roles', rolesPresent(a), rolesPresent(b)),
-    ...(bases !== undefined ? setDiff('data-blocks', bases.before.dataBlockNames, bases.after.dataBlockNames) : []),
+    ...(bases !== undefined
+      ? setDiff('data-blocks', bases.before.dataBlockNames, bases.after.dataBlockNames)
+      : a.dataBlockNames !== undefined && b.dataBlockNames !== undefined
+        ? setDiff('data-blocks', a.dataBlockNames, b.dataBlockNames)
+        : []),
     ...(a.runtimeGlobal !== b.runtimeGlobal ? [`runtime global: ${a.runtimeGlobal ?? 'none'} → ${b.runtimeGlobal ?? 'none'}`] : []),
   ];
   const unexplained = a.hash !== b.hash && structural.length === 0 ? ['structure digest changed (data-block names)'] : [];

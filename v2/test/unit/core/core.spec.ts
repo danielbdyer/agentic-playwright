@@ -135,6 +135,19 @@ describe('locator', () => {
     expect(await count({ strategy: 'role-name', role: 'textbox', scope: { dataBlock: 'Policy.SearchBlock' } })).toBe(1);
   });
 
+  it('matches a row by a whole cell when rowExact is set, so prefixes do not collide', async () => {
+    const other = await browser.newPage();
+    await other.setContent('<table><tr><td>POL-30</td><td><a href="#">Edit</a></td></tr><tr><td>POL-300</td><td><a href="#">Edit</a></td></tr></table>');
+    const substring = { strategy: 'role-name' as const, role: 'link', name: 'Edit', scope: { rowText: 'POL-30' } };
+    expect(await toPlaywrightLocator(other, substring).count()).toBe(2);
+    const exact = { ...substring, scope: { rowText: 'POL-30', rowExact: true } };
+    expect(await toPlaywrightLocator(other, exact).count()).toBe(1);
+    expect(renderLocator(exact, { root: 'this.page' })).toBe(
+      "this.page.getByRole('row').filter({ has: this.page.getByRole('cell', { name: 'POL-30', exact: true }) }).getByRole('link', { name: 'Edit', exact: true })",
+    );
+    await other.close();
+  });
+
   it('refuses missing parameters and reports the ones a spec uses', () => {
     expect(() => substituteParams('{x}', {})).toThrow(ToolError);
     expect(locatorParams({ strategy: 'role-name', role: 'link', name: 'Edit', scope: { rowText: '{policyNumber}' } })).toEqual(['policyNumber']);

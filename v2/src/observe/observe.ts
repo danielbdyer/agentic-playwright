@@ -30,7 +30,7 @@ import { inPage } from './in-page/runtime.js';
 import type { NodeCategory, PageSignals, VariantSignals, WalkNode, WalkResult, WalkScope, WalkStats } from './in-page/walker.js';
 import { captureAria, capAriaText, nameAgreement, parseAriaSnapshot, type NameAgreement, type ObserveScope } from './aria.js';
 import { buildFingerprint, fingerprintBasis, type FingerprintBasis } from './fingerprint.js';
-import { classifyVariant } from './variant.js';
+import { classifyVariant, type VariantVerdict } from './variant.js';
 
 export type { ObserveScope } from './aria.js';
 export type { NodeCategory } from './in-page/walker.js';
@@ -147,6 +147,7 @@ export const toCandidate = (node: WalkNode, pii: PiiMode): Candidate => {
     ...(node.dataBlock !== undefined ? { dataBlock: node.dataBlock } : {}),
     ...(node.rowText !== undefined && pii !== 'strict' ? { rowText: gate(node.rowText) } : {}),
     ...(node.testId !== undefined ? { testId: node.testId } : {}),
+    ...(node.testIdAttribute !== undefined ? { testIdAttribute: node.testIdAttribute } : {}),
     ...(node.id !== undefined ? { id: node.id } : {}),
     ...(node.idKind !== undefined ? { idKind: node.idKind } : {}),
     ...(node.placeholder !== undefined ? { placeholder: gate(node.placeholder) } : {}),
@@ -331,15 +332,23 @@ export const observePage = async (page: Page, options: ObserveOptions): Promise<
   const snapshotId = options.snapshotId ?? newId('snap', now());
   const at = now().toISOString();
 
-  let walked: WalkResult;
-  let signals: PageSignals;
+  const scan = async (): Promise<{ readonly walked: WalkResult; readonly signals: PageSignals }> => {
+    const walked = await inPage(page, 'walk', { snapshotId, ...(walkScope(scope) !== undefined ? { scope: walkScope(scope) } : {}) });
+    return { walked, signals: await inPage(page, 'signals') };
+  };
+  let scanned: { readonly walked: WalkResult; readonly signals: PageSignals };
   try {
-    walked = await inPage(page, 'walk', { snapshotId, ...(walkScope(scope) !== undefined ? { scope: walkScope(scope) } : {}) });
-    signals = await inPage(page, 'signals');
+    scanned = await scan().catch(async (error: unknown) => {
+      // A click that navigates can destroy the document mid-walk; observe the new one once it has parsed.
+      if (page.isClosed() || !/Execution context was destroyed|frame was detached|Cannot find context/i.test(String(error))) throw error;
+      await page.waitForLoadState('domcontentloaded', { timeout: 5_000 }).catch(() => undefined);
+      return scan();
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message.split('\n')[0] ?? '' : String(error);
     throw new ToolError(/Timeout/i.test(message) ? 'timeout' : 'unclassified', `observing the page failed: ${message}`);
   }
+  const { walked, signals } = scanned;
   if (!walked.scopeFound) throw describeScopeMiss(scope, signals);
 
   const all = walked.nodes.map((node) => toCandidate(node, pii));
@@ -383,7 +392,7 @@ export const observePage = async (page: Page, options: ObserveOptions): Promise<
     aria: ariaForAgent.text,
     truncated: capped.length < all.length || ariaForAgent.truncated,
     ...(screenshotPath !== undefined ? { screenshotPath } : {}),
-    ...(options.audit === true ? { audit: [...audit(all, scope.kind === 'page' ? { landmarks: fingerprint.landmarks } : { landmarks: fingerprint.landmarks })] } : {}),
+    ...(options.audit === true ? { audit: [...audit(all, { landmarks: fingerprint.landmarks })] } : {}),
   };
   const record: SnapshotRecord = {
     version: SNAPSHOT_RECORD_VERSION,
@@ -410,6 +419,9 @@ export const observePage = async (page: Page, options: ObserveOptions): Promise<
   };
   return { snapshot, record, ...(screenshot !== undefined ? { screenshot } : {}) };
 };
+
+/** The OutSystems variant of the current page (for app.open), without a full observation. */
+export const pageVariant = async (page: Page): Promise<VariantVerdict> => classifyVariant((await inPage(page, 'signals')).variant);
 
 /** The agent-facing Snapshot for a stored record (e.g. to re-serve a snapshot by id), capped the same way. */
 export const snapshotFromRecord = (

@@ -44,6 +44,31 @@ export const summaryFromFingerprint = (fingerprint: Pick<PageFingerprint, 'landm
   dataBlocks: fingerprint.dataBlocks,
 });
 
+export interface RouteDrift {
+  readonly changed: boolean;
+  readonly diff: readonly string[];
+}
+
+/**
+ * Has the screen drifted from the fingerprint its facets were recorded
+ * against? With a stored summary, drift means a structural difference
+ * (landmarks, interactive role counts, data-block count), so copy and
+ * content changes that move the hash do not mark every screen stale; with
+ * only a stored hash, any hash change is drift. No stored fingerprint, no drift.
+ */
+export const routeDrift = (
+  route: { readonly fingerprint?: string; readonly summary?: RouteSummary } | undefined,
+  current: Pick<PageFingerprint, 'hash' | 'landmarks' | 'roleCounts' | 'dataBlocks'>,
+): RouteDrift => {
+  if (route === undefined) return { changed: false, diff: [] };
+  if (route.summary !== undefined) {
+    const diff = diffSummaries(route.summary, summaryFromFingerprint(current));
+    return { changed: diff.length > 0, diff };
+  }
+  if (route.fingerprint === undefined || route.fingerprint === current.hash) return { changed: false, diff: [] };
+  return { changed: true, diff: ['page fingerprint hash changed (no structural summary was recorded to compare)'] };
+};
+
 /** Human-readable differences from the recorded summary to the current one; empty when they agree. */
 export const diffSummaries = (before: RouteSummary, after: RouteSummary): string[] => {
   const beforeLandmarks = new Set(before.landmarks);

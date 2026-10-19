@@ -22,11 +22,14 @@
  * assign appear as placeholders such as "{runId}".
  */
 import { ToolError } from '../core/errors.js';
-import type { TestCase } from '../contract/schemas.js';
+import type { RunReceipt, TestCase } from '../contract/schemas.js';
+import type { Workspace } from '../workspace/workspace.js';
 import type { AdoClient, AdoRequest } from './client.js';
 import { automationPatch } from './automation.js';
+import { loadCases } from './cache.js';
+import { receiptsToPublishResults, specsFromReceipts } from './results.js';
 import { fetchTestPoints, fetchWorkItems } from './fetch.js';
-import { latestEntry, type PublishLedger, type PublishLedgerEntry } from './ledger.js';
+import { latestEntry, workspaceLedger, type PublishLedger, type PublishLedgerEntry } from './ledger.js';
 import {
   buildResultUpdate,
   buildRunComplete,
@@ -71,7 +74,7 @@ export interface PlannedRequest {
 }
 
 /** The ado.publish output shape. */
-export interface PublishOutcome {
+export interface PublishedRun {
   readonly runId: number;
   readonly url: string;
   readonly resultIds: readonly number[];
@@ -167,7 +170,7 @@ const resultIdsByPoint = async (client: AdoClient, runId: number): Promise<Reado
   }
 };
 
-export const publishResults = async (client: AdoClient, options: PublishOptions, ledger: PublishLedger): Promise<PublishOutcome> => {
+export const publishResults = async (client: AdoClient, options: PublishOptions, ledger: PublishLedger): Promise<PublishedRun> => {
   validate(options);
   const now = options.now ?? (() => new Date());
   const dryRun = options.dryRun === true;
@@ -389,4 +392,32 @@ const createResultBody = (group: PointGroup, testCase: TestCase | undefined): Re
     ...(revision !== undefined ? { testCaseRevision: revision } : {}),
     state: 'Pending',
   };
+};
+
+export interface PublishReceiptsOptions extends Omit<PublishOptions, 'results' | 'cases' | 'specByCase'> {
+  /** The receipts of one test.run (RunReceipt.runId = the fromRunId the agent gave). */
+  readonly receipts: readonly RunReceipt[];
+  /** Overrides the spec path / test title taken from the receipts. */
+  readonly specByCase?: Readonly<Record<string, SpecRef>>;
+  /** Ledger to use; default the workspace's .tesseract/receipts/publish.jsonl. */
+  readonly ledger?: PublishLedger;
+}
+
+/**
+ * ado.publish from a test.run: load the cached cases the receipts name (for
+ * step identifiers, revisions, parameters, points), map the receipts to
+ * results, take spec paths and titles from the receipts, and publish through
+ * the workspace ledger.
+ */
+export const publishReceipts = async (client: AdoClient, workspace: Workspace, options: PublishReceiptsOptions): Promise<PublishedRun> => {
+  const { receipts, ledger, specByCase, ...rest } = options;
+  const cases = await loadCases(
+    workspace,
+    receipts.flatMap((receipt) => (receipt.testCase !== undefined ? [receipt.testCase] : [])),
+  );
+  const results = receiptsToPublishResults(receipts, cases);
+  if (results.length === 0) {
+    throw new ToolError('invalid-input', 'nothing to publish: none of the run receipts names an Azure DevOps test case', { receipts: receipts.length });
+  }
+  return publishResults(client, { ...rest, results, cases, specByCase: specByCase ?? specsFromReceipts(receipts) }, ledger ?? workspaceLedger(workspace));
 };

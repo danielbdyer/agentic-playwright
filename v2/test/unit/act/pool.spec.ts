@@ -281,6 +281,29 @@ describe('createBrowserPool: attaching over CDP', () => {
     expect(await pages[0]!.title()).toBe('App home');
   });
 
+  it('concurrent attaches share one connection', async () => {
+    const [home, policies] = await Promise.all([
+      pool.open({ attach: { cdpEndpoint: endpoint, urlContains: '/app/home' } }),
+      pool.open({ attach: { cdpEndpoint: endpoint, urlContains: '/app/policies' } }),
+    ]);
+    expect(home.browser).toBe(policies.browser);
+    expect(home.pageId).not.toBe(policies.pageId);
+  });
+
+  it('when the user closes the attached tab, the handle goes and so does the idle connection', async () => {
+    const tab = await external.contexts()[0]!.newPage();
+    await tab.goto(`${server.url}/?tab=closing`);
+    const handle = await pool.open({ attach: { cdpEndpoint: endpoint, urlContains: 'tab=closing' } });
+    await tab.close();
+    await expect.poll(() => handle.page.isClosed()).toBe(true);
+    expect(await familyOf(() => pool.get(handle.pageId))).toBe('not-found');
+    await expect.poll(() => handle.browser.isConnected()).toBe(false);
+    expect(external.isConnected()).toBe(true);
+    // A fresh attach reconnects.
+    const again = await pool.open({ attach: { cdpEndpoint: endpoint, urlContains: '/app/home' } });
+    expect(again.browser.isConnected()).toBe(true);
+  });
+
   it('can navigate the attached page when a url is given', async () => {
     const handle = await pool.open({ attach: { cdpEndpoint: endpoint, urlContains: '/app/policies' }, url: `${server.url}/app/policies?tab=2` });
     expect(handle.page.url()).toBe(`${server.url}/app/policies?tab=2`);

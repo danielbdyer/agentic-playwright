@@ -33,8 +33,14 @@ const outcomeOf = (count: Count): ResolveOutcome =>
   count.visible === 1 ? 'ok' : count.visible > 1 ? 'ambiguous' : count.total > 0 ? 'not-visible' : 'not-found';
 
 const countLocator = async (page: Page, locator: FacetLocator, params: Readonly<Record<string, string>> | undefined): Promise<Count> => {
-  const live = toPlaywrightLocator(page, bareLocator(locator), params);
-  const [total, visible] = await Promise.all([live.count(), live.filter({ visible: true }).count()]);
+  const spec = bareLocator(locator);
+  // The emitted locator (with visibleOnly, when set) decides the visible count;
+  // the same locator without that filter tells "hidden only" from "nothing".
+  const { visibleOnly: _visibleOnly, ...unfiltered } = spec;
+  const [total, visible] = await Promise.all([
+    toPlaywrightLocator(page, unfiltered, params).count(),
+    toPlaywrightLocator(page, spec, params).filter({ visible: true }).count(),
+  ]);
   return { locator, total, visible };
 };
 
@@ -74,7 +80,17 @@ const checkFacet = async (page: Page, facet: Facet, params: Readonly<Record<stri
   if (first.visible === 1) {
     return { entry: { id: facet.id, status: 'ok', matches: 1, locator: expression }, attempts: [attempt(facet.id, first)] };
   }
-  const fallbacks = await Promise.all(facet.locators.slice(1).map((locator) => countLocator(page, locator, params)));
+  // A fallback that cannot be built or counted (a hand-edited selector that does not
+  // parse) is left out rather than hiding what the best locator found.
+  const countFallback = async (locator: FacetLocator): Promise<Count | null> => {
+    try {
+      return await countLocator(page, locator, params);
+    } catch (error) {
+      if (page.isClosed()) throw error;
+      return null;
+    }
+  };
+  const fallbacks = (await Promise.all(facet.locators.slice(1).map(countFallback))).filter((count): count is Count => count !== null);
   const all = [first, ...fallbacks];
   const attempts = all.map((count) => attempt(facet.id, count));
   if (all.every((count) => count.total === 0)) {

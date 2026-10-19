@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { buildLock, diffLocks, type ContractLock, type LockedTool } from '../../../src/tools/contract-lock.js';
 
-const clone = (lock: ContractLock): ContractLock => JSON.parse(JSON.stringify(lock)) as ContractLock;
+type Mutable<T> = { -readonly [K in keyof T]: T[K] extends readonly (infer U)[] ? Mutable<U>[] : T[K] extends object ? Mutable<T[K]> : T[K] };
+type MutableTool = Mutable<LockedTool>;
 
-const editTool = (lock: ContractLock, name: string, edit: (tool: LockedTool & Record<string, unknown>) => void): ContractLock => {
+const clone = (lock: ContractLock): Mutable<ContractLock> => JSON.parse(JSON.stringify(lock)) as Mutable<ContractLock>;
+
+const editTool = (lock: ContractLock, name: string, edit: (tool: MutableTool) => void): ContractLock => {
   const next = clone(lock);
-  const tool = next.tools.find((t) => t.name === name) as LockedTool & Record<string, unknown>;
+  const tool = next.tools.find((t) => t.name === name)!;
   edit(tool);
-  return next;
+  return next as unknown as ContractLock;
 };
 
 describe('contract lock', () => {
@@ -22,8 +25,7 @@ describe('contract lock', () => {
   });
 
   it('classifies a removed tool, a narrowed enum, and a new required input as breaking', () => {
-    const removed = clone(lock);
-    (removed as { tools: LockedTool[] }).tools = lock.tools.filter((t) => t.name !== 'flow.run');
+    const removed = { ...lock, tools: lock.tools.filter((t) => t.name !== 'flow.run') };
     expect(diffLocks(lock, removed).breaking).toContain('flow.run: tool removed');
 
     const narrowed = editTool(lock, 'review.record', (tool) => {
@@ -59,7 +61,7 @@ describe('contract lock', () => {
 
   it('treats a tool becoming destructive or an output field going away as breaking', () => {
     const destructive = editTool(lock, 'app.observe', (tool) => {
-      (tool as { annotations: { destructive: boolean } }).annotations = { ...tool.annotations, destructive: true };
+      tool.annotations = { ...tool.annotations, destructive: true };
       delete (tool.output as { properties: Record<string, unknown> }).properties.aria;
     });
     const diff = diffLocks(lock, destructive);

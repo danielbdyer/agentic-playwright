@@ -34,7 +34,8 @@ export const preferredMemberName = (facet: Pick<Facet, 'id' | 'member'>): string
 export const memberNames = (facets: readonly Pick<Facet, 'id' | 'member'>[]): Readonly<Record<string, string>> => {
   const sorted = [...facets].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   // Explicit members claim their names first, so a human's choice is never the one suffixed.
-  const explicitFirst = [...sorted.filter((f) => f.member !== undefined), ...sorted.filter((f) => f.member === undefined)];
+  const hasExplicit = (f: Pick<Facet, 'member'>): boolean => f.member !== undefined && f.member.trim().length > 0;
+  const explicitFirst = [...sorted.filter(hasExplicit), ...sorted.filter((f) => !hasExplicit(f))];
   const taken = new Set<string>();
   const names: Record<string, string> = {};
   for (const facet of explicitFirst) {

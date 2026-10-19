@@ -112,6 +112,46 @@ const defaultUserAgent = async (browser: Browser): Promise<string> => {
   }
 };
 
+/** How long a page in an attached browser gets to say when its document started. */
+const DOCUMENT_START_PROBE_MS = 1_000;
+
+/**
+ * When the page's current document started loading, or -Infinity if the page
+ * does not answer in time (a modal dialog blocks script, a tab is frozen).
+ */
+const documentStart = (page: Page): Promise<number> =>
+  new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(Number.NEGATIVE_INFINITY), DOCUMENT_START_PROBE_MS);
+    timer.unref();
+    page.evaluate(() => performance.timeOrigin).then(
+      (origin) => {
+        clearTimeout(timer);
+        resolve(origin);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(Number.NEGATIVE_INFINITY);
+      },
+    );
+  });
+
+/**
+ * The page whose current document started most recently. Over CDP,
+ * `context.pages()` is in target-attach order, which is not creation order,
+ * so "the newest page" has to be asked of the pages themselves.
+ */
+const newestOf = async (pages: readonly Page[]): Promise<Page | undefined> => {
+  if (pages.length <= 1) return pages[0];
+  const starts = await Promise.all(pages.map(documentStart));
+  return pages.reduce<{ readonly page: Page | undefined; readonly start: number }>(
+    (best, page, index) => {
+      const start = starts[index] ?? Number.NEGATIVE_INFINITY;
+      return best.page === undefined || start > best.start ? { page, start } : best;
+    },
+    { page: undefined, start: Number.NEGATIVE_INFINITY },
+  ).page;
+};
+
 const fileExists = async (file: string): Promise<boolean> =>
   access(file).then(
     () => true,
@@ -128,6 +168,8 @@ export const createBrowserPool = (options: BrowserPoolOptions): BrowserPool => {
   const launched = new Map<boolean, Promise<Launched>>();
   const attachedByEndpoint = new Map<string, Promise<Browser>>();
   const endpointOf = new Map<Browser, string>();
+  /** In-flight attach calls per endpoint, so a release never pulls a connection out from under one. */
+  const attaching = new Map<string, number>();
   let issued = 0;
 
   const forget = (pageId: string): void => {
@@ -201,10 +243,12 @@ export const createBrowserPool = (options: BrowserPoolOptions): BrowserPool => {
     const handle: PageHandle = { ...fields, pageId: `p${issued}`, openedAt: now().toISOString() };
     handles.set(handle.pageId, handle);
     // A page closed from outside (a QA closing the tab) must not leave a
-    // handle behind; for a launched page its context goes with it.
+    // handle behind. A launched page's context goes with it; an attached
+    // page's connection goes once nothing else uses it.
     handle.page.once('close', () => {
       if (handles.get(handle.pageId) === handle) forget(handle.pageId);
-      if (!handle.attached) void handle.context.close().catch(() => undefined);
+      if (handle.attached) void releaseIfUnused(handle.browser);
+      else void handle.context.close().catch(() => undefined);
     });
     return handle;
   };
@@ -261,6 +305,8 @@ export const createBrowserPool = (options: BrowserPoolOptions): BrowserPool => {
   const releaseIfUnused = async (browser: Browser): Promise<void> => {
     if ([...handles.values()].some((handle) => handle.browser === browser)) return;
     const endpoint = endpointOf.get(browser);
+    // Another open() is attaching through this connection right now.
+    if (endpoint !== undefined && (attaching.get(endpoint) ?? 0) > 0) return;
     if (endpoint !== undefined) attachedByEndpoint.delete(endpoint);
     endpointOf.delete(browser);
     await browser.close().catch((error: unknown) => log(`disconnect failed: ${firstLine(error)}`));
@@ -276,7 +322,7 @@ export const createBrowserPool = (options: BrowserPoolOptions): BrowserPool => {
     const contexts = browser.contexts();
     const all = contexts.flatMap((context) => context.pages());
     if (urlContains !== undefined && urlContains.length > 0) {
-      const page = all.filter((candidate) => candidate.url().includes(urlContains)).at(-1);
+      const page = await newestOf(all.filter((candidate) => candidate.url().includes(urlContains)));
       if (page === undefined) {
         throw new ToolError('not-found', `no page in the attached browser has a URL containing ${JSON.stringify(urlContains)}`, {
           urlContains,
@@ -288,8 +334,8 @@ export const createBrowserPool = (options: BrowserPoolOptions): BrowserPool => {
     const first = contexts[0];
     const firstPages = first?.pages() ?? [];
     const page =
-      firstPages.filter((candidate) => !isBlankUrl(candidate.url())).at(-1) ??
-      all.filter((candidate) => !isBlankUrl(candidate.url())).at(-1) ??
+      (await newestOf(firstPages.filter((candidate) => !isBlankUrl(candidate.url())))) ??
+      (await newestOf(all.filter((candidate) => !isBlankUrl(candidate.url())))) ??
       firstPages.at(-1) ??
       all.at(-1);
     if (page !== undefined) return page;
@@ -301,14 +347,30 @@ export const createBrowserPool = (options: BrowserPoolOptions): BrowserPool => {
     if (!/^(https?|wss?):\/\//i.test(attach.cdpEndpoint)) {
       throw new ToolError('invalid-input', `cdpEndpoint must be an http(s):// or ws(s):// URL, got ${JSON.stringify(attach.cdpEndpoint)}`);
     }
-    const browser = await connect(attach.cdpEndpoint, open.navigationTimeoutMs ?? DEFAULT_ATTACH_TIMEOUT_MS);
+    const endpoint = attach.cdpEndpoint;
+    attaching.set(endpoint, (attaching.get(endpoint) ?? 0) + 1);
+    const settled = (): void => {
+      const left = (attaching.get(endpoint) ?? 1) - 1;
+      if (left > 0) attaching.set(endpoint, left);
+      else attaching.delete(endpoint);
+    };
+    let browser: Browser;
+    try {
+      browser = await connect(endpoint, open.navigationTimeoutMs ?? DEFAULT_ATTACH_TIMEOUT_MS);
+    } catch (error) {
+      settled();
+      throw error;
+    }
     try {
       const page = await pickPage(browser, attach.urlContains);
       if (open.url !== undefined) await gotoUrl(page, open.url, open.navigationTimeoutMs ?? DEFAULT_NAVIGATION_TIMEOUT_MS, log);
       // Attaching twice to the same page yields the same pageId.
       const existing = [...handles.values()].find((handle) => handle.page === page);
-      return existing ?? register({ page, context: page.context(), browser, attached: true, profile: open.profile ?? null });
+      const handle = existing ?? register({ page, context: page.context(), browser, attached: true, profile: open.profile ?? null });
+      settled();
+      return handle;
     } catch (error) {
+      settled();
       await releaseIfUnused(browser);
       throw navigationError(open.url ?? '', error);
     }

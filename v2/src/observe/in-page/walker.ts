@@ -261,9 +261,10 @@ interface Ctx {
   readonly roles: Map<Element, string | null>;
   readonly hidden: Map<Element, boolean>;
   readonly rowTexts: Map<Element, string>;
+  readonly landmarkNames: Map<Element, string>;
 }
 
-const newCtx = (): Ctx => ({ styles: new Map(), roles: new Map(), hidden: new Map(), rowTexts: new Map() });
+const newCtx = (): Ctx => ({ styles: new Map(), roles: new Map(), hidden: new Map(), rowTexts: new Map(), landmarkNames: new Map() });
 
 // ─── DOM helpers ───────────────────────────────────────────────────────────
 
@@ -888,7 +889,14 @@ interface LandmarkContext {
 const landmarkOf = (el: Element, ctx: Ctx): LandmarkContext | null => {
   for (let cur = parentOf(el); cur !== null; cur = parentOf(cur)) {
     const role = roleOf(cur, ctx);
-    if (role !== null && LANDMARK_ROLES.has(role)) return { role, name: accName(cur, role, ctx).name };
+    if (role !== null && LANDMARK_ROLES.has(role)) {
+      let name = ctx.landmarkNames.get(cur);
+      if (name === undefined) {
+        name = accName(cur, role, ctx).name;
+        ctx.landmarkNames.set(cur, name);
+      }
+      return { role, name };
+    }
   }
   return null;
 };

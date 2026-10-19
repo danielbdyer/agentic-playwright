@@ -27,6 +27,7 @@ export const createCliRuntime = async (options: CliRuntimeOptions): Promise<Runt
   const browser = createBrowserPool({
     userAgentSuffix: workspace.config.userAgentSuffix,
     headless: !(options.headed ?? env.TESSERACT_HEADED === '1'),
+    root: workspace.paths.root,
     log,
   });
   return createRuntime({

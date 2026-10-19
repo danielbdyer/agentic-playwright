@@ -5,8 +5,7 @@
  * would not change, so reads never touch a file's mtime or the git diff.
  */
 import path from 'node:path';
-import { listFiles, readText, writeFileAtomic } from '../core/fsio.js';
-import { relativePosix } from '../core/fsio.js';
+import { listFiles, readText, relativePosix, writeFileAtomic } from '../core/fsio.js';
 import type { Workspace } from '../workspace/workspace.js';
 import { assertScreenName, isSlug } from './ids.js';
 import { parseCatalogYaml, serializeCatalog } from './catalog-yaml.js';

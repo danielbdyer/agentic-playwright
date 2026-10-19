@@ -127,7 +127,9 @@ const remint = (catalog: ScreenCatalog, existing: Facet, input: MintPlanInput, c
   // A different locator for the same element joins the facet: in front when it was
   // verified on the live page (it wins ties on save), as a fallback when it was only derived.
   const locators = known ? existing.locators : chosen.verified ? [chosen.locator, ...existing.locators] : [...existing.locators, chosen.locator];
-  const facet: Facet = { ...existing, aliases: [...merged.aliases], locators };
+  // As with enrich: a new locator on a stale facet is a repair, unproven until a run confirms it.
+  const repaired = !known && existing.status === 'stale';
+  const facet: Facet = { ...existing, aliases: [...merged.aliases], locators, status: repaired ? 'candidate' : existing.status };
   const enriched = ctx.makeEvent({
     kind: 'enriched',
     facetId: existing.id,
@@ -140,11 +142,14 @@ const remint = (catalog: ScreenCatalog, existing: Facet, input: MintPlanInput, c
   const resolved = chosen.verified
     ? [ctx.makeEvent({ kind: 'resolved', facetId: existing.id, locatorKey: key, outcome: 'ok', matches: 1, source: 'mint' })]
     : [];
+  const status = repaired
+    ? [ctx.makeEvent({ kind: 'status', facetId: existing.id, from: 'stale', to: 'candidate', reason: 'repaired', by: 'tool' })]
+    : [];
   return {
     catalog: replaceFacet(catalog, facet),
     facet,
     created: false,
-    events: [enriched, ...resolved],
+    events: [enriched, ...resolved, ...status],
     warnings: merged.dropped.map((d) => `alias dropped: ${d}`),
   };
 };

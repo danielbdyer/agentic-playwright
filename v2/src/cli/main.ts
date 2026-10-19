@@ -154,7 +154,7 @@ const commandServe = async (g: Globals): Promise<number> => {
     createRuntime: () =>
       createRuntime({
         workspace: ws,
-        browser: createBrowserPool({ userAgentSuffix: ws.config.userAgentSuffix, headless: !g.headed, log: defaultLog }),
+        browser: createBrowserPool({ userAgentSuffix: ws.config.userAgentSuffix, headless: !g.headed, root: ws.paths.root, log: defaultLog }),
         handlers: createHandlers(),
         log: defaultLog,
         closeHooks: [releasePausedRuns],

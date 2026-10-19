@@ -28,7 +28,7 @@ export const locatorParams = (spec: LocatorSpec): readonly string[] => {
 
 const defaultExact = (spec: LocatorSpec): boolean => spec.exact ?? (spec.strategy === 'role-name' || spec.strategy === 'text' || spec.strategy === 'label' || spec.strategy === 'placeholder');
 
-const applyScope = (root: Root, scope: LocatorScope | undefined, params?: Readonly<Record<string, string>>): Root => {
+const applyScope = (root: Root, scope: LocatorScope | undefined, params?: Readonly<Record<string, string>>, page?: Page): Root => {
   if (scope === undefined) return root;
   let current: Root = root;
   if (scope.landmark !== undefined) {
@@ -40,14 +40,17 @@ const applyScope = (root: Root, scope: LocatorScope | undefined, params?: Readon
     current = current.locator(`[data-block=${JSON.stringify(scope.dataBlock)}]`).first();
   }
   if (scope.rowText !== undefined) {
-    current = current.getByRole('row').filter({ hasText: substituteParams(scope.rowText, params) });
+    const text = substituteParams(scope.rowText, params);
+    current = scope.rowExact === true && page !== undefined
+      ? current.getByRole('row').filter({ has: page.getByRole('cell', { name: text, exact: true }) })
+      : current.getByRole('row').filter({ hasText: text });
   }
   return current;
 };
 
 /** Build the live Playwright locator for a spec. */
 export const toPlaywrightLocator = (page: Page, spec: LocatorSpec, params?: Readonly<Record<string, string>>): Locator => {
-  const root = applyScope(page, spec.scope, params);
+  const root = applyScope(page, spec.scope, params, page);
   const exact = defaultExact(spec);
   const value = (): string => {
     if (spec.value === undefined || spec.value.length === 0) {
@@ -90,7 +93,8 @@ export const toPlaywrightLocator = (page: Page, spec: LocatorSpec, params?: Read
       throw new ToolError('invalid-input', `unknown locator strategy ${String(never)}`);
     }
   }
-  return spec.nth !== undefined ? locator.nth(spec.nth) : locator;
+  const visible = spec.visibleOnly === true ? locator.filter({ visible: true }) : locator;
+  return spec.nth !== undefined ? visible.nth(spec.nth) : visible;
 };
 
 export interface RenderOptions {
@@ -129,7 +133,9 @@ const renderScope = (root: string, scope: LocatorScope | undefined, params: Rend
     expr += `.locator(${quote(`[data-block=${JSON.stringify(scope.dataBlock)}]`)}).first()`;
   }
   if (scope.rowText !== undefined) {
-    expr += `.getByRole('row').filter({ hasText: ${renderText(scope.rowText, params)} })`;
+    expr += scope.rowExact === true
+      ? `.getByRole('row').filter({ has: ${root}.getByRole('cell', { name: ${renderText(scope.rowText, params)}, exact: true }) })`
+      : `.getByRole('row').filter({ hasText: ${renderText(scope.rowText, params)} })`;
   }
   return expr;
 };
@@ -175,7 +181,8 @@ export const renderLocator = (spec: LocatorSpec, options: RenderOptions = {}): s
       throw new ToolError('invalid-input', `unknown locator strategy ${String(never)}`);
     }
   }
-  return spec.nth !== undefined ? `${expr}.nth(${spec.nth})` : expr;
+  const visible = spec.visibleOnly === true ? `${expr}.filter({ visible: true })` : expr;
+  return spec.nth !== undefined ? `${visible}.nth(${spec.nth})` : visible;
 };
 
 /** A spec with its derived expression filled in (for outputs). */

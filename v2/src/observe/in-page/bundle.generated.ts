@@ -2,7 +2,7 @@
 // Rebuild with `npm run build:inpage`; `node scripts/build-inpage.mjs --check` fails when this file is stale.
 /* eslint-disable */
 
-export const IN_PAGE_BUNDLE_HASH = 'sha256:5c2da50d2b5d085c772b20f05bbc47902961999f4f7a56aac5758b107557e636';
+export const IN_PAGE_BUNDLE_HASH = 'sha256:e72e78e54c15b8f4cb24252ca02de5ae25aa833381e3885c3d87a94df3c5a057';
 
 export const IN_PAGE_BUNDLE: string = `"use strict";
 var __tesseractInPage = (() => {
@@ -262,7 +262,7 @@ var __tesseractInPage = (() => {
   ];
   var DESIGNER_ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
   var REGISTRY_KEY = "__tesseract";
-  var newCtx = () => ({ styles: /* @__PURE__ */ new Map(), roles: /* @__PURE__ */ new Map(), hidden: /* @__PURE__ */ new Map(), rowTexts: /* @__PURE__ */ new Map() });
+  var newCtx = () => ({ styles: /* @__PURE__ */ new Map(), roles: /* @__PURE__ */ new Map(), hidden: /* @__PURE__ */ new Map(), rowTexts: /* @__PURE__ */ new Map(), landmarkNames: /* @__PURE__ */ new Map() });
   var tagOf = (el) => el instanceof HTMLFormElement ? "FORM" : String(el.tagName).toUpperCase();
   var parentOf = (el) => {
     if (el.parentElement !== null) return el.parentElement;
@@ -801,7 +801,14 @@ var __tesseractInPage = (() => {
   var landmarkOf = (el, ctx) => {
     for (let cur = parentOf(el); cur !== null; cur = parentOf(cur)) {
       const role = roleOf(cur, ctx);
-      if (role !== null && LANDMARK_ROLES.has(role)) return { role, name: accName(cur, role, ctx).name };
+      if (role !== null && LANDMARK_ROLES.has(role)) {
+        let name = ctx.landmarkNames.get(cur);
+        if (name === void 0) {
+          name = accName(cur, role, ctx).name;
+          ctx.landmarkNames.set(cur, name);
+        }
+        return { role, name };
+      }
     }
     return null;
   };

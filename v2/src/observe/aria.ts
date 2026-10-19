@@ -29,6 +29,105 @@ export interface AriaCapture {
 
 const MAX_SCOPE_MATCHES = 5;
 
+/** Roles whose inline text in the snapshot is the control's current value, i.e. data someone typed. */
+const VALUE_ROLES = new Set(['textbox', 'searchbox', 'combobox', 'spinbutton', 'slider']);
+
+// ─── Line structure ────────────────────────────────────────────────────────
+
+interface AriaLine {
+  readonly indent: string;
+  /** The key exactly as written (possibly single-quoted). */
+  readonly rawKey: string;
+  /** The key unquoted: `role "name" [attr]`. */
+  readonly key: string;
+  /** What follows the key: "", ":" or ": <text>". */
+  readonly after: string;
+}
+
+/** Unquote a single-quoted YAML key: strip the quotes, '' → '. Returns the key and its raw length. */
+const unquoteSingle = (rest: string): { readonly key: string; readonly length: number } | null => {
+  let key = '';
+  for (let i = 1; i < rest.length; i += 1) {
+    const ch = rest[i];
+    if (ch === "'") {
+      if (rest[i + 1] === "'") {
+        key += "'";
+        i += 1;
+        continue;
+      }
+      return { key, length: i + 1 };
+    }
+    key += ch;
+  }
+  return null;
+};
+
+/** JSON-style double-quoted string at the start of `text`; returns its value and raw length, or null. */
+const readJsonString = (text: string): { readonly value: string; readonly length: number } | null => {
+  if (!text.startsWith('"')) return null;
+  for (let i = 1; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === '\\') {
+      i += 1;
+      continue;
+    }
+    if (ch === '"') {
+      const literal = text.slice(0, i + 1);
+      try {
+        // YAML's \xNN is not JSON; rewrite it to \u00NN before parsing.
+        return { value: JSON.parse(literal.replace(/\\x([0-9a-fA-F]{2})/g, '\\u00$1')) as string, length: i + 1 };
+      } catch {
+        return { value: literal.slice(1, -1).replace(/\\(.)/g, '$1'), length: i + 1 };
+      }
+    }
+  }
+  return null;
+};
+
+const readRegex = (text: string): { readonly value: string; readonly length: number } | null => {
+  if (!text.startsWith('/')) return null;
+  for (let i = 1; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === '\\') {
+      i += 1;
+      continue;
+    }
+    if (ch === '/') return { value: text.slice(1, i), length: i + 1 };
+  }
+  return null;
+};
+
+/**
+ * Split one snapshot line into indent, key and what follows. An unquoted
+ * key is `role`, an optional quoted (or /regex/) name, then `[attr]`
+ * groups; Playwright quotes the whole key whenever the name holds a
+ * character that would make that ambiguous.
+ */
+const splitLine = (line: string): AriaLine | null => {
+  const match = /^(\s*)- (.*)$/.exec(line);
+  if (match === null) return null;
+  const indent = match[1] ?? '';
+  const rest = match[2] ?? '';
+  if (rest.startsWith("'")) {
+    const quoted = unquoteSingle(rest);
+    if (quoted === null) return null;
+    return { indent, rawKey: rest.slice(0, quoted.length), key: quoted.key, after: rest.slice(quoted.length) };
+  }
+  const role = /^[a-z][a-z-]*/.exec(rest)?.[0];
+  if (role === undefined) return null;
+  let consumed = role.length;
+  const tail = rest.slice(consumed);
+  const name = tail.startsWith(' "') ? readJsonString(tail.slice(1)) : tail.startsWith(' /') ? readRegex(tail.slice(1)) : null;
+  if (name !== null) consumed += 1 + name.length;
+  consumed += /^(?:\s*\[[^\]]*\])*/.exec(rest.slice(consumed))?.[0].length ?? 0;
+  const rawKey = rest.slice(0, consumed);
+  return { indent, rawKey, key: rawKey, after: rest.slice(consumed) };
+};
+
+const roleOfKey = (key: string): string | null => /^([a-z][a-z-]*)/.exec(key)?.[1] ?? null;
+
+// ─── Capture ───────────────────────────────────────────────────────────────
+
 const scopeLocator = (page: Page, scope: ObserveScope): Locator => {
   switch (scope.kind) {
     case 'page':
@@ -44,9 +143,26 @@ const scopeLocator = (page: Page, scope: ObserveScope): Locator => {
   }
 };
 
-/** Redact each line on its own so a match never spans two ARIA entries. */
-export const redactAriaText = (text: string, pii: PiiMode): string =>
-  pii === 'off' ? text : text.split('\n').map((line) => redact(line, pii)).join('\n');
+/**
+ * PII-gate snapshot text line by line, so a match never spans two entries.
+ * Outside "off" mode the current value of text fields is masked as
+ * "<value>": what a user typed is data, not a label.
+ */
+export const redactAriaText = (text: string, pii: PiiMode): string => {
+  if (pii === 'off') return text;
+  return text
+    .split('\n')
+    .map((line) => {
+      const parts = splitLine(line);
+      const role = parts === null ? null : roleOfKey(parts.key);
+      const masked =
+        parts !== null && role !== null && VALUE_ROLES.has(role) && parts.after.startsWith(': ')
+          ? `${parts.indent}- ${parts.rawKey}: <value>`
+          : line;
+      return redact(masked, pii);
+    })
+    .join('\n');
+};
 
 const utf8Bytes = (text: string): number => Buffer.byteLength(text, 'utf8');
 
@@ -106,62 +222,9 @@ export interface AriaEntry {
   /** Indentation depth (two spaces per level). */
   readonly depth: number;
   readonly attributes: Readonly<Record<string, string | true>>;
-  /** Inline text after "key: ", when the node has a single text child. */
+  /** Inline text after "key: ", when the node has a single text child or a value. */
   readonly text?: string;
 }
-
-/** Unquote a single-quoted YAML key: strip the quotes, '' → '. Returns the key and what follows it. */
-const unquoteSingle = (rest: string): { readonly key: string; readonly after: string } | null => {
-  let key = '';
-  for (let i = 1; i < rest.length; i += 1) {
-    const ch = rest[i];
-    if (ch === "'") {
-      if (rest[i + 1] === "'") {
-        key += "'";
-        i += 1;
-        continue;
-      }
-      return { key, after: rest.slice(i + 1) };
-    }
-    key += ch;
-  }
-  return null;
-};
-
-/** JSON-style double-quoted string at the start of `text`; returns its value and length, or null. */
-const readJsonString = (text: string): { readonly value: string; readonly length: number } | null => {
-  if (!text.startsWith('"')) return null;
-  for (let i = 1; i < text.length; i += 1) {
-    const ch = text[i];
-    if (ch === '\\') {
-      i += 1;
-      continue;
-    }
-    if (ch === '"') {
-      const literal = text.slice(0, i + 1);
-      try {
-        // YAML's \xNN is not JSON; rewrite it to \u00NN before parsing.
-        return { value: JSON.parse(literal.replace(/\\x([0-9a-fA-F]{2})/g, '\\u00$1')) as string, length: i + 1 };
-      } catch {
-        return { value: literal.slice(1, -1).replace(/\\(.)/g, '$1'), length: i + 1 };
-      }
-    }
-  }
-  return null;
-};
-
-const readRegex = (text: string): { readonly value: string; readonly length: number } | null => {
-  if (!text.startsWith('/')) return null;
-  for (let i = 1; i < text.length; i += 1) {
-    const ch = text[i];
-    if (ch === '\\') {
-      i += 1;
-      continue;
-    }
-    if (ch === '/') return { value: text.slice(1, i), length: i + 1 };
-  }
-  return null;
-};
 
 const parseAttributes = (text: string): Record<string, string | true> => {
   const attributes: Record<string, string | true> = {};
@@ -184,36 +247,11 @@ const parseScalar = (value: string): string => {
  */
 export const parseAriaSnapshot = (snapshot: string): readonly AriaEntry[] =>
   snapshot.split('\n').flatMap((line): AriaEntry[] => {
-    const match = /^(\s*)- (.*)$/.exec(line);
-    if (match === null) return [];
-    const indent = match[1] ?? '';
-    let rest = match[2] ?? '';
-    let key: string;
-    let after: string;
-    if (rest.startsWith("'")) {
-      const unquoted = unquoteSingle(rest);
-      if (unquoted === null) return [];
-      key = unquoted.key;
-      after = unquoted.after;
-    } else {
-      // Unquoted keys cannot contain ": " (Playwright would have quoted them), so the first one ends the key.
-      const roleMatch = /^([a-z][a-z-]*)/.exec(rest);
-      if (roleMatch === null) return [];
-      const role = roleMatch[1] ?? '';
-      rest = rest.slice(role.length);
-      const name = rest.startsWith(' "') ? readJsonString(rest.slice(1)) : rest.startsWith(' /') ? readRegex(rest.slice(1)) : null;
-      const consumed = role.length + (name !== null ? 1 + name.length : 0);
-      const full = match[2] ?? '';
-      const tail = full.slice(consumed);
-      const colon = tail.indexOf(':');
-      key = full.slice(0, consumed) + (colon >= 0 ? tail.slice(0, colon) : tail);
-      after = colon >= 0 ? tail.slice(colon) : '';
-    }
-    const keyMatch = /^([a-z][a-z-]*)(.*)$/.exec(key);
-    if (keyMatch === null) return [];
-    const role = keyMatch[1] ?? '';
-    if (role === 'text') return [];
-    let remainder = keyMatch[2] ?? '';
+    const parts = splitLine(line);
+    if (parts === null) return [];
+    const role = roleOfKey(parts.key);
+    if (role === null || role === 'text') return [];
+    let remainder = parts.key.slice(role.length);
     let name: string | null = null;
     let nameIsRegex = false;
     if (remainder.startsWith(' "')) {
@@ -230,19 +268,19 @@ export const parseAriaSnapshot = (snapshot: string): readonly AriaEntry[] =>
         remainder = remainder.slice(1 + parsed.length);
       }
     }
-    const textPart = after.startsWith(': ') ? parseScalar(after.slice(2)) : undefined;
+    const text = parts.after.startsWith(': ') ? parseScalar(parts.after.slice(2)) : undefined;
     return [{
       role,
       name,
       nameIsRegex,
-      depth: Math.floor(indent.length / 2),
+      depth: Math.floor(parts.indent.length / 2),
       attributes: parseAttributes(remainder),
-      ...(textPart !== undefined && textPart.length > 0 ? { text: textPart } : {}),
+      ...(text !== undefined && text.length > 0 ? { text } : {}),
     }];
   });
 
 export interface NameAgreement {
-  /** Named, role-bearing interactive candidates compared. */
+  /** Named, role-bearing, visible interactive candidates compared (hidden ones are absent from the tree). */
   readonly compared: number;
   /** Of those, how many the browser's tree names identically under the same role. */
   readonly agreed: number;
@@ -250,16 +288,17 @@ export interface NameAgreement {
   readonly disagreements: readonly string[];
 }
 
-const collapse = (text: string): string => normalizeText(text);
-
 /**
- * Walker-vs-browser name agreement over interactive candidates with a real
- * role and a name. Both sides are PII-gated with the same rules, so a
- * redacted name still compares equal to its redacted counterpart.
+ * Walker-vs-browser name agreement over visible interactive candidates
+ * with a real role and a name. Both sides are PII-gated with the same
+ * rules, so a redacted name still compares equal to its redacted
+ * counterpart.
  */
 export const nameAgreement = (entries: readonly AriaEntry[], candidates: readonly Candidate[]): NameAgreement => {
-  const browser = new Set(entries.filter((e) => e.name !== null && !e.nameIsRegex).map((e) => `${e.role}\u0000${collapse(e.name ?? '')}`));
-  const compared = candidates.filter((c) => c.interactive && c.role !== 'generic' && c.name.length > 0);
-  const disagreements = compared.filter((c) => !browser.has(`${c.role}\u0000${collapse(c.name)}`)).map((c) => c.ref);
+  const browser = new Set(
+    entries.filter((e) => e.name !== null && !e.nameIsRegex).map((e) => `${e.role}\u0000${normalizeText(e.name ?? '')}`),
+  );
+  const compared = candidates.filter((c) => c.interactive && c.visible && c.role !== 'generic' && c.name.length > 0);
+  const disagreements = compared.filter((c) => !browser.has(`${c.role}\u0000${normalizeText(c.name)}`)).map((c) => c.ref);
   return { compared: compared.length, agreed: compared.length - disagreements.length, disagreements };
 };

@@ -51,6 +51,12 @@ export const loadCase = async (workspace: Workspace, id: string): Promise<TestCa
   return result.data;
 };
 
+/** The cached cases among these ids (unknown or never-fetched ids are skipped), in numeric id order. */
+export const loadCases = async (workspace: Workspace, ids: readonly string[]): Promise<readonly TestCase[]> => {
+  const loaded = await Promise.all([...new Set(ids)].filter((id) => CASE_ID.test(id)).map((id) => loadCase(workspace, id)));
+  return loaded.filter((testCase): testCase is TestCase => testCase !== null).sort((a, b) => compareCaseIds(a.id, b.id));
+};
+
 /** Ids of every cached case, numeric ids in numeric order. */
 export const listCachedCases = async (workspace: Workspace): Promise<readonly string[]> =>
   (await listFiles(workspace.paths.cases, '.json'))
