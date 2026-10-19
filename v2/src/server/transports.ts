@@ -50,7 +50,7 @@ export const serveHttp = async (options: HttpOptions): Promise<http.Server> => {
   // The port actually bound (differs from options.port when it is 0); the Host allowlist needs it.
   let boundPort = options.port;
 
-  const server = http.createServer(async (req, res) => {
+  const handle = async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
     try {
       const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
       if (url.pathname === '/healthz') {
@@ -98,6 +98,10 @@ export const serveHttp = async (options: HttpOptions): Promise<http.Server> => {
       options.log(`http request failed: ${(error as Error).message}`);
       if (!res.headersSent) res.writeHead(500, { 'content-type': 'application/json' }).end(JSON.stringify({ error: 'internal error' }));
     }
+  };
+  // Every failure is answered inside handle(); the server callback only starts it.
+  const server = http.createServer((req, res) => {
+    void handle(req, res);
   });
 
   await new Promise<void>((resolve) => server.listen(options.port, options.host, resolve));

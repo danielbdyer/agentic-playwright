@@ -554,6 +554,9 @@ export const startRecording = (options: RecordOptions): RecordingSession => {
       case 'press':
         append({ action: 'press', ...base, ...withSnapshot, literal: event.key ?? 'Enter' });
         break;
+      case 'click':
+      case 'check':
+      case 'uncheck':
       default:
         append({ action: event.action, ...base, ...withSnapshot });
     }

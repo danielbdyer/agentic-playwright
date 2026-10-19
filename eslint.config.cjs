@@ -55,6 +55,9 @@ module.exports = [
       'scripts/**',
       'test-results/**',
       'tests-capture/**',
+      // v2 package: build output and scratch workspaces (emitted specs) are generated, not source.
+      'v2/dist/**',
+      'v2/.tmp/**',
     ],
   },
   {

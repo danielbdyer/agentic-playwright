@@ -164,6 +164,12 @@ const facetFits = (facet: ScoredFacet, verb: Verb, assertion?: AssertionKind): b
       return CHECK_ROLES.has(role);
     case 'select':
       return SELECT_ROLES.has(role);
+    case 'click':
+    case 'navigate':
+    case 'assert':
+    case 'press':
+    case 'hover':
+    case 'wait':
     default:
       return true;
   }
@@ -440,6 +446,14 @@ const proposeAssertion = (kind: AssertionKind, expression: string, observed: unk
       return `await expect(${expression}).toHaveValue(${shown});`;
     case 'count':
       return `await expect(${expression}).toHaveCount(${shown});`;
+    case 'url':
+    case 'visible':
+    case 'title':
+    case 'hidden':
+    case 'enabled':
+    case 'disabled':
+    case 'checked':
+    case 'unchecked':
     default:
       return `await expect(${expression}).toBeVisible();`;
   }
@@ -1198,6 +1212,13 @@ const resolveStep = async (ctx: Ctx, step: TestStep, intent: StepIntent): Promis
       return resolveAssert(ctx, step, intent);
     case 'wait':
       return resolveWait(ctx, step, intent);
+    case 'fill':
+    case 'click':
+    case 'select':
+    case 'check':
+    case 'uncheck':
+    case 'press':
+    case 'hover':
     default:
       return resolveAction(ctx, step, intent);
   }

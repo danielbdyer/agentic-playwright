@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { ToolError } from '../../../src/core/errors.js';
 import { readJsonl } from '../../../src/core/fsio.js';
 import { loadWorkspace } from '../../../src/workspace/workspace.js';

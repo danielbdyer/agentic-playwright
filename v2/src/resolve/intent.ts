@@ -513,6 +513,12 @@ export const needsTarget = (intent: StepIntent): boolean => {
       if (first === undefined) return named;
       return first.kind !== 'url' && first.kind !== 'title';
     }
+    case 'fill':
+    case 'click':
+    case 'select':
+    case 'check':
+    case 'uncheck':
+    case 'hover':
     default:
       return TARGET_VERBS.has(intent.verb);
   }

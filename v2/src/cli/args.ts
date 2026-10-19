@@ -7,7 +7,7 @@
  * flows read them from the environment.
  */
 import { readFile } from 'node:fs/promises';
-import { z } from 'zod';
+import type { z } from 'zod';
 import { ToolError } from '../core/errors.js';
 
 type FieldKind = 'string' | 'number' | 'boolean' | 'string-array' | 'json';
@@ -154,6 +154,7 @@ export const parseToolArgs = async (input: z.ZodObject, argv: readonly string[])
       case 'json':
         explicit[field.name] = parseJson(next(), `--${flag}`);
         break;
+      case 'string':
       default:
         explicit[field.name] = next();
     }
