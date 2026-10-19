@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx --yes tesseract-qa@2.0.0-alpha.1 preflight --format hook --max-age 12h --root \"${CLAUDE_PROJECT_DIR:-.}\"",
+            "timeout": 90
+          }
+        ]
+      }
+    ]
+  }
+}

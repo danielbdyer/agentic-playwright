@@ -1,0 +1,5465 @@
+{
+  "version": "2.0.0-alpha.1",
+  "tools": [
+    {
+      "name": "ado.fetch",
+      "wireName": "ado_fetch",
+      "release": "B",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "invalid-input",
+        "malformed-response",
+        "not-configured",
+        "not-found",
+        "rate-limited",
+        "unavailable",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": true,
+        "destructive": false,
+        "idempotent": true,
+        "openWorld": true
+      },
+      "descriptionHash": "sha256:379711f7ac2afa70",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "wiql": {
+            "type": "string"
+          },
+          "planId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "suiteId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "refresh": {
+            "type": "boolean"
+          }
+        }
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "testCases": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "contentHash": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string"
+                },
+                "priority": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "areaPath": {
+                  "type": "string"
+                },
+                "iterationPath": {
+                  "type": "string"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "index": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991,
+                        "description": "1-based position in the expanded step list."
+                      },
+                      "stepIdentifier": {
+                        "type": "string",
+                        "description": "ADO step id; \"<sharedStepRefId>;<childStepId>\" for steps expanded from shared steps."
+                      },
+                      "action": {
+                        "type": "string"
+                      },
+                      "expected": {
+                        "type": "string"
+                      },
+                      "sharedStepId": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "index",
+                      "stepIdentifier",
+                      "action",
+                      "expected"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "parameters": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "dataRows": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "url": {
+                  "type": "string"
+                },
+                "points": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "pointId": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "planId": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "suiteId": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "configurationName": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "pointId",
+                      "planId",
+                      "suiteId"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "revision",
+                "contentHash",
+                "tags",
+                "steps",
+                "parameters",
+                "dataRows"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "ado",
+              "cache"
+            ]
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "testCases",
+          "source",
+          "warnings"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "ado.publish",
+      "wireName": "ado_publish",
+      "release": "B",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "invalid-input",
+        "malformed-response",
+        "not-configured",
+        "not-found",
+        "rate-limited",
+        "unavailable",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": false,
+        "destructive": false,
+        "idempotent": true,
+        "openWorld": true
+      },
+      "descriptionHash": "sha256:7d9cc0b101072819",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "suiteId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "runName": {
+            "type": "string"
+          },
+          "fromRunId": {
+            "type": "string"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "testCaseId": {
+                  "type": "string"
+                },
+                "testPointId": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "testCaseRevision": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
+                    "Passed",
+                    "Failed",
+                    "Blocked",
+                    "NotExecuted",
+                    "Inconclusive",
+                    "Aborted",
+                    "Timeout"
+                  ]
+                },
+                "durationMs": {
+                  "type": "number"
+                },
+                "errorMessage": {
+                  "type": "string"
+                },
+                "failureType": {
+                  "type": "string",
+                  "enum": [
+                    "drift",
+                    "candidate-bug",
+                    "environment",
+                    "data",
+                    "unknown"
+                  ],
+                  "description": "drift: a locator stopped resolving; candidate-bug: an assertion on expected text failed; environment: navigation/timeout/auth."
+                },
+                "traceRef": {
+                  "type": "string"
+                },
+                "comment": {
+                  "type": "string"
+                },
+                "dataRow": {
+                  "description": "0-based index into the case's dataRows; published as iteration dataRow + 1.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "stepIdentifier": {
+                        "type": "string"
+                      },
+                      "outcome": {
+                        "type": "string",
+                        "enum": [
+                          "Passed",
+                          "Failed",
+                          "Blocked",
+                          "NotExecuted",
+                          "Inconclusive",
+                          "Aborted",
+                          "Timeout"
+                        ]
+                      },
+                      "durationMs": {
+                        "type": "number"
+                      },
+                      "errorMessage": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "stepIdentifier",
+                      "outcome"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "testCaseId",
+                "outcome",
+                "durationMs"
+              ]
+            }
+          },
+          "associateAutomation": {
+            "type": "boolean"
+          },
+          "dryRun": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "planId",
+          "suiteId",
+          "runName"
+        ]
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "url": {
+            "type": "string"
+          },
+          "resultIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "alreadyPublished": {
+            "type": "boolean"
+          },
+          "requests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "method": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "body": {}
+              },
+              "required": [
+                "method",
+                "url"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "runId",
+          "url",
+          "resultIds",
+          "alreadyPublished"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "app.act",
+      "wireName": "app_act",
+      "release": "A",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "ambiguous",
+        "assertion-like",
+        "invalid-input",
+        "malformed-response",
+        "not-enabled",
+        "not-found",
+        "not-visible",
+        "stale-snapshot",
+        "timeout",
+        "unavailable",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": false,
+        "destructive": true,
+        "idempotent": false,
+        "openWorld": true
+      },
+      "descriptionHash": "sha256:109ed4fbce6b398b",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "click",
+              "fill",
+              "select",
+              "check",
+              "uncheck",
+              "press",
+              "hover",
+              "navigate"
+            ]
+          },
+          "target": {
+            "description": "Required for every action except navigate.",
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "facetId": {
+                    "type": "string",
+                    "description": "Facet id, \"<screen>:<name>\"."
+                  }
+                },
+                "required": [
+                  "facetId"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "snapshotId": {
+                    "type": "string"
+                  },
+                  "ref": {
+                    "type": "string",
+                    "description": "Candidate ref from app.observe, e.g. \"c12\"."
+                  }
+                },
+                "required": [
+                  "snapshotId",
+                  "ref"
+                ],
+                "description": "A candidate from a snapshot; resolved to a verified locator via the locator ladder."
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "locator": {
+                    "type": "object",
+                    "properties": {
+                      "strategy": {
+                        "type": "string",
+                        "enum": [
+                          "role-name",
+                          "label",
+                          "placeholder",
+                          "text",
+                          "test-id",
+                          "css",
+                          "row-text"
+                        ],
+                        "description": "Locator ladder, in preference order: role-name, label, placeholder, text, test-id, css. row-text selects a table/grid row by the text it contains."
+                      },
+                      "role": {
+                        "description": "ARIA role for role-name (and optionally row-text, default \"row\").",
+                        "type": "string"
+                      },
+                      "name": {
+                        "description": "Accessible name for role-name.",
+                        "type": "string"
+                      },
+                      "exact": {
+                        "description": "Exact name/text match. Defaults to true for role-name and text.",
+                        "type": "boolean"
+                      },
+                      "value": {
+                        "description": "The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like \"{policyNumber}\".",
+                        "type": "string"
+                      },
+                      "attribute": {
+                        "description": "For test-id: the attribute carrying the id, e.g. \"os-test-id\" or \"data-testid\" (default).",
+                        "type": "string"
+                      },
+                      "scope": {
+                        "type": "object",
+                        "properties": {
+                          "landmark": {
+                            "description": "Scope to the landmark with this role, e.g. \"search\" or \"navigation\".",
+                            "type": "string",
+                            "enum": [
+                              "banner",
+                              "navigation",
+                              "main",
+                              "contentinfo",
+                              "complementary",
+                              "search",
+                              "form",
+                              "region",
+                              "dialog"
+                            ]
+                          },
+                          "landmarkName": {
+                            "description": "Accessible name of the landmark when several share a role.",
+                            "type": "string"
+                          },
+                          "dataBlock": {
+                            "description": "Scope to the OutSystems block container with this data-block value.",
+                            "type": "string"
+                          },
+                          "rowText": {
+                            "description": "Scope to the table/grid row containing this text.",
+                            "type": "string"
+                          },
+                          "rowExact": {
+                            "description": "Match rowText against a whole cell (exact) instead of a substring of the row, so \"POL-30\" does not match \"POL-300\".",
+                            "type": "boolean"
+                          }
+                        },
+                        "description": "Containers the locator is scoped by, outermost first: landmark, then data-block, then row."
+                      },
+                      "visibleOnly": {
+                        "description": "Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).",
+                        "type": "boolean"
+                      },
+                      "nth": {
+                        "description": "Zero-based index when the ladder could not find a unique locator. Fragile; avoid.",
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "expression": {
+                        "description": "Derived Playwright expression for display; ignored on input.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "strategy"
+                    ],
+                    "description": "A structured Playwright locator. The expression is derived from it, never the other way round."
+                  }
+                },
+                "required": [
+                  "locator"
+                ]
+              }
+            ]
+          },
+          "value": {
+            "description": "Text for fill, option label/value for select, key for press, url for navigate.",
+            "type": "string"
+          },
+          "params": {
+            "description": "Values for \"@param\" references and \"{param}\" locator templates.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 120000
+          },
+          "decision": {
+            "type": "object",
+            "properties": {
+              "testCase": {
+                "type": "string"
+              },
+              "step": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "chose": {
+                "description": "Candidate ref or facet id chosen.",
+                "type": "string"
+              },
+              "rejected": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reason": {
+                "type": "string"
+              },
+              "host": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "promptFingerprint": {
+                    "type": "string"
+                  },
+                  "tokens": {
+                    "type": "object",
+                    "properties": {
+                      "prompt": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "completion": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Optional: why the agent made this call. Written to the authoring receipt; never affects behavior."
+          }
+        },
+        "required": [
+          "pageId",
+          "action"
+        ]
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed"
+            ]
+          },
+          "errorFamily": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "resolved": {
+            "type": "object",
+            "properties": {
+              "locator": {
+                "type": "object",
+                "properties": {
+                  "strategy": {
+                    "type": "string",
+                    "enum": [
+                      "role-name",
+                      "label",
+                      "placeholder",
+                      "text",
+                      "test-id",
+                      "css",
+                      "row-text"
+                    ],
+                    "description": "Locator ladder, in preference order: role-name, label, placeholder, text, test-id, css. row-text selects a table/grid row by the text it contains."
+                  },
+                  "role": {
+                    "description": "ARIA role for role-name (and optionally row-text, default \"row\").",
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Accessible name for role-name.",
+                    "type": "string"
+                  },
+                  "exact": {
+                    "description": "Exact name/text match. Defaults to true for role-name and text.",
+                    "type": "boolean"
+                  },
+                  "value": {
+                    "description": "The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like \"{policyNumber}\".",
+                    "type": "string"
+                  },
+                  "attribute": {
+                    "description": "For test-id: the attribute carrying the id, e.g. \"os-test-id\" or \"data-testid\" (default).",
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "object",
+                    "properties": {
+                      "landmark": {
+                        "description": "Scope to the landmark with this role, e.g. \"search\" or \"navigation\".",
+                        "type": "string",
+                        "enum": [
+                          "banner",
+                          "navigation",
+                          "main",
+                          "contentinfo",
+                          "complementary",
+                          "search",
+                          "form",
+                          "region",
+                          "dialog"
+                        ]
+                      },
+                      "landmarkName": {
+                        "description": "Accessible name of the landmark when several share a role.",
+                        "type": "string"
+                      },
+                      "dataBlock": {
+                        "description": "Scope to the OutSystems block container with this data-block value.",
+                        "type": "string"
+                      },
+                      "rowText": {
+                        "description": "Scope to the table/grid row containing this text.",
+                        "type": "string"
+                      },
+                      "rowExact": {
+                        "description": "Match rowText against a whole cell (exact) instead of a substring of the row, so \"POL-30\" does not match \"POL-300\".",
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Containers the locator is scoped by, outermost first: landmark, then data-block, then row."
+                  },
+                  "visibleOnly": {
+                    "description": "Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).",
+                    "type": "boolean"
+                  },
+                  "nth": {
+                    "description": "Zero-based index when the ladder could not find a unique locator. Fragile; avoid.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "expression": {
+                    "description": "Derived Playwright expression for display; ignored on input.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "strategy"
+                ],
+                "additionalProperties": false,
+                "description": "A structured Playwright locator. The expression is derived from it, never the other way round."
+              },
+              "expression": {
+                "type": "string"
+              },
+              "verified": {
+                "type": "boolean",
+                "description": "True when the locator matched exactly one visible element that is the intended one."
+              },
+              "alternatives": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "locator": {
+                      "type": "object",
+                      "properties": {
+                        "strategy": {
+                          "type": "string",
+                          "enum": [
+                            "role-name",
+                            "label",
+                            "placeholder",
+                            "text",
+                            "test-id",
+                            "css",
+                            "row-text"
+                          ],
+                          "description": "Locator ladder, in preference order: role-name, label, placeholder, text, test-id, css. row-text selects a table/grid row by the text it contains."
+                        },
+                        "role": {
+                          "description": "ARIA role for role-name (and optionally row-text, default \"row\").",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Accessible name for role-name.",
+                          "type": "string"
+                        },
+                        "exact": {
+                          "description": "Exact name/text match. Defaults to true for role-name and text.",
+                          "type": "boolean"
+                        },
+                        "value": {
+                          "description": "The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like \"{policyNumber}\".",
+                          "type": "string"
+                        },
+                        "attribute": {
+                          "description": "For test-id: the attribute carrying the id, e.g. \"os-test-id\" or \"data-testid\" (default).",
+                          "type": "string"
+                        },
+                        "scope": {
+                          "type": "object",
+                          "properties": {
+                            "landmark": {
+                              "description": "Scope to the landmark with this role, e.g. \"search\" or \"navigation\".",
+                              "type": "string",
+                              "enum": [
+                                "banner",
+                                "navigation",
+                                "main",
+                                "contentinfo",
+                                "complementary",
+                                "search",
+                                "form",
+                                "region",
+                                "dialog"
+                              ]
+                            },
+                            "landmarkName": {
+                              "description": "Accessible name of the landmark when several share a role.",
+                              "type": "string"
+                            },
+                            "dataBlock": {
+                              "description": "Scope to the OutSystems block container with this data-block value.",
+                              "type": "string"
+                            },
+                            "rowText": {
+                              "description": "Scope to the table/grid row containing this text.",
+                              "type": "string"
+                            },
+                            "rowExact": {
+                              "description": "Match rowText against a whole cell (exact) instead of a substring of the row, so \"POL-30\" does not match \"POL-300\".",
+                              "type": "boolean"
+                            }
+                          },
+                          "additionalProperties": false,
+                          "description": "Containers the locator is scoped by, outermost first: landmark, then data-block, then row."
+                        },
+                        "visibleOnly": {
+                          "description": "Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).",
+                          "type": "boolean"
+                        },
+                        "nth": {
+                          "description": "Zero-based index when the ladder could not find a unique locator. Fragile; avoid.",
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "expression": {
+                          "description": "Derived Playwright expression for display; ignored on input.",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "strategy"
+                      ],
+                      "additionalProperties": false,
+                      "description": "A structured Playwright locator. The expression is derived from it, never the other way round."
+                    },
+                    "expression": {
+                      "type": "string"
+                    },
+                    "matches": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "rejectedBecause": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "locator",
+                    "expression",
+                    "matches",
+                    "rejectedBecause"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "Ladder rungs tried before the chosen one and why they were rejected."
+              }
+            },
+            "required": [
+              "locator",
+              "expression",
+              "verified",
+              "alternatives"
+            ],
+            "additionalProperties": false
+          },
+          "facetId": {
+            "type": "string"
+          },
+          "select": {
+            "description": "How a select was carried out: a native <select>, or a custom OutSystems dropdown opened and clicked.",
+            "type": "object",
+            "properties": {
+              "via": {
+                "type": "string",
+                "enum": [
+                  "native",
+                  "listbox",
+                  "combobox"
+                ]
+              },
+              "typed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "via"
+            ],
+            "additionalProperties": false
+          },
+          "postState": {
+            "type": "object",
+            "properties": {
+              "snapshotId": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "urlChanged": {
+                "type": "boolean"
+              },
+              "fingerprintChanged": {
+                "type": "boolean"
+              },
+              "added": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "ref": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string",
+                      "description": "Computed ARIA role; \"generic\" for a roleless handler-owning clickable."
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Accessible name computed the way the browser computes it (PII-gated)."
+                    },
+                    "namingSource": {
+                      "type": "string",
+                      "enum": [
+                        "aria-labelledby",
+                        "aria-label",
+                        "label-for",
+                        "label-wrap",
+                        "placeholder",
+                        "title",
+                        "alt",
+                        "content",
+                        "value",
+                        "none"
+                      ]
+                    },
+                    "affordance": {
+                      "type": "string",
+                      "enum": [
+                        "native",
+                        "aria-role",
+                        "handler-owner",
+                        "tabindex",
+                        "none"
+                      ]
+                    },
+                    "interactive": {
+                      "type": "boolean"
+                    },
+                    "tag": {
+                      "type": "string"
+                    },
+                    "landmark": {
+                      "type": "string",
+                      "enum": [
+                        "banner",
+                        "navigation",
+                        "main",
+                        "contentinfo",
+                        "complementary",
+                        "search",
+                        "form",
+                        "region",
+                        "dialog"
+                      ]
+                    },
+                    "landmarkName": {
+                      "type": "string"
+                    },
+                    "dataBlock": {
+                      "description": "Nearest OutSystems data-block ancestor.",
+                      "type": "string"
+                    },
+                    "rowText": {
+                      "description": "Text of the enclosing table/grid row, when inside one (PII-gated, truncated).",
+                      "type": "string"
+                    },
+                    "testId": {
+                      "description": "os-test-id or data-testid, when present.",
+                      "type": "string"
+                    },
+                    "testIdAttribute": {
+                      "description": "Which attribute carried testId: \"os-test-id\" or \"data-testid\".",
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "idKind": {
+                      "description": "structural ids (b3-…) are fragile; designer ids end with the widget Name.",
+                      "type": "string",
+                      "enum": [
+                        "designer",
+                        "structural",
+                        "plain"
+                      ]
+                    },
+                    "placeholder": {
+                      "type": "string"
+                    },
+                    "inputType": {
+                      "type": "string"
+                    },
+                    "level": {
+                      "description": "Heading level.",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "checked": {
+                      "type": "boolean"
+                    },
+                    "visible": {
+                      "type": "boolean"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "inViewport": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ref",
+                    "role",
+                    "name",
+                    "namingSource",
+                    "affordance",
+                    "interactive",
+                    "tag",
+                    "visible",
+                    "enabled",
+                    "inViewport"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "Candidates present after the action and not before (capped)."
+              },
+              "removed": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "role",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "alerts": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Text of alert/status/feedback-message regions after the action."
+              }
+            },
+            "required": [
+              "snapshotId",
+              "url",
+              "urlChanged",
+              "fingerprintChanged",
+              "added",
+              "removed",
+              "alerts"
+            ],
+            "additionalProperties": false
+          },
+          "durationMs": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "outcome",
+          "durationMs"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "app.assert",
+      "wireName": "app_assert",
+      "release": "A",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "ambiguous",
+        "invalid-input",
+        "malformed-response",
+        "not-found",
+        "stale-snapshot",
+        "timeout",
+        "unavailable",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": false,
+        "destructive": false,
+        "idempotent": false,
+        "openWorld": true
+      },
+      "descriptionHash": "sha256:6fa531ab84fc683b",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string"
+          },
+          "assertion": {
+            "type": "string",
+            "enum": [
+              "visible",
+              "hidden",
+              "text",
+              "contains-text",
+              "value",
+              "url",
+              "title",
+              "count",
+              "enabled",
+              "disabled",
+              "checked",
+              "unchecked"
+            ]
+          },
+          "target": {
+            "description": "Omit for url and title.",
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "facetId": {
+                    "type": "string",
+                    "description": "Facet id, \"<screen>:<name>\"."
+                  }
+                },
+                "required": [
+                  "facetId"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "snapshotId": {
+                    "type": "string"
+                  },
+                  "ref": {
+                    "type": "string",
+                    "description": "Candidate ref from app.observe, e.g. \"c12\"."
+                  }
+                },
+                "required": [
+                  "snapshotId",
+                  "ref"
+                ],
+                "description": "A candidate from a snapshot; resolved to a verified locator via the locator ladder."
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "locator": {
+                    "type": "object",
+                    "properties": {
+                      "strategy": {
+                        "type": "string",
+                        "enum": [
+                          "role-name",
+                          "label",
+                          "placeholder",
+                          "text",
+                          "test-id",
+                          "css",
+                          "row-text"
+                        ],
+                        "description": "Locator ladder, in preference order: role-name, label, placeholder, text, test-id, css. row-text selects a table/grid row by the text it contains."
+                      },
+                      "role": {
+                        "description": "ARIA role for role-name (and optionally row-text, default \"row\").",
+                        "type": "string"
+                      },
+                      "name": {
+                        "description": "Accessible name for role-name.",
+                        "type": "string"
+                      },
+                      "exact": {
+                        "description": "Exact name/text match. Defaults to true for role-name and text.",
+                        "type": "boolean"
+                      },
+                      "value": {
+                        "description": "The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like \"{policyNumber}\".",
+                        "type": "string"
+                      },
+                      "attribute": {
+                        "description": "For test-id: the attribute carrying the id, e.g. \"os-test-id\" or \"data-testid\" (default).",
+                        "type": "string"
+                      },
+                      "scope": {
+                        "type": "object",
+                        "properties": {
+                          "landmark": {
+                            "description": "Scope to the landmark with this role, e.g. \"search\" or \"navigation\".",
+                            "type": "string",
+                            "enum": [
+                              "banner",
+                              "navigation",
+                              "main",
+                              "contentinfo",
+                              "complementary",
+                              "search",
+                              "form",
+                              "region",
+                              "dialog"
+                            ]
+                          },
+                          "landmarkName": {
+                            "description": "Accessible name of the landmark when several share a role.",
+                            "type": "string"
+                          },
+                          "dataBlock": {
+                            "description": "Scope to the OutSystems block container with this data-block value.",
+                            "type": "string"
+                          },
+                          "rowText": {
+                            "description": "Scope to the table/grid row containing this text.",
+                            "type": "string"
+                          },
+                          "rowExact": {
+                            "description": "Match rowText against a whole cell (exact) instead of a substring of the row, so \"POL-30\" does not match \"POL-300\".",
+                            "type": "boolean"
+                          }
+                        },
+                        "description": "Containers the locator is scoped by, outermost first: landmark, then data-block, then row."
+                      },
+                      "visibleOnly": {
+                        "description": "Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).",
+                        "type": "boolean"
+                      },
+                      "nth": {
+                        "description": "Zero-based index when the ladder could not find a unique locator. Fragile; avoid.",
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "expression": {
+                        "description": "Derived Playwright expression for display; ignored on input.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "strategy"
+                    ],
+                    "description": "A structured Playwright locator. The expression is derived from it, never the other way round."
+                  }
+                },
+                "required": [
+                  "locator"
+                ]
+              }
+            ]
+          },
+          "expected": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "params": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 60000
+          }
+        },
+        "required": [
+          "pageId",
+          "assertion"
+        ]
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "passed": {
+            "type": "boolean"
+          },
+          "observed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "resolved": {
+            "type": "object",
+            "properties": {
+              "locator": {
+                "type": "object",
+                "properties": {
+                  "strategy": {
+                    "type": "string",
+                    "enum": [
+                      "role-name",
+                      "label",
+                      "placeholder",
+                      "text",
+                      "test-id",
+                      "css",
+                      "row-text"
+                    ],
+                    "description": "Locator ladder, in preference order: role-name, label, placeholder, text, test-id, css. row-text selects a table/grid row by the text it contains."
+                  },
+                  "role": {
+                    "description": "ARIA role for role-name (and optionally row-text, default \"row\").",
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Accessible name for role-name.",
+                    "type": "string"
+                  },
+                  "exact": {
+                    "description": "Exact name/text match. Defaults to true for role-name and text.",
+                    "type": "boolean"
+                  },
+                  "value": {
+                    "description": "The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like \"{policyNumber}\".",
+                    "type": "string"
+                  },
+                  "attribute": {
+                    "description": "For test-id: the attribute carrying the id, e.g. \"os-test-id\" or \"data-testid\" (default).",
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "object",
+                    "properties": {
+                      "landmark": {
+                        "description": "Scope to the landmark with this role, e.g. \"search\" or \"navigation\".",
+                        "type": "string",
+                        "enum": [
+                          "banner",
+                          "navigation",
+                          "main",
+                          "contentinfo",
+                          "complementary",
+                          "search",
+                          "form",
+                          "region",
+                          "dialog"
+                        ]
+                      },
+                      "landmarkName": {
+                        "description": "Accessible name of the landmark when several share a role.",
+                        "type": "string"
+                      },
+                      "dataBlock": {
+                        "description": "Scope to the OutSystems block container with this data-block value.",
+                        "type": "string"
+                      },
+                      "rowText": {
+                        "description": "Scope to the table/grid row containing this text.",
+                        "type": "string"
+                      },
+                      "rowExact": {
+                        "description": "Match rowText against a whole cell (exact) instead of a substring of the row, so \"POL-30\" does not match \"POL-300\".",
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Containers the locator is scoped by, outermost first: landmark, then data-block, then row."
+                  },
+                  "visibleOnly": {
+                    "description": "Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).",
+                    "type": "boolean"
+                  },
+                  "nth": {
+                    "description": "Zero-based index when the ladder could not find a unique locator. Fragile; avoid.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "expression": {
+                    "description": "Derived Playwright expression for display; ignored on input.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "strategy"
+                ],
+                "additionalProperties": false,
+                "description": "A structured Playwright locator. The expression is derived from it, never the other way round."
+              },
+              "expression": {
+                "type": "string"
+              },
+              "verified": {
+                "type": "boolean",
+                "description": "True when the locator matched exactly one visible element that is the intended one."
+              },
+              "alternatives": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "locator": {
+                      "type": "object",
+                      "properties": {
+                        "strategy": {
+                          "type": "string",
+                          "enum": [
+                            "role-name",
+                            "label",
+                            "placeholder",
+                            "text",
+                            "test-id",
+                            "css",
+                            "row-text"
+                          ],
+                          "description": "Locator ladder, in preference order: role-name, label, placeholder, text, test-id, css. row-text selects a table/grid row by the text it contains."
+                        },
+                        "role": {
+                          "description": "ARIA role for role-name (and optionally row-text, default \"row\").",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Accessible name for role-name.",
+                          "type": "string"
+                        },
+                        "exact": {
+                          "description": "Exact name/text match. Defaults to true for role-name and text.",
+                          "type": "boolean"
+                        },
+                        "value": {
+                          "description": "The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like \"{policyNumber}\".",
+                          "type": "string"
+                        },
+                        "attribute": {
+                          "description": "For test-id: the attribute carrying the id, e.g. \"os-test-id\" or \"data-testid\" (default).",
+                          "type": "string"
+                        },
+                        "scope": {
+                          "type": "object",
+                          "properties": {
+                            "landmark": {
+                              "description": "Scope to the landmark with this role, e.g. \"search\" or \"navigation\".",
+                              "type": "string",
+                              "enum": [
+                                "banner",
+                                "navigation",
+                                "main",
+                                "contentinfo",
+                                "complementary",
+                                "search",
+                                "form",
+                                "region",
+                                "dialog"
+                              ]
+                            },
+                            "landmarkName": {
+                              "description": "Accessible name of the landmark when several share a role.",
+                              "type": "string"
+                            },
+                            "dataBlock": {
+                              "description": "Scope to the OutSystems block container with this data-block value.",
+                              "type": "string"
+                            },
+                            "rowText": {
+                              "description": "Scope to the table/grid row containing this text.",
+                              "type": "string"
+                            },
+                            "rowExact": {
+                              "description": "Match rowText against a whole cell (exact) instead of a substring of the row, so \"POL-30\" does not match \"POL-300\".",
+                              "type": "boolean"
+                            }
+                          },
+                          "additionalProperties": false,
+                          "description": "Containers the locator is scoped by, outermost first: landmark, then data-block, then row."
+                        },
+                        "visibleOnly": {
+                          "description": "Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).",
+                          "type": "boolean"
+                        },
+                        "nth": {
+                          "description": "Zero-based index when the ladder could not find a unique locator. Fragile; avoid.",
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "expression": {
+                          "description": "Derived Playwright expression for display; ignored on input.",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "strategy"
+                      ],
+                      "additionalProperties": false,
+                      "description": "A structured Playwright locator. The expression is derived from it, never the other way round."
+                    },
+                    "expression": {
+                      "type": "string"
+                    },
+                    "matches": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "rejectedBecause": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "locator",
+                    "expression",
+                    "matches",
+                    "rejectedBecause"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "Ladder rungs tried before the chosen one and why they were rejected."
+              }
+            },
+            "required": [
+              "locator",
+              "expression",
+              "verified",
+              "alternatives"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "passed",
+          "observed"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "app.observe",
+      "wireName": "app_observe",
+      "release": "A",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "invalid-input",
+        "malformed-response",
+        "not-found",
+        "timeout",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": true,
+        "destructive": false,
+        "idempotent": true,
+        "openWorld": true
+      },
+      "descriptionHash": "sha256:23b795bc84c2849f",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string"
+          },
+          "scope": {
+            "description": "\"page\" (default), a landmark role, or \"block:<data-block>\".",
+            "type": "string"
+          },
+          "intent": {
+            "description": "Step wording to rank candidates against, e.g. \"Enter policy number in search field\".",
+            "type": "string"
+          },
+          "includeScreenshot": {
+            "type": "boolean"
+          },
+          "audit": {
+            "type": "boolean"
+          },
+          "maxCandidates": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          }
+        },
+        "required": [
+          "pageId"
+        ]
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "snapshotId": {
+            "type": "string"
+          },
+          "pageId": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "reactive",
+              "traditional",
+              "unknown"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "description": "\"page\", a landmark role, or \"block:<data-block>\"."
+          },
+          "fingerprint": {
+            "type": "object",
+            "properties": {
+              "hash": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "landmarks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "roleCounts": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "number"
+                }
+              },
+              "interactive": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "rolelessInteractive": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "placeholderOnlyInputs": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "dataBlocks": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "dataBlockNames": {
+                "description": "Distinct OutSystems block names on the page (part of the structural hash).",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "runtimeGlobal": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "hash",
+              "title",
+              "path",
+              "landmarks",
+              "roleCounts",
+              "interactive",
+              "rolelessInteractive",
+              "placeholderOnlyInputs",
+              "dataBlocks",
+              "runtimeGlobal"
+            ],
+            "additionalProperties": false
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string",
+                  "description": "Computed ARIA role; \"generic\" for a roleless handler-owning clickable."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Accessible name computed the way the browser computes it (PII-gated)."
+                },
+                "namingSource": {
+                  "type": "string",
+                  "enum": [
+                    "aria-labelledby",
+                    "aria-label",
+                    "label-for",
+                    "label-wrap",
+                    "placeholder",
+                    "title",
+                    "alt",
+                    "content",
+                    "value",
+                    "none"
+                  ]
+                },
+                "affordance": {
+                  "type": "string",
+                  "enum": [
+                    "native",
+                    "aria-role",
+                    "handler-owner",
+                    "tabindex",
+                    "none"
+                  ]
+                },
+                "interactive": {
+                  "type": "boolean"
+                },
+                "tag": {
+                  "type": "string"
+                },
+                "landmark": {
+                  "type": "string",
+                  "enum": [
+                    "banner",
+                    "navigation",
+                    "main",
+                    "contentinfo",
+                    "complementary",
+                    "search",
+                    "form",
+                    "region",
+                    "dialog"
+                  ]
+                },
+                "landmarkName": {
+                  "type": "string"
+                },
+                "dataBlock": {
+                  "description": "Nearest OutSystems data-block ancestor.",
+                  "type": "string"
+                },
+                "rowText": {
+                  "description": "Text of the enclosing table/grid row, when inside one (PII-gated, truncated).",
+                  "type": "string"
+                },
+                "testId": {
+                  "description": "os-test-id or data-testid, when present.",
+                  "type": "string"
+                },
+                "testIdAttribute": {
+                  "description": "Which attribute carried testId: \"os-test-id\" or \"data-testid\".",
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "idKind": {
+                  "description": "structural ids (b3-…) are fragile; designer ids end with the widget Name.",
+                  "type": "string",
+                  "enum": [
+                    "designer",
+                    "structural",
+                    "plain"
+                  ]
+                },
+                "placeholder": {
+                  "type": "string"
+                },
+                "inputType": {
+                  "type": "string"
+                },
+                "level": {
+                  "description": "Heading level.",
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "checked": {
+                  "type": "boolean"
+                },
+                "visible": {
+                  "type": "boolean"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "inViewport": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "ref",
+                "role",
+                "name",
+                "namingSource",
+                "affordance",
+                "interactive",
+                "tag",
+                "visible",
+                "enabled",
+                "inViewport"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "totalCandidates": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "aria": {
+            "type": "string",
+            "description": "Playwright ARIA snapshot text for the scope, capped."
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "screenshotPath": {
+            "type": "string"
+          },
+          "hints": {
+            "description": "When an intent was given: candidates ranked by the heuristic pre-filter. A suggestion; the agent decides.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "why": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ref",
+                "score",
+                "why"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "audit": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "unnamed-control",
+                    "duplicate-name",
+                    "structural-id-only",
+                    "roleless-clickable",
+                    "placeholder-only-input",
+                    "missing-landmarks"
+                  ]
+                },
+                "refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "refs",
+                "message"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "snapshotId",
+          "pageId",
+          "at",
+          "url",
+          "title",
+          "variant",
+          "scope",
+          "fingerprint",
+          "candidates",
+          "totalCandidates",
+          "aria",
+          "truncated"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "app.open",
+      "wireName": "app_open",
+      "release": "A",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "invalid-input",
+        "not-configured",
+        "not-found",
+        "timeout",
+        "unavailable",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": false,
+        "destructive": false,
+        "idempotent": false,
+        "openWorld": true
+      },
+      "descriptionHash": "sha256:6e7842049f076699",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "url": {
+            "description": "Absolute URL, or a path relative to the profile baseURL.",
+            "type": "string"
+          },
+          "profile": {
+            "description": "Profile name (.tesseract/profiles/<name>.json). Defaults to $TESSERACT_PROFILE.",
+            "type": "string"
+          },
+          "auth": {
+            "description": "Default: storage-state when the profile has one, else flow when it names a loginFlow, else none.",
+            "type": "string",
+            "enum": [
+              "storage-state",
+              "flow",
+              "none"
+            ]
+          },
+          "attach": {
+            "type": "object",
+            "properties": {
+              "cdpEndpoint": {
+                "type": "string"
+              },
+              "urlContains": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "cdpEndpoint"
+            ]
+          },
+          "pageId": {
+            "description": "Navigate this existing page instead of opening a new one.",
+            "type": "string"
+          },
+          "headed": {
+            "description": "Show the browser window (needed for a human to watch or record).",
+            "type": "boolean"
+          }
+        }
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string"
+          },
+          "finalUrl": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "reactive",
+              "traditional",
+              "unknown"
+            ]
+          },
+          "hydration": {
+            "type": "object",
+            "properties": {
+              "settled": {
+                "type": "boolean"
+              },
+              "elapsedMs": {
+                "type": "number"
+              },
+              "reason": {
+                "type": "string",
+                "description": "Why the wait ended: settled, budget-exhausted, or attached (no wait)."
+              }
+            },
+            "required": [
+              "settled",
+              "elapsedMs",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
+          "attached": {
+            "type": "boolean"
+          },
+          "profile": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pageId",
+          "finalUrl",
+          "title",
+          "variant",
+          "hydration",
+          "attached"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "flow.record",
+      "wireName": "flow_record",
+      "release": "C",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "conflict",
+        "invalid-input",
+        "malformed-response",
+        "not-configured",
+        "not-found",
+        "timeout",
+        "unavailable",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": false,
+        "destructive": false,
+        "idempotent": false,
+        "openWorld": true
+      },
+      "descriptionHash": "sha256:1816acc686847ae7",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+            "description": "kebab-case flow name, e.g. \"login\"."
+          },
+          "pageId": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "profile": {
+            "type": "string"
+          },
+          "screen": {
+            "description": "Screen name for minted facets; derived from the URL path when absent.",
+            "type": "string"
+          },
+          "stopOn": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "urlChange",
+              "steps"
+            ]
+          },
+          "maxSteps": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 3600000
+          },
+          "redact": {
+            "description": "Field names (accessible names) whose values become parameters.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "stopOn"
+        ]
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "flowPath": {
+            "type": "string"
+          },
+          "recordingPath": {
+            "type": "string"
+          },
+          "facetsMinted": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "params": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "action": {
+                  "type": "string"
+                },
+                "facetId": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "snapshotId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "index",
+                "action",
+                "url"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "stoppedBy": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "urlChange",
+              "steps",
+              "timeout",
+              "closed"
+            ]
+          }
+        },
+        "required": [
+          "flowPath",
+          "recordingPath",
+          "facetsMinted",
+          "params",
+          "steps",
+          "stoppedBy"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "flow.run",
+      "wireName": "flow_run",
+      "release": "C",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "invalid-input",
+        "malformed-response",
+        "not-configured",
+        "not-enabled",
+        "not-found",
+        "not-visible",
+        "timeout",
+        "unavailable",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": false,
+        "destructive": true,
+        "idempotent": false,
+        "openWorld": true
+      },
+      "descriptionHash": "sha256:b33f6ca94570e649",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "profile": {
+            "type": "string"
+          },
+          "params": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "pageId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed"
+            ]
+          },
+          "failedStep": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "errorFamily": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "finalUrl": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "durationMs": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "pageId",
+          "outcome",
+          "finalUrl",
+          "title",
+          "durationMs"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "handoff.raise",
+      "wireName": "handoff_raise",
+      "release": "B",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "invalid-input",
+        "not-found",
+        "unavailable",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": false,
+        "destructive": false,
+        "idempotent": false,
+        "openWorld": true
+      },
+      "descriptionHash": "sha256:e0d3c3839978757d",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "testCaseId": {
+            "type": "string"
+          },
+          "stepIndex": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "stepIdentifier": {
+            "type": "string"
+          },
+          "blockage": {
+            "type": "string",
+            "enum": [
+              "ambiguous-target",
+              "text-mismatch",
+              "not-found",
+              "missing-data",
+              "auth",
+              "environment",
+              "unsupported",
+              "other"
+            ]
+          },
+          "unresolvedIntent": {
+            "type": "string"
+          },
+          "attempted": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "snapshotId": {
+                "type": "string"
+              },
+              "pageId": {
+                "type": "string"
+              }
+            }
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "why": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          "nextMoves": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "proposedAssertion": {
+            "type": "string"
+          },
+          "commentOnAdo": {
+            "description": "Default true when Azure DevOps is configured.",
+            "type": "boolean"
+          },
+          "decision": {
+            "type": "object",
+            "properties": {
+              "testCase": {
+                "type": "string"
+              },
+              "step": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "chose": {
+                "description": "Candidate ref or facet id chosen.",
+                "type": "string"
+              },
+              "rejected": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reason": {
+                "type": "string"
+              },
+              "host": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "promptFingerprint": {
+                    "type": "string"
+                  },
+                  "tokens": {
+                    "type": "object",
+                    "properties": {
+                      "prompt": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "completion": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Optional: why the agent made this call. Written to the authoring receipt; never affects behavior."
+          }
+        },
+        "required": [
+          "testCaseId",
+          "stepIndex",
+          "blockage",
+          "unresolvedIntent",
+          "attempted",
+          "evidence",
+          "nextMoves"
+        ]
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "handoffId": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "screenshotPath": {
+            "type": "string"
+          },
+          "adoCommentUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "handoffId",
+          "path"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "memory.enrich",
+      "wireName": "memory_enrich",
+      "release": "B",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "conflict",
+        "invalid-input",
+        "malformed-response",
+        "not-found",
+        "stale-snapshot",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": false,
+        "destructive": false,
+        "idempotent": true,
+        "openWorld": false
+      },
+      "descriptionHash": "sha256:8df13926e8439c7f",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "facetId": {
+            "type": "string"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "locator": {
+            "type": "object",
+            "properties": {
+              "strategy": {
+                "type": "string",
+                "enum": [
+                  "role-name",
+                  "label",
+                  "placeholder",
+                  "text",
+                  "test-id",
+                  "css",
+                  "row-text"
+                ],
+                "description": "Locator ladder, in preference order: role-name, label, placeholder, text, test-id, css. row-text selects a table/grid row by the text it contains."
+              },
+              "role": {
+                "description": "ARIA role for role-name (and optionally row-text, default \"row\").",
+                "type": "string"
+              },
+              "name": {
+                "description": "Accessible name for role-name.",
+                "type": "string"
+              },
+              "exact": {
+                "description": "Exact name/text match. Defaults to true for role-name and text.",
+                "type": "boolean"
+              },
+              "value": {
+                "description": "The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like \"{policyNumber}\".",
+                "type": "string"
+              },
+              "attribute": {
+                "description": "For test-id: the attribute carrying the id, e.g. \"os-test-id\" or \"data-testid\" (default).",
+                "type": "string"
+              },
+              "scope": {
+                "type": "object",
+                "properties": {
+                  "landmark": {
+                    "description": "Scope to the landmark with this role, e.g. \"search\" or \"navigation\".",
+                    "type": "string",
+                    "enum": [
+                      "banner",
+                      "navigation",
+                      "main",
+                      "contentinfo",
+                      "complementary",
+                      "search",
+                      "form",
+                      "region",
+                      "dialog"
+                    ]
+                  },
+                  "landmarkName": {
+                    "description": "Accessible name of the landmark when several share a role.",
+                    "type": "string"
+                  },
+                  "dataBlock": {
+                    "description": "Scope to the OutSystems block container with this data-block value.",
+                    "type": "string"
+                  },
+                  "rowText": {
+                    "description": "Scope to the table/grid row containing this text.",
+                    "type": "string"
+                  },
+                  "rowExact": {
+                    "description": "Match rowText against a whole cell (exact) instead of a substring of the row, so \"POL-30\" does not match \"POL-300\".",
+                    "type": "boolean"
+                  }
+                },
+                "description": "Containers the locator is scoped by, outermost first: landmark, then data-block, then row."
+              },
+              "visibleOnly": {
+                "description": "Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).",
+                "type": "boolean"
+              },
+              "nth": {
+                "description": "Zero-based index when the ladder could not find a unique locator. Fragile; avoid.",
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "expression": {
+                "description": "Derived Playwright expression for display; ignored on input.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "strategy"
+            ],
+            "description": "A structured Playwright locator. The expression is derived from it, never the other way round."
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "retire": {
+            "type": "boolean"
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "snapshotId": {
+                "type": "string"
+              },
+              "ref": {
+                "type": "string",
+                "description": "Candidate ref from app.observe, e.g. \"c12\"."
+              }
+            },
+            "required": [
+              "snapshotId",
+              "ref"
+            ],
+            "description": "A candidate from a snapshot; resolved to a verified locator via the locator ladder."
+          },
+          "decision": {
+            "type": "object",
+            "properties": {
+              "testCase": {
+                "type": "string"
+              },
+              "step": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "chose": {
+                "description": "Candidate ref or facet id chosen.",
+                "type": "string"
+              },
+              "rejected": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reason": {
+                "type": "string"
+              },
+              "host": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "promptFingerprint": {
+                    "type": "string"
+                  },
+                  "tokens": {
+                    "type": "object",
+                    "properties": {
+                      "prompt": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "completion": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Optional: why the agent made this call. Written to the authoring receipt; never affects behavior."
+          }
+        },
+        "required": [
+          "facetId",
+          "evidence"
+        ]
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "facet": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "screen": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "element",
+                  "state",
+                  "route",
+                  "region",
+                  "row"
+                ]
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "aliases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "role": {
+                "type": "string"
+              },
+              "tag": {
+                "description": "HTML tag of the element when minted; tells emission a native <select> from a custom combobox.",
+                "type": "string"
+              },
+              "namingSource": {
+                "type": "string",
+                "enum": [
+                  "aria-labelledby",
+                  "aria-label",
+                  "label-for",
+                  "label-wrap",
+                  "placeholder",
+                  "title",
+                  "alt",
+                  "content",
+                  "value",
+                  "none"
+                ]
+              },
+              "affordance": {
+                "type": "string",
+                "enum": [
+                  "native",
+                  "aria-role",
+                  "handler-owner",
+                  "tabindex",
+                  "none"
+                ]
+              },
+              "scope": {
+                "type": "object",
+                "properties": {
+                  "landmark": {
+                    "type": "string",
+                    "enum": [
+                      "banner",
+                      "navigation",
+                      "main",
+                      "contentinfo",
+                      "complementary",
+                      "search",
+                      "form",
+                      "region",
+                      "dialog"
+                    ]
+                  },
+                  "dataBlock": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "locators": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "strategy": {
+                      "type": "string",
+                      "enum": [
+                        "role-name",
+                        "label",
+                        "placeholder",
+                        "text",
+                        "test-id",
+                        "css",
+                        "row-text"
+                      ],
+                      "description": "Locator ladder, in preference order: role-name, label, placeholder, text, test-id, css. row-text selects a table/grid row by the text it contains."
+                    },
+                    "role": {
+                      "description": "ARIA role for role-name (and optionally row-text, default \"row\").",
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Accessible name for role-name.",
+                      "type": "string"
+                    },
+                    "exact": {
+                      "description": "Exact name/text match. Defaults to true for role-name and text.",
+                      "type": "boolean"
+                    },
+                    "value": {
+                      "description": "The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like \"{policyNumber}\".",
+                      "type": "string"
+                    },
+                    "attribute": {
+                      "description": "For test-id: the attribute carrying the id, e.g. \"os-test-id\" or \"data-testid\" (default).",
+                      "type": "string"
+                    },
+                    "scope": {
+                      "type": "object",
+                      "properties": {
+                        "landmark": {
+                          "description": "Scope to the landmark with this role, e.g. \"search\" or \"navigation\".",
+                          "type": "string",
+                          "enum": [
+                            "banner",
+                            "navigation",
+                            "main",
+                            "contentinfo",
+                            "complementary",
+                            "search",
+                            "form",
+                            "region",
+                            "dialog"
+                          ]
+                        },
+                        "landmarkName": {
+                          "description": "Accessible name of the landmark when several share a role.",
+                          "type": "string"
+                        },
+                        "dataBlock": {
+                          "description": "Scope to the OutSystems block container with this data-block value.",
+                          "type": "string"
+                        },
+                        "rowText": {
+                          "description": "Scope to the table/grid row containing this text.",
+                          "type": "string"
+                        },
+                        "rowExact": {
+                          "description": "Match rowText against a whole cell (exact) instead of a substring of the row, so \"POL-30\" does not match \"POL-300\".",
+                          "type": "boolean"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "Containers the locator is scoped by, outermost first: landmark, then data-block, then row."
+                    },
+                    "visibleOnly": {
+                      "description": "Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).",
+                      "type": "boolean"
+                    },
+                    "nth": {
+                      "description": "Zero-based index when the ladder could not find a unique locator. Fragile; avoid.",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "expression": {
+                      "description": "Derived Playwright expression for display; ignored on input.",
+                      "type": "string"
+                    },
+                    "health": {
+                      "description": "\"successes/attempts\" from real resolutions, derived from the evidence log.",
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "strategy"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "parameter": {
+                "description": "For row facets: the parameter the row is selected by.",
+                "type": "string"
+              },
+              "member": {
+                "description": "Page-object member name; derived from the id when absent.",
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "candidate",
+                  "trusted",
+                  "stale",
+                  "retired"
+                ]
+              },
+              "provenance": {
+                "type": "object",
+                "properties": {
+                  "mintedAt": {
+                    "type": "string"
+                  },
+                  "instrument": {
+                    "type": "string",
+                    "enum": [
+                      "app.observe",
+                      "app.act",
+                      "flow.record",
+                      "test.emit",
+                      "human"
+                    ]
+                  },
+                  "session": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "testCase": {
+                    "type": "string"
+                  },
+                  "snapshotId": {
+                    "type": "string"
+                  },
+                  "candidateRef": {
+                    "type": "string"
+                  },
+                  "flow": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "mintedAt",
+                  "instrument"
+                ],
+                "additionalProperties": false
+              },
+              "evidence": {
+                "description": "Pointer into the evidence log.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "screen",
+              "kind",
+              "displayName",
+              "aliases",
+              "locators",
+              "status",
+              "provenance"
+            ],
+            "additionalProperties": false
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "facet",
+          "changes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "memory.mint",
+      "wireName": "memory_mint",
+      "release": "A",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "conflict",
+        "invalid-input",
+        "malformed-response",
+        "stale-snapshot",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": false,
+        "destructive": false,
+        "idempotent": true,
+        "openWorld": false
+      },
+      "descriptionHash": "sha256:cb9ec90e52377df4",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "screen": {
+            "type": "string",
+            "description": "Screen name, kebab-case, e.g. \"policy-search\"."
+          },
+          "facet": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "description": "Local id within the screen, kebab-case; derived from displayName when absent.",
+                "type": "string"
+              },
+              "kind": {
+                "default": "element",
+                "type": "string",
+                "enum": [
+                  "element",
+                  "state",
+                  "route",
+                  "region",
+                  "row"
+                ]
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "aliases": {
+                "description": "Use the words the test author used, e.g. \"search field\".",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "role": {
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              },
+              "namingSource": {
+                "type": "string",
+                "enum": [
+                  "aria-labelledby",
+                  "aria-label",
+                  "label-for",
+                  "label-wrap",
+                  "placeholder",
+                  "title",
+                  "alt",
+                  "content",
+                  "value",
+                  "none"
+                ]
+              },
+              "affordance": {
+                "type": "string",
+                "enum": [
+                  "native",
+                  "aria-role",
+                  "handler-owner",
+                  "tabindex",
+                  "none"
+                ]
+              },
+              "scope": {
+                "type": "object",
+                "properties": {
+                  "landmark": {
+                    "type": "string",
+                    "enum": [
+                      "banner",
+                      "navigation",
+                      "main",
+                      "contentinfo",
+                      "complementary",
+                      "search",
+                      "form",
+                      "region",
+                      "dialog"
+                    ]
+                  },
+                  "dataBlock": {
+                    "type": "string"
+                  }
+                }
+              },
+              "locator": {
+                "description": "A verified locator (e.g. from app.act). When absent, derived from the evidence candidate.",
+                "type": "object",
+                "properties": {
+                  "strategy": {
+                    "type": "string",
+                    "enum": [
+                      "role-name",
+                      "label",
+                      "placeholder",
+                      "text",
+                      "test-id",
+                      "css",
+                      "row-text"
+                    ],
+                    "description": "Locator ladder, in preference order: role-name, label, placeholder, text, test-id, css. row-text selects a table/grid row by the text it contains."
+                  },
+                  "role": {
+                    "description": "ARIA role for role-name (and optionally row-text, default \"row\").",
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Accessible name for role-name.",
+                    "type": "string"
+                  },
+                  "exact": {
+                    "description": "Exact name/text match. Defaults to true for role-name and text.",
+                    "type": "boolean"
+                  },
+                  "value": {
+                    "description": "The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like \"{policyNumber}\".",
+                    "type": "string"
+                  },
+                  "attribute": {
+                    "description": "For test-id: the attribute carrying the id, e.g. \"os-test-id\" or \"data-testid\" (default).",
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "object",
+                    "properties": {
+                      "landmark": {
+                        "description": "Scope to the landmark with this role, e.g. \"search\" or \"navigation\".",
+                        "type": "string",
+                        "enum": [
+                          "banner",
+                          "navigation",
+                          "main",
+                          "contentinfo",
+                          "complementary",
+                          "search",
+                          "form",
+                          "region",
+                          "dialog"
+                        ]
+                      },
+                      "landmarkName": {
+                        "description": "Accessible name of the landmark when several share a role.",
+                        "type": "string"
+                      },
+                      "dataBlock": {
+                        "description": "Scope to the OutSystems block container with this data-block value.",
+                        "type": "string"
+                      },
+                      "rowText": {
+                        "description": "Scope to the table/grid row containing this text.",
+                        "type": "string"
+                      },
+                      "rowExact": {
+                        "description": "Match rowText against a whole cell (exact) instead of a substring of the row, so \"POL-30\" does not match \"POL-300\".",
+                        "type": "boolean"
+                      }
+                    },
+                    "description": "Containers the locator is scoped by, outermost first: landmark, then data-block, then row."
+                  },
+                  "visibleOnly": {
+                    "description": "Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).",
+                    "type": "boolean"
+                  },
+                  "nth": {
+                    "description": "Zero-based index when the ladder could not find a unique locator. Fragile; avoid.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "expression": {
+                    "description": "Derived Playwright expression for display; ignored on input.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "strategy"
+                ]
+              },
+              "parameter": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "displayName"
+            ]
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "snapshotId": {
+                "type": "string"
+              },
+              "ref": {
+                "type": "string",
+                "description": "Candidate ref from app.observe, e.g. \"c12\"."
+              }
+            },
+            "required": [
+              "snapshotId",
+              "ref"
+            ],
+            "description": "{snapshotId, ref} of the candidate this facet describes."
+          },
+          "route": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "Relative to the profile baseURL (no leading slash), or absolute."
+              },
+              "variant": {
+                "type": "string",
+                "enum": [
+                  "reactive",
+                  "traditional",
+                  "unknown"
+                ]
+              },
+              "fingerprint": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "landmarks": {
+                "description": "Landmarks seen on the screen; goto() waits for main when present.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "url"
+            ]
+          },
+          "decision": {
+            "type": "object",
+            "properties": {
+              "testCase": {
+                "type": "string"
+              },
+              "step": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "chose": {
+                "description": "Candidate ref or facet id chosen.",
+                "type": "string"
+              },
+              "rejected": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reason": {
+                "type": "string"
+              },
+              "host": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "promptFingerprint": {
+                    "type": "string"
+                  },
+                  "tokens": {
+                    "type": "object",
+                    "properties": {
+                      "prompt": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "completion": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Optional: why the agent made this call. Written to the authoring receipt; never affects behavior."
+          }
+        },
+        "required": [
+          "screen",
+          "facet",
+          "evidence"
+        ]
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "facet": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "screen": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "element",
+                  "state",
+                  "route",
+                  "region",
+                  "row"
+                ]
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "aliases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "role": {
+                "type": "string"
+              },
+              "tag": {
+                "description": "HTML tag of the element when minted; tells emission a native <select> from a custom combobox.",
+                "type": "string"
+              },
+              "namingSource": {
+                "type": "string",
+                "enum": [
+                  "aria-labelledby",
+                  "aria-label",
+                  "label-for",
+                  "label-wrap",
+                  "placeholder",
+                  "title",
+                  "alt",
+                  "content",
+                  "value",
+                  "none"
+                ]
+              },
+              "affordance": {
+                "type": "string",
+                "enum": [
+                  "native",
+                  "aria-role",
+                  "handler-owner",
+                  "tabindex",
+                  "none"
+                ]
+              },
+              "scope": {
+                "type": "object",
+                "properties": {
+                  "landmark": {
+                    "type": "string",
+                    "enum": [
+                      "banner",
+                      "navigation",
+                      "main",
+                      "contentinfo",
+                      "complementary",
+                      "search",
+                      "form",
+                      "region",
+                      "dialog"
+                    ]
+                  },
+                  "dataBlock": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "locators": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "strategy": {
+                      "type": "string",
+                      "enum": [
+                        "role-name",
+                        "label",
+                        "placeholder",
+                        "text",
+                        "test-id",
+                        "css",
+                        "row-text"
+                      ],
+                      "description": "Locator ladder, in preference order: role-name, label, placeholder, text, test-id, css. row-text selects a table/grid row by the text it contains."
+                    },
+                    "role": {
+                      "description": "ARIA role for role-name (and optionally row-text, default \"row\").",
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Accessible name for role-name.",
+                      "type": "string"
+                    },
+                    "exact": {
+                      "description": "Exact name/text match. Defaults to true for role-name and text.",
+                      "type": "boolean"
+                    },
+                    "value": {
+                      "description": "The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like \"{policyNumber}\".",
+                      "type": "string"
+                    },
+                    "attribute": {
+                      "description": "For test-id: the attribute carrying the id, e.g. \"os-test-id\" or \"data-testid\" (default).",
+                      "type": "string"
+                    },
+                    "scope": {
+                      "type": "object",
+                      "properties": {
+                        "landmark": {
+                          "description": "Scope to the landmark with this role, e.g. \"search\" or \"navigation\".",
+                          "type": "string",
+                          "enum": [
+                            "banner",
+                            "navigation",
+                            "main",
+                            "contentinfo",
+                            "complementary",
+                            "search",
+                            "form",
+                            "region",
+                            "dialog"
+                          ]
+                        },
+                        "landmarkName": {
+                          "description": "Accessible name of the landmark when several share a role.",
+                          "type": "string"
+                        },
+                        "dataBlock": {
+                          "description": "Scope to the OutSystems block container with this data-block value.",
+                          "type": "string"
+                        },
+                        "rowText": {
+                          "description": "Scope to the table/grid row containing this text.",
+                          "type": "string"
+                        },
+                        "rowExact": {
+                          "description": "Match rowText against a whole cell (exact) instead of a substring of the row, so \"POL-30\" does not match \"POL-300\".",
+                          "type": "boolean"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "Containers the locator is scoped by, outermost first: landmark, then data-block, then row."
+                    },
+                    "visibleOnly": {
+                      "description": "Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).",
+                      "type": "boolean"
+                    },
+                    "nth": {
+                      "description": "Zero-based index when the ladder could not find a unique locator. Fragile; avoid.",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "expression": {
+                      "description": "Derived Playwright expression for display; ignored on input.",
+                      "type": "string"
+                    },
+                    "health": {
+                      "description": "\"successes/attempts\" from real resolutions, derived from the evidence log.",
+                      "type": "string"
+                    },
+                    "note": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "strategy"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "parameter": {
+                "description": "For row facets: the parameter the row is selected by.",
+                "type": "string"
+              },
+              "member": {
+                "description": "Page-object member name; derived from the id when absent.",
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "candidate",
+                  "trusted",
+                  "stale",
+                  "retired"
+                ]
+              },
+              "provenance": {
+                "type": "object",
+                "properties": {
+                  "mintedAt": {
+                    "type": "string"
+                  },
+                  "instrument": {
+                    "type": "string",
+                    "enum": [
+                      "app.observe",
+                      "app.act",
+                      "flow.record",
+                      "test.emit",
+                      "human"
+                    ]
+                  },
+                  "session": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "testCase": {
+                    "type": "string"
+                  },
+                  "snapshotId": {
+                    "type": "string"
+                  },
+                  "candidateRef": {
+                    "type": "string"
+                  },
+                  "flow": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "mintedAt",
+                  "instrument"
+                ],
+                "additionalProperties": false
+              },
+              "evidence": {
+                "description": "Pointer into the evidence log.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "screen",
+              "kind",
+              "displayName",
+              "aliases",
+              "locators",
+              "status",
+              "provenance"
+            ],
+            "additionalProperties": false
+          },
+          "created": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "facet",
+          "created"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "memory.preflight",
+      "wireName": "memory_preflight",
+      "release": "B",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "invalid-input",
+        "malformed-response",
+        "not-configured",
+        "not-found",
+        "timeout",
+        "unavailable",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": false,
+        "destructive": false,
+        "idempotent": true,
+        "openWorld": true
+      },
+      "descriptionHash": "sha256:b0f8fb3f01885462",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "screen": {
+            "type": "string"
+          },
+          "profile": {
+            "type": "string"
+          },
+          "pageId": {
+            "type": "string"
+          },
+          "flows": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "screens": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "screen": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "stale",
+                    "missing",
+                    "unreachable",
+                    "no-route"
+                  ]
+                },
+                "fingerprintChanged": {
+                  "type": "boolean"
+                },
+                "fingerprintDiff": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "facets": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "ok",
+                          "stale",
+                          "missing",
+                          "unchecked"
+                        ]
+                      },
+                      "matches": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "locator": {
+                        "type": "string"
+                      },
+                      "detail": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "status"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "detail": {
+                  "description": "Why the screen is unreachable (the navigation error or redirect) or has no route.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "screen",
+                "status",
+                "fingerprintChanged",
+                "fingerprintDiff",
+                "facets"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "flows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "stale",
+                    "missing",
+                    "unchecked"
+                  ]
+                },
+                "matches": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "locator": {
+                  "type": "string"
+                },
+                "detail": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "status"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "stale": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "missing": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "unchecked": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "ok",
+              "stale",
+              "missing",
+              "unchecked"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "screens",
+          "flows",
+          "summary"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "memory.query",
+      "wireName": "memory_query",
+      "release": "A",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "invalid-input",
+        "malformed-response",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": true,
+        "destructive": false,
+        "idempotent": true,
+        "openWorld": false
+      },
+      "descriptionHash": "sha256:088bf4a6fab300ea",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "screen": {
+            "type": "string"
+          },
+          "phrase": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "element",
+              "state",
+              "route",
+              "region",
+              "row"
+            ]
+          },
+          "landmark": {
+            "type": "string",
+            "enum": [
+              "banner",
+              "navigation",
+              "main",
+              "contentinfo",
+              "complementary",
+              "search",
+              "form",
+              "region",
+              "dialog"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "phrase"
+        ]
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "facets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "screen": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "element",
+                    "state",
+                    "route",
+                    "region",
+                    "row"
+                  ]
+                },
+                "displayName": {
+                  "type": "string"
+                },
+                "aliases": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "role": {
+                  "type": "string"
+                },
+                "tag": {
+                  "description": "HTML tag of the element when minted; tells emission a native <select> from a custom combobox.",
+                  "type": "string"
+                },
+                "namingSource": {
+                  "type": "string",
+                  "enum": [
+                    "aria-labelledby",
+                    "aria-label",
+                    "label-for",
+                    "label-wrap",
+                    "placeholder",
+                    "title",
+                    "alt",
+                    "content",
+                    "value",
+                    "none"
+                  ]
+                },
+                "affordance": {
+                  "type": "string",
+                  "enum": [
+                    "native",
+                    "aria-role",
+                    "handler-owner",
+                    "tabindex",
+                    "none"
+                  ]
+                },
+                "scope": {
+                  "type": "object",
+                  "properties": {
+                    "landmark": {
+                      "type": "string",
+                      "enum": [
+                        "banner",
+                        "navigation",
+                        "main",
+                        "contentinfo",
+                        "complementary",
+                        "search",
+                        "form",
+                        "region",
+                        "dialog"
+                      ]
+                    },
+                    "dataBlock": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "locators": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "strategy": {
+                        "type": "string",
+                        "enum": [
+                          "role-name",
+                          "label",
+                          "placeholder",
+                          "text",
+                          "test-id",
+                          "css",
+                          "row-text"
+                        ],
+                        "description": "Locator ladder, in preference order: role-name, label, placeholder, text, test-id, css. row-text selects a table/grid row by the text it contains."
+                      },
+                      "role": {
+                        "description": "ARIA role for role-name (and optionally row-text, default \"row\").",
+                        "type": "string"
+                      },
+                      "name": {
+                        "description": "Accessible name for role-name.",
+                        "type": "string"
+                      },
+                      "exact": {
+                        "description": "Exact name/text match. Defaults to true for role-name and text.",
+                        "type": "boolean"
+                      },
+                      "value": {
+                        "description": "The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like \"{policyNumber}\".",
+                        "type": "string"
+                      },
+                      "attribute": {
+                        "description": "For test-id: the attribute carrying the id, e.g. \"os-test-id\" or \"data-testid\" (default).",
+                        "type": "string"
+                      },
+                      "scope": {
+                        "type": "object",
+                        "properties": {
+                          "landmark": {
+                            "description": "Scope to the landmark with this role, e.g. \"search\" or \"navigation\".",
+                            "type": "string",
+                            "enum": [
+                              "banner",
+                              "navigation",
+                              "main",
+                              "contentinfo",
+                              "complementary",
+                              "search",
+                              "form",
+                              "region",
+                              "dialog"
+                            ]
+                          },
+                          "landmarkName": {
+                            "description": "Accessible name of the landmark when several share a role.",
+                            "type": "string"
+                          },
+                          "dataBlock": {
+                            "description": "Scope to the OutSystems block container with this data-block value.",
+                            "type": "string"
+                          },
+                          "rowText": {
+                            "description": "Scope to the table/grid row containing this text.",
+                            "type": "string"
+                          },
+                          "rowExact": {
+                            "description": "Match rowText against a whole cell (exact) instead of a substring of the row, so \"POL-30\" does not match \"POL-300\".",
+                            "type": "boolean"
+                          }
+                        },
+                        "additionalProperties": false,
+                        "description": "Containers the locator is scoped by, outermost first: landmark, then data-block, then row."
+                      },
+                      "visibleOnly": {
+                        "description": "Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).",
+                        "type": "boolean"
+                      },
+                      "nth": {
+                        "description": "Zero-based index when the ladder could not find a unique locator. Fragile; avoid.",
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "expression": {
+                        "description": "Derived Playwright expression for display; ignored on input.",
+                        "type": "string"
+                      },
+                      "health": {
+                        "description": "\"successes/attempts\" from real resolutions, derived from the evidence log.",
+                        "type": "string"
+                      },
+                      "note": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "strategy"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "parameter": {
+                  "description": "For row facets: the parameter the row is selected by.",
+                  "type": "string"
+                },
+                "member": {
+                  "description": "Page-object member name; derived from the id when absent.",
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "candidate",
+                    "trusted",
+                    "stale",
+                    "retired"
+                  ]
+                },
+                "provenance": {
+                  "type": "object",
+                  "properties": {
+                    "mintedAt": {
+                      "type": "string"
+                    },
+                    "instrument": {
+                      "type": "string",
+                      "enum": [
+                        "app.observe",
+                        "app.act",
+                        "flow.record",
+                        "test.emit",
+                        "human"
+                      ]
+                    },
+                    "session": {
+                      "type": "string"
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "testCase": {
+                      "type": "string"
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "candidateRef": {
+                      "type": "string"
+                    },
+                    "flow": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "mintedAt",
+                    "instrument"
+                  ],
+                  "additionalProperties": false
+                },
+                "evidence": {
+                  "description": "Pointer into the evidence log.",
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "phraseScore": {
+                  "type": "number"
+                },
+                "locatorHealth": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "id",
+                "screen",
+                "kind",
+                "displayName",
+                "aliases",
+                "locators",
+                "status",
+                "provenance",
+                "score",
+                "phraseScore",
+                "locatorHealth"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "screenKnown": {
+            "type": "boolean"
+          },
+          "route": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "Relative to the profile baseURL (no leading slash), or absolute."
+              },
+              "variant": {
+                "type": "string",
+                "enum": [
+                  "reactive",
+                  "traditional",
+                  "unknown"
+                ]
+              },
+              "fingerprint": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "landmarks": {
+                "description": "Landmarks seen on the screen; goto() waits for main when present.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "url"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "facets",
+          "screenKnown"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "review.record",
+      "wireName": "review_record",
+      "release": "B",
+      "caller": "human",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "invalid-input",
+        "malformed-response",
+        "not-found",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": false,
+        "destructive": false,
+        "idempotent": false,
+        "openWorld": false
+      },
+      "descriptionHash": "sha256:a7a2506d4e7c55e5",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "testCaseId": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "accept-with-edit",
+              "reject"
+            ]
+          },
+          "reviewer": {
+            "type": "string"
+          },
+          "changedLines": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "locatorEdited": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "testCaseId",
+          "decision",
+          "reviewer"
+        ]
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "testCaseId": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "accept-with-edit",
+              "reject"
+            ]
+          },
+          "reviewer": {
+            "type": "string"
+          },
+          "changedLines": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "locatorEdited": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          },
+          "spec": {
+            "type": "string"
+          },
+          "facetsPromoted": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "countsAsAccepted": {
+            "type": "boolean",
+            "description": "accept, or accept-with-edit with ≤ 5 changed lines or only an overrides-file locator edit."
+          }
+        },
+        "required": [
+          "at",
+          "testCaseId",
+          "decision",
+          "reviewer",
+          "facetsPromoted",
+          "countsAsAccepted"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "test.emit",
+      "wireName": "test_emit",
+      "release": "A",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "conflict",
+        "invalid-input",
+        "malformed-response",
+        "not-found",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": false,
+        "destructive": false,
+        "idempotent": true,
+        "openWorld": false
+      },
+      "descriptionHash": "sha256:c1426fd375a280e2",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "testCase": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "contentHash": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "areaPath": {
+                    "type": "string"
+                  },
+                  "iterationPath": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "steps": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "index": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991,
+                          "description": "1-based position in the expanded step list."
+                        },
+                        "stepIdentifier": {
+                          "type": "string",
+                          "description": "ADO step id; \"<sharedStepRefId>;<childStepId>\" for steps expanded from shared steps."
+                        },
+                        "action": {
+                          "type": "string"
+                        },
+                        "expected": {
+                          "type": "string"
+                        },
+                        "sharedStepId": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "index",
+                        "stepIdentifier",
+                        "action",
+                        "expected"
+                      ]
+                    }
+                  },
+                  "parameters": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "dataRows": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "points": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "pointId": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "planId": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "suiteId": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "configurationName": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "pointId",
+                        "planId",
+                        "suiteId"
+                      ]
+                    }
+                  },
+                  "warnings": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "revision",
+                  "contentHash",
+                  "tags",
+                  "steps",
+                  "parameters",
+                  "dataRows"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              }
+            ],
+            "description": "The case from ado.fetch, or {id} to load the cached copy."
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "stepIdentifier": {
+                  "type": "string"
+                },
+                "actionText": {
+                  "type": "string"
+                },
+                "expectedText": {
+                  "type": "string"
+                },
+                "verb": {
+                  "type": "string",
+                  "enum": [
+                    "navigate",
+                    "click",
+                    "fill",
+                    "select",
+                    "check",
+                    "uncheck",
+                    "press",
+                    "hover",
+                    "assert",
+                    "wait"
+                  ]
+                },
+                "target": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "facetId": {
+                          "type": "string",
+                          "description": "Facet id, \"<screen>:<name>\"."
+                        }
+                      },
+                      "required": [
+                        "facetId"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "locator": {
+                          "type": "object",
+                          "properties": {
+                            "strategy": {
+                              "type": "string",
+                              "enum": [
+                                "role-name",
+                                "label",
+                                "placeholder",
+                                "text",
+                                "test-id",
+                                "css",
+                                "row-text"
+                              ],
+                              "description": "Locator ladder, in preference order: role-name, label, placeholder, text, test-id, css. row-text selects a table/grid row by the text it contains."
+                            },
+                            "role": {
+                              "description": "ARIA role for role-name (and optionally row-text, default \"row\").",
+                              "type": "string"
+                            },
+                            "name": {
+                              "description": "Accessible name for role-name.",
+                              "type": "string"
+                            },
+                            "exact": {
+                              "description": "Exact name/text match. Defaults to true for role-name and text.",
+                              "type": "boolean"
+                            },
+                            "value": {
+                              "description": "The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like \"{policyNumber}\".",
+                              "type": "string"
+                            },
+                            "attribute": {
+                              "description": "For test-id: the attribute carrying the id, e.g. \"os-test-id\" or \"data-testid\" (default).",
+                              "type": "string"
+                            },
+                            "scope": {
+                              "type": "object",
+                              "properties": {
+                                "landmark": {
+                                  "description": "Scope to the landmark with this role, e.g. \"search\" or \"navigation\".",
+                                  "type": "string",
+                                  "enum": [
+                                    "banner",
+                                    "navigation",
+                                    "main",
+                                    "contentinfo",
+                                    "complementary",
+                                    "search",
+                                    "form",
+                                    "region",
+                                    "dialog"
+                                  ]
+                                },
+                                "landmarkName": {
+                                  "description": "Accessible name of the landmark when several share a role.",
+                                  "type": "string"
+                                },
+                                "dataBlock": {
+                                  "description": "Scope to the OutSystems block container with this data-block value.",
+                                  "type": "string"
+                                },
+                                "rowText": {
+                                  "description": "Scope to the table/grid row containing this text.",
+                                  "type": "string"
+                                },
+                                "rowExact": {
+                                  "description": "Match rowText against a whole cell (exact) instead of a substring of the row, so \"POL-30\" does not match \"POL-300\".",
+                                  "type": "boolean"
+                                }
+                              },
+                              "description": "Containers the locator is scoped by, outermost first: landmark, then data-block, then row."
+                            },
+                            "visibleOnly": {
+                              "description": "Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).",
+                              "type": "boolean"
+                            },
+                            "nth": {
+                              "description": "Zero-based index when the ladder could not find a unique locator. Fragile; avoid.",
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "expression": {
+                              "description": "Derived Playwright expression for display; ignored on input.",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "strategy"
+                          ],
+                          "description": "A structured Playwright locator. The expression is derived from it, never the other way round."
+                        },
+                        "snapshotId": {
+                          "type": "string"
+                        },
+                        "candidateRef": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "locator"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "snapshotId": {
+                          "type": "string"
+                        },
+                        "candidateRef": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "snapshotId",
+                        "candidateRef"
+                      ]
+                    }
+                  ],
+                  "description": "A facet (preferred), or a locator/candidate that test.emit mints as a candidate facet."
+                },
+                "value": {
+                  "description": "Literal value, or \"@param\" for an ADO parameter.",
+                  "type": "string"
+                },
+                "key": {
+                  "description": "Key for press, e.g. \"Enter\".",
+                  "type": "string"
+                },
+                "rowValue": {
+                  "description": "For a row facet target: the value that selects the row (literal or \"@param\").",
+                  "type": "string"
+                },
+                "screen": {
+                  "description": "Screen the step acts on; required for navigate when the target is a route.",
+                  "type": "string"
+                },
+                "assertions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "visible",
+                          "hidden",
+                          "text",
+                          "contains-text",
+                          "value",
+                          "url",
+                          "title",
+                          "count",
+                          "enabled",
+                          "disabled",
+                          "checked",
+                          "unchecked"
+                        ]
+                      },
+                      "target": {
+                        "description": "Omitted for url and title assertions.",
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "facetId": {
+                                "type": "string",
+                                "description": "Facet id, \"<screen>:<name>\"."
+                              }
+                            },
+                            "required": [
+                              "facetId"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "locator": {
+                                "type": "object",
+                                "properties": {
+                                  "strategy": {
+                                    "type": "string",
+                                    "enum": [
+                                      "role-name",
+                                      "label",
+                                      "placeholder",
+                                      "text",
+                                      "test-id",
+                                      "css",
+                                      "row-text"
+                                    ],
+                                    "description": "Locator ladder, in preference order: role-name, label, placeholder, text, test-id, css. row-text selects a table/grid row by the text it contains."
+                                  },
+                                  "role": {
+                                    "description": "ARIA role for role-name (and optionally row-text, default \"row\").",
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "description": "Accessible name for role-name.",
+                                    "type": "string"
+                                  },
+                                  "exact": {
+                                    "description": "Exact name/text match. Defaults to true for role-name and text.",
+                                    "type": "boolean"
+                                  },
+                                  "value": {
+                                    "description": "The label, placeholder, text, test id, css selector, or row text. A row-text value may be a parameter reference like \"{policyNumber}\".",
+                                    "type": "string"
+                                  },
+                                  "attribute": {
+                                    "description": "For test-id: the attribute carrying the id, e.g. \"os-test-id\" or \"data-testid\" (default).",
+                                    "type": "string"
+                                  },
+                                  "scope": {
+                                    "type": "object",
+                                    "properties": {
+                                      "landmark": {
+                                        "description": "Scope to the landmark with this role, e.g. \"search\" or \"navigation\".",
+                                        "type": "string",
+                                        "enum": [
+                                          "banner",
+                                          "navigation",
+                                          "main",
+                                          "contentinfo",
+                                          "complementary",
+                                          "search",
+                                          "form",
+                                          "region",
+                                          "dialog"
+                                        ]
+                                      },
+                                      "landmarkName": {
+                                        "description": "Accessible name of the landmark when several share a role.",
+                                        "type": "string"
+                                      },
+                                      "dataBlock": {
+                                        "description": "Scope to the OutSystems block container with this data-block value.",
+                                        "type": "string"
+                                      },
+                                      "rowText": {
+                                        "description": "Scope to the table/grid row containing this text.",
+                                        "type": "string"
+                                      },
+                                      "rowExact": {
+                                        "description": "Match rowText against a whole cell (exact) instead of a substring of the row, so \"POL-30\" does not match \"POL-300\".",
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "description": "Containers the locator is scoped by, outermost first: landmark, then data-block, then row."
+                                  },
+                                  "visibleOnly": {
+                                    "description": "Filter to visible matches; set when hidden twins of the element exist (rendered as .filter({ visible: true })).",
+                                    "type": "boolean"
+                                  },
+                                  "nth": {
+                                    "description": "Zero-based index when the ladder could not find a unique locator. Fragile; avoid.",
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "expression": {
+                                    "description": "Derived Playwright expression for display; ignored on input.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "strategy"
+                                ],
+                                "description": "A structured Playwright locator. The expression is derived from it, never the other way round."
+                              },
+                              "snapshotId": {
+                                "type": "string"
+                              },
+                              "candidateRef": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "locator"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "snapshotId": {
+                                "type": "string"
+                              },
+                              "candidateRef": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "snapshotId",
+                              "candidateRef"
+                            ]
+                          }
+                        ]
+                      },
+                      "expected": {
+                        "description": "Literal, or \"@param\" for an ADO parameter.",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      },
+                      "rowValue": {
+                        "description": "For a row facet target: the value that selects the row (literal or \"@param\").",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                },
+                "handoffId": {
+                  "description": "Set when the step is unresolved; emitted as test.fixme with the reason inline.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "index",
+                "stepIdentifier",
+                "actionText",
+                "expectedText",
+                "verb"
+              ]
+            }
+          },
+          "flows": {
+            "description": "Recorded flows to run in beforeEach (e.g. login).",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "params": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          "area": {
+            "description": "Subfolder under tests/; defaults to the first screen.",
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dryRun": {
+            "description": "Return the diff without writing.",
+            "type": "boolean"
+          },
+          "force": {
+            "description": "Regenerate over hand edits made outside tesseract:keep regions (kept code is preserved or orphaned, never dropped).",
+            "type": "boolean"
+          },
+          "decision": {
+            "type": "object",
+            "properties": {
+              "testCase": {
+                "type": "string"
+              },
+              "step": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "chose": {
+                "description": "Candidate ref or facet id chosen.",
+                "type": "string"
+              },
+              "rejected": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reason": {
+                "type": "string"
+              },
+              "host": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "promptFingerprint": {
+                    "type": "string"
+                  },
+                  "tokens": {
+                    "type": "object",
+                    "properties": {
+                      "prompt": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "completion": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "description": "Optional: why the agent made this call. Written to the authoring receipt; never affects behavior."
+          }
+        },
+        "required": [
+          "testCase",
+          "steps"
+        ]
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "specPath": {
+            "type": "string"
+          },
+          "pageObjectPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "flowPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "facetsMinted": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "facetsUsed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "diff": {
+            "type": "string"
+          },
+          "written": {
+            "type": "boolean"
+          },
+          "orphaned": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "keys": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "path",
+                "keys"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Kept code whose anchor disappeared; appended as commented blocks for a human to place."
+          }
+        },
+        "required": [
+          "specPath",
+          "pageObjectPaths",
+          "flowPaths",
+          "facetsMinted",
+          "facetsUsed",
+          "diff",
+          "written",
+          "orphaned"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "test.run",
+      "wireName": "test_run",
+      "release": "A",
+      "caller": "agent",
+      "since": "2.0.0",
+      "errorFamilies": [
+        "invalid-input",
+        "malformed-response",
+        "not-configured",
+        "not-found",
+        "timeout",
+        "unavailable",
+        "unclassified"
+      ],
+      "annotations": {
+        "readOnly": false,
+        "destructive": false,
+        "idempotent": false,
+        "openWorld": true
+      },
+      "descriptionHash": "sha256:849c5dd6bc648d94",
+      "input": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "specPaths": {
+            "description": "Workspace-relative spec paths; default all specs under tests/.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "grep": {
+            "type": "string"
+          },
+          "profile": {
+            "description": "Sets TESSERACT_PROFILE / baseURL for the run.",
+            "type": "string"
+          },
+          "headed": {
+            "type": "boolean"
+          },
+          "retries": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "pauseOnFailure": {
+            "description": "Hold the browser open at the first failure (retries are not attempted in this mode).",
+            "type": "boolean"
+          },
+          "updateMemory": {
+            "description": "Default true: write run evidence to facets.",
+            "type": "boolean"
+          },
+          "timeoutMs": {
+            "description": "Wall-clock budget for the whole run (default 10 minutes).",
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 9007199254740991
+          }
+        }
+      },
+      "output": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "receipts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "runId": {
+                  "type": "string"
+                },
+                "at": {
+                  "type": "string"
+                },
+                "testCase": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "spec": {
+                  "type": "string"
+                },
+                "dataRow": {
+                  "description": "0-based index into TestCase.dataRows for data-driven cases.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
+                    "passed",
+                    "failed",
+                    "skipped",
+                    "timedOut",
+                    "interrupted",
+                    "flaky"
+                  ]
+                },
+                "durationMs": {
+                  "type": "number"
+                },
+                "retries": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "family": {
+                      "type": "string",
+                      "enum": [
+                        "invalid-input",
+                        "not-configured",
+                        "rate-limited",
+                        "unavailable",
+                        "malformed-response",
+                        "timeout",
+                        "not-found",
+                        "ambiguous",
+                        "not-visible",
+                        "not-enabled",
+                        "assertion-like",
+                        "stale-snapshot",
+                        "conflict",
+                        "unclassified"
+                      ]
+                    },
+                    "failureType": {
+                      "type": "string",
+                      "enum": [
+                        "drift",
+                        "candidate-bug",
+                        "environment",
+                        "data",
+                        "unknown"
+                      ],
+                      "description": "drift: a locator stopped resolving; candidate-bug: an assertion on expected text failed; environment: navigation/timeout/auth."
+                    },
+                    "facet": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "family",
+                    "failureType"
+                  ],
+                  "additionalProperties": false
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "index": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "outcome": {
+                        "type": "string",
+                        "enum": [
+                          "passed",
+                          "failed",
+                          "skipped",
+                          "fixme"
+                        ]
+                      },
+                      "durationMs": {
+                        "type": "number"
+                      },
+                      "facets": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "error": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "index",
+                      "title",
+                      "outcome",
+                      "durationMs",
+                      "facets"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "trace": {
+                  "type": "string"
+                },
+                "paused": {
+                  "description": "Set when pauseOnFailure held the browser open at the failure for repair in place.",
+                  "type": "object",
+                  "properties": {
+                    "repairId": {
+                      "type": "string"
+                    },
+                    "cdpEndpoint": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    },
+                    "failingStep": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "repairId",
+                    "cdpEndpoint"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "runId",
+                "at",
+                "title",
+                "spec",
+                "outcome",
+                "durationMs",
+                "retries",
+                "steps"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "passed": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "failed": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "skipped": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "flaky": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "passed",
+              "failed",
+              "skipped",
+              "flaky"
+            ],
+            "additionalProperties": false
+          },
+          "reportPath": {
+            "type": "string"
+          },
+          "paused": {
+            "description": "Set when pauseOnFailure held the browser open at the failure for repair in place.",
+            "type": "object",
+            "properties": {
+              "repairId": {
+                "type": "string"
+              },
+              "cdpEndpoint": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "failingStep": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "repairId",
+              "cdpEndpoint"
+            ],
+            "additionalProperties": false
+          },
+          "promoted": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "staled": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "runId",
+          "receipts",
+          "summary",
+          "promoted",
+          "staled"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

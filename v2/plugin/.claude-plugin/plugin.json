@@ -1,0 +1,7 @@
+{
+  "name": "tesseract-qa",
+  "version": "2.0.0-alpha.1",
+  "description": "Author plain Playwright tests for OutSystems apps from Azure DevOps test cases: OutSystems-aware observation, a facet memory in your repo, page-object emission, repair in place, recorded flows, and ADO test-plan publishing.",
+  "author": { "name": "Tesseract" },
+  "keywords": ["playwright", "outsystems", "azure-devops", "qa", "testing", "mcp"]
+}

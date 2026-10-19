@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Policy Search - jane.doe@example.com</title>
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  .filter { cursor: pointer; display: inline-block; padding: 4px; border: 1px solid #ccc; }
+  .decor { cursor: pointer; }
+  .hidden { display: none; }
+  .below-fold { margin-top: 3000px; display: block; }
+  table { border-collapse: collapse; }
+  td, th { padding: 2px 6px; }
+</style>
+<script>
+  // OutSystems Reactive exposes its runtime global; the variant classifier reads it.
+  window.OutSystems = { Version: '11.0' };
+</script>
+</head>
+<body>
+<div id="b1-Layout" data-block="Layout.MainLayout" class="layout osui-layout">
+  <header class="header osui-header" data-block="Common.Header">
+    <a href="#home" id="b2-LogoLink"><img alt="Logo" width="20" height="20" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></a>
+    <span class="user">Signed in as jane.doe@example.com</span>
+  </header>
+  <nav class="app-menu osui-menu" data-block="Common.Menu">
+    <a href="#home">Home</a>
+    <a href="#policies">Policy Search</a>
+    <a href="#claims">Claims</a>
+    <span data-link class="menu-link">Help</span>
+    <div role="tab" tabindex="0">Overview</div>
+  </nav>
+  <main class="main-content" data-block="PolicySearch.Screen">
+    <h1>Policy Search</h1>
+    <div role="search" data-block="SearchBlock" class="osui-search">
+      <input id="b3-Input_Search" type="text" placeholder="Search Policy" class="form-control">
+      <button id="b3-Button_Search" type="button" class="btn btn-primary">Search</button>
+      <div class="filter" onclick="void 0">Filter</div>
+    </div>
+    <div class="feedback-message" data-block="Common.Feedback">3 policies found for jane.doe@example.com</div>
+    <div data-block="ResultsTable" id="results-area">
+      <table class="table">
+        <thead><tr><th>Policy</th><th>Holder</th><th>Contact</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="results-body">
+          <tr><td>POL-001</td><td>Jane Doe</td><td>jane.doe@example.com</td><td>Active</td><td><a href="#edit/1">Edit</a></td></tr>
+          <tr><td>POL-002</td><td>John Roe</td><td>555-123-4567</td><td>Lapsed</td><td><a href="#edit/2">Edit</a></td></tr>
+          <tr><td>POL-003</td><td>Ann Poe</td><td>ann@example.org</td><td>Active</td><td><a href="#edit/3">Edit</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <form aria-label="Policy details" data-block="DetailsForm" onsubmit="return false">
+      <label for="Input_PolicyHolder">Policy holder</label> <input id="Input_PolicyHolder" type="text">
+      <label>Notes <textarea id="b5-Notes">secret john@x.com</textarea></label>
+      <input type="checkbox" id="Checkbox_Active" checked aria-label="Active only">
+      <select id="b6-Select_Status"><option>Any</option><option>Active</option></select>
+      <input type="number" id="Input_Discount">
+      <input type="text" id="b9-Input_Code2">
+      <input type="submit" value="Go">
+      <span id="lbl-export">From labelledby</span>
+      <button type="button" aria-label="Both" aria-labelledby="lbl-export">Export</button>
+      <button type="button" data-testid="save-draft" id="btn-7f3a9">Save draft</button>
+      <button type="button" os-test-id="CloseIcon" class="icon-close"></button>
+    </form>
+    <fieldset disabled><legend>Danger zone</legend><button type="button">Delete</button></fieldset>
+    <div aria-disabled="true"><button type="button">Archive</button></div>
+    <div id="react-clickable" class="card-action">Open details</div>
+    <div onclick="void 0" class="big-card">This card has a very long description that goes well beyond eighty characters of visible text content</div>
+    <div onclick="void 0" class="wrapper-card"><button type="button">Inner action</button></div>
+    <span class="decor">Decoration</span>
+    <article data-block="News"><header><h2>Latest news</h2></header><p>Nothing new.</p></article>
+    <section><p>Unnamed section</p></section>
+    <section aria-label="Summary"><p>Named section</p></section>
+    <x-widget id="widget"></x-widget>
+    <button type="button" class="hidden">Hidden action</button>
+    <button type="button" class="below-fold">Load more</button>
+  </main>
+  <footer data-block="Common.Footer">Example Insurance</footer>
+</div>
+<script>
+  // React 17+ keeps props, including onClick, as an expando on the element.
+  document.getElementById('react-clickable')['__reactProps$x1y2'] = { onClick: function () {}, className: 'card-action' };
+  customElements.define('x-widget', class extends HTMLElement {
+    constructor() {
+      super();
+      const root = this.attachShadow({ mode: 'open' });
+      root.innerHTML = '<button type="button">Shadow action</button>';
+    }
+  });
+</script>
+</body>
+</html>
