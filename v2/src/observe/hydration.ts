@@ -141,6 +141,17 @@ const result = (settled: boolean, start: number, reason: string): Hydration => (
  * throws; the reason says why the wait ended: "settled",
  * "budget-exhausted", or "navigation-error: …" when the page went away.
  */
+/**
+ * Something a person could see or use has mounted: visible text, an OutSystems block, a landmark,
+ * or a control. A string expression, so no host transpiler can inject helpers into it.
+ */
+const MOUNTED_EXPRESSION = `(() => {
+  const body = document.body;
+  if (body === null) return false;
+  if ((body.innerText || '').trim().length > 0) return true;
+  return document.querySelector('[data-block], [role=main], main, input, select, textarea, button, a[href], img, canvas, svg, iframe') !== null;
+})()`;
+
 export const awaitHydration = async (page: Page, options: HydrationOptions = {}): Promise<Hydration> => {
   const budgetMs = options.budgetMs ?? 20_000;
   const quietPolls = options.quietPolls ?? 3;
@@ -214,7 +225,14 @@ export const awaitHydration = async (page: Page, options: HydrationOptions = {})
       await sleep(Math.min(signatureDelayMs, left()));
       const after = await attempt(() => inPage(page, 'structuralSignature'));
       if (failed(after)) return result(false, start, `navigation-error: ${after.failed}`);
-      if (before !== null && before === after) return result(true, start, 'settled');
+      if (before !== null && before === after) {
+        // A quiet, stable, EMPTY document is a runtime still fetching its bundles (seen on a cold
+        // load of a real Reactive app), not a hydrated screen: keep waiting for something to mount.
+        const mounted = await attempt(() => page.evaluate(MOUNTED_EXPRESSION) as Promise<boolean>);
+        if (failed(mounted)) return result(false, start, `navigation-error: ${mounted.failed}`);
+        if (mounted === true) return result(true, start, 'settled');
+        await sleep(Math.min(pollMs, left()));
+      }
     }
     return result(false, start, 'budget-exhausted');
   } finally {

@@ -90,6 +90,16 @@ describe.skipIf(loaded === null)('authorSuite with the heuristic decider', () =>
             { id: 7, action: 'Verify the status message reads "2 policies found"', expected: '' },
           ]),
         },
+        {
+          id: 10004,
+          rev: 1,
+          title: 'Closed claims count shows in the page text',
+          steps: stepsXml([
+            { id: 2, action: 'Navigate to Claims screen', expected: 'Claims screen loads' },
+            { id: 3, action: 'Select Closed in the Claim status dropdown', expected: '' },
+            { id: 4, action: 'Verify the claims summary shows "7 closed claims"', expected: '' },
+          ]),
+        },
       ],
       points: [
         { planId: 7, suiteId: 8, testCaseId: 10001, pointId: 1203 },
@@ -235,6 +245,18 @@ describe.skipIf(loaded === null)('authorSuite with the heuristic decider', () =>
     expect(summary.run?.outcome).toBe('skipped');
   }, 240_000);
 
+  it('checks text no single element carries on its landmark, through a region facet', async () => {
+    // "7 closed claims" is a plain <p> with no role: no candidate carries it, the main landmark does.
+    const result = await authorSuite(runtime, { testCaseIds: ['10004'], profile: 'qa', startUrl: 'Claims', run: true }, (message) => logs.push(message));
+    const summary = result.cases[0]!;
+    expect(summary.outcome, JSON.stringify(summary.steps, null, 2)).toBe('authored');
+    const spec = await readFile(path.join(root, summary.specPath!), 'utf8');
+    expect(spec).toMatch(/await expect\(claims\.mainContent\)\.toContainText\('7 closed claims'\);/);
+    const page = await readFile(path.join(root, 'pages', 'claims.page.ts'), 'utf8');
+    expect(page).toMatch(/get mainContent\(\): Locator \{\s*return this\.page\.getByRole\('main'\);/);
+    expect(summary.run?.outcome).toBe('passed');
+  }, 240_000);
+
   it('re-authors a case from scratch on a revisit, resolving its steps from memory', async () => {
     const again = await authorSuite(runtime, { testCaseIds: ['10001'], profile: 'qa', run: true }, (message) => logs.push(message));
     const summary = again.cases[0]!;
@@ -248,9 +270,9 @@ describe.skipIf(loaded === null)('authorSuite with the heuristic decider', () =>
 
   it('reports the numbers and a per-test receipt from what the authoring left behind', async () => {
     const numbers = await computeNumbers(runtime.ctx.workspace);
-    expect(numbers.acceptance).toMatchObject({ emitted: 3, accepted: 0, awaitingReview: 3 });
+    expect(numbers.acceptance).toMatchObject({ emitted: 4, accepted: 0, awaitingReview: 4 });
     expect(numbers.diagnostics.handoffReasons).toEqual({ 'ambiguous-target': 1, 'text-mismatch': 1 });
-    expect(numbers.diagnostics.handoffRate.of).toBe(4 + 5 + 6);
+    expect(numbers.diagnostics.handoffRate.of).toBe(4 + 5 + 6 + 3);
     expect(numbers.diagnostics.facetReuse.reused).toBeGreaterThan(0);
     expect(numbers.diagnostics.locatorStrategyDistribution['role-name']).toBeGreaterThan(0);
     expect(renderNumbersMarkdown(numbers)).toMatch(/Handoff reasons:\*\* (?:ambiguous-target 1, text-mismatch 1|text-mismatch 1, ambiguous-target 1)/);

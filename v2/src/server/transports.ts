@@ -47,6 +47,8 @@ const LOCAL_HOSTS = ['127.0.0.1', 'localhost', '[::1]'];
 export const serveHttp = async (options: HttpOptions): Promise<http.Server> => {
   const sessions = new Map<string, { transport: StreamableHTTPServerTransport; runtime: Runtime }>();
   const localOnly = LOCAL_HOSTS.includes(options.host);
+  // The port actually bound (differs from options.port when it is 0); the Host allowlist needs it.
+  let boundPort = options.port;
 
   const server = http.createServer(async (req, res) => {
     try {
@@ -81,7 +83,7 @@ export const serveHttp = async (options: HttpOptions): Promise<http.Server> => {
           sessions.set(id, { transport, runtime });
         },
         ...(localOnly
-          ? { enableDnsRebindingProtection: true, allowedHosts: LOCAL_HOSTS.flatMap((h) => [h, `${h}:${options.port}`]) }
+          ? { enableDnsRebindingProtection: true, allowedHosts: LOCAL_HOSTS.flatMap((h) => [h, `${h}:${boundPort}`]) }
           : {}),
       });
       transport.onclose = () => {
@@ -101,6 +103,7 @@ export const serveHttp = async (options: HttpOptions): Promise<http.Server> => {
   await new Promise<void>((resolve) => server.listen(options.port, options.host, resolve));
   const address = server.address();
   const port = typeof address === 'object' && address !== null ? address.port : options.port;
+  boundPort = port;
   options.log(`MCP over Streamable HTTP at http://${options.host}:${port}/mcp${options.token !== undefined ? ' (bearer token required)' : ''}`);
   const closeAll = async (): Promise<void> => {
     await Promise.all([...sessions.values()].map(async ({ transport, runtime }) => {

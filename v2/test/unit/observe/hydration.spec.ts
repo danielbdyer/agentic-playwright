@@ -54,6 +54,8 @@ beforeAll(async () => {
       // Never answers: a long-poll / SignalR-style connection.
     },
     '/navigating': html(NAVIGATING_PAGE),
+    // A cold Reactive load: an empty shell that stays quiet and stable until the runtime mounts.
+    '/cold': html('<html><head><title>Loading</title></head><body><div id="reactContainer"></div><script>setTimeout(() => { document.getElementById("reactContainer").innerHTML = "<main><h1>Product catalog</h1><button>Filter</button></main>"; }, 1800);</script></body></html>'),
     '/missing': (_req, res) => {
       res.writeHead(404, { 'content-type': 'text/html' });
       res.end('<h1>Not here</h1>');
@@ -117,6 +119,19 @@ describe('awaitHydration', () => {
       // The rows arrived before the wait ended: nothing had to wait for them after.
       expect(await page.locator('#rows tr').count()).toBe(3);
       expect(await page.locator('#loading').count()).toBe(0);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it('does not call an empty, quiet shell hydrated: it waits for the runtime to mount content', async () => {
+    const page = await browser.newPage();
+    try {
+      await navigate(page, `${server.url}/cold`);
+      const hydration = await awaitHydration(page, { budgetMs: 10_000 });
+      expect(hydration).toMatchObject({ settled: true, reason: 'settled' });
+      expect(hydration.elapsedMs).toBeGreaterThanOrEqual(1_000);
+      expect(await page.getByRole('button', { name: 'Filter' }).count()).toBe(1);
     } finally {
       await page.close();
     }

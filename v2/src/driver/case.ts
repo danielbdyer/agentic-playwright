@@ -523,6 +523,37 @@ const checkProposal = async (ctx: Ctx, step: TestStep, intent: StepIntent, propo
     return 'failed';
   };
 
+  /**
+   * When no element of its own carries the expected text (card lists, plain text blocks: a
+   * real Reactive product catalog renders its products as role-less text), check the text on
+   * the enclosing landmark instead: still a content assertion, verified live before it is kept,
+   * and minted as a region facet so the emitted assertion goes through the page object.
+   */
+  const regionFallback = async (snapshot: Snapshot): Promise<Extract<Check, { kind: 'passed' }> | null> => {
+    const text = typeof proposal.expected === 'string' && !paraphrase ? proposal.expected : proposal.rowCue;
+    if (text === null || text === undefined || text.length === 0 || text.startsWith('@')) return null;
+    if (!['visible', 'contains-text', 'text'].includes(proposal.kind)) return null;
+    const landmark = proposal.landmarkCue ?? 'main';
+    const candidate = snapshot.candidates.find((c) => c.role === landmark && c.landmarkName === undefined)
+      ?? snapshot.candidates.find((c) => c.role === landmark);
+    if (candidate === undefined) return null;
+    const locator: LocatorSpec = { strategy: 'role-name', role: landmark };
+    const result = await assertOn(ctx, step, 'contains-text', { locator }, text, {
+      reason: `no single element shows "${short(text, 60)}"; checking it on the ${landmark} landmark`,
+    });
+    if (!result.ok || !result.output.passed) {
+      attempted.push(`app.assert contains-text "${short(text, 60)}" on the ${landmark} landmark: ${result.ok ? `observed ${JSON.stringify(short(String(result.output.observed ?? ''), 80))}` : failureText(result)}`);
+      return null;
+    }
+    const facetId = await mint(ctx, step, snapshot, candidate, intentForAssertion(intent, proposal), locator, null, {
+      reason: `region holding the expected text "${short(text, 60)}"`,
+    }, [], `${landmark}-content`);
+    const target: StepTarget = facetId !== null ? { facetId } : { locator, snapshotId: snapshot.snapshotId, candidateRef: candidate.ref };
+    // Built directly: the shared outcome() drops the expected value for paraphrases, and this
+    // assertion is only meaningful with the text it verified.
+    return { kind: 'passed', spec: { kind: 'contains-text', target, expected: text }, facets: facetId !== null ? [facetId] : [] };
+  };
+
   // 1. The element the step just acted on, for state kinds ("accepts a valid policy" after a fill).
   if (acted !== null && ELEMENT_STATE_KINDS.has(proposal.kind) && proposal.rowCue === null) {
     const target: Target | null = 'facetId' in acted.target ? { facetId: acted.target.facetId } : 'locator' in acted.target ? { locator: acted.target.locator } : null;
@@ -573,6 +604,8 @@ const checkProposal = async (ctx: Ctx, step: TestStep, intent: StepIntent, propo
     if (decision.kind === 'handoff') {
       attempted.push(`decider: ${decision.reason}`);
       if (lastMismatch !== null) break;
+      const region = await regionFallback(snapshot);
+      if (region !== null) return region;
       return {
         kind: 'failed',
         blockage: decision.blockage,
